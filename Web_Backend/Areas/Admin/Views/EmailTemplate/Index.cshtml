@@ -1,0 +1,70 @@
+@model List<EmailTemplate>
+@{
+    ViewData["Title"] = "Email Templates";
+}
+
+<div class="max-w-5xl mx-auto page-enter">
+    <div class="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
+        <div>
+            <h2 class="text-3xl font-bold text-slate-800 tracking-tight">Email Templates</h2>
+            <p class="text-slate-500 mt-2">Reusable subject/body content for account and notification emails.</p>
+        </div>
+        <a asp-action="Add" class="px-4 py-2 rounded-xl font-medium bg-[#7c3aed] text-white hover:bg-[#6d28d9] shadow-sm text-sm flex items-center gap-2">
+            <i data-lucide="plus" class="w-4 h-4"></i> New Template
+        </a>
+    </div>
+
+    @if (TempData["SuccessMessage"] != null)
+    {
+        <div class="mb-6 text-sm text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-xl px-4 py-3">
+            @TempData["SuccessMessage"]
+        </div>
+    }
+
+    <div class="bg-white rounded-[24px] shadow-sm border border-slate-100 overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="border-b border-slate-100 bg-slate-50/50">
+                        <th class="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Template</th>
+                        <th class="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Code</th>
+                        <th class="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Subject</th>
+                        <th class="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Status</th>
+                        <th class="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider text-right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    @if (!Model.Any())
+                    {
+                        <tr><td colspan="5" class="px-6 py-8 text-center text-sm text-slate-400">No templates yet.</td></tr>
+                    }
+                    @foreach (var t in Model)
+                    {
+                        <tr class="hover:bg-slate-50/50 transition-colors">
+                            <td class="px-6 py-4 font-medium text-slate-800 text-sm">@t.TemplateName</td>
+                            <td class="px-6 py-4 text-sm text-slate-500"><code class="bg-slate-100 px-2 py-0.5 rounded">@t.TemplateCode</code></td>
+                            <td class="px-6 py-4 text-sm text-slate-600">@t.Subject</td>
+                            <td class="px-6 py-4">
+                                @{
+                                    var statusColor = t.IsActive == "A" ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-700";
+                                }
+                                <span class="px-2.5 py-0.5 rounded-full text-xs font-medium @statusColor">@(t.IsActive == "A" ? "Active" : "Inactive")</span>
+                            </td>
+                            <td class="px-6 py-4 text-right">
+                                <a asp-action="Edit" asp-route-id="@t.TemplateID" class="text-slate-400 hover:text-[#7c3aed] p-1.5 rounded-lg hover:bg-slate-100 transition-colors inline-flex">
+                                    <i data-lucide="pencil" class="w-4 h-4"></i>
+                                </a>
+                                <form method="post" asp-action="Delete" asp-route-id="@t.TemplateID" class="inline">
+                                    @Html.AntiForgeryToken()
+                                    <button type="submit" class="text-slate-400 hover:text-red-600 p-1.5 rounded-lg hover:bg-slate-100 transition-colors">
+                                        <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>

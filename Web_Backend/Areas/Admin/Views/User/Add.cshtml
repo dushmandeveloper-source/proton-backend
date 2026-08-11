@@ -1,0 +1,77 @@
+@model AddUserViewModel
+@{
+    ViewData["Title"] = "Add User";
+    var userTypes = ViewBag.UserTypes as List<UserType> ?? new List<UserType>();
+}
+
+<div class="max-w-3xl mx-auto page-enter">
+    <div class="mb-8">
+        <h2 class="text-3xl font-bold text-slate-800 tracking-tight">Add New User</h2>
+        <p class="text-slate-500 mt-2">Create a new account and assign initial permissions.</p>
+    </div>
+
+    @if (TempData["SuccessMessage"] != null)
+    {
+        <div class="mb-6 text-sm text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-xl px-4 py-3">
+            @TempData["SuccessMessage"]
+        </div>
+    }
+
+    <div class="bg-white rounded-[24px] shadow-sm border border-slate-100 overflow-hidden">
+        <div class="p-8">
+            <form method="post" class="space-y-6">
+                @Html.AntiForgeryToken()
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="space-y-1">
+                        <label class="text-sm font-medium text-slate-700">First Name</label>
+                        <input asp-for="FirstName" placeholder="e.g. Jane"
+                               class="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-[#7c3aed] focus:ring-1 focus:ring-[#7c3aed]" />
+                        <span asp-validation-for="FirstName" class="text-xs text-red-500"></span>
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-sm font-medium text-slate-700">Last Name</label>
+                        <input asp-for="LastName" placeholder="e.g. Smith"
+                               class="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-[#7c3aed] focus:ring-1 focus:ring-[#7c3aed]" />
+                        <span asp-validation-for="LastName" class="text-xs text-red-500"></span>
+                    </div>
+                </div>
+
+                <div class="space-y-1">
+                    <label class="text-sm font-medium text-slate-700">Email Address</label>
+                    <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <i data-lucide="mail" class="h-5 w-5 text-slate-400"></i>
+                        </div>
+                        <input asp-for="Email" type="email" placeholder="jane.smith@example.com"
+                               class="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 pl-10 text-sm outline-none focus:border-[#7c3aed] focus:ring-1 focus:ring-[#7c3aed]" />
+                    </div>
+                    <span asp-validation-for="Email" class="text-xs text-red-500"></span>
+                </div>
+
+                <div class="space-y-1">
+                    <label class="text-sm font-medium text-slate-700">Assign Initial Role</label>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mt-2">
+                        @foreach (var userType in userTypes)
+                        {
+                            <label class="cursor-pointer relative">
+                                <input type="radio" name="Role" value="@userType.UserTypeID" class="peer sr-only" checked="@(userType.UserTypeName == "Student")" />
+                                <div class="w-full text-center px-4 py-3 rounded-xl border border-slate-200 text-sm font-medium text-slate-600 transition-all hover:bg-slate-50 peer-checked:border-[#7c3aed] peer-checked:bg-purple-50 peer-checked:text-[#7c3aed] peer-checked:ring-1 peer-checked:ring-[#7c3aed]">
+                                    @userType.UserTypeName
+                                </div>
+                            </label>
+                        }
+                    </div>
+                </div>
+
+                <div class="pt-6 border-t border-slate-100 flex items-center justify-end gap-3">
+                    <a asp-area="Admin" asp-controller="Dashboard" asp-action="Index"
+                       class="px-4 py-2 rounded-xl font-medium bg-transparent text-slate-600 hover:bg-slate-100 transition-all">Cancel</a>
+                    <button type="submit" class="px-4 py-2 rounded-xl font-medium bg-[#7c3aed] text-white hover:bg-[#6d28d9] shadow-sm transition-all">
+                        Create User Account
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

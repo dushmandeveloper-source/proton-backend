@@ -1,0 +1,56 @@
+@model EmailTemplate
+@{
+    ViewData["Title"] = string.IsNullOrEmpty(Model.TemplateID) ? "New Email Template" : "Edit Email Template";
+}
+
+<div class="max-w-3xl mx-auto page-enter">
+    <div class="mb-8">
+        <h2 class="text-3xl font-bold text-slate-800 tracking-tight">@ViewData["Title"]</h2>
+        <p class="text-slate-500 mt-2">Use <code class="bg-slate-100 px-1.5 py-0.5 rounded text-xs">{{Name}}</code>-style placeholders in the body for merge fields.</p>
+    </div>
+
+    <div class="bg-white rounded-[24px] shadow-sm border border-slate-100 overflow-hidden">
+        <div class="p-8">
+            <form method="post" asp-action="Edit" class="space-y-6">
+                @Html.AntiForgeryToken()
+                <input type="hidden" asp-for="TemplateID" />
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="space-y-1">
+                        <label class="text-sm font-medium text-slate-700">Template Name</label>
+                        <input asp-for="TemplateName" placeholder="Welcome Email"
+                               class="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-[#7c3aed] focus:ring-1 focus:ring-[#7c3aed]" />
+                        <span asp-validation-for="TemplateName" class="text-xs text-red-500"></span>
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-sm font-medium text-slate-700">Template Code</label>
+                        <input asp-for="TemplateCode" placeholder="WELCOME_EMAIL"
+                               class="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-[#7c3aed] focus:ring-1 focus:ring-[#7c3aed]" />
+                        <span asp-validation-for="TemplateCode" class="text-xs text-red-500"></span>
+                    </div>
+                </div>
+
+                <div class="space-y-1">
+                    <label class="text-sm font-medium text-slate-700">Subject</label>
+                    <input asp-for="Subject" placeholder="Welcome to Proton Admin"
+                           class="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-[#7c3aed] focus:ring-1 focus:ring-[#7c3aed]" />
+                    <span asp-validation-for="Subject" class="text-xs text-red-500"></span>
+                </div>
+
+                <div class="space-y-1">
+                    <label class="text-sm font-medium text-slate-700">Body (HTML)</label>
+                    <textarea asp-for="BodyHtml" rows="10" placeholder="<p>Hi {{Name}}, ...</p>"
+                              class="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-mono outline-none focus:border-[#7c3aed] focus:ring-1 focus:ring-[#7c3aed]"></textarea>
+                    <span asp-validation-for="BodyHtml" class="text-xs text-red-500"></span>
+                </div>
+
+                <div class="pt-6 border-t border-slate-100 flex items-center justify-end gap-3">
+                    <a asp-action="Index" class="px-4 py-2 rounded-xl font-medium bg-transparent text-slate-600 hover:bg-slate-100 transition-all">Cancel</a>
+                    <button type="submit" class="px-4 py-2 rounded-xl font-medium bg-[#7c3aed] text-white hover:bg-[#6d28d9] shadow-sm transition-all">
+                        Save Template
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
