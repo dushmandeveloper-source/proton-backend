@@ -1,0 +1,64 @@
+@model LoginViewModel
+@{
+    ViewData["Title"] = "Sign In";
+    ViewData["AuthPage"] = true;
+}
+
+<div class="min-h-screen flex items-center justify-center p-4">
+    <div class="w-full max-w-md bg-white rounded-[32px] p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white/60 relative overflow-hidden">
+        <div class="absolute -top-20 -right-20 w-40 h-40 bg-purple-400 rounded-full mix-blend-multiply filter blur-[64px] opacity-40"></div>
+
+        <div class="text-center mb-8 relative z-10">
+            <div class="mx-auto w-12 h-12 bg-gradient-to-br from-[#06b6d4] to-[#7c3aed] rounded-2xl flex items-center justify-center mb-4 shadow-lg shadow-purple-500/30">
+                <i data-lucide="book-open" class="text-white w-6 h-6"></i>
+            </div>
+            <h1 class="text-2xl font-bold text-slate-800">Welcome to Proton Admin</h1>
+            <p class="text-slate-500 text-sm mt-2">Sign in to manage your platform</p>
+        </div>
+
+        @if (TempData["SuccessMessage"] != null)
+        {
+            <div class="mb-4 text-sm text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-xl px-4 py-2 relative z-10">
+                @TempData["SuccessMessage"]
+            </div>
+        }
+
+        @if (!string.IsNullOrEmpty(Model.ErrorMessage))
+        {
+            <div class="mb-4 text-sm text-red-600 bg-red-50 border border-red-100 rounded-xl px-4 py-2 relative z-10">
+                @Model.ErrorMessage
+            </div>
+        }
+
+        <form method="post" class="space-y-5 relative z-10">
+            @Html.AntiForgeryToken()
+            <div class="space-y-1">
+                <label class="text-sm font-medium text-slate-700">Email Address</label>
+                <div class="relative">
+                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <i data-lucide="mail" class="h-5 w-5 text-slate-400"></i>
+                    </div>
+                    <input asp-for="Email" type="email" placeholder="admin@proton.lk"
+                           class="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 pl-10 text-sm outline-none transition-all focus:border-[#7c3aed] focus:ring-1 focus:ring-[#7c3aed]" />
+                </div>
+                <span asp-validation-for="Email" class="text-xs text-red-500"></span>
+            </div>
+            <div class="space-y-1">
+                <label class="text-sm font-medium text-slate-700">Password</label>
+                <div class="relative">
+                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <i data-lucide="lock" class="h-5 w-5 text-slate-400"></i>
+                    </div>
+                    <input asp-for="Password" type="password" placeholder="••••••••"
+                           class="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 pl-10 text-sm outline-none transition-all focus:border-[#7c3aed] focus:ring-1 focus:ring-[#7c3aed]" />
+                </div>
+                <div class="flex justify-end mt-2">
+                    <a asp-action="ForgotPassword" class="text-sm font-medium text-[#7c3aed] hover:text-[#6d28d9]">Forgot password?</a>
+                </div>
+            </div>
+            <button type="submit" class="w-full py-3 mt-4 rounded-xl font-medium text-base bg-[#7c3aed] text-white hover:bg-[#6d28d9] shadow-lg shadow-purple-500/25 transition-all">
+                Sign In
+            </button>
+        </form>
+    </div>
+</div>

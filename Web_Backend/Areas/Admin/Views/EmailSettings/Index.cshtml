@@ -1,0 +1,93 @@
+@model EmailSettingsModel
+@{
+    ViewData["Title"] = "Email Settings";
+}
+
+<div class="max-w-3xl mx-auto page-enter">
+    <div class="mb-8">
+        <h2 class="text-3xl font-bold text-slate-800 tracking-tight">Email Settings</h2>
+        <p class="text-slate-500 mt-2">Configure the outbound SMTP server used for account and notification emails.</p>
+    </div>
+
+    @if (TempData["SuccessMessage"] != null)
+    {
+        <div class="mb-6 text-sm text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-xl px-4 py-3">
+            @TempData["SuccessMessage"]
+        </div>
+    }
+
+    <div class="bg-white rounded-[24px] shadow-sm border border-slate-100 overflow-hidden">
+        <div class="p-8">
+            <form method="post" class="space-y-6">
+                @Html.AntiForgeryToken()
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="space-y-1">
+                        <label class="text-sm font-medium text-slate-700">SMTP Server</label>
+                        <input asp-for="EmailServer" placeholder="smtp.gmail.com"
+                               class="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-[#7c3aed] focus:ring-1 focus:ring-[#7c3aed]" />
+                        <span asp-validation-for="EmailServer" class="text-xs text-red-500"></span>
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-sm font-medium text-slate-700">Port</label>
+                        <input asp-for="PortNumber" type="number"
+                               class="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-[#7c3aed] focus:ring-1 focus:ring-[#7c3aed]" />
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="space-y-1">
+                        <label class="text-sm font-medium text-slate-700">Sender Name</label>
+                        <input asp-for="SenderName" placeholder="Proton Admin"
+                               class="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-[#7c3aed] focus:ring-1 focus:ring-[#7c3aed]" />
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-sm font-medium text-slate-700">Sender Email</label>
+                        <input asp-for="SenderEmail" type="email" placeholder="no-reply@proton.lk"
+                               class="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-[#7c3aed] focus:ring-1 focus:ring-[#7c3aed]" />
+                        <span asp-validation-for="SenderEmail" class="text-xs text-red-500"></span>
+                    </div>
+                </div>
+
+                <div class="space-y-1">
+                    <label class="text-sm font-medium text-slate-700">Web URL</label>
+                    <input asp-for="WebURL" placeholder="https://proton.lk"
+                           class="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-[#7c3aed] focus:ring-1 focus:ring-[#7c3aed]" />
+                    <p class="text-xs text-slate-400">Used to build absolute links (e.g. password reset) inside emails.</p>
+                </div>
+
+                <div class="flex items-center gap-6 pt-2">
+                    <label class="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
+                        <input type="checkbox" name="UseAuthentication" value="1" checked="@(Model.UseAuthentication == 1)"
+                               class="rounded border-slate-300 text-[#7c3aed] focus:ring-[#7c3aed]" />
+                        Use Authentication
+                    </label>
+                    <label class="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
+                        <input type="checkbox" name="UseSSL" value="1" checked="@(Model.UseSSL == 1)"
+                               class="rounded border-slate-300 text-[#7c3aed] focus:ring-[#7c3aed]" />
+                        Use SSL
+                    </label>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="space-y-1">
+                        <label class="text-sm font-medium text-slate-700">SMTP Username</label>
+                        <input asp-for="SenderUsername"
+                               class="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-[#7c3aed] focus:ring-1 focus:ring-[#7c3aed]" />
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-sm font-medium text-slate-700">SMTP Password</label>
+                        <input asp-for="SenderPassword" type="password"
+                               class="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-[#7c3aed] focus:ring-1 focus:ring-[#7c3aed]" />
+                    </div>
+                </div>
+
+                <div class="pt-6 border-t border-slate-100 flex items-center justify-end gap-3">
+                    <button type="submit" class="px-4 py-2 rounded-xl font-medium bg-[#7c3aed] text-white hover:bg-[#6d28d9] shadow-sm transition-all">
+                        Save Settings
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

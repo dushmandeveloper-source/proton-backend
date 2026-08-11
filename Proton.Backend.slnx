@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="DBAccess/DBAccess.csproj" />
+  <Project Path="Web_Backend/Web_Backend.csproj" />
+</Solution>
