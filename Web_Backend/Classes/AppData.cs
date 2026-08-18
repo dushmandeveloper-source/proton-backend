@@ -19,7 +19,19 @@ namespace Web_Backend.Classes
         {
             var server = SettingHelper.Configuration["ApplicationSettings:DBSettings:Server"];
             var database = SettingHelper.Configuration["ApplicationSettings:DBSettings:Database"];
-            return $"Server={server};Database={database};Trusted_Connection=True;TrustServerCertificate=True;";
+            var userId = SettingHelper.Configuration["ApplicationSettings:DBSettings:UserId"];
+            var password = SettingHelper.Configuration["ApplicationSettings:DBSettings:Password"];
+
+            // Local dev connects with the current Windows login (no UserId
+            // configured); a hosted SQL Server instance needs SQL auth instead.
+            if (string.IsNullOrEmpty(userId))
+                return $"Server={server};Database={database};Trusted_Connection=True;TrustServerCertificate=True;";
+
+            // Shared hosts (e.g. site4now) often front SQL Server with a setup
+            // that doesn't complete SqlClient's mandatory-encrypt TLS handshake
+            // cleanly, which manifests as a post-login connection timeout with
+            // Encrypt defaulted on (SqlClient >= 5 defaults to Encrypt=Mandatory).
+            return $"Server={server};Database={database};User Id={userId};Password={password};TrustServerCertificate=True;Encrypt=False;Connect Timeout=30;";
         }
 
         public static string GetAPIKey() => SettingHelper.Configuration["ApplicationSettings:Security:APIKey"] ?? "";

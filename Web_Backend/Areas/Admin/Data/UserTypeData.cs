@@ -23,5 +23,18 @@ namespace Web_Backend.Areas.Admin.Data
 
         public Task<UserType?> Get(string id) =>
             db.Get<UserType, object>("usr.UserType_Get", new { APIKey = AppData.GetAPIKey(), ID = id });
+
+        public Task<string> AddEdit(UserType userType) =>
+            db.Execute("usr.UserType_AddEdit", new
+            {
+                APIKey = AppData.GetAPIKey(),
+                userType.UserTypeID,
+                userType.UserTypeName,
+                userType.Description,
+                userType.IsActive
+            });
+
+        public Task Delete(string id) =>
+            db.ExecuteNonQuery("usr.UserType_Delete", new { APIKey = AppData.GetAPIKey(), ID = id });
     }
 }

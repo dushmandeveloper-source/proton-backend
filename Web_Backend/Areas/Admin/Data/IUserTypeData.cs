@@ -6,5 +6,7 @@ namespace Web_Backend.Areas.Admin.Data
     {
         Task<List<UserType>> GetList(string keyW = "", string isActive = "");
         Task<UserType?> Get(string id);
+        Task<string> AddEdit(UserType userType);
+        Task Delete(string id);
     }
 }

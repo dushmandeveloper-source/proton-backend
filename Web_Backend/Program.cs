@@ -10,6 +10,12 @@ SettingHelper.Initialize(builder.Configuration);
 builder.Services.AddControllersWithViews(options =>
 {
     options.Filters.Add<UnauthorizedRedirectFilter>();
+
+    // These models follow the stored-procedure convention where an empty id
+    // means "insert" (see @UniversityID = '' in the sprocs), so a non-nullable
+    // string id must be allowed to arrive empty. Fields that really are
+    // required carry an explicit [Required] instead.
+    options.SuppressImplicitRequiredAttributeForNonNullableReferenceTypes = true;
 });
 
 builder.Services.AddHttpContextAccessor();
@@ -22,6 +28,24 @@ builder.Services.AddSession(options =>
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+// The public marketing site (Vite dev server locally, its own host once
+// deployed) reads /api/universities directly from the browser, so its
+// origin(s) must be allowed here. Configured in appsettings — add the
+// production frontend's URL under ApplicationSettings:PublicSiteOrigins
+// once it's hosted, rather than hardcoding it.
+const string PublicSiteCors = "PublicSiteCors";
+var publicSiteOrigins = builder.Configuration
+    .GetSection("ApplicationSettings:PublicSiteOrigins")
+    .Get<string[]>() ?? new[] { "http://localhost:5173" };
+
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy(PublicSiteCors, policy =>
+        policy.WithOrigins(publicSiteOrigins)
+              .AllowAnyHeader()
+              .AllowAnyMethod());
+});
+
 builder.Services.AddSingleton<IDBAccess>(new MSSQLDataAccess(AppData.GetMSSQLDBCon()));
 
 builder.Services.AddTransient<IUserData, UserData>();
@@ -30,6 +54,9 @@ builder.Services.AddTransient<IUserTypeData, UserTypeData>();
 builder.Services.AddTransient<IEmailSettingsData, EmailSettingsData>();
 builder.Services.AddTransient<IEmailTemplateData, EmailTemplateData>();
 builder.Services.AddTransient<IPasswordResetData, PasswordResetData>();
+builder.Services.AddTransient<IEmailSender, EmailSender>();
+builder.Services.AddTransient<IUniversityData, UniversityData>();
+builder.Services.AddSingleton<IImageUploader, ImageUploader>();
 
 var app = builder.Build();
 
@@ -51,6 +78,7 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseRouting();
+app.UseCors(PublicSiteCors);
 app.UseSession();
 app.UseAuthorization();
 

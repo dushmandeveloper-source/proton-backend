@@ -1,56 +1,150 @@
 @model EmailTemplate
 @{
     ViewData["Title"] = string.IsNullOrEmpty(Model.TemplateID) ? "New Email Template" : "Edit Email Template";
+    var placeholders = new[] { "{ToName}", "{Description}", "{ActionName}", "{URL}", "{ImageTag}", "{WebURL}", "{WebName}" };
 }
 
-<div class="max-w-3xl mx-auto page-enter">
-    <div class="mb-8">
-        <h2 class="text-3xl font-bold text-slate-800 tracking-tight">@ViewData["Title"]</h2>
-        <p class="text-slate-500 mt-2">Use <code class="bg-slate-100 px-1.5 py-0.5 rounded text-xs">{{Name}}</code>-style placeholders in the body for merge fields.</p>
+<div class="max-w-6xl mx-auto page-enter">
+    <div class="mb-8 flex items-center justify-between">
+        <div>
+            <h2 class="text-3xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">@ViewData["Title"]</h2>
+            <p class="text-slate-500 dark:text-slate-400 mt-2">The body is a full HTML document — click a placeholder chip to insert it at the cursor.</p>
+        </div>
+        <a asp-action="Index" class="px-4 py-2 rounded-xl font-medium bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all text-sm">
+            &larr; Back to Templates
+        </a>
     </div>
 
-    <div class="bg-white rounded-[24px] shadow-sm border border-slate-100 overflow-hidden">
-        <div class="p-8">
-            <form method="post" asp-action="Edit" class="space-y-6">
-                @Html.AntiForgeryToken()
-                <input type="hidden" asp-for="TemplateID" />
+    <form method="post" asp-action="Edit" class="space-y-6">
+        @Html.AntiForgeryToken()
+        <input type="hidden" asp-for="TemplateID" />
 
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div class="space-y-1">
-                        <label class="text-sm font-medium text-slate-700">Template Name</label>
-                        <input asp-for="TemplateName" placeholder="Welcome Email"
-                               class="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-[#7c3aed] focus:ring-1 focus:ring-[#7c3aed]" />
-                        <span asp-validation-for="TemplateName" class="text-xs text-red-500"></span>
-                    </div>
-                    <div class="space-y-1">
-                        <label class="text-sm font-medium text-slate-700">Template Code</label>
-                        <input asp-for="TemplateCode" placeholder="WELCOME_EMAIL"
-                               class="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-[#7c3aed] focus:ring-1 focus:ring-[#7c3aed]" />
-                        <span asp-validation-for="TemplateCode" class="text-xs text-red-500"></span>
-                    </div>
-                </div>
-
+        <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 p-6">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div class="space-y-1">
-                    <label class="text-sm font-medium text-slate-700">Subject</label>
-                    <input asp-for="Subject" placeholder="Welcome to Proton Admin"
-                           class="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-[#7c3aed] focus:ring-1 focus:ring-[#7c3aed]" />
+                    <label class="text-sm font-medium text-slate-700 dark:text-slate-300">Template Name</label>
+                    <input asp-for="TemplateName" placeholder="Welcome Email"
+                           class="w-full rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 px-4 py-2.5 text-sm outline-none focus:border-[#7c3aed] focus:ring-1 focus:ring-[#7c3aed]" />
+                    <span asp-validation-for="TemplateName" class="text-xs text-red-500"></span>
+                </div>
+                <div class="space-y-1">
+                    <label class="text-sm font-medium text-slate-700 dark:text-slate-300">Template Code</label>
+                    <input asp-for="TemplateCode" placeholder="WELCOME_EMAIL"
+                           class="w-full rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 px-4 py-2.5 text-sm outline-none focus:border-[#7c3aed] focus:ring-1 focus:ring-[#7c3aed]" />
+                    <span asp-validation-for="TemplateCode" class="text-xs text-red-500"></span>
+                </div>
+                <div class="space-y-1">
+                    <label class="text-sm font-medium text-slate-700 dark:text-slate-300">Subject</label>
+                    <input asp-for="Subject" placeholder="Welcome, {ToName}!"
+                           class="w-full rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 px-4 py-2.5 text-sm outline-none focus:border-[#7c3aed] focus:ring-1 focus:ring-[#7c3aed]" />
                     <span asp-validation-for="Subject" class="text-xs text-red-500"></span>
                 </div>
-
-                <div class="space-y-1">
-                    <label class="text-sm font-medium text-slate-700">Body (HTML)</label>
-                    <textarea asp-for="BodyHtml" rows="10" placeholder="<p>Hi {{Name}}, ...</p>"
-                              class="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-mono outline-none focus:border-[#7c3aed] focus:ring-1 focus:ring-[#7c3aed]"></textarea>
-                    <span asp-validation-for="BodyHtml" class="text-xs text-red-500"></span>
-                </div>
-
-                <div class="pt-6 border-t border-slate-100 flex items-center justify-end gap-3">
-                    <a asp-action="Index" class="px-4 py-2 rounded-xl font-medium bg-transparent text-slate-600 hover:bg-slate-100 transition-all">Cancel</a>
-                    <button type="submit" class="px-4 py-2 rounded-xl font-medium bg-[#7c3aed] text-white hover:bg-[#6d28d9] shadow-sm transition-all">
-                        Save Template
-                    </button>
-                </div>
-            </form>
+            </div>
         </div>
-    </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <!-- ============ EDITOR ============ -->
+            <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 p-6 space-y-4">
+                <div class="flex items-center justify-between">
+                    <label class="text-sm font-medium text-slate-700 dark:text-slate-300">Body (HTML)</label>
+                    <button type="button" id="btnPreview" class="text-xs font-medium text-[#7c3aed] dark:text-[#a78bfa] hover:text-[#6d28d9] dark:hover:text-[#c4b5fd]">Refresh preview</button>
+                </div>
+
+                <div class="flex flex-wrap gap-2">
+                    @foreach (var p in placeholders)
+                    {
+                        <button type="button" onclick="insertPlaceholder('@p')"
+                                class="px-2.5 py-1 rounded-full text-xs font-medium bg-purple-50 dark:bg-purple-950 text-[#7c3aed] dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900 transition-colors">
+                            @p
+                        </button>
+                    }
+                </div>
+
+                <textarea id="emailEditor" asp-for="BodyHtml" rows="20"
+                          class="w-full font-mono text-xs p-4 border border-slate-200 dark:border-slate-600 rounded-xl outline-none focus:border-[#7c3aed] focus:ring-1 focus:ring-[#7c3aed]"></textarea>
+                <span asp-validation-for="BodyHtml" class="text-xs text-red-500"></span>
+            </div>
+
+            <!-- ============ LIVE PREVIEW ============ -->
+            <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 p-6 space-y-3">
+                <label class="text-sm font-medium text-slate-700 dark:text-slate-300">Live Preview</label>
+                <p id="previewSubject" class="text-sm text-slate-500 dark:text-slate-400 border border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 rounded-lg px-3 py-2"></p>
+                <iframe id="previewFrame" class="w-full rounded-xl border border-slate-200 dark:border-slate-600" style="height: 560px;"></iframe>
+            </div>
+        </div>
+
+        <div class="flex items-center justify-end gap-3">
+            <a asp-action="Index" class="px-4 py-2 rounded-xl font-medium bg-transparent text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all">Cancel</a>
+            <button type="submit" class="px-4 py-2 rounded-xl font-medium bg-[#7c3aed] text-white hover:bg-[#6d28d9] shadow-sm transition-all">
+                Save Template
+            </button>
+        </div>
+    </form>
 </div>
+
+@section Scripts {
+    <script src="https://cdn.ckeditor.com/4.22.1/standard/ckeditor.js"></script>
+    <script>
+        CKEDITOR.replace('emailEditor', {
+            fullPage: true,
+            allowedContent: true,
+            height: 480,
+            removePlugins: 'sourcearea',
+            toolbar: [
+                { name: 'document', items: ['Preview', 'Print'] },
+                { name: 'clipboard', items: ['Undo', 'Redo'] },
+                { name: 'editing', items: ['Find', 'Replace', '-', 'SelectAll'] },
+                { name: 'basicstyles', items: ['Bold', 'Italic', 'Underline', 'Strike', '-', 'RemoveFormat'] },
+                { name: 'paragraph', items: ['NumberedList', 'BulletedList', '-', 'Outdent', 'Indent', '-', 'JustifyLeft', 'JustifyCenter', 'JustifyRight'] },
+                { name: 'links', items: ['Link', 'Unlink'] },
+                { name: 'insert', items: ['Image', 'Table', 'HorizontalRule', 'SpecialChar'] },
+                { name: 'styles', items: ['Format', 'Font', 'FontSize'] },
+                { name: 'colors', items: ['TextColor', 'BGColor'] },
+                { name: 'tools', items: ['Maximize', 'ShowBlocks'] }
+            ]
+        });
+
+        function insertPlaceholder(placeholder) {
+            if (CKEDITOR.instances.emailEditor) {
+                CKEDITOR.instances.emailEditor.insertText(placeholder);
+                updatePreview();
+            }
+        }
+
+        function substitutePlaceholders(text) {
+            return text
+                .replace(/{ToName}/g, 'John Doe')
+                .replace(/{ImageTag}/g, '<img src="https://placehold.co/600x120?text=Header" style="max-width:100%; height:auto;" />')
+                .replace(/{Description}/g, 'This is a sample description, showing how your message will read once real data is filled in.')
+                .replace(/{URL}/g, '#')
+                .replace(/{ActionName}/g, 'View Details')
+                .replace(/{WebURL}/g, 'https://proton.lk')
+                .replace(/{WebName}/g, 'Proton Admin');
+        }
+
+        function updatePreview() {
+            const editorContent = CKEDITOR.instances.emailEditor
+                ? CKEDITOR.instances.emailEditor.getData()
+                : document.getElementById('emailEditor').value;
+            const iframe = document.getElementById('previewFrame');
+            const doc = iframe.contentWindow.document;
+            doc.open();
+            doc.write(substitutePlaceholders(editorContent));
+            doc.close();
+
+            const subjectInput = document.querySelector('input[name="Subject"]');
+            document.getElementById('previewSubject').textContent =
+                'Subject: ' + substitutePlaceholders(subjectInput ? subjectInput.value : '');
+        }
+
+        CKEDITOR.instances.emailEditor.on('instanceReady', function () {
+            updatePreview();
+            this.on('change', function () {
+                clearTimeout(window.previewTimeout);
+                window.previewTimeout = setTimeout(updatePreview, 500);
+            });
+        });
+        document.getElementById('btnPreview').addEventListener('click', updatePreview);
+        document.querySelector('input[name="Subject"]')?.addEventListener('input', updatePreview);
+    </script>
+}

@@ -11,11 +11,13 @@ namespace Web_Backend.Areas.Admin.Controllers
     {
         private readonly IUserAuthData authRep;
         private readonly IPasswordResetData resetRep;
+        private readonly IEmailSender emailSender;
 
-        public AccountController(IUserAuthData authRep, IPasswordResetData resetRep)
+        public AccountController(IUserAuthData authRep, IPasswordResetData resetRep, IEmailSender emailSender)
         {
             this.authRep = authRep;
             this.resetRep = resetRep;
+            this.emailSender = emailSender;
         }
 
         [HttpGet]
@@ -73,10 +75,6 @@ namespace Web_Backend.Areas.Admin.Controllers
         [HttpGet]
         public IActionResult ForgotPassword() => View(new ForgotPasswordViewModel());
 
-        // Dev-mode shortcut: no SMTP is wired up yet (see EmailSettings), so
-        // the reset link is surfaced directly on the confirmation page
-        // instead of being emailed. Swap for a real send once EmailSettings
-        // is backed by an SMTP client.
         [HttpPost, ValidateAntiForgeryToken]
         public async Task<IActionResult> ForgotPassword(ForgotPasswordViewModel model)
         {
@@ -90,8 +88,13 @@ namespace Web_Backend.Areas.Admin.Controllers
                     .Replace('+', '-').Replace('/', '_').TrimEnd('=');
                 await resetRep.CreateToken(auth.AuthID, auth.Email, token, DateTime.UtcNow.AddMinutes(30));
 
-                var resetUrl = Url.Action("ResetPassword", "Account", new { area = "Admin", token }, Request.Scheme);
-                model.Message = $"Reset link (dev mode, no email sender configured yet): {resetUrl}";
+                var resetUrl = Url.Action("ResetPassword", "Account", new { area = "Admin", token }, Request.Scheme) ?? "#";
+                var description = "We received a request to reset your Proton Admin password. This link expires in 30 minutes.";
+                var sent = await emailSender.SendTemplateEmailAsync(auth.Email, auth.FullName, "PASSWORD_RESET", description, "Reset Password", resetUrl);
+
+                model.Message = sent
+                    ? "If that email exists, a reset link has been sent."
+                    : $"Could not send the reset email (check Email Settings). Reset link: {resetUrl}";
             }
             else
             {
