@@ -47,6 +47,16 @@ namespace Web_Backend.Areas.Admin.Controllers
             Auth.CheckUser();
             ViewBag.CurrentUser = Auth.GetUser();
 
+            if (ModelState.IsValid)
+            {
+                var templates = await rep.GetList();
+                var codeTaken = templates.Any(t =>
+                    string.Equals(t.TemplateCode, model.TemplateCode, StringComparison.OrdinalIgnoreCase) &&
+                    t.TemplateID != model.TemplateID);
+                if (codeTaken)
+                    ModelState.AddModelError(nameof(model.TemplateCode), "A template with this code already exists.");
+            }
+
             if (!ModelState.IsValid)
                 return View(model);
 
@@ -59,7 +69,15 @@ namespace Web_Backend.Areas.Admin.Controllers
         public async Task<IActionResult> Delete(string id)
         {
             Auth.CheckUser();
-            await rep.Delete(id);
+            try
+            {
+                await rep.Delete(id);
+                TempData["SuccessMessage"] = "Template deleted.";
+            }
+            catch (Exception ex)
+            {
+                TempData["ErrorMessage"] = "Could not delete template: " + ex.Message;
+            }
             return RedirectToAction("Index");
         }
     }

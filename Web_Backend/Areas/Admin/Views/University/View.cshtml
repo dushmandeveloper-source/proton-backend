@@ -1,0 +1,343 @@
+@model UniversityDetailViewModel
+@{
+    var u = Model.University;
+    ViewData["Title"] = u.Name;
+    string CardCls = "bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 p-6";
+    string LabelCls = "text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider";
+}
+
+<div class="max-w-6xl mx-auto page-enter">
+    <div class="mb-6 flex flex-wrap items-start justify-between gap-4">
+        <div>
+            <a asp-action="Index" class="text-sm text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-100 flex items-center gap-1 mb-2">
+                <i data-lucide="arrow-left" class="w-4 h-4"></i> Back to Universities
+            </a>
+            <div class="flex items-center gap-3">
+                <h2 class="text-3xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">@u.Name</h2>
+                @if (u.IsFeatured)
+                {
+                    <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300 uppercase">Featured</span>
+                }
+                @if (u.IsActive != "A")
+                {
+                    <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 uppercase">Deleted</span>
+                }
+            </div>
+            @if (!string.IsNullOrEmpty(u.NameChinese))
+            {
+                <p class="text-slate-500 dark:text-slate-400 mt-1 text-sm">@u.NameChinese @(string.IsNullOrEmpty(u.ShortName) ? "" : $"· {u.ShortName}")</p>
+            }
+        </div>
+        <a asp-action="Edit" asp-route-id="@u.UniversityID"
+           class="px-4 py-2 rounded-xl font-medium bg-[#7c3aed] text-white hover:bg-[#6d28d9] shadow-sm text-sm flex items-center gap-2">
+            <i data-lucide="pencil" class="w-4 h-4"></i> Edit
+        </a>
+    </div>
+
+    @* ---------- Cover + logo ---------- *@
+    <div class="@CardCls mb-6 !p-0 overflow-hidden">
+        <div class="h-56 bg-slate-100 dark:bg-slate-800 relative">
+            @if (!string.IsNullOrEmpty(u.CoverImageURL))
+            {
+                <img src="@u.CoverImageURL" alt="@u.Name cover" class="w-full h-full object-cover" />
+            }
+            else
+            {
+                <div class="w-full h-full flex items-center justify-center">
+                    <i data-lucide="image-off" class="w-8 h-8 text-slate-300 dark:text-slate-600"></i>
+                </div>
+            }
+            <div class="absolute -bottom-8 left-6 w-20 h-20 rounded-2xl bg-white dark:bg-slate-900 border-4 border-white dark:border-slate-900 shadow-md overflow-hidden flex items-center justify-center">
+                @if (!string.IsNullOrEmpty(u.LogoURL))
+                {
+                    <img src="@u.LogoURL" alt="@u.Name logo" class="w-full h-full object-contain" />
+                }
+                else
+                {
+                    <i data-lucide="building-2" class="w-7 h-7 text-slate-300 dark:text-slate-600"></i>
+                }
+            </div>
+        </div>
+        <div class="pt-11 pb-5 px-6">
+            @if (!string.IsNullOrEmpty(u.ShortDescription))
+            {
+                <p class="text-sm text-slate-600 dark:text-slate-300">@u.ShortDescription</p>
+            }
+            else
+            {
+                <p class="text-sm text-slate-400 dark:text-slate-500 italic">No short description yet.</p>
+            }
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+        @* ---------- Identity & location ---------- *@
+        <div class="@CardCls lg:col-span-2 space-y-5">
+            <h3 class="font-semibold text-slate-800 dark:text-slate-100">Identity &amp; Location</h3>
+            <div class="grid grid-cols-2 md:grid-cols-3 gap-5">
+                <div>
+                    <p class="@LabelCls">Established</p>
+                    <p class="text-sm text-slate-700 dark:text-slate-200 mt-1">@(u.EstablishedYear?.ToString() ?? "—")</p>
+                </div>
+                <div>
+                    <p class="@LabelCls">City / Province</p>
+                    <p class="text-sm text-slate-700 dark:text-slate-200 mt-1">@(string.IsNullOrEmpty(u.City) ? "—" : $"{u.City}{(string.IsNullOrEmpty(u.Province) ? "" : ", " + u.Province)}")</p>
+                </div>
+                <div>
+                    <p class="@LabelCls">Country</p>
+                    <p class="text-sm text-slate-700 dark:text-slate-200 mt-1">@(string.IsNullOrEmpty(u.Country) ? "—" : u.Country)</p>
+                </div>
+                <div class="col-span-2 md:col-span-3">
+                    <p class="@LabelCls">Address</p>
+                    <p class="text-sm text-slate-700 dark:text-slate-200 mt-1">@(string.IsNullOrEmpty(u.Address) ? "—" : u.Address)</p>
+                </div>
+                <div>
+                    <p class="@LabelCls">Website</p>
+                    <p class="text-sm mt-1">
+                        @if (!string.IsNullOrEmpty(u.WebsiteURL))
+                        {
+                            <a href="@u.WebsiteURL" target="_blank" class="text-[#7c3aed] dark:text-purple-300 underline">Visit site</a>
+                        }
+                        else
+                        {
+                            <span class="text-slate-400 dark:text-slate-500">—</span>
+                        }
+                    </p>
+                </div>
+                <div>
+                    <p class="@LabelCls">World / National Rank</p>
+                    <p class="text-sm text-slate-700 dark:text-slate-200 mt-1">
+                        @(u.WorldRanking.HasValue ? $"World #{u.WorldRanking}" : "—")
+                        @(u.NationalRanking.HasValue ? $" · National #{u.NationalRanking}" : "")
+                    </p>
+                </div>
+                <div>
+                    <p class="@LabelCls">MOE Recognised</p>
+                    <p class="text-sm text-slate-700 dark:text-slate-200 mt-1">@(u.IsMOERecognized ? "Yes" : "No")</p>
+                </div>
+                <div class="col-span-2 md:col-span-3">
+                    <p class="@LabelCls">Accreditation</p>
+                    <p class="text-sm text-slate-700 dark:text-slate-200 mt-1">@(string.IsNullOrEmpty(u.Accreditation) ? "—" : u.Accreditation)</p>
+                </div>
+            </div>
+
+            @if (u.HasCoordinates)
+            {
+                <div id="view-map" class="rounded-xl overflow-hidden border border-slate-200 dark:border-slate-600" style="height: 220px;"></div>
+            }
+        </div>
+
+        @* ---------- Students & costs ---------- *@
+        <div class="@CardCls space-y-5">
+            <h3 class="font-semibold text-slate-800 dark:text-slate-100">Students &amp; Costs</h3>
+            <div class="grid grid-cols-2 gap-5">
+                <div>
+                    <p class="@LabelCls">Total Students</p>
+                    <p class="text-sm text-slate-700 dark:text-slate-200 mt-1">@(u.StudentCount?.ToString("N0") ?? "—")</p>
+                </div>
+                <div>
+                    <p class="@LabelCls">International</p>
+                    <p class="text-sm text-slate-700 dark:text-slate-200 mt-1">@(u.InternationalStudentCount?.ToString("N0") ?? "—")</p>
+                </div>
+            </div>
+            <div class="border-t border-slate-100 dark:border-slate-700 pt-4 space-y-3">
+                <div>
+                    <p class="@LabelCls">Tuition / yr</p>
+                    <p class="text-sm text-slate-700 dark:text-slate-200 mt-1">
+                        @(u.TuitionMin.HasValue || u.TuitionMax.HasValue ? $"{u.CurrencyCode} {u.TuitionMin:N0} – {u.TuitionMax:N0}" : "—")
+                    </p>
+                </div>
+                <div>
+                    <p class="@LabelCls">Accommodation / yr</p>
+                    <p class="text-sm text-slate-700 dark:text-slate-200 mt-1">
+                        @(u.AccommodationCostMin.HasValue || u.AccommodationCostMax.HasValue ? $"{u.CurrencyCode} {u.AccommodationCostMin:N0} – {u.AccommodationCostMax:N0}" : "—")
+                    </p>
+                </div>
+                <div>
+                    <p class="@LabelCls">Living costs / yr</p>
+                    <p class="text-sm text-slate-700 dark:text-slate-200 mt-1">
+                        @(u.LivingCostMin.HasValue || u.LivingCostMax.HasValue ? $"{u.CurrencyCode} {u.LivingCostMin:N0} – {u.LivingCostMax:N0}" : "—")
+                    </p>
+                </div>
+                <div>
+                    <p class="@LabelCls">Language Requirement</p>
+                    <p class="text-sm text-slate-700 dark:text-slate-200 mt-1">@(string.IsNullOrEmpty(u.LanguageRequirement) ? "—" : u.LanguageRequirement)</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @* ---------- About / admission text ---------- *@
+    @if (!string.IsNullOrEmpty(u.AboutHtml) || !string.IsNullOrEmpty(u.AdmissionRequirementsHtml) || !string.IsNullOrEmpty(u.RequiredDocumentsHtml))
+    {
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+            @if (!string.IsNullOrEmpty(u.AboutHtml))
+            {
+                <div class="@CardCls">
+                    <h3 class="font-semibold text-slate-800 dark:text-slate-100 mb-3">About</h3>
+                    <div class="text-sm text-slate-600 dark:text-slate-300 prose-sm max-w-none">@Html.Raw(u.AboutHtml)</div>
+                </div>
+            }
+            @if (!string.IsNullOrEmpty(u.AdmissionRequirementsHtml))
+            {
+                <div class="@CardCls">
+                    <h3 class="font-semibold text-slate-800 dark:text-slate-100 mb-3">Admission Requirements</h3>
+                    <div class="text-sm text-slate-600 dark:text-slate-300 prose-sm max-w-none">@Html.Raw(u.AdmissionRequirementsHtml)</div>
+                </div>
+            }
+            @if (!string.IsNullOrEmpty(u.RequiredDocumentsHtml))
+            {
+                <div class="@CardCls">
+                    <h3 class="font-semibold text-slate-800 dark:text-slate-100 mb-3">Required Documents</h3>
+                    <div class="text-sm text-slate-600 dark:text-slate-300 prose-sm max-w-none">@Html.Raw(u.RequiredDocumentsHtml)</div>
+                </div>
+            }
+        </div>
+    }
+
+    @* ---------- Gallery ---------- *@
+    <div class="@CardCls mb-6">
+        <h3 class="font-semibold text-slate-800 dark:text-slate-100 mb-4">Gallery <span class="text-sm font-normal text-slate-400 dark:text-slate-500">(@Model.Gallery.Count)</span></h3>
+        @if (!Model.Gallery.Any())
+        {
+            <p class="text-sm text-slate-400 dark:text-slate-500 text-center py-8">No gallery images yet.</p>
+        }
+        else
+        {
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                @foreach (var g in Model.Gallery.OrderBy(g => g.SortOrder))
+                {
+                    <div class="rounded-2xl border border-slate-100 dark:border-slate-700 overflow-hidden">
+                        <div class="h-32 bg-slate-100 dark:bg-slate-800">
+                            <img src="@g.ImageURL" alt="@g.Caption" class="w-full h-full object-cover" />
+                        </div>
+                        @if (!string.IsNullOrEmpty(g.Caption))
+                        {
+                            <p class="text-xs text-slate-500 dark:text-slate-400 px-3 py-2 truncate">@g.Caption</p>
+                        }
+                    </div>
+                }
+            </div>
+        }
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+        @* ---------- Features ---------- *@
+        <div class="@CardCls">
+            <h3 class="font-semibold text-slate-800 dark:text-slate-100 mb-4">Features <span class="text-sm font-normal text-slate-400 dark:text-slate-500">(@Model.Features.Count)</span></h3>
+            @if (!Model.Features.Any())
+            {
+                <p class="text-sm text-slate-400 dark:text-slate-500 text-center py-8">No features yet.</p>
+            }
+            else
+            {
+                <div class="space-y-4">
+                    @foreach (var f in Model.Features.OrderBy(f => f.SortOrder))
+                    {
+                        <div class="flex items-start gap-3">
+                            <div class="p-2 rounded-xl bg-purple-50 dark:bg-purple-950 text-[#7c3aed] dark:text-purple-300 flex-shrink-0">
+                                <i data-lucide="@(string.IsNullOrEmpty(f.Icon) ? "sparkles" : f.Icon)" class="w-5 h-5"></i>
+                            </div>
+                            <div class="min-w-0">
+                                <p class="font-medium text-slate-800 dark:text-slate-100 text-sm">@f.Title</p>
+                                @if (!string.IsNullOrEmpty(f.Description))
+                                {
+                                    <p class="text-sm text-slate-500 dark:text-slate-400">@f.Description</p>
+                                }
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+
+        @* ---------- Intakes ---------- *@
+        <div class="@CardCls">
+            <h3 class="font-semibold text-slate-800 dark:text-slate-100 mb-4">Intakes <span class="text-sm font-normal text-slate-400 dark:text-slate-500">(@Model.Intakes.Count)</span></h3>
+            @if (!Model.Intakes.Any())
+            {
+                <p class="text-sm text-slate-400 dark:text-slate-500 text-center py-8">No intakes yet.</p>
+            }
+            else
+            {
+                <div class="divide-y divide-slate-100 dark:divide-slate-700">
+                    @foreach (var i in Model.Intakes.OrderBy(i => i.SortOrder))
+                    {
+                        <div class="py-3 flex items-center gap-4">
+                            <div class="p-2 rounded-xl bg-cyan-50 dark:bg-cyan-950 text-cyan-600 dark:text-cyan-300 flex-shrink-0">
+                                <i data-lucide="calendar" class="w-5 h-5"></i>
+                            </div>
+                            <div class="min-w-0">
+                                <p class="font-medium text-slate-800 dark:text-slate-100 text-sm">@i.IntakeName</p>
+                                <p class="text-xs text-slate-500 dark:text-slate-400">
+                                    @(string.IsNullOrEmpty(i.IntakeMonth) ? "" : i.IntakeMonth)
+                                    @if (i.ApplicationDeadline.HasValue)
+                                    {
+                                        <span>· deadline @i.ApplicationDeadline.Value.ToString("d MMM yyyy")</span>
+                                    }
+                                </p>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+
+    @* ---------- Programs ---------- *@
+    <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
+        <div class="px-6 py-4 border-b border-slate-100 dark:border-slate-700">
+            <h3 class="font-semibold text-slate-800 dark:text-slate-100">Programs <span class="text-sm font-normal text-slate-400 dark:text-slate-500">(@Model.Programs.Count)</span></h3>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="border-b border-slate-100 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50">
+                        <th class="px-6 py-4 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Level</th>
+                        <th class="px-6 py-4 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Program</th>
+                        <th class="px-6 py-4 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Duration</th>
+                        <th class="px-6 py-4 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Language</th>
+                        <th class="px-6 py-4 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Tuition/yr</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 dark:divide-slate-700">
+                    @if (!Model.Programs.Any())
+                    {
+                        <tr><td colspan="5" class="px-6 py-8 text-center text-sm text-slate-400 dark:text-slate-500">No programs yet.</td></tr>
+                    }
+                    @foreach (var p in Model.Programs.OrderBy(p => p.SortOrder))
+                    {
+                        <tr class="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors">
+                            <td class="px-6 py-4">
+                                <span class="px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-50 dark:bg-purple-950 text-[#7c3aed] dark:text-purple-300">@p.ProgramLevel</span>
+                            </td>
+                            <td class="px-6 py-4 font-medium text-slate-800 dark:text-slate-100 text-sm">@p.ProgramName</td>
+                            <td class="px-6 py-4 text-sm text-slate-600 dark:text-slate-300">@(string.IsNullOrEmpty(p.DurationText) ? "—" : p.DurationText)</td>
+                            <td class="px-6 py-4 text-sm text-slate-600 dark:text-slate-300">@(string.IsNullOrEmpty(p.LanguageOfInstruction) ? "—" : p.LanguageOfInstruction)</td>
+                            <td class="px-6 py-4 text-sm text-slate-600 dark:text-slate-300">@(p.TuitionPerYear.HasValue ? $"{u.CurrencyCode} {p.TuitionPerYear:N0}" : "—")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @if (u.HasCoordinates)
+    {
+        <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+        <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+        <script>
+            (function () {
+                const map = L.map('view-map', { scrollWheelZoom: false, dragging: false, zoomControl: false })
+                    .setView([@u.Latitude!.Value.ToString(System.Globalization.CultureInfo.InvariantCulture), @u.Longitude!.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)], 13);
+                window.protonApplyBasemap(map);
+                L.marker(
+                    [@u.Latitude!.Value.ToString(System.Globalization.CultureInfo.InvariantCulture), @u.Longitude!.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)],
+                    { icon: window.protonPhotoPinIcon(@Html.Raw(System.Text.Json.JsonSerializer.Serialize(u.LogoURL)), @Html.Raw(System.Text.Json.JsonSerializer.Serialize(u.Name))) }
+                ).addTo(map);
+            })();
+        </script>
+    }
+}

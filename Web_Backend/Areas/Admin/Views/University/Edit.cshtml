@@ -1,0 +1,737 @@
+@model UniversityDetailViewModel
+@{
+    var u = Model.University;
+    ViewData["Title"] = Model.IsNew ? "Add University" : u.Name;
+    var tabs = new[]
+    {
+        ("details",  "Details",   "building-2"),
+        ("about",    "About",     "file-text"),
+        ("location", "Location",  "map-pin"),
+        ("gallery",  "Gallery",   "images"),
+        ("features", "Features",  "sparkles"),
+        ("programs", "Programs",  "graduation-cap"),
+        ("intakes",  "Intakes",   "calendar")
+    };
+    string InputCls = "w-full rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 px-4 py-2.5 text-sm outline-none focus:border-[#7c3aed] focus:ring-1 focus:ring-[#7c3aed]";
+    string LabelCls = "text-sm font-medium text-slate-700 dark:text-slate-300";
+    string CardCls = "bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 p-6";
+    string PrimaryBtn = "px-4 py-2 rounded-xl font-medium bg-[#7c3aed] text-white hover:bg-[#6d28d9] shadow-sm transition-all text-sm";
+}
+
+<div class="max-w-6xl mx-auto page-enter">
+    <div class="mb-6 flex flex-wrap items-start justify-between gap-4">
+        <div>
+            <a asp-action="Index" class="text-sm text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-100 flex items-center gap-1 mb-2">
+                <i data-lucide="arrow-left" class="w-4 h-4"></i> Back to Universities
+            </a>
+            <h2 class="text-3xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">@ViewData["Title"]</h2>
+            @if (!Model.IsNew)
+            {
+                <p class="text-slate-500 dark:text-slate-400 mt-1 text-sm">@u.UniversityID</p>
+            }
+        </div>
+    </div>
+
+    @if (Model.IsNew)
+    {
+        <div class="mb-6 text-sm text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950 border border-blue-100 dark:border-blue-900 rounded-xl px-4 py-3">
+            Save the core details first — gallery, programs and intakes unlock once the university exists.
+        </div>
+    }
+
+    @* Catches errors that aren't tied to a field rendered on the active tab —
+       without this a bind failure on a hidden carry-over input fails silently. *@
+    @if (!ViewData.ModelState.IsValid)
+    {
+        <div class="mb-6 text-sm text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-950 border border-red-100 dark:border-red-900 rounded-xl px-4 py-3">
+            <p class="font-medium mb-1">Please fix the following:</p>
+            <ul class="list-disc list-inside space-y-0.5">
+                @foreach (var entry in ViewData.ModelState)
+                {
+                    foreach (var err in entry.Value.Errors)
+                    {
+                        <li>@(string.IsNullOrEmpty(entry.Key) ? "" : entry.Key + ": ")@(string.IsNullOrEmpty(err.ErrorMessage) ? "invalid value" : err.ErrorMessage)</li>
+                    }
+                }
+            </ul>
+        </div>
+    }
+
+    <div class="border-b border-slate-200 dark:border-slate-700 mb-6 overflow-x-auto">
+        <nav class="flex gap-1 min-w-max">
+            @foreach (var (key, label, icon) in tabs)
+            {
+                var isActive = Model.ActiveTab == key;
+                var isLocked = Model.IsNew && key != "details";
+                if (isLocked)
+                {
+                    <span class="px-4 pb-3 text-sm font-medium border-b-2 border-transparent text-slate-300 dark:text-slate-600 cursor-not-allowed flex items-center gap-2" title="Save the university first">
+                        <i data-lucide="@icon" class="w-4 h-4"></i> @label
+                    </span>
+                }
+                else
+                {
+                    <a asp-action="Edit" asp-route-id="@u.UniversityID" asp-route-tab="@key"
+                       class="px-4 pb-3 text-sm font-medium border-b-2 -mb-px transition-colors flex items-center gap-2 @(isActive ? "border-[#7c3aed] text-[#7c3aed]" : "border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200")">
+                        <i data-lucide="@icon" class="w-4 h-4"></i> @label
+                    </a>
+                }
+            }
+        </nav>
+    </div>
+
+    @* ---------- DETAILS / ABOUT / LOCATION all post the University row ---------- *@
+    @if (Model.ActiveTab is "details" or "about" or "location")
+    {
+        <form method="post" asp-action="Save" asp-route-tab="@Model.ActiveTab" enctype="multipart/form-data" class="space-y-6">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="UniversityID" value="@u.UniversityID" />
+
+            @* Only this tab's own fields are posted — Save() merges them onto
+               the stored record, so the other tabs' values are never touched. *@
+
+            @* ===== DETAILS ===== *@
+            @if (Model.ActiveTab == "details")
+            {
+                <div class="@CardCls space-y-6">
+                    <h3 class="font-semibold text-slate-800 dark:text-slate-100">Identity</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div class="space-y-1">
+                            <label class="@LabelCls">University Name *</label>
+                            <input name="Name" value="@u.Name" placeholder="Tsinghua University" class="@InputCls" />
+                            <span class="text-xs text-red-500">@Html.ValidationMessage("Name")</span>
+                        </div>
+                        <div class="space-y-1">
+                            <label class="@LabelCls">Chinese Name</label>
+                            <input name="NameChinese" value="@u.NameChinese" placeholder="清华大学" class="@InputCls" />
+                        </div>
+                        <div class="space-y-1">
+                            <label class="@LabelCls">Short Name</label>
+                            <input name="ShortName" value="@u.ShortName" placeholder="THU" class="@InputCls" />
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div class="space-y-1">
+                            <label class="@LabelCls">Established Year</label>
+                            <input name="EstablishedYear" type="number" value="@u.EstablishedYear" placeholder="1911" class="@InputCls" />
+                        </div>
+                        <div class="space-y-1 md:col-span-2">
+                            <label class="@LabelCls">Website</label>
+                            <input name="WebsiteURL" value="@u.WebsiteURL" placeholder="https://www.tsinghua.edu.cn" class="@InputCls" />
+                        </div>
+                    </div>
+
+                    <div class="space-y-1">
+                        <label class="@LabelCls">Short Description</label>
+                        <textarea name="ShortDescription" rows="2" placeholder="One or two lines shown on cards and listings" class="@InputCls">@u.ShortDescription</textarea>
+                    </div>
+                </div>
+
+                <div class="@CardCls space-y-6">
+                    <h3 class="font-semibold text-slate-800 dark:text-slate-100">Images</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="space-y-2">
+                            <label class="@LabelCls">Logo</label>
+                            @if (!string.IsNullOrEmpty(u.LogoURL))
+                            {
+                                <img src="@u.LogoURL" alt="" class="w-16 h-16 rounded-lg object-contain bg-white border border-slate-200 dark:border-slate-600" />
+                                <input type="hidden" name="LogoURL" value="@u.LogoURL" />
+                            }
+                            <input type="file" name="logoFile" accept="image/*" class="block w-full text-sm text-slate-500 dark:text-slate-400 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-medium file:bg-purple-50 dark:file:bg-purple-950 file:text-[#7c3aed] dark:file:text-purple-300 hover:file:bg-purple-100" />
+                        </div>
+                        <div class="space-y-2">
+                            <label class="@LabelCls">Cover Image</label>
+                            @if (!string.IsNullOrEmpty(u.CoverImageURL))
+                            {
+                                <img src="@u.CoverImageURL" alt="" class="w-full h-24 rounded-lg object-cover border border-slate-200 dark:border-slate-600" />
+                                <input type="hidden" name="CoverImageURL" value="@u.CoverImageURL" />
+                            }
+                            <input type="file" name="coverFile" accept="image/*" class="block w-full text-sm text-slate-500 dark:text-slate-400 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-medium file:bg-purple-50 dark:file:bg-purple-950 file:text-[#7c3aed] dark:file:text-purple-300 hover:file:bg-purple-100" />
+                        </div>
+                    </div>
+                </div>
+
+                <div class="@CardCls space-y-6">
+                    <h3 class="font-semibold text-slate-800 dark:text-slate-100">Rankings &amp; Accreditation</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+                        <div class="space-y-1">
+                            <label class="@LabelCls">World Ranking</label>
+                            <input name="WorldRanking" type="number" value="@u.WorldRanking" class="@InputCls" />
+                        </div>
+                        <div class="space-y-1">
+                            <label class="@LabelCls">National Ranking</label>
+                            <input name="NationalRanking" type="number" value="@u.NationalRanking" class="@InputCls" />
+                        </div>
+                        <div class="space-y-1">
+                            <label class="@LabelCls">Total Students</label>
+                            <input name="StudentCount" type="number" value="@u.StudentCount" class="@InputCls" />
+                        </div>
+                        <div class="space-y-1">
+                            <label class="@LabelCls">International Students</label>
+                            <input name="InternationalStudentCount" type="number" value="@u.InternationalStudentCount" class="@InputCls" />
+                        </div>
+                    </div>
+                    <div class="space-y-1">
+                        <label class="@LabelCls">Accreditation</label>
+                        <input name="Accreditation" value="@u.Accreditation" placeholder="Project 985, Double First Class..." class="@InputCls" />
+                    </div>
+                    <label class="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300 cursor-pointer">
+                        <input type="checkbox" name="IsMOERecognized" value="true" checked="@u.IsMOERecognized" class="rounded border-slate-300 dark:border-slate-600 text-[#7c3aed] focus:ring-[#7c3aed]" />
+                        Recognised by China's Ministry of Education
+                    </label>
+                </div>
+
+                <div class="@CardCls space-y-6">
+                    <h3 class="font-semibold text-slate-800 dark:text-slate-100">Tuition &amp; Living Costs <span class="text-xs font-normal text-slate-400 dark:text-slate-500">(per year)</span></h3>
+                    <div class="space-y-1 max-w-[200px]">
+                        <label class="@LabelCls">Currency</label>
+                        <input name="CurrencyCode" value="@(string.IsNullOrEmpty(u.CurrencyCode) ? "CNY" : u.CurrencyCode)" class="@InputCls" />
+                    </div>
+                    <div class="grid grid-cols-2 md:grid-cols-3 gap-6">
+                        <div class="space-y-1">
+                            <label class="@LabelCls">Tuition Min</label>
+                            <input name="TuitionMin" type="number" step="0.01" value="@u.TuitionMin" class="@InputCls" />
+                        </div>
+                        <div class="space-y-1">
+                            <label class="@LabelCls">Tuition Max</label>
+                            <input name="TuitionMax" type="number" step="0.01" value="@u.TuitionMax" class="@InputCls" />
+                        </div>
+                        <div class="space-y-1">
+                            <label class="@LabelCls">Accommodation Min</label>
+                            <input name="AccommodationCostMin" type="number" step="0.01" value="@u.AccommodationCostMin" class="@InputCls" />
+                        </div>
+                        <div class="space-y-1">
+                            <label class="@LabelCls">Accommodation Max</label>
+                            <input name="AccommodationCostMax" type="number" step="0.01" value="@u.AccommodationCostMax" class="@InputCls" />
+                        </div>
+                        <div class="space-y-1">
+                            <label class="@LabelCls">Living Cost Min</label>
+                            <input name="LivingCostMin" type="number" step="0.01" value="@u.LivingCostMin" class="@InputCls" />
+                        </div>
+                        <div class="space-y-1">
+                            <label class="@LabelCls">Living Cost Max</label>
+                            <input name="LivingCostMax" type="number" step="0.01" value="@u.LivingCostMax" class="@InputCls" />
+                        </div>
+                    </div>
+                </div>
+
+                <div class="@CardCls space-y-6">
+                    <h3 class="font-semibold text-slate-800 dark:text-slate-100">Admission</h3>
+                    <div class="space-y-1">
+                        <label class="@LabelCls">Language Requirement</label>
+                        <input name="LanguageRequirement" value="@u.LanguageRequirement" placeholder="HSK 4 for Chinese-taught, IELTS 6.0 for English-taught" class="@InputCls" />
+                    </div>
+                </div>
+
+                <div class="@CardCls space-y-4">
+                    <h3 class="font-semibold text-slate-800 dark:text-slate-100">Display</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="space-y-1">
+                            <label class="@LabelCls">Sort Order</label>
+                            <input name="SortOrder" type="number" value="@u.SortOrder" class="@InputCls" />
+                        </div>
+                        <div class="flex items-end gap-6 pb-2">
+                            <label class="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300 cursor-pointer">
+                                <input type="checkbox" name="IsFeatured" value="true" checked="@u.IsFeatured" class="rounded border-slate-300 dark:border-slate-600 text-[#7c3aed] focus:ring-[#7c3aed]" />
+                                Featured
+                            </label>
+                            @if (!Model.IsNew)
+                            {
+                                <label class="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300 cursor-pointer">
+                                    <input type="checkbox" name="IsActive" value="A" checked="@(u.IsActive == "A")" class="rounded border-slate-300 dark:border-slate-600 text-[#7c3aed] focus:ring-[#7c3aed]" />
+                                    Active
+                                </label>
+                            }
+                            else
+                            {
+                                <input type="hidden" name="IsActive" value="A" />
+                            }
+                        </div>
+                    </div>
+                </div>
+            }
+
+            @* ===== ABOUT ===== *@
+            @if (Model.ActiveTab == "about")
+            {
+                <div class="@CardCls space-y-3">
+                    <label class="@LabelCls">About the University</label>
+                    <textarea id="aboutEditor" name="AboutHtml" rows="12" class="@InputCls font-mono text-xs">@u.AboutHtml</textarea>
+                </div>
+                <div class="@CardCls space-y-3">
+                    <label class="@LabelCls">Admission Requirements</label>
+                    <textarea id="reqEditor" name="AdmissionRequirementsHtml" rows="8" class="@InputCls font-mono text-xs">@u.AdmissionRequirementsHtml</textarea>
+                </div>
+                <div class="@CardCls space-y-3">
+                    <label class="@LabelCls">Required Documents</label>
+                    <textarea id="docsEditor" name="RequiredDocumentsHtml" rows="8" class="@InputCls font-mono text-xs">@u.RequiredDocumentsHtml</textarea>
+                </div>
+            }
+
+            @* ===== LOCATION ===== *@
+            @if (Model.ActiveTab == "location")
+            {
+                <div class="@CardCls space-y-6">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div class="space-y-1">
+                            <label class="@LabelCls">City</label>
+                            <input id="cityInput" name="City" value="@u.City" placeholder="Beijing" class="@InputCls" />
+                        </div>
+                        <div class="space-y-1">
+                            <label class="@LabelCls">Province</label>
+                            <input id="provinceInput" name="Province" value="@u.Province" placeholder="Beijing" class="@InputCls" />
+                        </div>
+                        <div class="space-y-1">
+                            <label class="@LabelCls">Country</label>
+                            <input name="Country" value="@(string.IsNullOrEmpty(u.Country) ? "China" : u.Country)" class="@InputCls" />
+                        </div>
+                    </div>
+                    <div class="space-y-1">
+                        <label class="@LabelCls">Address</label>
+                        <input id="addressInput" name="Address" value="@u.Address" placeholder="30 Shuangqing Rd, Haidian District" class="@InputCls" />
+                    </div>
+                </div>
+
+                <div class="@CardCls space-y-4">
+                    <div class="flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                            <h3 class="font-semibold text-slate-800 dark:text-slate-100">Pin the campus</h3>
+                            <p class="text-xs text-slate-400 dark:text-slate-500 mt-1">Search for the university, or click anywhere on the map to move the pin.</p>
+                        </div>
+                        <div class="flex gap-2">
+                            <input id="geoSearch" type="text" placeholder="Search e.g. Tsinghua University" class="@InputCls md:w-80" />
+                            <button type="button" id="geoSearchBtn" class="@PrimaryBtn whitespace-nowrap">Search</button>
+                        </div>
+                    </div>
+
+                    <div id="picker-map" class="rounded-xl overflow-hidden border border-slate-200 dark:border-slate-600" style="height: 420px;"></div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div class="space-y-1">
+                            <label class="@LabelCls">Latitude</label>
+                            <input id="latInput" name="Latitude" value="@u.Latitude" placeholder="39.9998" class="@InputCls" />
+                        </div>
+                        <div class="space-y-1">
+                            <label class="@LabelCls">Longitude</label>
+                            <input id="lngInput" name="Longitude" value="@u.Longitude" placeholder="116.3264" class="@InputCls" />
+                        </div>
+                        <div class="flex items-end">
+                            <button type="button" id="clearPin" class="px-4 py-2 rounded-xl text-sm font-medium text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">Clear pin</button>
+                        </div>
+                    </div>
+                    <p class="text-xs text-slate-400 dark:text-slate-500">
+                        Stored as WGS-84 (GPS) coordinates — the same datum OpenStreetMap uses.
+                    </p>
+                </div>
+            }
+
+            <div class="flex items-center justify-end gap-3">
+                <a asp-action="Index" class="px-4 py-2 rounded-xl font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all">Cancel</a>
+                <button type="submit" class="@PrimaryBtn">@(Model.IsNew ? "Create University" : "Save Changes")</button>
+            </div>
+        </form>
+    }
+
+    @* ===== GALLERY ===== *@
+    @if (Model.ActiveTab == "gallery")
+    {
+        <div class="@CardCls mb-6">
+            <form method="post" asp-action="AddGalleryImage" enctype="multipart/form-data" class="flex flex-wrap items-end gap-4">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="universityId" value="@u.UniversityID" />
+                <div class="space-y-1 flex-1 min-w-[200px]">
+                    <label class="@LabelCls">Image</label>
+                    <input type="file" name="imageFile" accept="image/*" required class="block w-full text-sm text-slate-500 dark:text-slate-400 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-medium file:bg-purple-50 dark:file:bg-purple-950 file:text-[#7c3aed] dark:file:text-purple-300 hover:file:bg-purple-100" />
+                </div>
+                <div class="space-y-1 flex-1 min-w-[200px]">
+                    <label class="@LabelCls">Caption</label>
+                    <input name="caption" placeholder="Main campus library" class="@InputCls" />
+                </div>
+                <div class="space-y-1 w-24">
+                    <label class="@LabelCls">Order</label>
+                    <input name="sortOrder" type="number" value="0" class="@InputCls" />
+                </div>
+                <button type="submit" class="@PrimaryBtn">Upload</button>
+            </form>
+        </div>
+
+        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            @if (!Model.Gallery.Any())
+            {
+                <div class="col-span-2 md:col-span-3 lg:col-span-4 @CardCls text-center py-12">
+                    <p class="text-sm text-slate-400 dark:text-slate-500">No images yet.</p>
+                </div>
+            }
+            @foreach (var g in Model.Gallery)
+            {
+                <div class="bg-white dark:bg-slate-900/60 rounded-2xl border border-slate-100 dark:border-slate-700 overflow-hidden group">
+                    <div class="h-40 bg-slate-100 dark:bg-slate-800">
+                        <img src="@g.ImageURL" alt="@g.Caption" class="w-full h-full object-cover" />
+                    </div>
+                    <div class="p-3 flex items-start justify-between gap-2">
+                        <div class="min-w-0">
+                            <p class="text-xs text-slate-600 dark:text-slate-300 truncate">@(string.IsNullOrEmpty(g.Caption) ? "—" : g.Caption)</p>
+                            <p class="text-[10px] text-slate-400 dark:text-slate-500">Order @g.SortOrder</p>
+                        </div>
+                        <form method="post" asp-action="DeleteGalleryImage"
+                              data-confirm="Remove this image from the gallery?" data-confirm-title="Remove image" data-confirm-label="Remove">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="universityId" value="@u.UniversityID" />
+                            <input type="hidden" name="id" value="@g.GalleryID" />
+                            <button type="submit" class="p-1.5 rounded-lg text-slate-400 dark:text-slate-500 hover:text-red-600 dark:hover:text-red-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+                                <i data-lucide="trash-2" class="w-4 h-4"></i>
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+
+    @* ===== FEATURES ===== *@
+    @if (Model.ActiveTab == "features")
+    {
+        <div class="@CardCls mb-6">
+            <form method="post" asp-action="SaveFeature" class="flex flex-wrap items-end gap-4">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="UniversityID" value="@u.UniversityID" />
+                <input type="hidden" name="FeatureID" value="" />
+                <input type="hidden" name="IsActive" value="A" />
+                <div class="space-y-1 flex-1 min-w-[180px]">
+                    <label class="@LabelCls">Title *</label>
+                    <input name="Title" required placeholder="World-class research labs" class="@InputCls" />
+                </div>
+                <div class="space-y-1 flex-[2] min-w-[220px]">
+                    <label class="@LabelCls">Description</label>
+                    <input name="Description" placeholder="What makes this special" class="@InputCls" />
+                </div>
+                <div class="space-y-1 w-48">
+                    <label class="@LabelCls">Icon</label>
+                    <div class="flex items-center gap-2">
+                        <span class="flex-shrink-0 w-9 h-9 rounded-lg bg-purple-50 dark:bg-purple-950 text-[#7c3aed] dark:text-purple-300 flex items-center justify-center">
+                            <i id="featureIconPreview" data-lucide="sparkles" class="w-4 h-4"></i>
+                        </span>
+                        <select name="Icon" id="featureIconSelect" class="@InputCls" onchange="document.getElementById('featureIconPreview').setAttribute('data-lucide', this.value || 'sparkles'); if (window.lucide) lucide.createIcons();">
+                            @foreach (var opt in UniversityFeature.IconChoices)
+                            {
+                                <option value="@opt.Value">@opt.Label</option>
+                            }
+                        </select>
+                    </div>
+                </div>
+                <div class="space-y-1 w-24">
+                    <label class="@LabelCls">Order</label>
+                    <input name="SortOrder" type="number" value="0" class="@InputCls" />
+                </div>
+                <button type="submit" class="@PrimaryBtn">Add</button>
+            </form>
+        </div>
+
+        <div class="@CardCls">
+            @if (!Model.Features.Any())
+            {
+                <p class="text-sm text-slate-400 dark:text-slate-500 text-center py-8">No features yet.</p>
+            }
+            <div class="divide-y divide-slate-100 dark:divide-slate-700">
+                @foreach (var f in Model.Features)
+                {
+                    <div class="py-4 flex items-start gap-4">
+                        <div class="p-2 rounded-xl bg-purple-50 dark:bg-purple-950 text-[#7c3aed] dark:text-purple-300 flex-shrink-0">
+                            <i data-lucide="@(string.IsNullOrEmpty(f.Icon) ? "sparkles" : f.Icon)" class="w-5 h-5"></i>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <p class="font-medium text-slate-800 dark:text-slate-100 text-sm">@f.Title</p>
+                            <p class="text-sm text-slate-500 dark:text-slate-400">@f.Description</p>
+                        </div>
+                        <span class="text-xs text-slate-400 dark:text-slate-500 flex-shrink-0">@f.SortOrder</span>
+                        <form method="post" asp-action="DeleteFeature" class="flex-shrink-0"
+                              data-confirm="Remove '@f.Title'?" data-confirm-title="Remove feature" data-confirm-label="Remove">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="universityId" value="@u.UniversityID" />
+                            <input type="hidden" name="id" value="@f.FeatureID" />
+                            <button type="submit" class="p-1.5 rounded-lg text-slate-400 dark:text-slate-500 hover:text-red-600 dark:hover:text-red-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+                                <i data-lucide="trash-2" class="w-4 h-4"></i>
+                            </button>
+                        </form>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+
+    @* ===== PROGRAMS ===== *@
+    @if (Model.ActiveTab == "programs")
+    {
+        <div class="@CardCls mb-6">
+            <form method="post" asp-action="SaveProgram" class="flex flex-wrap items-end gap-4">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="UniversityID" value="@u.UniversityID" />
+                <input type="hidden" name="ProgramID" value="" />
+                <input type="hidden" name="IsActive" value="A" />
+                <div class="space-y-1 w-36">
+                    <label class="@LabelCls">Level *</label>
+                    <select name="ProgramLevel" class="@InputCls">
+                        @foreach (var lvl in UniversityProgram.Levels)
+                        {
+                            <option value="@lvl">@lvl</option>
+                        }
+                    </select>
+                </div>
+                <div class="space-y-1 flex-1 min-w-[200px]">
+                    <label class="@LabelCls">Program Name *</label>
+                    <input name="ProgramName" required placeholder="BSc Computer Science" class="@InputCls" />
+                </div>
+                <div class="space-y-1 w-32">
+                    <label class="@LabelCls">Duration</label>
+                    <input name="DurationText" placeholder="4 years" class="@InputCls" />
+                </div>
+                <div class="space-y-1 w-32">
+                    <label class="@LabelCls">Language</label>
+                    <input name="LanguageOfInstruction" placeholder="English" class="@InputCls" />
+                </div>
+                <div class="space-y-1 w-32">
+                    <label class="@LabelCls">Tuition/yr</label>
+                    <input name="TuitionPerYear" type="number" step="0.01" class="@InputCls" />
+                </div>
+                <div class="space-y-1 w-20">
+                    <label class="@LabelCls">Order</label>
+                    <input name="SortOrder" type="number" value="0" class="@InputCls" />
+                </div>
+                <button type="submit" class="@PrimaryBtn">Add</button>
+            </form>
+        </div>
+
+        <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="border-b border-slate-100 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50">
+                            <th class="px-6 py-4 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Level</th>
+                            <th class="px-6 py-4 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Program</th>
+                            <th class="px-6 py-4 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Duration</th>
+                            <th class="px-6 py-4 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Language</th>
+                            <th class="px-6 py-4 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Tuition/yr</th>
+                            <th class="px-6 py-4 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-right"></th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100 dark:divide-slate-700">
+                        @if (!Model.Programs.Any())
+                        {
+                            <tr><td colspan="6" class="px-6 py-8 text-center text-sm text-slate-400 dark:text-slate-500">No programs yet.</td></tr>
+                        }
+                        @foreach (var p in Model.Programs)
+                        {
+                            <tr class="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors">
+                                <td class="px-6 py-4">
+                                    <span class="px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-50 dark:bg-purple-950 text-[#7c3aed] dark:text-purple-300">@p.ProgramLevel</span>
+                                </td>
+                                <td class="px-6 py-4 font-medium text-slate-800 dark:text-slate-100 text-sm">@p.ProgramName</td>
+                                <td class="px-6 py-4 text-sm text-slate-600 dark:text-slate-300">@(string.IsNullOrEmpty(p.DurationText) ? "—" : p.DurationText)</td>
+                                <td class="px-6 py-4 text-sm text-slate-600 dark:text-slate-300">@(string.IsNullOrEmpty(p.LanguageOfInstruction) ? "—" : p.LanguageOfInstruction)</td>
+                                <td class="px-6 py-4 text-sm text-slate-600 dark:text-slate-300">@(p.TuitionPerYear.HasValue ? $"{u.CurrencyCode} {p.TuitionPerYear:N0}" : "—")</td>
+                                <td class="px-6 py-4 text-right">
+                                    <form method="post" asp-action="DeleteProgram" class="inline"
+                                          data-confirm="Remove '@p.ProgramName'?" data-confirm-title="Remove program" data-confirm-label="Remove">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="universityId" value="@u.UniversityID" />
+                                        <input type="hidden" name="id" value="@p.ProgramID" />
+                                        <button type="submit" class="p-1.5 rounded-lg text-slate-400 dark:text-slate-500 hover:text-red-600 dark:hover:text-red-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+                                            <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+
+    @* ===== INTAKES ===== *@
+    @if (Model.ActiveTab == "intakes")
+    {
+        <div class="@CardCls mb-6">
+            <form method="post" asp-action="SaveIntake" class="flex flex-wrap items-end gap-4">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="UniversityID" value="@u.UniversityID" />
+                <input type="hidden" name="IntakeID" value="" />
+                <input type="hidden" name="IsActive" value="A" />
+                <div class="space-y-1 flex-1 min-w-[160px]">
+                    <label class="@LabelCls">Intake Name *</label>
+                    <input name="IntakeName" required placeholder="Autumn 2026" class="@InputCls" />
+                </div>
+                <div class="space-y-1 w-36">
+                    <label class="@LabelCls">Month</label>
+                    <input name="IntakeMonth" placeholder="September" class="@InputCls" />
+                </div>
+                <div class="space-y-1 w-44">
+                    <label class="@LabelCls">Application Deadline</label>
+                    <input name="ApplicationDeadline" type="date" class="@InputCls" />
+                </div>
+                <div class="space-y-1 flex-1 min-w-[160px]">
+                    <label class="@LabelCls">Notes</label>
+                    <input name="Notes" placeholder="Scholarship applications close earlier" class="@InputCls" />
+                </div>
+                <div class="space-y-1 w-20">
+                    <label class="@LabelCls">Order</label>
+                    <input name="SortOrder" type="number" value="0" class="@InputCls" />
+                </div>
+                <button type="submit" class="@PrimaryBtn">Add</button>
+            </form>
+        </div>
+
+        <div class="@CardCls">
+            @if (!Model.Intakes.Any())
+            {
+                <p class="text-sm text-slate-400 dark:text-slate-500 text-center py-8">No intakes yet.</p>
+            }
+            <div class="divide-y divide-slate-100 dark:divide-slate-700">
+                @foreach (var i in Model.Intakes)
+                {
+                    <div class="py-4 flex items-center gap-4">
+                        <div class="p-2 rounded-xl bg-cyan-50 dark:bg-cyan-950 text-cyan-600 dark:text-cyan-300 flex-shrink-0">
+                            <i data-lucide="calendar" class="w-5 h-5"></i>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <p class="font-medium text-slate-800 dark:text-slate-100 text-sm">@i.IntakeName</p>
+                            <p class="text-xs text-slate-500 dark:text-slate-400">
+                                @(string.IsNullOrEmpty(i.IntakeMonth) ? "" : i.IntakeMonth)
+                                @if (i.ApplicationDeadline.HasValue)
+                                {
+                                    <span>· deadline @i.ApplicationDeadline.Value.ToString("d MMM yyyy")</span>
+                                }
+                            </p>
+                            @if (!string.IsNullOrEmpty(i.Notes))
+                            {
+                                <p class="text-xs text-slate-400 dark:text-slate-500 mt-0.5">@i.Notes</p>
+                            }
+                        </div>
+                        <form method="post" asp-action="DeleteIntake" class="flex-shrink-0"
+                              data-confirm="Remove '@i.IntakeName'?" data-confirm-title="Remove intake" data-confirm-label="Remove">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="universityId" value="@u.UniversityID" />
+                            <input type="hidden" name="id" value="@i.IntakeID" />
+                            <button type="submit" class="p-1.5 rounded-lg text-slate-400 dark:text-slate-500 hover:text-red-600 dark:hover:text-red-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+                                <i data-lucide="trash-2" class="w-4 h-4"></i>
+                            </button>
+                        </form>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+</div>
+
+@section Scripts {
+    @if (Model.ActiveTab == "about")
+    {
+        <script src="https://cdn.ckeditor.com/4.22.1/standard/ckeditor.js"></script>
+        <script>
+            ['aboutEditor', 'reqEditor', 'docsEditor'].forEach(id => {
+                if (document.getElementById(id)) {
+                    CKEDITOR.replace(id, {
+                        allowedContent: true,
+                        height: 260,
+                        toolbar: [
+                            { name: 'clipboard', items: ['Undo', 'Redo'] },
+                            { name: 'basicstyles', items: ['Bold', 'Italic', 'Underline', '-', 'RemoveFormat'] },
+                            { name: 'paragraph', items: ['NumberedList', 'BulletedList', '-', 'Outdent', 'Indent'] },
+                            { name: 'links', items: ['Link', 'Unlink'] },
+                            { name: 'insert', items: ['Table', 'HorizontalRule'] },
+                            { name: 'styles', items: ['Format'] },
+                            { name: 'tools', items: ['Maximize', 'Source'] }
+                        ]
+                    });
+                }
+            });
+        </script>
+    }
+
+    @if (Model.ActiveTab == "location")
+    {
+        <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+        <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+        <script>
+            (function () {
+                const latInput = document.getElementById('latInput');
+                const lngInput = document.getElementById('lngInput');
+                const startLat = parseFloat(latInput.value);
+                const startLng = parseFloat(lngInput.value);
+                const hasStart = !isNaN(startLat) && !isNaN(startLng);
+
+                // Default view: roughly centred on China, since that's where
+                // partner universities are.
+                const map = L.map('picker-map').setView(
+                    hasStart ? [startLat, startLng] : [35.8617, 104.1954],
+                    hasStart ? 14 : 4
+                );
+                window.protonApplyBasemap(map);
+
+                const icon = window.protonPinIcon();
+                let marker = hasStart ? L.marker([startLat, startLng], { icon, draggable: true }).addTo(map) : null;
+
+                function writeInputs(latlng) {
+                    latInput.value = latlng.lat.toFixed(7);
+                    lngInput.value = latlng.lng.toFixed(7);
+                }
+
+                function placePin(latlng, zoom) {
+                    if (marker) {
+                        marker.setLatLng(latlng);
+                    } else {
+                        marker = L.marker(latlng, { icon, draggable: true }).addTo(map);
+                        marker.on('dragend', () => writeInputs(marker.getLatLng()));
+                    }
+                    writeInputs(latlng);
+                    map.setView(latlng, zoom || Math.max(map.getZoom(), 14));
+                }
+
+                if (marker) marker.on('dragend', () => writeInputs(marker.getLatLng()));
+                map.on('click', (e) => placePin(e.latlng));
+
+                document.getElementById('clearPin').addEventListener('click', () => {
+                    if (marker) { map.removeLayer(marker); marker = null; }
+                    latInput.value = '';
+                    lngInput.value = '';
+                });
+
+                // Typing coordinates by hand should move the pin too.
+                [latInput, lngInput].forEach(inp => inp.addEventListener('change', () => {
+                    const la = parseFloat(latInput.value), ln = parseFloat(lngInput.value);
+                    if (!isNaN(la) && !isNaN(ln)) placePin(L.latLng(la, ln));
+                }));
+
+                // Nominatim geocoding — free, key-free. Usage policy asks for a
+                // single request per user action (no autocomplete-per-keystroke),
+                // which is why this is behind an explicit Search button/Enter.
+                async function runSearch() {
+                    const q = document.getElementById('geoSearch').value.trim();
+                    if (!q) return;
+                    try {
+                        const res = await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&q=' + encodeURIComponent(q));
+                        const hits = await res.json();
+                        if (!hits.length) { showToast('No location found for that search.', 'error'); return; }
+
+                        const hit = hits[0];
+                        placePin(L.latLng(parseFloat(hit.lat), parseFloat(hit.lon)), 15);
+                        marker.bindPopup(hit.display_name).openPopup();
+
+                        // Backfill the address fields only where they're empty,
+                        // so a manual correction is never overwritten.
+                        const addr = document.getElementById('addressInput');
+                        if (addr && !addr.value) addr.value = hit.display_name;
+                    } catch (err) {
+                        showToast('Location search failed. Check your connection.', 'error');
+                    }
+                }
+
+                document.getElementById('geoSearchBtn').addEventListener('click', runSearch);
+                document.getElementById('geoSearch').addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') { e.preventDefault(); runSearch(); }
+                });
+            })();
+        </script>
+    }
+}

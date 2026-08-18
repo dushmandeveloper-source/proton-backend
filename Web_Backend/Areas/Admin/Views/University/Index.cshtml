@@ -1,0 +1,162 @@
+@model List<University>
+@{
+    ViewData["Title"] = "Universities";
+    var keyW = ViewBag.KeyW as string ?? "";
+    var showInactive = ViewBag.ShowInactive as bool? ?? false;
+    var mapped = Model.Where(u => u.HasCoordinates).ToList();
+}
+
+<div class="max-w-6xl mx-auto page-enter">
+    <div class="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
+        <div>
+            <h2 class="text-3xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">Universities</h2>
+            <p class="text-slate-500 dark:text-slate-400 mt-2">Partner institutions, their programs, galleries and locations.</p>
+        </div>
+        <a asp-action="Add" class="px-4 py-2 rounded-xl font-medium bg-[#7c3aed] text-white hover:bg-[#6d28d9] shadow-sm text-sm flex items-center gap-2 w-fit">
+            <i data-lucide="plus" class="w-4 h-4"></i> Add University
+        </a>
+    </div>
+
+    <form method="get" class="flex flex-wrap items-center gap-3 mb-6">
+        <div class="relative">
+            <i data-lucide="search" class="w-4 h-4 text-slate-400 dark:text-slate-500 absolute left-3 top-1/2 -translate-y-1/2"></i>
+            <input type="text" name="KeyW" value="@keyW" placeholder="Search name or city..."
+                   class="pl-9 pr-4 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 text-sm focus:outline-none focus:border-purple-400 focus:ring-1 focus:ring-purple-400" />
+        </div>
+        <label class="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300 cursor-pointer">
+            <input type="checkbox" name="showInactive" value="true" checked="@showInactive"
+                   class="rounded border-slate-300 dark:border-slate-600 text-[#7c3aed] focus:ring-[#7c3aed]" />
+            Show deleted
+        </label>
+        <button type="submit" class="px-4 py-2 rounded-xl font-medium bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all text-sm">Filter</button>
+    </form>
+
+    @if (mapped.Any())
+    {
+        <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden mb-6">
+            <div class="px-6 py-4 border-b border-slate-100 dark:border-slate-700 flex items-center gap-3">
+                <div class="bg-purple-50 dark:bg-purple-950 p-2 rounded-lg"><i data-lucide="map-pin" class="w-5 h-5 text-[#7c3aed] dark:text-purple-300"></i></div>
+                <h3 class="font-semibold text-slate-800 dark:text-slate-100">Locations <span class="text-sm font-normal text-slate-400 dark:text-slate-500">(@mapped.Count mapped)</span></h3>
+            </div>
+            <div id="overview-map" style="height: 340px;"></div>
+        </div>
+    }
+
+    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+        @if (!Model.Any())
+        {
+            <div class="md:col-span-2 xl:col-span-3 bg-white dark:bg-slate-900/60 rounded-[24px] border border-slate-100 dark:border-slate-700 p-12 text-center">
+                <p class="text-sm text-slate-400 dark:text-slate-500">No universities yet. Add your first partner institution to get started.</p>
+            </div>
+        }
+        @foreach (var u in Model)
+        {
+            <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden flex flex-col hover:shadow-md transition-shadow">
+                <div class="h-36 bg-slate-100 dark:bg-slate-800 relative">
+                    @if (!string.IsNullOrEmpty(u.CoverImageURL))
+                    {
+                        <img src="@u.CoverImageURL" alt="@u.Name" class="w-full h-full object-cover" />
+                    }
+                    else
+                    {
+                        <div class="w-full h-full flex items-center justify-center">
+                            <i data-lucide="building-2" class="w-8 h-8 text-slate-300 dark:text-slate-600"></i>
+                        </div>
+                    }
+                    <div class="absolute top-3 right-3 flex gap-2">
+                        @if (u.IsFeatured)
+                        {
+                            <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300 uppercase">Featured</span>
+                        }
+                        @if (u.IsActive != "A")
+                        {
+                            <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 uppercase">Deleted</span>
+                        }
+                    </div>
+                </div>
+
+                <div class="p-5 flex-1 flex flex-col">
+                    <div class="flex items-start gap-3 mb-2">
+                        @if (!string.IsNullOrEmpty(u.LogoURL))
+                        {
+                            <img src="@u.LogoURL" alt="" class="w-10 h-10 rounded-lg object-contain bg-white border border-slate-100 dark:border-slate-700 flex-shrink-0" />
+                        }
+                        <div class="min-w-0">
+                            <h3 class="font-semibold text-slate-800 dark:text-slate-100 leading-tight">@u.Name</h3>
+                            @if (!string.IsNullOrEmpty(u.NameChinese))
+                            {
+                                <p class="text-xs text-slate-400 dark:text-slate-500">@u.NameChinese</p>
+                            }
+                        </div>
+                    </div>
+
+                    <p class="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1.5 mb-3">
+                        <i data-lucide="map-pin" class="w-3.5 h-3.5"></i>
+                        @(string.IsNullOrEmpty(u.City) ? "Location not set" : $"{u.City}{(string.IsNullOrEmpty(u.Province) ? "" : ", " + u.Province)}")
+                    </p>
+
+                    @if (!string.IsNullOrEmpty(u.ShortDescription))
+                    {
+                        <p class="text-sm text-slate-600 dark:text-slate-300 line-clamp-2 mb-4">@u.ShortDescription</p>
+                    }
+
+                    <div class="flex flex-wrap gap-2 text-[11px] mt-auto mb-4">
+                        <span class="px-2 py-1 rounded-lg bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300">@u.ProgramCount programs</span>
+                        <span class="px-2 py-1 rounded-lg bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300">@u.GalleryCount photos</span>
+                        @if (u.WorldRanking.HasValue)
+                        {
+                            <span class="px-2 py-1 rounded-lg bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300">World #@u.WorldRanking</span>
+                        }
+                        @if (u.IsMOERecognized)
+                        {
+                            <span class="px-2 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300">MOE recognised</span>
+                        }
+                    </div>
+
+                    <div class="flex items-center gap-2 pt-4 border-t border-slate-100 dark:border-slate-700">
+                        <a asp-action="Details" asp-route-id="@u.UniversityID"
+                           class="flex-1 text-center px-3 py-2 rounded-xl text-sm font-medium bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+                            View
+                        </a>
+                        <a asp-action="Edit" asp-route-id="@u.UniversityID"
+                           class="flex-1 text-center px-3 py-2 rounded-xl text-sm font-medium bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+                            Edit
+                        </a>
+                        <form method="post" asp-action="Delete" asp-route-id="@u.UniversityID"
+                              data-confirm="Delete @u.Name? Its gallery, programs and intakes will be hidden too." data-confirm-title="Delete university" data-confirm-label="Delete">
+                            @Html.AntiForgeryToken()
+                            <button type="submit" title="Delete" class="p-2 rounded-xl text-slate-400 dark:text-slate-500 hover:text-red-600 dark:hover:text-red-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+                                <i data-lucide="trash-2" class="w-4 h-4"></i>
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+@section Scripts {
+    @if (mapped.Any())
+    {
+        <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+        <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+        <script>
+            (function () {
+                const pins = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(
+                    mapped.Select(u => new { name = u.Name, city = u.City, lat = u.Latitude, lng = u.Longitude, logo = u.LogoURL })));
+
+                const map = L.map('overview-map', { scrollWheelZoom: false });
+                window.protonApplyBasemap(map);
+
+                const group = L.featureGroup(pins.map(p =>
+                    L.marker([p.lat, p.lng], { icon: window.protonPhotoPinIcon(p.logo, p.name) })
+                        .bindPopup('<strong>' + p.name + '</strong><br/>' + (p.city || ''))
+                )).addTo(map);
+
+                map.fitBounds(group.getBounds().pad(0.25));
+                if (pins.length === 1) map.setZoom(11);
+            })();
+        </script>
+    }
+}

@@ -1365,7 +1365,7 @@ BEGIN
         EXEC syst.NumberFormat_Get 'usr.PasswordResetToken', 'TokenID', @PrimaryKey OUT
 
         INSERT INTO usr.PasswordResetToken (TokenID, AuthID, Email, Token, ExpiresAt, IsUsed, CreatedDate)
-        VALUES (@PrimaryKey, @AuthID, @Email, @Token, @ExpiresAt, 0, GETDATE())
+        VALUES (@PrimaryKey, @AuthID, @Email, @Token, @ExpiresAt, 0, GETUTCDATE())
 
         EXEC syst.NumberFormat_Set 'usr.PasswordResetToken'
 
@@ -1401,7 +1401,7 @@ BEGIN
         FROM usr.PasswordResetToken
         WHERE Token = @Token
           AND IsUsed = 0
-          AND ExpiresAt > GETDATE()
+          AND ExpiresAt > GETUTCDATE()
     END TRY
     BEGIN CATCH
         DECLARE @ERROR_MESSAGE VARCHAR(4000) = ERROR_MESSAGE();
@@ -1464,7 +1464,10 @@ BEGIN
     INSERT INTO syst.APIKey (KeyID, KeyValue, KeyDetails, CreatedDate, ActiveStatus)
     VALUES ('KEY00001', '4C0A2B7E-6F3D-4E2A-9C1B-2D8E5F7A9B10', 'Proton Admin backend (dev)', GETDATE(), 'A')
 
-    UPDATE syst.NumberFormat SET NumberPart = 1 WHERE TableName = 'syst.APIKey'
+    -- NumberFormat_Get uses NumberPart directly as the NEXT id to generate
+    -- (not a count), so this must be one past the highest number already
+    -- used above (KEY00001) — otherwise the next AddEdit call collides.
+    UPDATE syst.NumberFormat SET NumberPart = 2 WHERE TableName = 'syst.APIKey'
 END
 GO
 
@@ -1476,7 +1479,9 @@ BEGIN
         ('UT00003', 'Student', 'Enrolled learner', 'A', GETDATE()),
         ('UT00004', 'Support', 'Support/helpdesk staff', 'A', GETDATE())
 
-    UPDATE syst.NumberFormat SET NumberPart = 4 WHERE TableName = 'usr.UserType'
+    -- One past UT00004 (the highest number already used above) — see note
+    -- on syst.APIKey's NumberPart above.
+    UPDATE syst.NumberFormat SET NumberPart = 5 WHERE TableName = 'usr.UserType'
 END
 GO
 
@@ -1490,14 +1495,18 @@ BEGIN
 END
 GO
 
+-- Placeholder vocabulary matches the LMS reference project's EmailBody.htm
+-- exactly ({ToName}, {Description}, {ActionName}, {URL}, {ImageTag},
+-- {WebURL}, {WebName}) so both templates share one substitution scheme —
+-- see Areas/Admin/Views/EmailTemplate/Edit.cshtml for the editor.
 IF NOT EXISTS (SELECT 1 FROM syst.EmailTemplate WHERE TemplateCode = 'WELCOME_EMAIL')
 BEGIN
     INSERT INTO syst.EmailTemplate (TemplateID, TemplateCode, TemplateName, Subject, BodyHtml, IsActive, CreatedDate, UpdatedDate) VALUES
-        ('ETPL00000', 'WELCOME_EMAIL', 'Welcome Email', 'Welcome to Proton Admin, {{Name}}',
-         '<p>Hi {{Name}},</p><p>Your Proton Admin account has been created. You can sign in with your email address and the temporary password provided by your administrator.</p><p>— Proton Admin</p>',
+        ('ETPL00000', 'WELCOME_EMAIL', 'Welcome Email', 'Welcome to Proton Admin, {ToName}!',
+         '<!doctype html><html><head><meta name="viewport" content="width=device-width" /><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>Proton Admin Email</title><style type="text/css">body { background-color: #f4f6f9; font-family: "Segoe UI", Tahoma, sans-serif; font-size: 15px; line-height: 1.6; margin: 0; padding: 0; color: #333333; } .container { max-width: 600px; margin: 30px auto; background: #ffffff; border-radius: 12px; box-shadow: 0 6px 20px rgba(0,0,0,0.08); overflow: hidden; border: 1px solid #e2e6ee; } .header { background-color: #7c3aed; padding: 20px 30px; text-align: center; color: white; font-size: 22px; font-weight: 600; letter-spacing: 0.5px; } .wrapper { padding: 30px; } p { margin-bottom: 16px; } a { color: #7c3aed; text-decoration: none; } .btn { display: inline-block; background-color: #7c3aed; color: #ffffff !important; padding: 12px 25px; border-radius: 8px; font-weight: bold; text-decoration: none; } .footer { text-align: center; font-size: 12px; color: #999999; background-color: #f9f9f9; padding: 15px; border-top: 1px solid #e2e6ee; } .footer a { color: #7c3aed; text-decoration: none; font-weight: 600; }</style></head><body><div class="container"><div class="header">Welcome to Proton Admin</div><div class="wrapper"><p>Dear {ToName},</p>{ImageTag}<p>{Description}</p><table border="0" cellpadding="0" cellspacing="0" role="presentation" style="margin: 20px 0;"><tbody><tr><td align="center"><a class="btn" href="{URL}" target="_blank">{ActionName}</a></td></tr></tbody></table><p style="font-size: 12px; color: #888;">This is an auto-generated email. Please do not reply.</p></div><div class="footer">Powered by <a href="{WebURL}">{WebName}</a></div></div></body></html>',
          'A', GETDATE(), NULL),
         ('ETPL00001', 'PASSWORD_RESET', 'Password Reset', 'Reset your Proton Admin password',
-         '<p>Hi {{Name}},</p><p>Click the link below to reset your password. This link expires in 30 minutes.</p><p><a href="{{ResetUrl}}">Reset Password</a></p><p>If you did not request this, you can ignore this email.</p>',
+         '<!doctype html><html><head><meta name="viewport" content="width=device-width" /><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>Proton Admin Email</title><style type="text/css">body { background-color: #f4f6f9; font-family: "Segoe UI", Tahoma, sans-serif; font-size: 15px; line-height: 1.6; margin: 0; padding: 0; color: #333333; } .container { max-width: 600px; margin: 30px auto; background: #ffffff; border-radius: 12px; box-shadow: 0 6px 20px rgba(0,0,0,0.08); overflow: hidden; border: 1px solid #e2e6ee; } .header { background-color: #7c3aed; padding: 20px 30px; text-align: center; color: white; font-size: 22px; font-weight: 600; letter-spacing: 0.5px; } .wrapper { padding: 30px; } p { margin-bottom: 16px; } a { color: #7c3aed; text-decoration: none; } .btn { display: inline-block; background-color: #7c3aed; color: #ffffff !important; padding: 12px 25px; border-radius: 8px; font-weight: bold; text-decoration: none; } .footer { text-align: center; font-size: 12px; color: #999999; background-color: #f9f9f9; padding: 15px; border-top: 1px solid #e2e6ee; } .footer a { color: #7c3aed; text-decoration: none; font-weight: 600; }</style></head><body><div class="container"><div class="header">Reset Your Password</div><div class="wrapper"><p>Dear {ToName},</p>{ImageTag}<p>{Description}</p><table border="0" cellpadding="0" cellspacing="0" role="presentation" style="margin: 20px 0;"><tbody><tr><td align="center"><a class="btn" href="{URL}" target="_blank">{ActionName}</a></td></tr></tbody></table><p style="font-size: 12px; color: #888;">If you did not request this, you can safely ignore this email.</p></div><div class="footer">Powered by <a href="{WebURL}">{WebName}</a></div></div></body></html>',
          'A', GETDATE(), NULL)
 
     UPDATE syst.NumberFormat SET NumberPart = 2 WHERE TableName = 'syst.EmailTemplate'
