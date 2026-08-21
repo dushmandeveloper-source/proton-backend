@@ -79,7 +79,7 @@ namespace Web_Backend.Classes
         {
             CheckUser();
             if (!HasPermission(moduleCode, action))
-                throw new UnauthorizedAccessException($"Missing '{action}' permission for module '{moduleCode}'.");
+                throw new PermissionDeniedException($"Missing '{action}' permission for module '{moduleCode}'.");
         }
     }
 }

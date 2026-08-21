@@ -1,6 +1,9 @@
 @model List<EmailTemplate>
 @{
     ViewData["Title"] = "Email Templates";
+    bool canAddEmailTemplate = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.EmailTemplates, 'A');
+    bool canEditEmailTemplate = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.EmailTemplates, 'E');
+    bool canDeleteEmailTemplate = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.EmailTemplates, 'D');
 }
 
 <div class="max-w-5xl mx-auto page-enter">
@@ -9,9 +12,12 @@
             <h2 class="text-3xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">Email Templates</h2>
             <p class="text-slate-500 dark:text-slate-400 mt-2">Reusable subject/body content for account and notification emails.</p>
         </div>
-        <a asp-action="Add" class="px-4 py-2 rounded-xl font-medium bg-[#7c3aed] text-white hover:bg-[#6d28d9] shadow-sm text-sm flex items-center gap-2">
-            <i data-lucide="plus" class="w-4 h-4"></i> New Template
-        </a>
+        @if (canAddEmailTemplate)
+        {
+            <a asp-action="Add" class="px-4 py-2 rounded-xl font-medium bg-[#7c3aed] text-white hover:bg-[#6d28d9] shadow-sm text-sm flex items-center gap-2">
+                <i data-lucide="plus" class="w-4 h-4"></i> New Template
+            </a>
+        }
     </div>
 
     <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
@@ -44,17 +50,23 @@
                                 <span class="px-2.5 py-0.5 rounded-full text-xs font-medium @statusColor">@(t.IsActive == "A" ? "Active" : "Inactive")</span>
                             </td>
                             <td class="px-6 py-4 text-right whitespace-nowrap">
-                                <a asp-action="Edit" asp-route-id="@t.TemplateID" title="Edit"
-                                   class="text-slate-400 dark:text-slate-500 hover:text-[#7c3aed] dark:hover:text-[#a78bfa] p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors inline-flex">
-                                    <i data-lucide="pencil" class="w-4 h-4"></i>
-                                </a>
-                                <form method="post" asp-action="Delete" asp-route-id="@t.TemplateID" class="inline"
-                                      data-confirm="Delete the '@t.TemplateName' template?" data-confirm-title="Delete template" data-confirm-label="Delete">
-                                    @Html.AntiForgeryToken()
-                                    <button type="submit" title="Delete" class="text-slate-400 dark:text-slate-500 hover:text-red-600 dark:hover:text-red-400 p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
-                                        <i data-lucide="trash-2" class="w-4 h-4"></i>
-                                    </button>
-                                </form>
+                                @if (canEditEmailTemplate)
+                                {
+                                    <a asp-action="Edit" asp-route-id="@t.TemplateID" title="Edit"
+                                       class="text-slate-400 dark:text-slate-500 hover:text-[#7c3aed] dark:hover:text-[#a78bfa] p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors inline-flex">
+                                        <i data-lucide="pencil" class="w-4 h-4"></i>
+                                    </a>
+                                }
+                                @if (canDeleteEmailTemplate)
+                                {
+                                    <form method="post" asp-action="Delete" asp-route-id="@t.TemplateID" class="inline"
+                                          data-confirm="Delete the '@t.TemplateName' template?" data-confirm-title="Delete template" data-confirm-label="Delete">
+                                        @Html.AntiForgeryToken()
+                                        <button type="submit" title="Delete" class="text-slate-400 dark:text-slate-500 hover:text-red-600 dark:hover:text-red-400 p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+                                            <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                        </button>
+                                    </form>
+                                }
                             </td>
                         </tr>
                     }

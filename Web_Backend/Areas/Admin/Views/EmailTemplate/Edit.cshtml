@@ -1,7 +1,11 @@
 @model EmailTemplate
 @{
-    ViewData["Title"] = string.IsNullOrEmpty(Model.TemplateID) ? "New Email Template" : "Edit Email Template";
+    bool isNewTemplate = string.IsNullOrEmpty(Model.TemplateID);
+    ViewData["Title"] = isNewTemplate ? "New Email Template" : "Edit Email Template";
     var placeholders = new[] { "{ToName}", "{Description}", "{ActionName}", "{URL}", "{ImageTag}", "{WebURL}", "{WebName}" };
+
+    // Mirrors the controller's Edit POST branch exactly: isNew ? 'A' : 'E'.
+    bool canSaveEmailTemplate = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.EmailTemplates, isNewTemplate ? 'A' : 'E');
 }
 
 <div class="max-w-6xl mx-auto page-enter">
@@ -75,9 +79,12 @@
 
         <div class="flex items-center justify-end gap-3">
             <a asp-action="Index" class="px-4 py-2 rounded-xl font-medium bg-transparent text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all">Cancel</a>
-            <button type="submit" class="px-4 py-2 rounded-xl font-medium bg-[#7c3aed] text-white hover:bg-[#6d28d9] shadow-sm transition-all">
-                Save Template
-            </button>
+            @if (canSaveEmailTemplate)
+            {
+                <button type="submit" class="px-4 py-2 rounded-xl font-medium bg-[#7c3aed] text-white hover:bg-[#6d28d9] shadow-sm transition-all">
+                    Save Template
+                </button>
+            }
         </div>
     </form>
 </div>

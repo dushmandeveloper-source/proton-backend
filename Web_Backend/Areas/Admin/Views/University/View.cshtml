@@ -4,6 +4,8 @@
     ViewData["Title"] = u.Name;
     string CardCls = "bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 p-6";
     string LabelCls = "text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider";
+
+    bool canEditUniversity = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.Universities, 'E');
 }
 
 <div class="max-w-6xl mx-auto page-enter">
@@ -28,10 +30,13 @@
                 <p class="text-slate-500 dark:text-slate-400 mt-1 text-sm">@u.NameChinese @(string.IsNullOrEmpty(u.ShortName) ? "" : $"· {u.ShortName}")</p>
             }
         </div>
-        <a asp-action="Edit" asp-route-id="@u.UniversityID"
-           class="px-4 py-2 rounded-xl font-medium bg-[#7c3aed] text-white hover:bg-[#6d28d9] shadow-sm text-sm flex items-center gap-2">
-            <i data-lucide="pencil" class="w-4 h-4"></i> Edit
-        </a>
+        @if (canEditUniversity)
+        {
+            <a asp-action="Edit" asp-route-id="@u.UniversityID"
+               class="px-4 py-2 rounded-xl font-medium bg-[#7c3aed] text-white hover:bg-[#6d28d9] shadow-sm text-sm flex items-center gap-2">
+                <i data-lucide="pencil" class="w-4 h-4"></i> Edit
+            </a>
+        }
     </div>
 
     @* ---------- Cover + logo ---------- *@

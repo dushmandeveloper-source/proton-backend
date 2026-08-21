@@ -8,6 +8,7 @@
     var canViewEmailSettings = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.EmailSettings, 'V');
     var canViewEmailTemplates = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.EmailTemplates, 'V');
     var canViewUserManagement = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.UserManagement, 'V');
+    var canAddUser = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.UserManagement, 'A');
 }
 <!DOCTYPE html>
 <html lang="en">
@@ -164,10 +165,13 @@ else
                     <button class="relative p-2 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl transition-colors">
                         <i data-lucide="bell" class="w-5 h-5"></i>
                     </button>
-                    <a asp-area="Admin" asp-controller="User" asp-action="Add"
-                       class="px-4 py-1.5 rounded-xl font-medium bg-[#7c3aed] text-white hover:bg-[#6d28d9] shadow-sm text-sm flex items-center gap-2">
-                        <i data-lucide="plus" class="w-4 h-4"></i> Add New
-                    </a>
+                    @if (canAddUser)
+                    {
+                        <a asp-area="Admin" asp-controller="User" asp-action="Add"
+                           class="px-4 py-1.5 rounded-xl font-medium bg-[#7c3aed] text-white hover:bg-[#6d28d9] shadow-sm text-sm flex items-center gap-2">
+                            <i data-lucide="plus" class="w-4 h-4"></i> Add New
+                        </a>
+                    }
                 </div>
             </header>
 
