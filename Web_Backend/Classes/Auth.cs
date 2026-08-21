@@ -7,6 +7,11 @@ namespace Web_Backend.Classes
     // pattern instead of [Authorize]/cookie authentication middleware.
     public static class Auth
     {
+        // Matches the seeded UserTypeID in Database/migrations/0002_role_permissions.sql.
+        // Hardcoded here (not just seeded with all-true rows) so full access
+        // can never be revoked by editing the database directly.
+        public const string MasterAdminRoleId = "MASTERADMIN";
+
         private static IHttpContextAccessor _accessor = null!;
 
         public static void Initialize(IHttpContextAccessor accessor)
@@ -47,6 +52,34 @@ namespace Web_Backend.Classes
             var user = GetUser();
             if (user?.Role != role)
                 throw new UnauthorizedAccessException($"Requires role: {role}");
+        }
+
+        // action: 'V' = View, 'A' = Add, 'E' = Edit, 'D' = Delete.
+        // Master Admin always returns true, regardless of what's stored —
+        // that role's access can't be narrowed by editing the database.
+        public static bool HasPermission(string moduleCode, char action)
+        {
+            var user = GetUser();
+            if (user == null) return false;
+            if (user.Role == MasterAdminRoleId) return true;
+
+            if (!user.Permissions.TryGetValue(moduleCode, out var grid)) return false;
+
+            return action switch
+            {
+                'V' => grid.CanView ?? false,
+                'A' => grid.CanAdd ?? false,
+                'E' => grid.CanEdit ?? false,
+                'D' => grid.CanDelete ?? false,
+                _ => false
+            };
+        }
+
+        public static void CheckPermission(string moduleCode, char action)
+        {
+            CheckUser();
+            if (!HasPermission(moduleCode, action))
+                throw new UnauthorizedAccessException($"Missing '{action}' permission for module '{moduleCode}'.");
         }
     }
 }
