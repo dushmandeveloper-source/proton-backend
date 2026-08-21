@@ -5,16 +5,12 @@
       "Microsoft.AspNetCore": "Warning"
     }
   },
-  "AllowedHosts": "*",
   "ApplicationSettings": {
     "DBSettings": {
-      "Server": "",
-      "Database": "",
+      "Server": "YOUR_LOCAL_SQL_SERVER_INSTANCE",
+      "Database": "Proton_Admin",
       "UserId": "",
       "Password": ""
-    },
-    "Security": {
-      "APIKey": "4C0A2B7E-6F3D-4E2A-9C1B-2D8E5F7A9B10"
     },
     "PublicSiteOrigins": [ "http://localhost:5173" ]
   }
