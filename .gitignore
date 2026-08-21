@@ -23,3 +23,7 @@ appsettings.*.local.json
 appsettings.Development.json
 appsettings.Production.json
 publish/
+
+# Generated at publish time (Database/tools) — a snapshot of pending
+# migrations for whatever DB appsettings.Production.json points at, not source
+Database/generated/

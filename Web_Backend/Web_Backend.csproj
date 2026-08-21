@@ -18,4 +18,14 @@
     <ProjectReference Include="..\DBAccess\DBAccess.csproj" />
   </ItemGroup>
 
+  <!-- On every publish, regenerate Database/generated/pending-migrations.sql
+       (the not-yet-applied files under Database/migrations, concatenated) so
+       there's always a single script ready to hand-run against the hosted DB
+       after uploading the publish output. Reads hosted DB creds straight out
+       of appsettings.Production.json — never duplicated into this file. -->
+  <Target Name="GeneratePendingMigrations" AfterTargets="Publish">
+    <Exec Command="pwsh -NoProfile -File &quot;$(ProjectDir)..\Database\tools\generate-pending-from-appsettings.ps1&quot; -AppSettingsPath &quot;$(ProjectDir)appsettings.Production.json&quot;"
+          ContinueOnError="WarnAndContinue" />
+  </Target>
+
 </Project>

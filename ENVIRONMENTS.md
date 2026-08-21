@@ -53,3 +53,40 @@ The backend only accepts cross-origin API calls from origins listed in
 `ApplicationSettings:PublicSiteOrigins`. When the frontend's hosted URL
 changes (e.g. a new Vercel domain), add it to `PublicSiteOrigins` in
 `appsettings.Production.json` and re-publish/re-upload the backend.
+
+## Database schema changes (migrations)
+
+Every database change — new table, new column, new stored procedure — gets
+its own numbered file under `Database/migrations/`, e.g.
+`0002_add_university_gallery_sort_order.sql`. Never edit an already-numbered
+file after it's been applied anywhere; add a new one instead, the same way
+`ProtonAdmin_Schema.sql`/`UniversityModule.sql` already do for full-schema
+idempotent scripts (this just gives each individual change its own file so
+you can update the hosted DB by running only what's new).
+
+**Rules for a migration file:**
+- Name it `NNNN_short_description.sql`, `NNNN` zero-padded and one higher
+  than the last file in the folder.
+- No `USE [Database]` statement — the tooling already connects to the right
+  database; a hardcoded `USE` would break it on the hosted DB (different
+  name from local).
+- Make it idempotent where practical (`IF OBJECT_ID(...) IS NULL`, etc.),
+  matching the existing schema scripts' style — cheap insurance if it's ever
+  re-run by hand.
+
+**Applying migrations locally** — runs immediately against the target DB
+and records each one in `syst.SchemaMigrations`:
+```powershell
+Database/tools/apply-migrations.ps1 -Server "VS-PW0C7J84\DUSHMAN001" -Database "Proton_Admin" -UserId "sa" -Password "..."
+```
+
+**At publish time**, `dotnet publish` automatically regenerates
+`Database/generated/pending-migrations.sql` — every migration not yet
+recorded in the hosted DB's `syst.SchemaMigrations`, concatenated into one
+script (see the `GeneratePendingMigrations` target in `Web_Backend.csproj`).
+This file is gitignored — it's a snapshot for whatever DB
+`appsettings.Production.json` currently points at, not source. After
+uploading the publish output via FileZilla, open that generated file in
+SSMS (or run it with `sqlcmd`) against the hosted database to bring its
+schema up to date. It self-records each migration as it runs, so running it
+again later only picks up whatever's new since.
