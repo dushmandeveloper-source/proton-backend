@@ -109,3 +109,29 @@ again later only picks up whatever's new since.
 | Apply | *(none)* | Yes, immediately | Local dev, after adding a new migration file |
 | Generate | `-GenerateOnly` | No — writes a combined script to disk | Automatically run by `dotnet publish`; can also be run manually against any DB |
 | Status | `-Status` | No — read-only report | Check what's applied/pending on any DB (local or hosted) at any time, without publishing |
+
+## Role-based permissions
+
+Every admin module (Universities, User Management, Email Settings, Email
+Templates) has independent View/Add/Edit/Delete permissions, set per role on
+the Role form (User Management → Roles & Permissions → Edit) and optionally
+overridden per individual user on that user's Add/Edit form.
+
+- **Master Admin** (`UserTypeID = 'MASTERADMIN'`) always has full access to
+  every module. This is hardcoded in `Auth.HasPermission`
+  (`Web_Backend/Classes/Auth.cs`) — not just pre-ticked in the UI — so it
+  can't be narrowed by editing the database directly. Its Edit-role form
+  shows every box ticked and disabled, and it has no Delete button in the
+  Roles list.
+- A user's **effective permission** for a module/action is: their personal
+  override if one exists, otherwise their role's default, otherwise
+  (implicitly) false. Overrides are stored in `usr.UserPermissionOverride`
+  as nullable bits — `NULL` means "inherit from the role."
+- Permissions are computed once at login and cached on the session
+  (`SessionUser.Permissions`) — a role or override change takes effect the
+  next time the affected user logs in, not instantly for an already-active
+  session.
+- To add a new permission-gated module: add a `(Code, Label)` pair to
+  `PermissionCode.All` (`Web_Backend/Classes/PermissionCode.cs`), then call
+  `Auth.CheckPermission(PermissionCode.YourModule, 'V'|'A'|'E'|'D')` at the
+  top of that module's controller actions.
