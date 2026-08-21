@@ -12,12 +12,21 @@ namespace Web_Backend.Areas.Admin.Controllers
         private readonly IUserAuthData authRep;
         private readonly IPasswordResetData resetRep;
         private readonly IEmailSender emailSender;
+        private readonly IRolePermissionData rolePermissionRep;
+        private readonly IUserPermissionOverrideData userPermissionOverrideRep;
 
-        public AccountController(IUserAuthData authRep, IPasswordResetData resetRep, IEmailSender emailSender)
+        public AccountController(
+            IUserAuthData authRep,
+            IPasswordResetData resetRep,
+            IEmailSender emailSender,
+            IRolePermissionData rolePermissionRep,
+            IUserPermissionOverrideData userPermissionOverrideRep)
         {
             this.authRep = authRep;
             this.resetRep = resetRep;
             this.emailSender = emailSender;
+            this.rolePermissionRep = rolePermissionRep;
+            this.userPermissionOverrideRep = userPermissionOverrideRep;
         }
 
         [HttpGet]
@@ -62,12 +71,34 @@ namespace Web_Backend.Areas.Admin.Controllers
 
             await authRep.RecordLoginResult(auth.AuthID, success: true);
 
+            var rolePermissions = await rolePermissionRep.GetForRole(auth.UserTypeID);
+            var overrides = await userPermissionOverrideRep.GetForUser(auth.UserID);
+            var overrideByModule = overrides.ToDictionary(o => o.ModuleCode);
+
+            var effective = PermissionCode.All.ToDictionary(
+                m => m.Code,
+                m =>
+                {
+                    var role = rolePermissions.FirstOrDefault(p => p.ModuleCode == m.Code);
+                    var ov = overrideByModule.TryGetValue(m.Code, out var o) ? o : null;
+                    return new PermissionGridViewModel
+                    {
+                        ModuleCode = m.Code,
+                        ModuleLabel = m.Label,
+                        CanView = ov?.CanView ?? role?.CanView ?? false,
+                        CanAdd = ov?.CanAdd ?? role?.CanAdd ?? false,
+                        CanEdit = ov?.CanEdit ?? role?.CanEdit ?? false,
+                        CanDelete = ov?.CanDelete ?? role?.CanDelete ?? false,
+                    };
+                });
+
             Auth.SignIn(new SessionUser
             {
                 Id = auth.UserID,
                 Name = auth.FullName,
                 Email = auth.Email,
-                Role = auth.UserTypeName
+                Role = auth.UserTypeID,
+                Permissions = effective
             });
             return RedirectToAction("Index", "Dashboard");
         }
