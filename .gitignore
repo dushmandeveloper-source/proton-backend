@@ -20,5 +20,6 @@ packages/
 
 # Local secrets / overrides — never commit real connection strings or keys
 appsettings.*.local.json
+appsettings.Development.json
 appsettings.Production.json
 publish/
