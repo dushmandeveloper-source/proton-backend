@@ -56,6 +56,8 @@ builder.Services.AddTransient<IEmailTemplateData, EmailTemplateData>();
 builder.Services.AddTransient<IPasswordResetData, PasswordResetData>();
 builder.Services.AddTransient<IEmailSender, EmailSender>();
 builder.Services.AddTransient<IUniversityData, UniversityData>();
+builder.Services.AddTransient<IRolePermissionData, RolePermissionData>();
+builder.Services.AddTransient<IUserPermissionOverrideData, UserPermissionOverrideData>();
 builder.Services.AddSingleton<IImageUploader, ImageUploader>();
 
 var app = builder.Build();
