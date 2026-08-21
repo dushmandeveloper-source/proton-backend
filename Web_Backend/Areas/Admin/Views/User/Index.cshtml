@@ -153,7 +153,7 @@
                     <tbody class="divide-y divide-slate-100 dark:divide-slate-700">
                         @foreach (var role in Model.Roles)
                         {
-                            var isAdminRole = role.UserTypeName.Equals("Admin", StringComparison.OrdinalIgnoreCase);
+                            var isAdminRole = role.UserTypeName.Equals("Admin", StringComparison.OrdinalIgnoreCase) || role.UserTypeID == "MASTERADMIN";
                             <tr class="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors">
                                 <td class="px-6 py-4 font-medium text-slate-800 dark:text-slate-100 text-sm">
                                     @role.UserTypeName
@@ -294,6 +294,57 @@
                                 <label class="text-sm font-medium text-slate-700 dark:text-slate-300">Description</label>
                                 <textarea name="Description" rows="3" placeholder="What this role can do"
                                           class="w-full rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 px-4 py-2.5 text-sm outline-none focus:border-[#7c3aed] focus:ring-1 focus:ring-[#7c3aed]">@roleForm.Description</textarea>
+                            </div>
+
+                            <div class="space-y-2">
+                                <label class="text-sm font-medium text-slate-700 dark:text-slate-300">Permissions</label>
+                                @{ var isMasterAdminRole = roleForm.UserTypeID == "MASTERADMIN"; }
+                                @if (isMasterAdminRole)
+                                {
+                                    <p class="text-xs text-slate-500 dark:text-slate-400">Master Admin always has full access to every module — this can't be changed.</p>
+                                }
+                                <div class="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-600">
+                                    <table class="w-full text-left border-collapse">
+                                        <thead>
+                                            <tr class="bg-slate-50 dark:bg-slate-800 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                                                <th class="px-4 py-3">Module</th>
+                                                <th class="px-4 py-3 text-center">View</th>
+                                                <th class="px-4 py-3 text-center">Add</th>
+                                                <th class="px-4 py-3 text-center">Edit</th>
+                                                <th class="px-4 py-3 text-center">Delete</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody class="divide-y divide-slate-100 dark:divide-slate-700">
+                                            @for (var i = 0; i < roleForm.Permissions.Count; i++)
+                                            {
+                                                var row = roleForm.Permissions[i];
+                                                <tr>
+                                                    <td class="px-4 py-3 text-sm font-medium text-slate-700 dark:text-slate-200">
+                                                        @row.ModuleLabel
+                                                        <input type="hidden" name="Permissions[@i].ModuleCode" value="@row.ModuleCode" />
+                                                        <input type="hidden" name="Permissions[@i].ModuleLabel" value="@row.ModuleLabel" />
+                                                    </td>
+                                                    <td class="px-4 py-3 text-center">
+                                                        <input type="checkbox" name="Permissions[@i].CanView" value="true" checked="@(row.CanView ?? isMasterAdminRole)" disabled="@isMasterAdminRole"
+                                                               class="rounded border-slate-300 dark:border-slate-600 text-[#7c3aed] focus:ring-[#7c3aed]" />
+                                                    </td>
+                                                    <td class="px-4 py-3 text-center">
+                                                        <input type="checkbox" name="Permissions[@i].CanAdd" value="true" checked="@(row.CanAdd ?? isMasterAdminRole)" disabled="@isMasterAdminRole"
+                                                               class="rounded border-slate-300 dark:border-slate-600 text-[#7c3aed] focus:ring-[#7c3aed]" />
+                                                    </td>
+                                                    <td class="px-4 py-3 text-center">
+                                                        <input type="checkbox" name="Permissions[@i].CanEdit" value="true" checked="@(row.CanEdit ?? isMasterAdminRole)" disabled="@isMasterAdminRole"
+                                                               class="rounded border-slate-300 dark:border-slate-600 text-[#7c3aed] focus:ring-[#7c3aed]" />
+                                                    </td>
+                                                    <td class="px-4 py-3 text-center">
+                                                        <input type="checkbox" name="Permissions[@i].CanDelete" value="true" checked="@(row.CanDelete ?? isMasterAdminRole)" disabled="@isMasterAdminRole"
+                                                               class="rounded border-slate-300 dark:border-slate-600 text-[#7c3aed] focus:ring-[#7c3aed]" />
+                                                    </td>
+                                                </tr>
+                                            }
+                                        </tbody>
+                                    </table>
+                                </div>
                             </div>
 
                             <label class="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300 cursor-pointer">

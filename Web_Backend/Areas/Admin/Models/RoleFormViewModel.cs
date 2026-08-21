@@ -12,5 +12,7 @@ namespace Web_Backend.Areas.Admin.Models
         public string Description { get; set; } = "";
 
         public bool IsActive { get; set; } = true;
+
+        public List<PermissionGridViewModel> Permissions { get; set; } = new();
     }
 }

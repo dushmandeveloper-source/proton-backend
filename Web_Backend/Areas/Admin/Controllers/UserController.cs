@@ -18,13 +18,18 @@ namespace Web_Backend.Areas.Admin.Controllers
         private readonly IUserAuthData authRep;
         private readonly IUserTypeData userTypeRep;
         private readonly IEmailSender emailSender;
+        private readonly IRolePermissionData rolePermissionRep;
+        private readonly IUserPermissionOverrideData userPermissionOverrideRep;
 
-        public UserController(IUserData userRep, IUserAuthData authRep, IUserTypeData userTypeRep, IEmailSender emailSender)
+        public UserController(IUserData userRep, IUserAuthData authRep, IUserTypeData userTypeRep,
+            IEmailSender emailSender, IRolePermissionData rolePermissionRep, IUserPermissionOverrideData userPermissionOverrideRep)
         {
             this.userRep = userRep;
             this.authRep = authRep;
             this.userTypeRep = userTypeRep;
             this.emailSender = emailSender;
+            this.rolePermissionRep = rolePermissionRep;
+            this.userPermissionOverrideRep = userPermissionOverrideRep;
         }
 
         private async Task PopulateLists(UserManagementViewModel model, bool showInactive = false)
@@ -239,7 +244,22 @@ namespace Web_Backend.Areas.Admin.Controllers
         {
             Auth.CheckUser();
             ViewBag.CurrentUser = Auth.GetUser();
-            var model = new UserManagementViewModel { ActiveTab = "addRole", RoleForm = new RoleFormViewModel() };
+            var model = new UserManagementViewModel
+            {
+                ActiveTab = "addRole",
+                RoleForm = new RoleFormViewModel
+                {
+                    Permissions = PermissionCode.All.Select(m => new PermissionGridViewModel
+                    {
+                        ModuleCode = m.Code,
+                        ModuleLabel = m.Label,
+                        CanView = false,
+                        CanAdd = false,
+                        CanEdit = false,
+                        CanDelete = false
+                    }).ToList()
+                }
+            };
             await PopulateLists(model);
             return View("Index", model);
         }
@@ -260,12 +280,25 @@ namespace Web_Backend.Areas.Admin.Controllers
                 return View("Index", model);
             }
 
-            await userTypeRep.AddEdit(new UserType
+            var newRoleId = await userTypeRep.AddEdit(new UserType
             {
                 UserTypeName = form.UserTypeName,
                 Description = form.Description,
                 IsActive = form.IsActive ? "A" : "I"
             });
+
+            foreach (var module in form.Permissions)
+            {
+                await rolePermissionRep.Save(new RolePermission
+                {
+                    UserTypeID = newRoleId,
+                    ModuleCode = module.ModuleCode,
+                    CanView = module.CanView ?? false,
+                    CanAdd = module.CanAdd ?? false,
+                    CanEdit = module.CanEdit ?? false,
+                    CanDelete = module.CanDelete ?? false
+                });
+            }
 
             TempData["SuccessMessage"] = $"Role '{form.UserTypeName}' created.";
             return RedirectToAction("Index", new { tab = "roles" });
@@ -292,6 +325,19 @@ namespace Web_Backend.Areas.Admin.Controllers
             var role = await userTypeRep.Get(id);
             if (role == null) return RedirectToAction("Index", new { tab = "roles" });
 
+            var rolePermissions = await rolePermissionRep.GetForRole(id);
+            var permissionGrid = id == Auth.MasterAdminRoleId
+                ? PermissionCode.All.Select(m => new PermissionGridViewModel
+                {
+                    ModuleCode = m.Code,
+                    ModuleLabel = m.Label,
+                    CanView = true,
+                    CanAdd = true,
+                    CanEdit = true,
+                    CanDelete = true
+                }).ToList()
+                : PermissionGridViewModel.BuildFromRole(rolePermissions);
+
             var model = new UserManagementViewModel
             {
                 ActiveTab = "editRole",
@@ -300,7 +346,8 @@ namespace Web_Backend.Areas.Admin.Controllers
                     UserTypeID = role.UserTypeID,
                     UserTypeName = role.UserTypeName,
                     Description = role.Description,
-                    IsActive = role.IsActive == "A"
+                    IsActive = role.IsActive == "A",
+                    Permissions = permissionGrid
                 }
             };
             await PopulateLists(model);
@@ -312,6 +359,12 @@ namespace Web_Backend.Areas.Admin.Controllers
         {
             Auth.CheckUser();
             ViewBag.CurrentUser = Auth.GetUser();
+
+            if (form.UserTypeID == Auth.MasterAdminRoleId)
+            {
+                TempData["ErrorMessage"] = "The Master Admin role can't be changed.";
+                return RedirectToAction("Index", new { tab = "roles" });
+            }
 
             if (ModelState.IsValid && await RoleNameTaken(form.UserTypeName, excludingId: form.UserTypeID))
                 ModelState.AddModelError(nameof(form.UserTypeName), "A role with this name already exists.");
@@ -331,6 +384,19 @@ namespace Web_Backend.Areas.Admin.Controllers
                 IsActive = form.IsActive ? "A" : "I"
             });
 
+            foreach (var module in form.Permissions)
+            {
+                await rolePermissionRep.Save(new RolePermission
+                {
+                    UserTypeID = form.UserTypeID,
+                    ModuleCode = module.ModuleCode,
+                    CanView = module.CanView ?? false,
+                    CanAdd = module.CanAdd ?? false,
+                    CanEdit = module.CanEdit ?? false,
+                    CanDelete = module.CanDelete ?? false
+                });
+            }
+
             TempData["SuccessMessage"] = $"Role '{form.UserTypeName}' updated.";
             return RedirectToAction("Index", new { tab = "roles" });
         }
@@ -339,6 +405,12 @@ namespace Web_Backend.Areas.Admin.Controllers
         public async Task<IActionResult> DeleteRole(string id)
         {
             Auth.CheckUser();
+
+            if (id == Auth.MasterAdminRoleId)
+            {
+                TempData["ErrorMessage"] = "The Master Admin role can't be removed.";
+                return RedirectToAction("Index", new { tab = "roles" });
+            }
 
             var role = await userTypeRep.Get(id);
             if (role != null && role.UserTypeName.Equals(AdminRoleName, StringComparison.OrdinalIgnoreCase))
