@@ -25,7 +25,7 @@ namespace Web_Backend.Areas.Admin.Controllers
 
         public async Task<IActionResult> Index(string KeyW = "", bool showInactive = false)
         {
-            Auth.CheckUser();
+            Auth.CheckPermission(PermissionCode.Universities, 'V');
             ViewBag.CurrentUser = Auth.GetUser();
             ViewBag.KeyW = KeyW;
             ViewBag.ShowInactive = showInactive;
@@ -41,7 +41,7 @@ namespace Web_Backend.Areas.Admin.Controllers
         [HttpGet]
         public IActionResult Add()
         {
-            Auth.CheckUser();
+            Auth.CheckPermission(PermissionCode.Universities, 'A');
             ViewBag.CurrentUser = Auth.GetUser();
             return View("Edit", new UniversityDetailViewModel { ActiveTab = "details" });
         }
@@ -49,7 +49,7 @@ namespace Web_Backend.Areas.Admin.Controllers
         [HttpGet]
         public async Task<IActionResult> Edit(string id, string tab = "details")
         {
-            Auth.CheckUser();
+            Auth.CheckPermission(PermissionCode.Universities, 'V');
             ViewBag.CurrentUser = Auth.GetUser();
 
             var university = await rep.Get(id);
@@ -68,7 +68,7 @@ namespace Web_Backend.Areas.Admin.Controllers
         [HttpGet]
         public async Task<IActionResult> Details(string id)
         {
-            Auth.CheckUser();
+            Auth.CheckPermission(PermissionCode.Universities, 'V');
             ViewBag.CurrentUser = Auth.GetUser();
 
             var university = await rep.Get(id);
@@ -88,10 +88,10 @@ namespace Web_Backend.Areas.Admin.Controllers
         [HttpPost, ValidateAntiForgeryToken]
         public async Task<IActionResult> Save(University form, IFormFile? logoFile, IFormFile? coverFile, string tab = "details")
         {
-            Auth.CheckUser();
             ViewBag.CurrentUser = Auth.GetUser();
 
             var isNew = string.IsNullOrEmpty(form.UniversityID);
+            Auth.CheckPermission(PermissionCode.Universities, isNew ? 'A' : 'E');
             University target;
 
             if (isNew)
@@ -202,7 +202,7 @@ namespace Web_Backend.Areas.Admin.Controllers
         [HttpPost, ValidateAntiForgeryToken]
         public async Task<IActionResult> Delete(string id)
         {
-            Auth.CheckUser();
+            Auth.CheckPermission(PermissionCode.Universities, 'D');
             try
             {
                 await rep.Delete(id);
@@ -219,7 +219,7 @@ namespace Web_Backend.Areas.Admin.Controllers
         [HttpPost, ValidateAntiForgeryToken]
         public async Task<IActionResult> AddGalleryImage(string universityId, IFormFile? imageFile, string caption = "", int sortOrder = 0)
         {
-            Auth.CheckUser();
+            Auth.CheckPermission(PermissionCode.Universities, 'A');
             try
             {
                 var url = await uploader.SaveAsync(imageFile, UploadFolder)
@@ -245,7 +245,7 @@ namespace Web_Backend.Areas.Admin.Controllers
         [HttpPost, ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteGalleryImage(string universityId, string id)
         {
-            Auth.CheckUser();
+            Auth.CheckPermission(PermissionCode.Universities, 'D');
             await rep.DeleteGallery(id);
             TempData["SuccessMessage"] = "Image removed.";
             return RedirectToAction("Edit", new { id = universityId, tab = "gallery" });
@@ -255,7 +255,7 @@ namespace Web_Backend.Areas.Admin.Controllers
         [HttpPost, ValidateAntiForgeryToken]
         public async Task<IActionResult> SaveFeature(UniversityFeature form)
         {
-            Auth.CheckUser();
+            Auth.CheckPermission(PermissionCode.Universities, 'A');
             try
             {
                 await rep.AddEditFeature(form);
@@ -271,7 +271,7 @@ namespace Web_Backend.Areas.Admin.Controllers
         [HttpPost, ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteFeature(string universityId, string id)
         {
-            Auth.CheckUser();
+            Auth.CheckPermission(PermissionCode.Universities, 'D');
             await rep.DeleteFeature(id);
             TempData["SuccessMessage"] = "Feature removed.";
             return RedirectToAction("Edit", new { id = universityId, tab = "features" });
@@ -281,7 +281,7 @@ namespace Web_Backend.Areas.Admin.Controllers
         [HttpPost, ValidateAntiForgeryToken]
         public async Task<IActionResult> SaveProgram(UniversityProgram form)
         {
-            Auth.CheckUser();
+            Auth.CheckPermission(PermissionCode.Universities, 'A');
             try
             {
                 await rep.AddEditProgram(form);
@@ -297,7 +297,7 @@ namespace Web_Backend.Areas.Admin.Controllers
         [HttpPost, ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteProgram(string universityId, string id)
         {
-            Auth.CheckUser();
+            Auth.CheckPermission(PermissionCode.Universities, 'D');
             await rep.DeleteProgram(id);
             TempData["SuccessMessage"] = "Program removed.";
             return RedirectToAction("Edit", new { id = universityId, tab = "programs" });
@@ -307,7 +307,7 @@ namespace Web_Backend.Areas.Admin.Controllers
         [HttpPost, ValidateAntiForgeryToken]
         public async Task<IActionResult> SaveIntake(UniversityIntake form)
         {
-            Auth.CheckUser();
+            Auth.CheckPermission(PermissionCode.Universities, 'A');
             try
             {
                 await rep.AddEditIntake(form);
@@ -323,7 +323,7 @@ namespace Web_Backend.Areas.Admin.Controllers
         [HttpPost, ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteIntake(string universityId, string id)
         {
-            Auth.CheckUser();
+            Auth.CheckPermission(PermissionCode.Universities, 'D');
             await rep.DeleteIntake(id);
             TempData["SuccessMessage"] = "Intake removed.";
             return RedirectToAction("Edit", new { id = universityId, tab = "intakes" });

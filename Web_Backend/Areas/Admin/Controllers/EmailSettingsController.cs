@@ -18,7 +18,7 @@ namespace Web_Backend.Areas.Admin.Controllers
         [HttpGet]
         public async Task<IActionResult> Index()
         {
-            Auth.CheckUser();
+            Auth.CheckPermission(PermissionCode.EmailSettings, 'V');
             ViewBag.CurrentUser = Auth.GetUser();
             var settings = await rep.Get() ?? new EmailSettingsModel();
             return View(settings);
@@ -27,7 +27,7 @@ namespace Web_Backend.Areas.Admin.Controllers
         [HttpPost, ValidateAntiForgeryToken]
         public async Task<IActionResult> Index(EmailSettingsModel model)
         {
-            Auth.CheckUser();
+            Auth.CheckPermission(PermissionCode.EmailSettings, 'E');
             ViewBag.CurrentUser = Auth.GetUser();
 
             if (!ModelState.IsValid)

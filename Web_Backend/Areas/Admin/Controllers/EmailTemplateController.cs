@@ -17,7 +17,7 @@ namespace Web_Backend.Areas.Admin.Controllers
 
         public async Task<IActionResult> Index(string KeyW = "")
         {
-            Auth.CheckUser();
+            Auth.CheckPermission(PermissionCode.EmailTemplates, 'V');
             ViewBag.CurrentUser = Auth.GetUser();
             var templates = await rep.GetList(KeyW);
             return View(templates);
@@ -26,7 +26,7 @@ namespace Web_Backend.Areas.Admin.Controllers
         [HttpGet]
         public IActionResult Add()
         {
-            Auth.CheckUser();
+            Auth.CheckPermission(PermissionCode.EmailTemplates, 'A');
             ViewBag.CurrentUser = Auth.GetUser();
             return View("Edit", new EmailTemplate());
         }
@@ -34,7 +34,7 @@ namespace Web_Backend.Areas.Admin.Controllers
         [HttpGet]
         public async Task<IActionResult> Edit(string id)
         {
-            Auth.CheckUser();
+            Auth.CheckPermission(PermissionCode.EmailTemplates, 'V');
             ViewBag.CurrentUser = Auth.GetUser();
             var template = await rep.Get(id);
             if (template == null) return RedirectToAction("Index");
@@ -44,7 +44,7 @@ namespace Web_Backend.Areas.Admin.Controllers
         [HttpPost, ValidateAntiForgeryToken]
         public async Task<IActionResult> Edit(EmailTemplate model)
         {
-            Auth.CheckUser();
+            Auth.CheckPermission(PermissionCode.EmailTemplates, string.IsNullOrEmpty(model.TemplateID) ? 'A' : 'E');
             ViewBag.CurrentUser = Auth.GetUser();
 
             if (ModelState.IsValid)
@@ -68,7 +68,7 @@ namespace Web_Backend.Areas.Admin.Controllers
         [HttpPost, ValidateAntiForgeryToken]
         public async Task<IActionResult> Delete(string id)
         {
-            Auth.CheckUser();
+            Auth.CheckPermission(PermissionCode.EmailTemplates, 'D');
             try
             {
                 await rep.Delete(id);
