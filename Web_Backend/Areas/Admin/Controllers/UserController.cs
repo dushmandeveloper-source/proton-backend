@@ -79,6 +79,12 @@ namespace Web_Backend.Areas.Admin.Controllers
             Auth.CheckPermission(PermissionCode.UserManagement, 'A');
             ViewBag.CurrentUser = Auth.GetUser();
 
+            // Only an existing Master Admin can grant Master Admin — otherwise
+            // any user with plain UserManagement Add access could hand
+            // themselves (or anyone) unconditional full access via this form.
+            if (form.Role == Auth.MasterAdminRoleId && Auth.GetUser()?.Role != Auth.MasterAdminRoleId)
+                ModelState.AddModelError(nameof(form.Role), "Only a Master Admin can assign the Master Admin role.");
+
             if (ModelState.IsValid)
             {
                 var existing = await userRep.GetByEmail(form.Email);
@@ -189,6 +195,12 @@ namespace Web_Backend.Areas.Admin.Controllers
             Auth.CheckPermission(PermissionCode.UserManagement, 'E');
             ViewBag.CurrentUser = Auth.GetUser();
 
+            // Only an existing Master Admin can grant Master Admin — otherwise
+            // any user with plain UserManagement Edit access could hand
+            // themselves (or anyone) unconditional full access via this form.
+            if (form.Role == Auth.MasterAdminRoleId && Auth.GetUser()?.Role != Auth.MasterAdminRoleId)
+                ModelState.AddModelError(nameof(form.Role), "Only a Master Admin can assign the Master Admin role.");
+
             if (ModelState.IsValid)
             {
                 var existing = await userRep.GetByEmail(form.Email);
@@ -289,6 +301,14 @@ namespace Web_Backend.Areas.Admin.Controllers
         public async Task<JsonResult> SetRole(string id, string role)
         {
             Auth.CheckPermission(PermissionCode.UserManagement, 'E');
+
+            // Only an existing Master Admin can grant Master Admin — otherwise
+            // any user with plain UserManagement Edit access could hand
+            // themselves (or anyone) unconditional full access via this
+            // quick-role-select dropdown.
+            if (role == Auth.MasterAdminRoleId && Auth.GetUser()?.Role != Auth.MasterAdminRoleId)
+                return Json(new { success = false, message = "Only a Master Admin can assign the Master Admin role." });
+
             await userRep.SetUserType(id, role);
             return Json(new { success = true });
         }

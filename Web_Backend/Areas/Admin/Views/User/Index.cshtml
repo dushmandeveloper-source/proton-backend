@@ -16,6 +16,15 @@
     string? newCredPassword = TempData["NewCredentialsPassword"] as string;
     bool newCredEmailSent = TempData["NewCredentialsEmailSent"] as bool? ?? false;
     bool showCredentials = !string.IsNullOrEmpty(newCredPassword);
+
+    // Only a Master Admin can hand out the Master Admin role — hide it from
+    // every role picker for everyone else so there's no UI path to it (the
+    // server-side checks in UserController are the real guard; this just
+    // keeps the picker from offering something it would refuse anyway).
+    bool canAssignMasterAdmin = Web_Backend.Classes.Auth.GetUser()?.Role == Web_Backend.Classes.Auth.MasterAdminRoleId;
+    var assignableRoles = canAssignMasterAdmin
+        ? Model.Roles
+        : Model.Roles.Where(r => r.UserTypeID != Web_Backend.Classes.Auth.MasterAdminRoleId).ToList();
 }
 
 <div class="max-w-6xl mx-auto page-enter">
@@ -96,7 +105,17 @@
                                     <div class="relative inline-block w-40">
                                         <select class="role-select w-full appearance-none bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-200 py-1.5 pl-3 pr-8 rounded-lg text-sm font-medium focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent cursor-pointer"
                                                 data-user-id="@user.UserID">
-                                            @foreach (var userType in Model.Roles)
+                                            @{
+                                                // Always include the user's current role (even Master Admin, so
+                                                // the dropdown doesn't misrepresent their actual assignment) —
+                                                // just don't offer Master Admin as something to switch TO unless
+                                                // the viewer is a Master Admin themselves. SetRole enforces this
+                                                // server-side regardless of what's rendered here.
+                                                var rowRoles = canAssignMasterAdmin || user.UserTypeID == Web_Backend.Classes.Auth.MasterAdminRoleId
+                                                    ? Model.Roles
+                                                    : assignableRoles;
+                                            }
+                                            @foreach (var userType in rowRoles)
                                             {
                                                 <option value="@userType.UserTypeID" selected="@(userType.UserTypeID == user.UserTypeID)">@userType.UserTypeName</option>
                                             }
@@ -243,7 +262,15 @@
                             <div class="space-y-1">
                                 <label class="text-sm font-medium text-slate-700 dark:text-slate-300">Assign Role</label>
                                 <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mt-2">
-                                    @foreach (var userType in Model.Roles)
+                                    @{
+                                        // Same rule as the quick-select dropdown above: don't offer
+                                        // Master Admin unless the viewer already is one, but still show
+                                        // it if that's this record's current role.
+                                        var formRoles = canAssignMasterAdmin || role == Web_Backend.Classes.Auth.MasterAdminRoleId
+                                            ? Model.Roles
+                                            : assignableRoles;
+                                    }
+                                    @foreach (var userType in formRoles)
                                     {
                                         <label class="cursor-pointer relative">
                                             <input type="radio" name="Role" value="@userType.UserTypeID" class="peer sr-only" checked="@(userType.UserTypeID == role)" />
