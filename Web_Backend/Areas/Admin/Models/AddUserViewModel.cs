@@ -14,5 +14,7 @@ namespace Web_Backend.Areas.Admin.Models
         public string Email { get; set; } = "";
 
         public string Role { get; set; } = "Student";
+
+        public List<PermissionGridViewModel> PermissionOverrides { get; set; } = new();
     }
 }

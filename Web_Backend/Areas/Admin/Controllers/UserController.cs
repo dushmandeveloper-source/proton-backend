@@ -57,7 +57,18 @@ namespace Web_Backend.Areas.Admin.Controllers
         {
             Auth.CheckUser();
             ViewBag.CurrentUser = Auth.GetUser();
-            var model = new UserManagementViewModel { ActiveTab = "addUser", AddUserForm = new AddUserViewModel() };
+            var model = new UserManagementViewModel
+            {
+                ActiveTab = "addUser",
+                AddUserForm = new AddUserViewModel
+                {
+                    PermissionOverrides = PermissionCode.All.Select(m => new PermissionGridViewModel
+                    {
+                        ModuleCode = m.Code,
+                        ModuleLabel = m.Label
+                    }).ToList()
+                }
+            };
             await PopulateLists(model);
             return View("Index", model);
         }
@@ -97,6 +108,19 @@ namespace Web_Backend.Areas.Admin.Controllers
             var (hash, salt) = PasswordHasher.Hash(tempPassword);
             await authRep.AddEdit("", userId, form.Email, form.Email, hash, salt);
 
+            foreach (var module in form.PermissionOverrides.Where(m => m.CanView != null || m.CanAdd != null || m.CanEdit != null || m.CanDelete != null))
+            {
+                await userPermissionOverrideRep.Save(new UserPermissionOverride
+                {
+                    UserID = userId,
+                    ModuleCode = module.ModuleCode,
+                    CanView = module.CanView,
+                    CanAdd = module.CanAdd,
+                    CanEdit = module.CanEdit,
+                    CanDelete = module.CanDelete
+                });
+            }
+
             var loginUrl = Url.Action("Login", "Account", new { area = "Admin" }, Request.Scheme) ?? "#";
             var description =
                 $"Your Proton Admin account has been created.<br/><br/>" +
@@ -125,6 +149,8 @@ namespace Web_Backend.Areas.Admin.Controllers
             var user = await userRep.Get(id);
             if (user == null) return RedirectToAction("Index", new { tab = "users" });
 
+            var overrides = await userPermissionOverrideRep.GetForUser(id);
+
             var model = new UserManagementViewModel
             {
                 ActiveTab = "editUser",
@@ -135,10 +161,25 @@ namespace Web_Backend.Areas.Admin.Controllers
                     LastName = user.LastName,
                     Email = user.Email,
                     Role = user.UserTypeID,
-                    IsActive = user.IsActive == "A"
+                    IsActive = user.IsActive == "A",
+                    PermissionOverrides = PermissionGridViewModel.BuildOverridesFromUser(overrides)
                 }
             };
             await PopulateLists(model);
+
+            // The view resolves "inherit" cells against the selected role's defaults
+            // client-side (Step 7), keyed by UserTypeID — ship every role's grid so
+            // the picker can switch roles without a round-trip.
+            var allRolePermissions = new Dictionary<string, List<PermissionGridViewModel>>();
+            foreach (var role in model.Roles)
+            {
+                var rp = role.UserTypeID == Auth.MasterAdminRoleId
+                    ? PermissionCode.All.Select(m => new PermissionGridViewModel { ModuleCode = m.Code, ModuleLabel = m.Label, CanView = true, CanAdd = true, CanEdit = true, CanDelete = true }).ToList()
+                    : PermissionGridViewModel.BuildFromRole(await rolePermissionRep.GetForRole(role.UserTypeID));
+                allRolePermissions[role.UserTypeID] = rp;
+            }
+            ViewBag.RolePermissionsByRole = allRolePermissions;
+
             return View("Index", model);
         }
 
@@ -172,6 +213,19 @@ namespace Web_Backend.Areas.Admin.Controllers
                 UserTypeID = form.Role,
                 IsActive = form.IsActive ? "A" : "I"
             });
+
+            foreach (var module in form.PermissionOverrides)
+            {
+                await userPermissionOverrideRep.Save(new UserPermissionOverride
+                {
+                    UserID = form.UserID,
+                    ModuleCode = module.ModuleCode,
+                    CanView = module.CanView,
+                    CanAdd = module.CanAdd,
+                    CanEdit = module.CanEdit,
+                    CanDelete = module.CanDelete
+                });
+            }
 
             TempData["SuccessMessage"] = $"User '{form.FirstName} {form.LastName}' updated.";
             return RedirectToAction("Index", new { tab = "users" });
