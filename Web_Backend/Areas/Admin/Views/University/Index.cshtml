@@ -4,6 +4,10 @@
     var keyW = ViewBag.KeyW as string ?? "";
     var showInactive = ViewBag.ShowInactive as bool? ?? false;
     var mapped = Model.Where(u => u.HasCoordinates).ToList();
+
+    bool canAddUniversity = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.Universities, 'A');
+    bool canEditUniversity = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.Universities, 'E');
+    bool canDeleteUniversity = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.Universities, 'D');
 }
 
 <div class="max-w-6xl mx-auto page-enter">
@@ -12,9 +16,12 @@
             <h2 class="text-3xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">Universities</h2>
             <p class="text-slate-500 dark:text-slate-400 mt-2">Partner institutions, their programs, galleries and locations.</p>
         </div>
-        <a asp-action="Add" class="px-4 py-2 rounded-xl font-medium bg-[#7c3aed] text-white hover:bg-[#6d28d9] shadow-sm text-sm flex items-center gap-2 w-fit">
-            <i data-lucide="plus" class="w-4 h-4"></i> Add University
-        </a>
+        @if (canAddUniversity)
+        {
+            <a asp-action="Add" class="px-4 py-2 rounded-xl font-medium bg-[#7c3aed] text-white hover:bg-[#6d28d9] shadow-sm text-sm flex items-center gap-2 w-fit">
+                <i data-lucide="plus" class="w-4 h-4"></i> Add University
+            </a>
+        }
     </div>
 
     <form method="get" class="flex flex-wrap items-center gap-3 mb-6">
@@ -118,17 +125,23 @@
                            class="flex-1 text-center px-3 py-2 rounded-xl text-sm font-medium bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
                             View
                         </a>
-                        <a asp-action="Edit" asp-route-id="@u.UniversityID"
-                           class="flex-1 text-center px-3 py-2 rounded-xl text-sm font-medium bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
-                            Edit
-                        </a>
-                        <form method="post" asp-action="Delete" asp-route-id="@u.UniversityID"
-                              data-confirm="Delete @u.Name? Its gallery, programs and intakes will be hidden too." data-confirm-title="Delete university" data-confirm-label="Delete">
-                            @Html.AntiForgeryToken()
-                            <button type="submit" title="Delete" class="p-2 rounded-xl text-slate-400 dark:text-slate-500 hover:text-red-600 dark:hover:text-red-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
-                                <i data-lucide="trash-2" class="w-4 h-4"></i>
-                            </button>
-                        </form>
+                        @if (canEditUniversity)
+                        {
+                            <a asp-action="Edit" asp-route-id="@u.UniversityID"
+                               class="flex-1 text-center px-3 py-2 rounded-xl text-sm font-medium bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+                                Edit
+                            </a>
+                        }
+                        @if (canDeleteUniversity)
+                        {
+                            <form method="post" asp-action="Delete" asp-route-id="@u.UniversityID"
+                                  data-confirm="Delete @u.Name? Its gallery, programs and intakes will be hidden too." data-confirm-title="Delete university" data-confirm-label="Delete">
+                                @Html.AntiForgeryToken()
+                                <button type="submit" title="Delete" class="p-2 rounded-xl text-slate-400 dark:text-slate-500 hover:text-red-600 dark:hover:text-red-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+                                    <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                </button>
+                            </form>
+                        }
                     </div>
                 </div>
             </div>

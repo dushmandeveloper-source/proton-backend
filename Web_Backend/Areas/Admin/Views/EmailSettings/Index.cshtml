@@ -1,6 +1,7 @@
 @model EmailSettingsModel
 @{
     ViewData["Title"] = "Email Settings";
+    bool canEditEmailSettings = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.EmailSettings, 'E');
 }
 
 <div class="max-w-3xl mx-auto page-enter">
@@ -75,11 +76,14 @@
                     </div>
                 </div>
 
-                <div class="pt-6 border-t border-slate-100 dark:border-slate-700 flex items-center justify-end gap-3">
-                    <button type="submit" class="px-4 py-2 rounded-xl font-medium bg-[#7c3aed] text-white hover:bg-[#6d28d9] shadow-sm transition-all">
-                        Save Settings
-                    </button>
-                </div>
+                @if (canEditEmailSettings)
+                {
+                    <div class="pt-6 border-t border-slate-100 dark:border-slate-700 flex items-center justify-end gap-3">
+                        <button type="submit" class="px-4 py-2 rounded-xl font-medium bg-[#7c3aed] text-white hover:bg-[#6d28d9] shadow-sm transition-all">
+                            Save Settings
+                        </button>
+                    </div>
+                }
             </form>
         </div>
     </div>

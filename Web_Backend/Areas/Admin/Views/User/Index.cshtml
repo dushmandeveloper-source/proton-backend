@@ -25,6 +25,11 @@
     var assignableRoles = canAssignMasterAdmin
         ? Model.Roles
         : Model.Roles.Where(r => r.UserTypeID != Web_Backend.Classes.Auth.MasterAdminRoleId).ToList();
+
+    // UserManagement covers both Users and Roles tabs on this one page.
+    bool canAddUM = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.UserManagement, 'A');
+    bool canEditUM = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.UserManagement, 'E');
+    bool canDeleteUM = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.UserManagement, 'D');
 }
 
 <div class="max-w-6xl mx-auto page-enter">
@@ -61,9 +66,12 @@
                 <i data-lucide="@(Model.ShowInactive ? "eye-off" : "eye")" class="w-4 h-4"></i>
                 @(Model.ShowInactive ? "Hide deactivated users" : "Show deactivated users")
             </a>
-            <a asp-action="Add" class="px-4 py-1.5 rounded-xl font-medium bg-[#7c3aed] text-white hover:bg-[#6d28d9] shadow-sm text-sm flex items-center gap-2">
-                <i data-lucide="plus" class="w-4 h-4"></i> Add User
-            </a>
+            @if (canAddUM)
+            {
+                <a asp-action="Add" class="px-4 py-1.5 rounded-xl font-medium bg-[#7c3aed] text-white hover:bg-[#6d28d9] shadow-sm text-sm flex items-center gap-2">
+                    <i data-lucide="plus" class="w-4 h-4"></i> Add User
+                </a>
+            }
         </div>
         <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
             <div class="overflow-x-auto">
@@ -103,8 +111,8 @@
                                 <td class="px-6 py-4 text-sm text-slate-600 dark:text-slate-300">@(string.IsNullOrEmpty(user.Phone) ? "—" : user.Phone)</td>
                                 <td class="px-6 py-4">
                                     <div class="relative inline-block w-40">
-                                        <select class="role-select w-full appearance-none bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-200 py-1.5 pl-3 pr-8 rounded-lg text-sm font-medium focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent cursor-pointer"
-                                                data-user-id="@user.UserID">
+                                        <select class="role-select w-full appearance-none bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-200 py-1.5 pl-3 pr-8 rounded-lg text-sm font-medium focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+                                                data-user-id="@user.UserID" disabled="@(!canEditUM)">
                                             @{
                                                 // Always include the user's current role (even Master Admin, so
                                                 // the dropdown doesn't misrepresent their actual assignment) —
@@ -124,24 +132,30 @@
                                     </div>
                                 </td>
                                 <td class="px-6 py-4 text-right whitespace-nowrap">
-                                    <a asp-action="Edit" asp-route-id="@user.UserID" title="Edit"
-                                       class="text-slate-400 dark:text-slate-500 hover:text-[#7c3aed] dark:hover:text-[#a78bfa] p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors inline-flex">
-                                        <i data-lucide="pencil" class="w-4 h-4"></i>
-                                    </a>
-                                    <form method="post" asp-action="ResetPassword" asp-route-id="@user.UserID" class="inline"
-                                          data-confirm="Generate a new temporary password for @user.FullName?" data-confirm-title="Reset password" data-confirm-label="Reset Password">
-                                        @Html.AntiForgeryToken()
-                                        <button type="submit" title="Reset password" class="text-slate-400 dark:text-slate-500 hover:text-amber-600 dark:hover:text-amber-400 p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
-                                            <i data-lucide="key-round" class="w-4 h-4"></i>
-                                        </button>
-                                    </form>
-                                    <form method="post" asp-action="Delete" asp-route-id="@user.UserID" class="inline"
-                                          data-confirm="Delete @user.FullName? This can be reversed later by an admin, but they won't be able to sign in until then." data-confirm-title="Delete user" data-confirm-label="Delete">
-                                        @Html.AntiForgeryToken()
-                                        <button type="submit" title="Delete" class="text-slate-400 dark:text-slate-500 hover:text-red-600 dark:hover:text-red-400 p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
-                                            <i data-lucide="trash-2" class="w-4 h-4"></i>
-                                        </button>
-                                    </form>
+                                    @if (canEditUM)
+                                    {
+                                        <a asp-action="Edit" asp-route-id="@user.UserID" title="Edit"
+                                           class="text-slate-400 dark:text-slate-500 hover:text-[#7c3aed] dark:hover:text-[#a78bfa] p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors inline-flex">
+                                            <i data-lucide="pencil" class="w-4 h-4"></i>
+                                        </a>
+                                        <form method="post" asp-action="ResetPassword" asp-route-id="@user.UserID" class="inline"
+                                              data-confirm="Generate a new temporary password for @user.FullName?" data-confirm-title="Reset password" data-confirm-label="Reset Password">
+                                            @Html.AntiForgeryToken()
+                                            <button type="submit" title="Reset password" class="text-slate-400 dark:text-slate-500 hover:text-amber-600 dark:hover:text-amber-400 p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+                                                <i data-lucide="key-round" class="w-4 h-4"></i>
+                                            </button>
+                                        </form>
+                                    }
+                                    @if (canDeleteUM)
+                                    {
+                                        <form method="post" asp-action="Delete" asp-route-id="@user.UserID" class="inline"
+                                              data-confirm="Delete @user.FullName? This can be reversed later by an admin, but they won't be able to sign in until then." data-confirm-title="Delete user" data-confirm-label="Delete">
+                                            @Html.AntiForgeryToken()
+                                            <button type="submit" title="Delete" class="text-slate-400 dark:text-slate-500 hover:text-red-600 dark:hover:text-red-400 p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+                                                <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                            </button>
+                                        </form>
+                                    }
                                 </td>
                             </tr>
                         }
@@ -154,9 +168,12 @@
     <!-- ============ ROLES PANE ============ -->
     <div data-tab-pane="roles" class="@(initialPane == "roles" ? "" : "hidden")">
         <div class="flex justify-end mb-4">
-            <a asp-action="AddRole" class="px-4 py-1.5 rounded-xl font-medium bg-[#7c3aed] text-white hover:bg-[#6d28d9] shadow-sm text-sm flex items-center gap-2">
-                <i data-lucide="plus" class="w-4 h-4"></i> Add Role
-            </a>
+            @if (canAddUM)
+            {
+                <a asp-action="AddRole" class="px-4 py-1.5 rounded-xl font-medium bg-[#7c3aed] text-white hover:bg-[#6d28d9] shadow-sm text-sm flex items-center gap-2">
+                    <i data-lucide="plus" class="w-4 h-4"></i> Add Role
+                </a>
+            }
         </div>
         <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
             <div class="overflow-x-auto">
@@ -187,11 +204,14 @@
                                     <span class="px-2.5 py-0.5 rounded-full text-xs font-medium @roleStatusColor">@(role.IsActive == "A" ? "Active" : "Inactive")</span>
                                 </td>
                                 <td class="px-6 py-4 text-right whitespace-nowrap">
-                                    <a asp-action="EditRole" asp-route-id="@role.UserTypeID" title="Edit"
-                                       class="text-slate-400 dark:text-slate-500 hover:text-[#7c3aed] dark:hover:text-[#a78bfa] p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors inline-flex">
-                                        <i data-lucide="pencil" class="w-4 h-4"></i>
-                                    </a>
-                                    @if (!isAdminRole)
+                                    @if (canEditUM)
+                                    {
+                                        <a asp-action="EditRole" asp-route-id="@role.UserTypeID" title="Edit"
+                                           class="text-slate-400 dark:text-slate-500 hover:text-[#7c3aed] dark:hover:text-[#a78bfa] p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors inline-flex">
+                                            <i data-lucide="pencil" class="w-4 h-4"></i>
+                                        </a>
+                                    }
+                                    @if (!isAdminRole && canDeleteUM)
                                     {
                                         <form method="post" asp-action="DeleteRole" asp-route-id="@role.UserTypeID" class="inline"
                                               data-confirm="Delete the '@role.UserTypeName' role? Users currently assigned to it will keep the reference, but it won't be selectable anymore." data-confirm-title="Delete role" data-confirm-label="Delete">

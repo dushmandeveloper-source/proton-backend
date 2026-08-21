@@ -16,6 +16,14 @@
     string LabelCls = "text-sm font-medium text-slate-700 dark:text-slate-300";
     string CardCls = "bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 p-6";
     string PrimaryBtn = "px-4 py-2 rounded-xl font-medium bg-[#7c3aed] text-white hover:bg-[#6d28d9] shadow-sm transition-all text-sm";
+
+    // Mirrors UniversityController.Save's own check: isNew ? 'A' : 'E'.
+    bool canSaveUniversity = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.Universities, Model.IsNew ? 'A' : 'E');
+    // Gallery/Features/Programs/Intakes "add" actions (SaveFeature, SaveProgram,
+    // SaveIntake, AddGalleryImage) all check 'A' regardless of parent state.
+    bool canAddUniversityChild = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.Universities, 'A');
+    // Their Delete* counterparts all check 'D'.
+    bool canDeleteUniversityChild = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.Universities, 'D');
 }
 
 <div class="max-w-6xl mx-auto page-enter">
@@ -328,7 +336,10 @@
 
             <div class="flex items-center justify-end gap-3">
                 <a asp-action="Index" class="px-4 py-2 rounded-xl font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all">Cancel</a>
-                <button type="submit" class="@PrimaryBtn">@(Model.IsNew ? "Create University" : "Save Changes")</button>
+                @if (canSaveUniversity)
+                {
+                    <button type="submit" class="@PrimaryBtn">@(Model.IsNew ? "Create University" : "Save Changes")</button>
+                }
             </div>
         </form>
     }
@@ -336,25 +347,28 @@
     @* ===== GALLERY ===== *@
     @if (Model.ActiveTab == "gallery")
     {
-        <div class="@CardCls mb-6">
-            <form method="post" asp-action="AddGalleryImage" enctype="multipart/form-data" class="flex flex-wrap items-end gap-4">
-                @Html.AntiForgeryToken()
-                <input type="hidden" name="universityId" value="@u.UniversityID" />
-                <div class="space-y-1 flex-1 min-w-[200px]">
-                    <label class="@LabelCls">Image</label>
-                    <input type="file" name="imageFile" accept="image/*" required class="block w-full text-sm text-slate-500 dark:text-slate-400 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-medium file:bg-purple-50 dark:file:bg-purple-950 file:text-[#7c3aed] dark:file:text-purple-300 hover:file:bg-purple-100" />
-                </div>
-                <div class="space-y-1 flex-1 min-w-[200px]">
-                    <label class="@LabelCls">Caption</label>
-                    <input name="caption" placeholder="Main campus library" class="@InputCls" />
-                </div>
-                <div class="space-y-1 w-24">
-                    <label class="@LabelCls">Order</label>
-                    <input name="sortOrder" type="number" value="0" class="@InputCls" />
-                </div>
-                <button type="submit" class="@PrimaryBtn">Upload</button>
-            </form>
-        </div>
+        @if (canAddUniversityChild)
+        {
+            <div class="@CardCls mb-6">
+                <form method="post" asp-action="AddGalleryImage" enctype="multipart/form-data" class="flex flex-wrap items-end gap-4">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="universityId" value="@u.UniversityID" />
+                    <div class="space-y-1 flex-1 min-w-[200px]">
+                        <label class="@LabelCls">Image</label>
+                        <input type="file" name="imageFile" accept="image/*" required class="block w-full text-sm text-slate-500 dark:text-slate-400 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-medium file:bg-purple-50 dark:file:bg-purple-950 file:text-[#7c3aed] dark:file:text-purple-300 hover:file:bg-purple-100" />
+                    </div>
+                    <div class="space-y-1 flex-1 min-w-[200px]">
+                        <label class="@LabelCls">Caption</label>
+                        <input name="caption" placeholder="Main campus library" class="@InputCls" />
+                    </div>
+                    <div class="space-y-1 w-24">
+                        <label class="@LabelCls">Order</label>
+                        <input name="sortOrder" type="number" value="0" class="@InputCls" />
+                    </div>
+                    <button type="submit" class="@PrimaryBtn">Upload</button>
+                </form>
+            </div>
+        }
 
         <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
             @if (!Model.Gallery.Any())
@@ -374,15 +388,18 @@
                             <p class="text-xs text-slate-600 dark:text-slate-300 truncate">@(string.IsNullOrEmpty(g.Caption) ? "—" : g.Caption)</p>
                             <p class="text-[10px] text-slate-400 dark:text-slate-500">Order @g.SortOrder</p>
                         </div>
-                        <form method="post" asp-action="DeleteGalleryImage"
-                              data-confirm="Remove this image from the gallery?" data-confirm-title="Remove image" data-confirm-label="Remove">
-                            @Html.AntiForgeryToken()
-                            <input type="hidden" name="universityId" value="@u.UniversityID" />
-                            <input type="hidden" name="id" value="@g.GalleryID" />
-                            <button type="submit" class="p-1.5 rounded-lg text-slate-400 dark:text-slate-500 hover:text-red-600 dark:hover:text-red-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
-                                <i data-lucide="trash-2" class="w-4 h-4"></i>
-                            </button>
-                        </form>
+                        @if (canDeleteUniversityChild)
+                        {
+                            <form method="post" asp-action="DeleteGalleryImage"
+                                  data-confirm="Remove this image from the gallery?" data-confirm-title="Remove image" data-confirm-label="Remove">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="universityId" value="@u.UniversityID" />
+                                <input type="hidden" name="id" value="@g.GalleryID" />
+                                <button type="submit" class="p-1.5 rounded-lg text-slate-400 dark:text-slate-500 hover:text-red-600 dark:hover:text-red-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+                                    <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                </button>
+                            </form>
+                        }
                     </div>
                 </div>
             }
@@ -392,41 +409,44 @@
     @* ===== FEATURES ===== *@
     @if (Model.ActiveTab == "features")
     {
-        <div class="@CardCls mb-6">
-            <form method="post" asp-action="SaveFeature" class="flex flex-wrap items-end gap-4">
-                @Html.AntiForgeryToken()
-                <input type="hidden" name="UniversityID" value="@u.UniversityID" />
-                <input type="hidden" name="FeatureID" value="" />
-                <input type="hidden" name="IsActive" value="A" />
-                <div class="space-y-1 flex-1 min-w-[180px]">
-                    <label class="@LabelCls">Title *</label>
-                    <input name="Title" required placeholder="World-class research labs" class="@InputCls" />
-                </div>
-                <div class="space-y-1 flex-[2] min-w-[220px]">
-                    <label class="@LabelCls">Description</label>
-                    <input name="Description" placeholder="What makes this special" class="@InputCls" />
-                </div>
-                <div class="space-y-1 w-48">
-                    <label class="@LabelCls">Icon</label>
-                    <div class="flex items-center gap-2">
-                        <span class="flex-shrink-0 w-9 h-9 rounded-lg bg-purple-50 dark:bg-purple-950 text-[#7c3aed] dark:text-purple-300 flex items-center justify-center">
-                            <i id="featureIconPreview" data-lucide="sparkles" class="w-4 h-4"></i>
-                        </span>
-                        <select name="Icon" id="featureIconSelect" class="@InputCls" onchange="document.getElementById('featureIconPreview').setAttribute('data-lucide', this.value || 'sparkles'); if (window.lucide) lucide.createIcons();">
-                            @foreach (var opt in UniversityFeature.IconChoices)
-                            {
-                                <option value="@opt.Value">@opt.Label</option>
-                            }
-                        </select>
+        @if (canAddUniversityChild)
+        {
+            <div class="@CardCls mb-6">
+                <form method="post" asp-action="SaveFeature" class="flex flex-wrap items-end gap-4">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="UniversityID" value="@u.UniversityID" />
+                    <input type="hidden" name="FeatureID" value="" />
+                    <input type="hidden" name="IsActive" value="A" />
+                    <div class="space-y-1 flex-1 min-w-[180px]">
+                        <label class="@LabelCls">Title *</label>
+                        <input name="Title" required placeholder="World-class research labs" class="@InputCls" />
                     </div>
-                </div>
-                <div class="space-y-1 w-24">
-                    <label class="@LabelCls">Order</label>
-                    <input name="SortOrder" type="number" value="0" class="@InputCls" />
-                </div>
-                <button type="submit" class="@PrimaryBtn">Add</button>
-            </form>
-        </div>
+                    <div class="space-y-1 flex-[2] min-w-[220px]">
+                        <label class="@LabelCls">Description</label>
+                        <input name="Description" placeholder="What makes this special" class="@InputCls" />
+                    </div>
+                    <div class="space-y-1 w-48">
+                        <label class="@LabelCls">Icon</label>
+                        <div class="flex items-center gap-2">
+                            <span class="flex-shrink-0 w-9 h-9 rounded-lg bg-purple-50 dark:bg-purple-950 text-[#7c3aed] dark:text-purple-300 flex items-center justify-center">
+                                <i id="featureIconPreview" data-lucide="sparkles" class="w-4 h-4"></i>
+                            </span>
+                            <select name="Icon" id="featureIconSelect" class="@InputCls" onchange="document.getElementById('featureIconPreview').setAttribute('data-lucide', this.value || 'sparkles'); if (window.lucide) lucide.createIcons();">
+                                @foreach (var opt in UniversityFeature.IconChoices)
+                                {
+                                    <option value="@opt.Value">@opt.Label</option>
+                                }
+                            </select>
+                        </div>
+                    </div>
+                    <div class="space-y-1 w-24">
+                        <label class="@LabelCls">Order</label>
+                        <input name="SortOrder" type="number" value="0" class="@InputCls" />
+                    </div>
+                    <button type="submit" class="@PrimaryBtn">Add</button>
+                </form>
+            </div>
+        }
 
         <div class="@CardCls">
             @if (!Model.Features.Any())
@@ -445,15 +465,18 @@
                             <p class="text-sm text-slate-500 dark:text-slate-400">@f.Description</p>
                         </div>
                         <span class="text-xs text-slate-400 dark:text-slate-500 flex-shrink-0">@f.SortOrder</span>
-                        <form method="post" asp-action="DeleteFeature" class="flex-shrink-0"
-                              data-confirm="Remove '@f.Title'?" data-confirm-title="Remove feature" data-confirm-label="Remove">
-                            @Html.AntiForgeryToken()
-                            <input type="hidden" name="universityId" value="@u.UniversityID" />
-                            <input type="hidden" name="id" value="@f.FeatureID" />
-                            <button type="submit" class="p-1.5 rounded-lg text-slate-400 dark:text-slate-500 hover:text-red-600 dark:hover:text-red-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
-                                <i data-lucide="trash-2" class="w-4 h-4"></i>
-                            </button>
-                        </form>
+                        @if (canDeleteUniversityChild)
+                        {
+                            <form method="post" asp-action="DeleteFeature" class="flex-shrink-0"
+                                  data-confirm="Remove '@f.Title'?" data-confirm-title="Remove feature" data-confirm-label="Remove">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="universityId" value="@u.UniversityID" />
+                                <input type="hidden" name="id" value="@f.FeatureID" />
+                                <button type="submit" class="p-1.5 rounded-lg text-slate-400 dark:text-slate-500 hover:text-red-600 dark:hover:text-red-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+                                    <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                </button>
+                            </form>
+                        }
                     </div>
                 }
             </div>
@@ -463,44 +486,47 @@
     @* ===== PROGRAMS ===== *@
     @if (Model.ActiveTab == "programs")
     {
-        <div class="@CardCls mb-6">
-            <form method="post" asp-action="SaveProgram" class="flex flex-wrap items-end gap-4">
-                @Html.AntiForgeryToken()
-                <input type="hidden" name="UniversityID" value="@u.UniversityID" />
-                <input type="hidden" name="ProgramID" value="" />
-                <input type="hidden" name="IsActive" value="A" />
-                <div class="space-y-1 w-36">
-                    <label class="@LabelCls">Level *</label>
-                    <select name="ProgramLevel" class="@InputCls">
-                        @foreach (var lvl in UniversityProgram.Levels)
-                        {
-                            <option value="@lvl">@lvl</option>
-                        }
-                    </select>
-                </div>
-                <div class="space-y-1 flex-1 min-w-[200px]">
-                    <label class="@LabelCls">Program Name *</label>
-                    <input name="ProgramName" required placeholder="BSc Computer Science" class="@InputCls" />
-                </div>
-                <div class="space-y-1 w-32">
-                    <label class="@LabelCls">Duration</label>
-                    <input name="DurationText" placeholder="4 years" class="@InputCls" />
-                </div>
-                <div class="space-y-1 w-32">
-                    <label class="@LabelCls">Language</label>
-                    <input name="LanguageOfInstruction" placeholder="English" class="@InputCls" />
-                </div>
-                <div class="space-y-1 w-32">
-                    <label class="@LabelCls">Tuition/yr</label>
-                    <input name="TuitionPerYear" type="number" step="0.01" class="@InputCls" />
-                </div>
-                <div class="space-y-1 w-20">
-                    <label class="@LabelCls">Order</label>
-                    <input name="SortOrder" type="number" value="0" class="@InputCls" />
-                </div>
-                <button type="submit" class="@PrimaryBtn">Add</button>
-            </form>
-        </div>
+        @if (canAddUniversityChild)
+        {
+            <div class="@CardCls mb-6">
+                <form method="post" asp-action="SaveProgram" class="flex flex-wrap items-end gap-4">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="UniversityID" value="@u.UniversityID" />
+                    <input type="hidden" name="ProgramID" value="" />
+                    <input type="hidden" name="IsActive" value="A" />
+                    <div class="space-y-1 w-36">
+                        <label class="@LabelCls">Level *</label>
+                        <select name="ProgramLevel" class="@InputCls">
+                            @foreach (var lvl in UniversityProgram.Levels)
+                            {
+                                <option value="@lvl">@lvl</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="space-y-1 flex-1 min-w-[200px]">
+                        <label class="@LabelCls">Program Name *</label>
+                        <input name="ProgramName" required placeholder="BSc Computer Science" class="@InputCls" />
+                    </div>
+                    <div class="space-y-1 w-32">
+                        <label class="@LabelCls">Duration</label>
+                        <input name="DurationText" placeholder="4 years" class="@InputCls" />
+                    </div>
+                    <div class="space-y-1 w-32">
+                        <label class="@LabelCls">Language</label>
+                        <input name="LanguageOfInstruction" placeholder="English" class="@InputCls" />
+                    </div>
+                    <div class="space-y-1 w-32">
+                        <label class="@LabelCls">Tuition/yr</label>
+                        <input name="TuitionPerYear" type="number" step="0.01" class="@InputCls" />
+                    </div>
+                    <div class="space-y-1 w-20">
+                        <label class="@LabelCls">Order</label>
+                        <input name="SortOrder" type="number" value="0" class="@InputCls" />
+                    </div>
+                    <button type="submit" class="@PrimaryBtn">Add</button>
+                </form>
+            </div>
+        }
 
         <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
             <div class="overflow-x-auto">
@@ -531,15 +557,18 @@
                                 <td class="px-6 py-4 text-sm text-slate-600 dark:text-slate-300">@(string.IsNullOrEmpty(p.LanguageOfInstruction) ? "—" : p.LanguageOfInstruction)</td>
                                 <td class="px-6 py-4 text-sm text-slate-600 dark:text-slate-300">@(p.TuitionPerYear.HasValue ? $"{u.CurrencyCode} {p.TuitionPerYear:N0}" : "—")</td>
                                 <td class="px-6 py-4 text-right">
-                                    <form method="post" asp-action="DeleteProgram" class="inline"
-                                          data-confirm="Remove '@p.ProgramName'?" data-confirm-title="Remove program" data-confirm-label="Remove">
-                                        @Html.AntiForgeryToken()
-                                        <input type="hidden" name="universityId" value="@u.UniversityID" />
-                                        <input type="hidden" name="id" value="@p.ProgramID" />
-                                        <button type="submit" class="p-1.5 rounded-lg text-slate-400 dark:text-slate-500 hover:text-red-600 dark:hover:text-red-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
-                                            <i data-lucide="trash-2" class="w-4 h-4"></i>
-                                        </button>
-                                    </form>
+                                    @if (canDeleteUniversityChild)
+                                    {
+                                        <form method="post" asp-action="DeleteProgram" class="inline"
+                                              data-confirm="Remove '@p.ProgramName'?" data-confirm-title="Remove program" data-confirm-label="Remove">
+                                            @Html.AntiForgeryToken()
+                                            <input type="hidden" name="universityId" value="@u.UniversityID" />
+                                            <input type="hidden" name="id" value="@p.ProgramID" />
+                                            <button type="submit" class="p-1.5 rounded-lg text-slate-400 dark:text-slate-500 hover:text-red-600 dark:hover:text-red-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+                                                <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                            </button>
+                                        </form>
+                                    }
                                 </td>
                             </tr>
                         }
@@ -552,35 +581,38 @@
     @* ===== INTAKES ===== *@
     @if (Model.ActiveTab == "intakes")
     {
-        <div class="@CardCls mb-6">
-            <form method="post" asp-action="SaveIntake" class="flex flex-wrap items-end gap-4">
-                @Html.AntiForgeryToken()
-                <input type="hidden" name="UniversityID" value="@u.UniversityID" />
-                <input type="hidden" name="IntakeID" value="" />
-                <input type="hidden" name="IsActive" value="A" />
-                <div class="space-y-1 flex-1 min-w-[160px]">
-                    <label class="@LabelCls">Intake Name *</label>
-                    <input name="IntakeName" required placeholder="Autumn 2026" class="@InputCls" />
-                </div>
-                <div class="space-y-1 w-36">
-                    <label class="@LabelCls">Month</label>
-                    <input name="IntakeMonth" placeholder="September" class="@InputCls" />
-                </div>
-                <div class="space-y-1 w-44">
-                    <label class="@LabelCls">Application Deadline</label>
-                    <input name="ApplicationDeadline" type="date" class="@InputCls" />
-                </div>
-                <div class="space-y-1 flex-1 min-w-[160px]">
-                    <label class="@LabelCls">Notes</label>
-                    <input name="Notes" placeholder="Scholarship applications close earlier" class="@InputCls" />
-                </div>
-                <div class="space-y-1 w-20">
-                    <label class="@LabelCls">Order</label>
-                    <input name="SortOrder" type="number" value="0" class="@InputCls" />
-                </div>
-                <button type="submit" class="@PrimaryBtn">Add</button>
-            </form>
-        </div>
+        @if (canAddUniversityChild)
+        {
+            <div class="@CardCls mb-6">
+                <form method="post" asp-action="SaveIntake" class="flex flex-wrap items-end gap-4">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="UniversityID" value="@u.UniversityID" />
+                    <input type="hidden" name="IntakeID" value="" />
+                    <input type="hidden" name="IsActive" value="A" />
+                    <div class="space-y-1 flex-1 min-w-[160px]">
+                        <label class="@LabelCls">Intake Name *</label>
+                        <input name="IntakeName" required placeholder="Autumn 2026" class="@InputCls" />
+                    </div>
+                    <div class="space-y-1 w-36">
+                        <label class="@LabelCls">Month</label>
+                        <input name="IntakeMonth" placeholder="September" class="@InputCls" />
+                    </div>
+                    <div class="space-y-1 w-44">
+                        <label class="@LabelCls">Application Deadline</label>
+                        <input name="ApplicationDeadline" type="date" class="@InputCls" />
+                    </div>
+                    <div class="space-y-1 flex-1 min-w-[160px]">
+                        <label class="@LabelCls">Notes</label>
+                        <input name="Notes" placeholder="Scholarship applications close earlier" class="@InputCls" />
+                    </div>
+                    <div class="space-y-1 w-20">
+                        <label class="@LabelCls">Order</label>
+                        <input name="SortOrder" type="number" value="0" class="@InputCls" />
+                    </div>
+                    <button type="submit" class="@PrimaryBtn">Add</button>
+                </form>
+            </div>
+        }
 
         <div class="@CardCls">
             @if (!Model.Intakes.Any())
@@ -608,15 +640,18 @@
                                 <p class="text-xs text-slate-400 dark:text-slate-500 mt-0.5">@i.Notes</p>
                             }
                         </div>
-                        <form method="post" asp-action="DeleteIntake" class="flex-shrink-0"
-                              data-confirm="Remove '@i.IntakeName'?" data-confirm-title="Remove intake" data-confirm-label="Remove">
-                            @Html.AntiForgeryToken()
-                            <input type="hidden" name="universityId" value="@u.UniversityID" />
-                            <input type="hidden" name="id" value="@i.IntakeID" />
-                            <button type="submit" class="p-1.5 rounded-lg text-slate-400 dark:text-slate-500 hover:text-red-600 dark:hover:text-red-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
-                                <i data-lucide="trash-2" class="w-4 h-4"></i>
-                            </button>
-                        </form>
+                        @if (canDeleteUniversityChild)
+                        {
+                            <form method="post" asp-action="DeleteIntake" class="flex-shrink-0"
+                                  data-confirm="Remove '@i.IntakeName'?" data-confirm-title="Remove intake" data-confirm-label="Remove">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="universityId" value="@u.UniversityID" />
+                                <input type="hidden" name="id" value="@i.IntakeID" />
+                                <button type="submit" class="p-1.5 rounded-lg text-slate-400 dark:text-slate-500 hover:text-red-600 dark:hover:text-red-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+                                    <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                </button>
+                            </form>
+                        }
                     </div>
                 }
             </div>
