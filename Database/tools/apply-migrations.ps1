@@ -27,6 +27,13 @@
 .PARAMETER OutFile
   Output path for -GenerateOnly. Defaults to Database/generated/pending-migrations.sql.
 
+.PARAMETER Status
+  Don't run or generate anything — just report, for the given database,
+  which migration files are already applied and which are pending. This is
+  the "check locally without publishing" command: run it against your local
+  DB anytime to see where it stands, or against the hosted DB's settings to
+  see what a publish would generate before actually running dotnet publish.
+
 .EXAMPLE
   # Apply all pending migrations to the local dev DB
   ./apply-migrations.ps1 -Server "VS-PW0C7J84\DUSHMAN001" -Database "Proton_Admin"
@@ -35,6 +42,10 @@
   # Generate one script to hand-run against the hosted DB after publishing
   ./apply-migrations.ps1 -Server "sql5112.site4now.net,1433" -Database "db_aa66ca_protondb" `
       -UserId "db_aa66ca_protondb_admin" -Password "..." -GenerateOnly
+
+.EXAMPLE
+  # Check what's applied/pending on the local DB, no changes made
+  ./apply-migrations.ps1 -Server "VS-PW0C7J84\DUSHMAN001" -Database "Proton_Admin" -Status
 #>
 param(
     [Parameter(Mandatory = $true)][string]$Server,
@@ -42,7 +53,8 @@ param(
     [string]$UserId,
     [string]$Password,
     [switch]$GenerateOnly,
-    [string]$OutFile
+    [string]$OutFile,
+    [switch]$Status
 )
 
 $ErrorActionPreference = "Stop"
@@ -83,6 +95,46 @@ function Split-Batches([string]$scriptText) {
     return [regex]::Split($scriptText, '(?im)^\s*GO\s*$')
 }
 
+function Get-AppliedMigrationIds($conn) {
+    $appliedIds = @()
+    $tableCheck = $conn.CreateCommand()
+    $tableCheck.CommandText = "SELECT CASE WHEN OBJECT_ID('syst.SchemaMigrations') IS NULL THEN 0 ELSE 1 END"
+    if ([int]$tableCheck.ExecuteScalar() -eq 1) {
+        $cmd = $conn.CreateCommand()
+        $cmd.CommandText = "SELECT MigrationId FROM syst.SchemaMigrations"
+        $reader = $cmd.ExecuteReader()
+        while ($reader.Read()) { $appliedIds += [int]$reader[0] }
+        $reader.Close()
+    }
+    return $appliedIds
+}
+
+if ($Status) {
+    $conn = New-Connection
+    try {
+        $appliedIds = Get-AppliedMigrationIds $conn
+    } finally {
+        $conn.Close()
+    }
+
+    Write-Host "Migration status for $Database on $Server"
+    Write-Host "----------------------------------------------------------------"
+    foreach ($f in $files) {
+        $id = [int]([regex]::Match($f.Name, '^(\d+)_').Groups[1].Value)
+        $mark = if ($appliedIds -contains $id) { "[applied]" } else { "[PENDING]" }
+        Write-Host ("{0,-10} {1}" -f $mark, $f.Name)
+    }
+
+    $pendingCount = ($files | Where-Object { $appliedIds -notcontains [int]([regex]::Match($_.Name, '^(\d+)_').Groups[1].Value) }).Count
+    Write-Host "----------------------------------------------------------------"
+    if ($pendingCount -eq 0) {
+        Write-Host "Up to date — nothing pending."
+    } else {
+        Write-Host "$pendingCount migration(s) pending."
+    }
+    return
+}
+
 if ($GenerateOnly) {
     if (-not $OutFile) {
         $genDir = Join-Path $repoRoot "Database\generated"
@@ -92,16 +144,7 @@ if ($GenerateOnly) {
 
     $conn = New-Connection
     try {
-        $appliedIds = @()
-        $tableCheck = $conn.CreateCommand()
-        $tableCheck.CommandText = "SELECT CASE WHEN OBJECT_ID('syst.SchemaMigrations') IS NULL THEN 0 ELSE 1 END"
-        if ([int]$tableCheck.ExecuteScalar() -eq 1) {
-            $cmd = $conn.CreateCommand()
-            $cmd.CommandText = "SELECT MigrationId FROM syst.SchemaMigrations"
-            $reader = $cmd.ExecuteReader()
-            while ($reader.Read()) { $appliedIds += [int]$reader[0] }
-            $reader.Close()
-        }
+        $appliedIds = Get-AppliedMigrationIds $conn
     } finally {
         $conn.Close()
     }

@@ -80,6 +80,17 @@ and records each one in `syst.SchemaMigrations`:
 Database/tools/apply-migrations.ps1 -Server "VS-PW0C7J84\DUSHMAN001" -Database "Proton_Admin" -UserId "sa" -Password "..."
 ```
 
+**Checking status locally, without publishing** — `-Status` connects and
+reports only; it never applies or writes anything. Use this to see what a
+database is on right now:
+```powershell
+Database/tools/apply-migrations.ps1 -Server "VS-PW0C7J84\DUSHMAN001" -Database "Proton_Admin" -UserId "sa" -Password "..." -Status
+```
+Same flags work with the hosted DB's server/database/credentials (see
+`appsettings.Production.json`) if you want to check what's applied there
+*before* running `dotnet publish` — you don't have to publish first just to
+find out.
+
 **At publish time**, `dotnet publish` automatically regenerates
 `Database/generated/pending-migrations.sql` — every migration not yet
 recorded in the hosted DB's `syst.SchemaMigrations`, concatenated into one
@@ -90,3 +101,11 @@ uploading the publish output via FileZilla, open that generated file in
 SSMS (or run it with `sqlcmd`) against the hosted database to bring its
 schema up to date. It self-records each migration as it runs, so running it
 again later only picks up whatever's new since.
+
+**Summary of the three modes:**
+
+| Mode | Command flag | Applies changes? | When to use |
+|---|---|---|---|
+| Apply | *(none)* | Yes, immediately | Local dev, after adding a new migration file |
+| Generate | `-GenerateOnly` | No — writes a combined script to disk | Automatically run by `dotnet publish`; can also be run manually against any DB |
+| Status | `-Status` | No — read-only report | Check what's applied/pending on any DB (local or hosted) at any time, without publishing |
