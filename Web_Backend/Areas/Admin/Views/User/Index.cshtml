@@ -292,7 +292,7 @@
                                     var rolePermissionsByRole = ViewBag.RolePermissionsByRole as Dictionary<string, List<PermissionGridViewModel>> ?? new();
                                 }
                                 <div class="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-600">
-                                    <table class="w-full text-left border-collapse" id="user-permission-grid" data-role-defaults="@Html.Raw(System.Text.Json.JsonSerializer.Serialize(rolePermissionsByRole))">
+                                    <table class="w-full text-left border-collapse" id="user-permission-grid" data-role-defaults="@System.Text.Json.JsonSerializer.Serialize(rolePermissionsByRole)">
                                         <thead>
                                             <tr class="bg-slate-50 dark:bg-slate-800 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                                                 <th class="px-4 py-3">Module</th>
