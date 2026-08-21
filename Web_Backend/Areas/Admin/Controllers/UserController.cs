@@ -45,7 +45,7 @@ namespace Web_Backend.Areas.Admin.Controllers
         [HttpGet]
         public async Task<IActionResult> Index(string tab = "users", bool showInactive = false)
         {
-            Auth.CheckUser();
+            Auth.CheckPermission(PermissionCode.UserManagement, 'V');
             ViewBag.CurrentUser = Auth.GetUser();
             var model = new UserManagementViewModel { ActiveTab = tab == "roles" ? "roles" : "users" };
             await PopulateLists(model, showInactive);
@@ -55,7 +55,7 @@ namespace Web_Backend.Areas.Admin.Controllers
         [HttpGet]
         public async Task<IActionResult> Add()
         {
-            Auth.CheckUser();
+            Auth.CheckPermission(PermissionCode.UserManagement, 'V');
             ViewBag.CurrentUser = Auth.GetUser();
             var model = new UserManagementViewModel
             {
@@ -76,7 +76,7 @@ namespace Web_Backend.Areas.Admin.Controllers
         [HttpPost, ValidateAntiForgeryToken]
         public async Task<IActionResult> Add(AddUserViewModel form)
         {
-            Auth.CheckUser();
+            Auth.CheckPermission(PermissionCode.UserManagement, 'A');
             ViewBag.CurrentUser = Auth.GetUser();
 
             if (ModelState.IsValid)
@@ -143,7 +143,7 @@ namespace Web_Backend.Areas.Admin.Controllers
         [HttpGet]
         public async Task<IActionResult> Edit(string id)
         {
-            Auth.CheckUser();
+            Auth.CheckPermission(PermissionCode.UserManagement, 'V');
             ViewBag.CurrentUser = Auth.GetUser();
 
             var user = await userRep.Get(id);
@@ -186,7 +186,7 @@ namespace Web_Backend.Areas.Admin.Controllers
         [HttpPost, ValidateAntiForgeryToken]
         public async Task<IActionResult> Edit(EditUserViewModel form)
         {
-            Auth.CheckUser();
+            Auth.CheckPermission(PermissionCode.UserManagement, 'E');
             ViewBag.CurrentUser = Auth.GetUser();
 
             if (ModelState.IsValid)
@@ -234,7 +234,7 @@ namespace Web_Backend.Areas.Admin.Controllers
         [HttpPost, ValidateAntiForgeryToken]
         public async Task<IActionResult> Delete(string id)
         {
-            Auth.CheckUser();
+            Auth.CheckPermission(PermissionCode.UserManagement, 'D');
             try
             {
                 await userRep.Delete(id);
@@ -250,7 +250,7 @@ namespace Web_Backend.Areas.Admin.Controllers
         [HttpPost, ValidateAntiForgeryToken]
         public async Task<IActionResult> ResetPassword(string id)
         {
-            Auth.CheckUser();
+            Auth.CheckPermission(PermissionCode.UserManagement, 'E');
 
             var user = await userRep.Get(id);
             if (user == null)
@@ -288,7 +288,7 @@ namespace Web_Backend.Areas.Admin.Controllers
         [HttpPost, ValidateAntiForgeryToken]
         public async Task<JsonResult> SetRole(string id, string role)
         {
-            Auth.CheckUser();
+            Auth.CheckPermission(PermissionCode.UserManagement, 'E');
             await userRep.SetUserType(id, role);
             return Json(new { success = true });
         }
@@ -296,7 +296,7 @@ namespace Web_Backend.Areas.Admin.Controllers
         [HttpGet]
         public async Task<IActionResult> AddRole()
         {
-            Auth.CheckUser();
+            Auth.CheckPermission(PermissionCode.UserManagement, 'V');
             ViewBag.CurrentUser = Auth.GetUser();
             var model = new UserManagementViewModel
             {
@@ -321,7 +321,7 @@ namespace Web_Backend.Areas.Admin.Controllers
         [HttpPost, ValidateAntiForgeryToken]
         public async Task<IActionResult> AddRole(RoleFormViewModel form)
         {
-            Auth.CheckUser();
+            Auth.CheckPermission(PermissionCode.UserManagement, 'A');
             ViewBag.CurrentUser = Auth.GetUser();
 
             if (ModelState.IsValid && await RoleNameTaken(form.UserTypeName, excludingId: null))
@@ -373,7 +373,7 @@ namespace Web_Backend.Areas.Admin.Controllers
         [HttpGet]
         public async Task<IActionResult> EditRole(string id)
         {
-            Auth.CheckUser();
+            Auth.CheckPermission(PermissionCode.UserManagement, 'V');
             ViewBag.CurrentUser = Auth.GetUser();
 
             var role = await userTypeRep.Get(id);
@@ -411,7 +411,7 @@ namespace Web_Backend.Areas.Admin.Controllers
         [HttpPost, ValidateAntiForgeryToken]
         public async Task<IActionResult> EditRole(RoleFormViewModel form)
         {
-            Auth.CheckUser();
+            Auth.CheckPermission(PermissionCode.UserManagement, 'E');
             ViewBag.CurrentUser = Auth.GetUser();
 
             if (form.UserTypeID == Auth.MasterAdminRoleId)
@@ -458,7 +458,7 @@ namespace Web_Backend.Areas.Admin.Controllers
         [HttpPost, ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteRole(string id)
         {
-            Auth.CheckUser();
+            Auth.CheckPermission(PermissionCode.UserManagement, 'D');
 
             if (id == Auth.MasterAdminRoleId)
             {
