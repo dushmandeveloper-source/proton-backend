@@ -46,7 +46,11 @@ namespace Web_Backend.Controllers.Api
                 Id = auth.UserID,
                 Name = auth.FullName,
                 Email = auth.Email,
-                Role = auth.UserTypeName
+                // UserTypeID, not UserTypeName — Auth.HasPermission's Master
+                // Admin check and SessionUser.Permissions lookups key off the
+                // role ID (e.g. "MASTERADMIN"), same as AccountController's
+                // Razor login path.
+                Role = auth.UserTypeID
             });
 
             return Ok(new { userId = auth.UserID, fullName = auth.FullName, email = auth.Email, role = auth.UserTypeName });
