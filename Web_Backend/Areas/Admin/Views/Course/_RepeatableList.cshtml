@@ -1,0 +1,45 @@
+@model RepeatableListModel
+@{
+    var widgetId = Model.FieldName;
+}
+
+<div>
+    <h3 class="font-semibold text-slate-800 dark:text-slate-100 mb-3">@Model.Title</h3>
+    <div id="@(widgetId)-rows" class="space-y-2">
+        @foreach (var item in Model.Items)
+        {
+            <div class="@(widgetId)-row flex gap-2">
+                <input type="text" class="@(widgetId)-text flex-1 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" value="@item.Text" />
+                <button type="button" onclick="this.closest('.@(widgetId)-row').remove()" class="p-2 text-slate-400 hover:text-red-600 dark:hover:text-red-400"><i data-lucide="x" class="w-4 h-4"></i></button>
+            </div>
+        }
+    </div>
+    <button type="button" onclick="addRepeatableRow('@widgetId')" class="mt-2 text-sm text-[#7c3aed] hover:underline">+ Add</button>
+    <input type="hidden" name="@Model.FieldName" id="@Model.FieldName" />
+</div>
+
+<script>
+    window.__repeatableFields = window.__repeatableFields || {};
+    window.__repeatableFields['@widgetId'] = '@Model.TextField';
+
+    function addRepeatableRow(id) {
+        const div = document.createElement('div');
+        div.className = id + '-row flex gap-2';
+        div.innerHTML = `<input type="text" class="${id}-text flex-1 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" />
+            <button type="button" onclick="this.closest('.${id}-row').remove()" class="p-2 text-slate-400 hover:text-red-600 dark:hover:text-red-400"><i data-lucide="x" class="w-4 h-4"></i></button>`;
+        document.getElementById(id + '-rows').appendChild(div);
+        if (window.lucide) lucide.createIcons();
+    }
+
+    function serializeRepeatableFields(form) {
+        Object.entries(window.__repeatableFields || {}).forEach(([id, textField]) => {
+            const rows = [...form.querySelectorAll('.' + id + '-row')].map((r, i) => {
+                const obj = { sortOrder: i };
+                obj[textField] = r.querySelector('.' + id + '-text').value;
+                return obj;
+            }).filter(o => o[textField]);
+            const hidden = document.getElementById(id);
+            if (hidden) hidden.value = JSON.stringify(rows);
+        });
+    }
+</script>

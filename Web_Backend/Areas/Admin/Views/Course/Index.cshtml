@@ -1,0 +1,299 @@
+@model CourseManagementViewModel
+@{
+    ViewData["Title"] = "Courses";
+    var keyW = ViewBag.KeyW as string ?? "";
+    var courseType = ViewBag.CourseType as string ?? "";
+    var showInactive = ViewBag.ShowInactive as bool? ?? false;
+
+    bool canAdd = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.Courses, 'A');
+    bool canEdit = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.Courses, 'E');
+    bool canDelete = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.Courses, 'D');
+}
+
+<div class="max-w-6xl mx-auto page-enter">
+    <div class="mb-6">
+        <h2 class="text-3xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">Courses</h2>
+        <p class="text-slate-500 dark:text-slate-400 mt-2">General courses, CSCA exam-prep offerings, and the categories/locations they use.</p>
+    </div>
+
+    <div class="border-b border-slate-200 dark:border-slate-700 mb-6">
+        <nav class="flex gap-6" id="tab-strip">
+            <button type="button" data-tab-target="courses"
+                    class="tab-btn pb-3 text-sm font-medium border-b-2 -mb-px transition-colors @(Model.ActiveTab == "courses" ? "border-[#7c3aed] text-[#7c3aed]" : "border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200")">
+                Courses
+            </button>
+            <button type="button" data-tab-target="category"
+                    class="tab-btn pb-3 text-sm font-medium border-b-2 -mb-px transition-colors @(Model.ActiveTab == "category" ? "border-[#7c3aed] text-[#7c3aed]" : "border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200")">
+                Category &amp; Location
+            </button>
+        </nav>
+    </div>
+
+    <!-- ============ COURSES PANE ============ -->
+    <div data-tab-pane="courses" class="@(Model.ActiveTab == "courses" ? "" : "hidden")">
+        <div class="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
+            <form method="get" class="flex flex-wrap items-center gap-3">
+                <input type="hidden" name="tab" value="courses" />
+                <div class="relative">
+                    <i data-lucide="search" class="w-4 h-4 text-slate-400 dark:text-slate-500 absolute left-3 top-1/2 -translate-y-1/2"></i>
+                    <input type="text" name="KeyW" value="@keyW" placeholder="Search title or code..."
+                           class="pl-9 pr-4 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 text-sm focus:outline-none focus:border-purple-400 focus:ring-1 focus:ring-purple-400" />
+                </div>
+                <select name="CourseType" class="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm">
+                    <option value="">All types</option>
+                    <option value="General" selected="@(courseType == "General")">General</option>
+                    <option value="CSCA" selected="@(courseType == "CSCA")">CSCA</option>
+                </select>
+                <label class="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300 cursor-pointer">
+                    <input type="checkbox" name="showInactive" value="true" checked="@showInactive"
+                           class="rounded border-slate-300 dark:border-slate-600 text-[#7c3aed] focus:ring-[#7c3aed]" />
+                    Show deleted
+                </label>
+                <button type="submit" class="px-4 py-2 rounded-xl font-medium bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all text-sm">Filter</button>
+            </form>
+            @if (canAdd)
+            {
+                <div class="flex gap-2">
+                    <a asp-action="Add" asp-route-courseType="General"
+                       class="px-4 py-2 rounded-xl font-medium bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 shadow-sm text-sm flex items-center gap-2">
+                        <i data-lucide="plus" class="w-4 h-4"></i> Add General Course
+                    </a>
+                    <a asp-action="Add" asp-route-courseType="CSCA"
+                       class="px-4 py-2 rounded-xl font-medium bg-[#7c3aed] text-white hover:bg-[#6d28d9] shadow-sm text-sm flex items-center gap-2">
+                        <i data-lucide="plus" class="w-4 h-4"></i> Add CSCA Course
+                    </a>
+                </div>
+            }
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+            @if (!Model.Courses.Any())
+            {
+                <div class="md:col-span-2 xl:col-span-3 bg-white dark:bg-slate-900/60 rounded-[24px] border border-slate-100 dark:border-slate-700 p-12 text-center">
+                    <p class="text-sm text-slate-400 dark:text-slate-500">No courses yet. Add your first course to get started.</p>
+                </div>
+            }
+            @foreach (var c in Model.Courses)
+            {
+                <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden flex flex-col hover:shadow-md transition-shadow">
+                    <div class="h-36 bg-slate-100 dark:bg-slate-800 relative">
+                        @if (!string.IsNullOrEmpty(c.CourseImageURL))
+                        {
+                            <img src="@c.CourseImageURL" alt="@c.CourseTitle" class="w-full h-full object-cover" />
+                        }
+                        else
+                        {
+                            <div class="w-full h-full flex items-center justify-center">
+                                <i data-lucide="book-open" class="w-8 h-8 text-slate-300 dark:text-slate-600"></i>
+                            </div>
+                        }
+                        <div class="absolute top-3 right-3 flex gap-2">
+                            <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase @(c.IsCSCA ? "bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300" : "bg-sky-100 dark:bg-sky-950 text-sky-700 dark:text-sky-300")">
+                                @c.CourseType
+                            </span>
+                            @if (c.IsActive != "A")
+                            {
+                                <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 uppercase">Deleted</span>
+                            }
+                        </div>
+                    </div>
+
+                    <div class="p-5 flex-1 flex flex-col">
+                        <h3 class="font-semibold text-slate-800 dark:text-slate-100 leading-tight mb-1">@c.CourseTitle</h3>
+                        @if (!string.IsNullOrEmpty(c.CategoryName))
+                        {
+                            <p class="text-xs text-slate-400 dark:text-slate-500 mb-3">@c.CategoryName</p>
+                        }
+
+                        @if (!string.IsNullOrEmpty(c.ShortDescription))
+                        {
+                            <p class="text-sm text-slate-600 dark:text-slate-300 line-clamp-2 mb-4">@c.ShortDescription</p>
+                        }
+
+                        <div class="flex flex-wrap gap-2 text-[11px] mt-auto mb-4">
+                            @if (c.IsCSCA)
+                            {
+                                <span class="px-2 py-1 rounded-lg bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300">@c.SubjectCount subjects</span>
+                            }
+                            <span class="px-2 py-1 rounded-lg bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300">@c.ScheduleCount schedules</span>
+                            @if (c.Fee.HasValue)
+                            {
+                                <span class="px-2 py-1 rounded-lg bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300">@c.CurrencyCode @c.Fee.Value.ToString("N0")</span>
+                            }
+                        </div>
+
+                        <div class="flex items-center gap-2 pt-4 border-t border-slate-100 dark:border-slate-700">
+                            <a asp-action="Details" asp-route-id="@c.CourseID"
+                               class="flex-1 text-center px-3 py-2 rounded-xl text-sm font-medium bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+                                View
+                            </a>
+                            @if (canEdit)
+                            {
+                                <a asp-action="Edit" asp-route-id="@c.CourseID"
+                                   class="flex-1 text-center px-3 py-2 rounded-xl text-sm font-medium bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+                                    Edit
+                                </a>
+                            }
+                            @if (canDelete)
+                            {
+                                @if (c.IsCSCA)
+                                {
+                                    <span title="CSCA courses cannot be deleted — mark inactive from Edit instead." class="p-2 text-slate-300 dark:text-slate-600 cursor-not-allowed">
+                                        <i data-lucide="lock" class="w-4 h-4"></i>
+                                    </span>
+                                }
+                                else
+                                {
+                                    <form method="post" asp-action="Delete" asp-route-id="@c.CourseID"
+                                          data-confirm="Delete @c.CourseTitle?" data-confirm-title="Delete course" data-confirm-label="Delete">
+                                        @Html.AntiForgeryToken()
+                                        <button type="submit" title="Delete" class="p-2 rounded-xl text-slate-400 dark:text-slate-500 hover:text-red-600 dark:hover:text-red-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+                                            <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                        </button>
+                                    </form>
+                                }
+                            }
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+
+    <!-- ============ CATEGORY & LOCATION PANE ============ -->
+    <div data-tab-pane="category" class="@(Model.ActiveTab == "category" ? "" : "hidden")">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 p-6">
+                <h3 class="font-semibold text-slate-800 dark:text-slate-100 mb-4">Categories</h3>
+                @if (canAdd)
+                {
+                    <form method="post" asp-action="SaveCategory" class="space-y-3 mb-5">
+                        @Html.AntiForgeryToken()
+                        <input type="text" name="CategoryName" placeholder="Category name" required class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" />
+
+                        <div>
+                            <label class="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1.5">Color</label>
+                            <div class="flex items-center gap-1.5 flex-wrap category-color-picker">
+                                @{
+                                    var presetColors = new[] {
+                                        ("#7c3aed", "Purple"), ("#2563eb", "Blue"), ("#0891b2", "Cyan"),
+                                        ("#059669", "Green"), ("#65a30d", "Lime"), ("#ca8a04", "Amber"),
+                                        ("#ea580c", "Orange"), ("#dc2626", "Red"), ("#db2777", "Pink"),
+                                        ("#64748b", "Slate"),
+                                    };
+                                }
+                                @foreach (var (hex, name) in presetColors)
+                                {
+                                    <button type="button" title="@name" data-color="@hex"
+                                            class="category-color-swatch w-7 h-7 rounded-full border-2 border-transparent hover:scale-110 transition-transform"
+                                            style="background:@hex"></button>
+                                }
+                                <input type="color" class="category-color-custom w-7 h-7 rounded-full border-0 cursor-pointer bg-transparent" title="Custom color" value="#7c3aed" />
+                            </div>
+                            <input type="hidden" name="CategoryColor" class="category-color-value" value="#7c3aed" />
+                        </div>
+
+                        <input type="text" name="Description" placeholder="Description" class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" />
+                        <button type="submit" class="px-4 py-2 rounded-xl font-medium bg-[#7c3aed] text-white hover:bg-[#6d28d9] text-sm">Add Category</button>
+                    </form>
+                }
+                @if (!Model.Categories.Any())
+                {
+                    <p class="text-sm text-slate-400 dark:text-slate-500">No categories yet.</p>
+                }
+                <div class="space-y-2">
+                    @foreach (var cat in Model.Categories)
+                    {
+                        <div class="flex items-center justify-between px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800">
+                            <div class="flex items-center gap-2">
+                                @if (!string.IsNullOrEmpty(cat.CategoryColor))
+                                {
+                                    <span class="w-3 h-3 rounded-full inline-block" style="background:@cat.CategoryColor"></span>
+                                }
+                                <span class="text-sm text-slate-700 dark:text-slate-200">@cat.CategoryName</span>
+                                <span class="text-xs text-slate-400 dark:text-slate-500">(@cat.CourseCount)</span>
+                                @if (cat.IsActive != "A")
+                                {
+                                    <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 uppercase">Deleted</span>
+                                }
+                            </div>
+                            @if (canDelete && cat.IsActive == "A")
+                            {
+                                <form method="post" asp-action="DeleteCategory" asp-route-id="@cat.CategoryID"
+                                      data-confirm="Delete '@cat.CategoryName'? Courses using it must be reassigned first." data-confirm-title="Delete category" data-confirm-label="Delete">
+                                    @Html.AntiForgeryToken()
+                                    <button type="submit" class="text-slate-400 hover:text-red-600 dark:hover:text-red-400"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                                </form>
+                            }
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 p-6">
+                <h3 class="font-semibold text-slate-800 dark:text-slate-100 mb-4">Locations</h3>
+                @if (canAdd)
+                {
+                    <form method="post" asp-action="SaveLocation" class="flex gap-2 mb-5">
+                        @Html.AntiForgeryToken()
+                        <input type="text" name="LocationName" placeholder="Location name" required class="flex-1 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" />
+                        <button type="submit" class="px-4 py-2 rounded-xl font-medium bg-[#7c3aed] text-white hover:bg-[#6d28d9] text-sm">Add</button>
+                    </form>
+                }
+                @if (!Model.Locations.Any())
+                {
+                    <p class="text-sm text-slate-400 dark:text-slate-500">No locations yet.</p>
+                }
+                <div class="space-y-2">
+                    @foreach (var loc in Model.Locations)
+                    {
+                        <div class="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 text-sm text-slate-700 dark:text-slate-200">@loc.LocationName</div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // ---------- Category color picker: presets + custom fallback ----------
+        document.querySelectorAll('.category-color-picker').forEach(picker => {
+            const form = picker.closest('form');
+            const hiddenInput = form.querySelector('.category-color-value');
+            const customInput = picker.querySelector('.category-color-custom');
+
+            function selectColor(hex) {
+                hiddenInput.value = hex;
+                picker.querySelectorAll('.category-color-swatch').forEach(sw => {
+                    const isSelected = sw.dataset.color.toLowerCase() === hex.toLowerCase();
+                    sw.classList.toggle('border-slate-800', isSelected);
+                    sw.classList.toggle('dark:border-white', isSelected);
+                    sw.classList.toggle('border-transparent', !isSelected);
+                });
+            }
+
+            picker.querySelectorAll('.category-color-swatch').forEach(sw => {
+                sw.addEventListener('click', () => selectColor(sw.dataset.color));
+            });
+            customInput.addEventListener('input', () => selectColor(customInput.value));
+
+            selectColor(hiddenInput.value);
+        });
+
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.tab-btn').forEach(b => {
+                    b.classList.remove('border-[#7c3aed]', 'text-[#7c3aed]');
+                    b.classList.add('border-transparent', 'text-slate-500', 'dark:text-slate-400');
+                });
+                btn.classList.remove('border-transparent', 'text-slate-500', 'dark:text-slate-400');
+                btn.classList.add('border-[#7c3aed]', 'text-[#7c3aed]');
+
+                document.querySelectorAll('[data-tab-pane]').forEach(p => p.classList.add('hidden'));
+                const target = document.querySelector(`[data-tab-pane="${btn.dataset.tabTarget}"]`);
+                if (target) target.classList.remove('hidden');
+            });
+        });
+    </script>
+}

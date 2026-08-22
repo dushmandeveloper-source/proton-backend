@@ -5,6 +5,9 @@
     string? successMsg = TempData["SuccessMessage"] as string;
     string? errorMsg = TempData["ErrorMessage"] as string;
     var canViewUniversities = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.Universities, 'V');
+    var canViewStudents = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.Students, 'V');
+    var canViewCourses = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.Courses, 'V');
+    var canViewCourseSchedules = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.CourseSchedules, 'V');
     var canViewEmailSettings = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.EmailSettings, 'V');
     var canViewEmailTemplates = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.EmailTemplates, 'V');
     var canViewUserManagement = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.UserManagement, 'V');
@@ -24,7 +27,30 @@
         }
     </script>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script>tailwind.config = { darkMode: 'class' }</script>
+    <script>
+        // Stock Tailwind slate-50/100/400/500 read as near-white-on-white in
+        // light mode — every card border, muted label, and secondary text
+        // color in the admin views uses these, so low contrast shows up
+        // everywhere at once. Re-tuning the scale here (rather than editing
+        // every view) darkens/saturates just the light-mode-relevant shades;
+        // dark mode already uses 700/800/900/950 and is untouched.
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        slate: {
+                            50: '#eef1f6',
+                            100: '#e2e7f0',
+                            200: '#cbd3e1',
+                            400: '#64748b',
+                            500: '#475569',
+                        }
+                    },
+                }
+            }
+        }
+    </script>
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -38,9 +64,21 @@
         .page-enter { animation: page-enter-kf 0.5s ease-out; }
         @@keyframes toast-in-kf { from { opacity: 0; transform: translateX(1rem); } to { opacity: 1; transform: translateX(0); } }
         .toast-in { animation: toast-in-kf 0.25s ease-out; }
+
+        /* Every card uses shadow-sm, which is nearly invisible against the
+           pale light-mode gradient — cards read as flat rectangles instead
+           of lifted surfaces. Scoped to light mode only (":not(.dark)" on
+           the root) so dark mode keeps Tailwind's original subtle shadows,
+           which already read fine on near-black cards. !important is needed
+           to outrank the Tailwind CDN's own utility classes. */
+        html:not(.dark) .shadow-sm  { box-shadow: 0 2px 8px -2px rgb(15 23 42 / 0.10), 0 1px 3px -1px rgb(15 23 42 / 0.08) !important; }
+        html:not(.dark) .shadow     { box-shadow: 0 4px 14px -4px rgb(15 23 42 / 0.14), 0 2px 6px -2px rgb(15 23 42 / 0.08) !important; }
+        html:not(.dark) .shadow-md  { box-shadow: 0 8px 22px -6px rgb(15 23 42 / 0.18), 0 3px 8px -3px rgb(15 23 42 / 0.10) !important; }
+        html:not(.dark) .shadow-lg  { box-shadow: 0 14px 34px -10px rgb(15 23 42 / 0.22), 0 5px 12px -4px rgb(15 23 42 / 0.12) !important; }
+        html:not(.dark) .shadow-xl  { box-shadow: 0 22px 46px -12px rgb(15 23 42 / 0.26) !important; }
     </style>
 </head>
-<body class="bg-gradient-to-br from-[#ebf4fa] to-[#e4e0fb] dark:from-slate-950 dark:to-slate-900 min-h-screen">
+<body class="bg-gradient-to-br from-[#dbe7f3] to-[#d3cdf5] dark:from-slate-950 dark:to-slate-900 min-h-screen">
 
 <div id="toast-container" class="fixed top-4 right-4 z-[100] flex flex-col gap-2 items-end pointer-events-none"></div>
 
@@ -101,6 +139,34 @@ else
                             <span>Universities</span>
                         </a>
                     }
+                    @if (canViewStudents)
+                    {
+                        <a asp-area="Admin" asp-controller="Student" asp-action="Index"
+                           class="w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-200 group @(activeController == "Student" ? "bg-slate-50/80 dark:bg-slate-700/60 text-slate-900 dark:text-slate-100 font-semibold" : "text-slate-500 dark:text-slate-400 hover:bg-slate-50/50 dark:hover:bg-slate-700/40 hover:text-slate-900 dark:hover:text-slate-100")">
+                            <i data-lucide="graduation-cap" class="w-5 h-5 @(activeController == "Student" ? "text-[#5a43f1] dark:text-[#a78bfa]" : "text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300")"></i>
+                            <span>Students</span>
+                        </a>
+                    }
+                </div>
+
+                <div class="py-2">
+                    <p class="px-4 text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2 mt-4">Courses</p>
+                    @if (canViewCourses)
+                    {
+                        <a asp-area="Admin" asp-controller="Course" asp-action="Index"
+                           class="w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-200 group @(activeController == "Course" ? "bg-slate-50/80 dark:bg-slate-700/60 text-slate-900 dark:text-slate-100 font-semibold" : "text-slate-500 dark:text-slate-400 hover:bg-slate-50/50 dark:hover:bg-slate-700/40 hover:text-slate-900 dark:hover:text-slate-100")">
+                            <i data-lucide="book-open" class="w-5 h-5 @(activeController == "Course" ? "text-[#5a43f1] dark:text-[#a78bfa]" : "text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300")"></i>
+                            <span>Courses</span>
+                        </a>
+                    }
+                    @if (canViewCourseSchedules)
+                    {
+                        <a asp-area="Admin" asp-controller="CourseSchedule" asp-action="Index"
+                           class="w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-200 group @(activeController == "CourseSchedule" ? "bg-slate-50/80 dark:bg-slate-700/60 text-slate-900 dark:text-slate-100 font-semibold" : "text-slate-500 dark:text-slate-400 hover:bg-slate-50/50 dark:hover:bg-slate-700/40 hover:text-slate-900 dark:hover:text-slate-100")">
+                            <i data-lucide="calendar-days" class="w-5 h-5 @(activeController == "CourseSchedule" ? "text-[#5a43f1] dark:text-[#a78bfa]" : "text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300")"></i>
+                            <span>Course Schedules</span>
+                        </a>
+                    }
                 </div>
 
                 <div class="py-2">
@@ -134,6 +200,11 @@ else
                         <span>User Management</span>
                     </a>
                 }
+                <a asp-area="Admin" asp-controller="Profile" asp-action="Index"
+                   class="w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-200 group @(activeController == "Profile" ? "bg-slate-50/80 dark:bg-slate-700/60 text-slate-900 dark:text-slate-100 font-semibold" : "text-slate-500 dark:text-slate-400 hover:bg-slate-50/50 dark:hover:bg-slate-700/40 hover:text-slate-900 dark:hover:text-slate-100")">
+                    <i data-lucide="user-circle" class="w-5 h-5 @(activeController == "Profile" ? "text-[#5a43f1] dark:text-[#a78bfa]" : "text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300")"></i>
+                    <span>My Profile</span>
+                </a>
                 <a asp-area="Admin" asp-controller="Account" asp-action="Logout"
                    class="w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-slate-500 dark:text-slate-400 hover:bg-slate-50/50 dark:hover:bg-slate-700/40 hover:text-slate-900 dark:hover:text-slate-100 transition-all duration-200 group">
                     <i data-lucide="log-out" class="w-5 h-5 text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300"></i>
