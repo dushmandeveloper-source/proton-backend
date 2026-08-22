@@ -92,14 +92,14 @@ namespace Web_Backend.Areas.Admin.Controllers
                     };
                 });
 
-            Auth.SignIn(new SessionUser
+            await Auth.SignIn(new SessionUser
             {
                 Id = auth.UserID,
                 Name = auth.FullName,
                 Email = auth.Email,
                 Role = auth.UserTypeID,
                 Permissions = effective
-            });
+            }, model.RememberMe);
             return RedirectToAction("Index", "Dashboard");
         }
 

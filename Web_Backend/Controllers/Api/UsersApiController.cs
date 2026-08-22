@@ -1,4 +1,3 @@
-using System.Security.Cryptography;
 using Microsoft.AspNetCore.Mvc;
 using Web_Backend.Areas.Admin.Data;
 using Web_Backend.Areas.Admin.Models;
@@ -54,7 +53,7 @@ namespace Web_Backend.Controllers.Api
                 IsActive = "A"
             });
 
-            var tempPassword = GenerateTempPassword();
+            var tempPassword = TempPassword.Generate();
             var (hash, salt) = PasswordHasher.Hash(tempPassword);
             await authRep.AddEdit("", userId, request.Email, request.Email, hash, salt);
 
@@ -73,13 +72,6 @@ namespace Web_Backend.Controllers.Api
         {
             await userRep.Delete(id);
             return NoContent();
-        }
-
-        private static string GenerateTempPassword()
-        {
-            const string chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
-            var bytes = RandomNumberGenerator.GetBytes(12);
-            return new string(bytes.Select(b => chars[b % chars.Length]).ToArray());
         }
     }
 }

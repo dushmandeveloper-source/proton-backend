@@ -1,0 +1,596 @@
+@model CourseDetailViewModel
+@{
+    ViewData["Title"] = Model.IsNew ? "Add Course" : "Edit Course";
+    var c = Model.Course;
+    var locations = ViewBag.Locations as List<CourseLocation> ?? new List<CourseLocation>();
+    bool canEdit = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.Courses, Model.IsNew ? 'A' : 'E');
+    bool canDelete = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.Courses, 'D');
+
+    string[] tabs = c.IsCSCA
+        ? new[] { "details", "content", "pricing", "combo", "subjects", "schedules" }
+        : new[] { "details", "content", "pricing", "combo", "schedules" };
+    var tabLabels = new Dictionary<string, string> {
+        ["details"] = "Details", ["content"] = "Content",
+        ["pricing"] = "Pricing & Fees", ["combo"] = "Combo Offers", ["subjects"] = "Exam Subjects", ["schedules"] = "Schedules"
+    };
+}
+
+<div class="max-w-5xl mx-auto page-enter">
+    <div class="flex items-center gap-3 mb-6">
+        <a asp-action="Index" class="p-2 rounded-xl text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700">
+            <i data-lucide="arrow-left" class="w-5 h-5"></i>
+        </a>
+        <div>
+            <h2 class="text-3xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">@ViewData["Title"]</h2>
+            @if (!Model.IsNew)
+            {
+                <p class="text-slate-500 dark:text-slate-400 mt-1 text-sm">@c.CourseTitle &middot; @c.CourseType</p>
+            }
+        </div>
+    </div>
+
+    <div class="flex gap-2 mb-6 border-b border-slate-100 dark:border-slate-700 overflow-x-auto">
+        @foreach (var t in tabs)
+        {
+            @if (Model.IsNew && t != "details")
+            {
+                <span title="Save the course details first — this tab unlocks afterward."
+                      class="px-4 py-2 text-sm font-medium border-b-2 -mb-px whitespace-nowrap border-transparent text-slate-300 dark:text-slate-600 cursor-not-allowed">
+                    @tabLabels[t]
+                </span>
+            }
+            else
+            {
+                <a asp-action="Edit" asp-route-id="@c.CourseID" asp-route-tab="@t"
+                   class="px-4 py-2 text-sm font-medium border-b-2 -mb-px whitespace-nowrap @((Model.IsNew ? "details" : Model.ActiveTab) == t ? "border-[#7c3aed] text-[#7c3aed]" : "border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200")">
+                    @tabLabels[t]
+                </a>
+            }
+        }
+    </div>
+
+    @if (Model.IsNew || Model.ActiveTab == "details")
+    {
+        <form method="post" asp-action="Save" enctype="multipart/form-data" id="details-form" class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 p-6 space-y-5">
+            @Html.AntiForgeryToken()
+            <input type="hidden" asp-for="Course.CourseID" />
+            <input type="hidden" asp-for="Course.CourseType" />
+            <input type="hidden" asp-for="Course.CourseImageURL" />
+            <input type="hidden" asp-for="Course.HandbookFileURL" />
+            @Html.Hidden("tab", "details")
+            @* Content/pricing/combo JSON is preserved across the Details-tab save via hidden fields so a Details-only submit doesn't wipe other tabs' data. *@
+            <input type="hidden" name="DescriptionJSON" value="@Html.Raw(System.Text.Json.JsonSerializer.Serialize(c.Descriptions))" />
+            <input type="hidden" name="PathwayJSON" value="@Html.Raw(System.Text.Json.JsonSerializer.Serialize(c.Pathways))" />
+            <input type="hidden" name="TrainingPointJSON" value="@Html.Raw(System.Text.Json.JsonSerializer.Serialize(c.TrainingPoints))" />
+            <input type="hidden" name="OutcomeJSON" value="@Html.Raw(System.Text.Json.JsonSerializer.Serialize(c.Outcomes))" />
+            <input type="hidden" name="RequirementJSON" value="@Html.Raw(System.Text.Json.JsonSerializer.Serialize(c.Requirements))" />
+            <input type="hidden" name="PricingJSON" value="@Html.Raw(System.Text.Json.JsonSerializer.Serialize(c.PricingDetails))" />
+            <input type="hidden" name="FeeChargeJSON" value="@Html.Raw(System.Text.Json.JsonSerializer.Serialize(c.FeeCharges))" />
+            <input type="hidden" name="ComboOfferJSON" value="@Html.Raw(System.Text.Json.JsonSerializer.Serialize(c.ComboOffers))" />
+
+            @if (Model.IsNew)
+            {
+                <div class="flex items-center gap-2 text-sm px-4 py-3 rounded-xl bg-purple-50 dark:bg-purple-950 text-purple-700 dark:text-purple-300">
+                    <i data-lucide="info" class="w-4 h-4 flex-shrink-0"></i>
+                    Creating a <strong>@c.CourseType</strong> course. This type cannot be changed after saving.
+                </div>
+            }
+
+            <div>
+                <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Course Title</label>
+                <input asp-for="Course.CourseTitle" class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" />
+                <span asp-validation-for="Course.CourseTitle" class="text-xs text-red-600"></span>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Course Code</label>
+                    <input asp-for="Course.CourseCode" class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" />
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                        Category
+                        <a asp-controller="Course" asp-action="Index" asp-route-tab="category" target="_blank" class="text-[#7c3aed] font-normal hover:underline ml-1">manage categories</a>
+                    </label>
+                    <select asp-for="Course.CategoryID" class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm">
+                        <option value="">-- None --</option>
+                        @foreach (var cat in Model.Categories)
+                        {
+                            <option value="@cat.CategoryID" selected="@(cat.CategoryID == c.CategoryID)">@cat.CategoryName</option>
+                        }
+                    </select>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                        Location
+                        <a asp-controller="Course" asp-action="Index" asp-route-tab="category" target="_blank" class="text-[#7c3aed] font-normal hover:underline ml-1">manage locations</a>
+                    </label>
+                    <select asp-for="Course.LocationID" class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm">
+                        <option value="">-- None --</option>
+                        @foreach (var loc in locations)
+                        {
+                            <option value="@loc.LocationID" selected="@(loc.LocationID == c.LocationID)">@loc.LocationName</option>
+                        }
+                    </select>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Duration</label>
+                    <input asp-for="Course.Duration" placeholder="e.g. 12 weeks" class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" />
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Certificate Validity</label>
+                    <input asp-for="Course.CertificateValidity" placeholder="e.g. 2 years" class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" />
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Delivery Method</label>
+                <input asp-for="Course.DeliveryMethod" placeholder="e.g. Online, In-person" class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" />
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Currency</label>
+                    <input asp-for="Course.CurrencyCode" class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" />
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Base Fee</label>
+                    <input asp-for="Course.Fee" type="number" step="0.01" class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" />
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Short Description</label>
+                <textarea asp-for="Course.ShortDescription" rows="2" class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm"></textarea>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">About (HTML)</label>
+                <textarea asp-for="Course.AboutHtml" rows="4" class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm font-mono"></textarea>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Course Image</label>
+                    @if (!string.IsNullOrEmpty(c.CourseImageURL))
+                    {
+                        <img src="@c.CourseImageURL" class="w-32 h-20 object-cover rounded-lg mb-2 border border-slate-100 dark:border-slate-700" />
+                    }
+                    <input type="file" name="imageFile" accept="image/*" class="text-sm" />
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Handbook</label>
+                    <input asp-for="Course.HandbookTitle" placeholder="Handbook title" class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm mb-2" />
+                    @if (!string.IsNullOrEmpty(c.HandbookFileURL))
+                    {
+                        <a href="@c.HandbookFileURL" target="_blank" class="text-xs text-[#7c3aed] hover:underline block mb-2">Current file</a>
+                    }
+                    <input type="file" name="handbookFile" accept=".pdf,.doc,.docx" class="text-sm" />
+                </div>
+            </div>
+
+            <div class="flex items-center gap-6">
+                <label class="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
+                    <input asp-for="Course.EnableExperiencePricing" type="checkbox" class="rounded border-slate-300 dark:border-slate-600 text-[#7c3aed] focus:ring-[#7c3aed]" />
+                    Enable Experience Pricing
+                </label>
+                <label class="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
+                    <input asp-for="Course.EnableComboOffer" type="checkbox" class="rounded border-slate-300 dark:border-slate-600 text-[#7c3aed] focus:ring-[#7c3aed]" />
+                    Enable Combo Offer
+                </label>
+            </div>
+
+            @if (!Model.IsNew)
+            {
+                <div class="flex items-center gap-2">
+                    <input type="checkbox" name="IsActive" value="A" checked="@(c.IsActive == "A")"
+                           onchange="this.value = this.checked ? 'A' : 'I'"
+                           class="rounded border-slate-300 dark:border-slate-600 text-[#7c3aed] focus:ring-[#7c3aed]" />
+                    <label class="text-sm text-slate-600 dark:text-slate-300">Active</label>
+                </div>
+            }
+
+            <div class="flex justify-end gap-2 pt-2">
+                <a asp-action="Index" class="px-4 py-2 rounded-xl font-medium bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-sm">Cancel</a>
+                @if (canEdit)
+                {
+                    <button type="submit" class="px-4 py-2 rounded-xl font-medium bg-[#7c3aed] text-white hover:bg-[#6d28d9] text-sm">Save</button>
+                }
+            </div>
+        </form>
+    }
+    else if (Model.ActiveTab == "content")
+    {
+        <form method="post" asp-action="Save" id="content-form" class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 p-6 space-y-8">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="CourseID" value="@c.CourseID" />
+            <input type="hidden" name="CourseType" value="@c.CourseType" />
+            <input type="hidden" name="CourseTitle" value="@c.CourseTitle" />
+            <input type="hidden" name="tab" value="content" />
+
+            @await Html.PartialAsync("_RepeatableList", new RepeatableListModel {
+                Title = "Descriptions", FieldName = "DescriptionJSON", TextField = "descriptionText",
+                Items = c.Descriptions.Select((d, i) => new RepeatableRow(d.DescriptionText, i)).ToList()
+            })
+            @await Html.PartialAsync("_RepeatableList", new RepeatableListModel {
+                Title = "Training Points", FieldName = "TrainingPointJSON", TextField = "pointDescription",
+                Items = c.TrainingPoints.Select((d, i) => new RepeatableRow(d.PointDescription, i)).ToList()
+            })
+            @await Html.PartialAsync("_RepeatableList", new RepeatableListModel {
+                Title = "Outcomes", FieldName = "OutcomeJSON", TextField = "outcomeDescription",
+                Items = c.Outcomes.Select((d, i) => new RepeatableRow(d.OutcomeDescription, i)).ToList()
+            })
+            @await Html.PartialAsync("_RepeatableList", new RepeatableListModel {
+                Title = "Requirements", FieldName = "RequirementJSON", TextField = "requirementText",
+                Items = c.Requirements.Select((d, i) => new RepeatableRow(d.RequirementText, i)).ToList()
+            })
+
+            <div>
+                <h3 class="font-semibold text-slate-800 dark:text-slate-100 mb-3">Pathways</h3>
+                <div id="pathway-rows" class="space-y-2">
+                    @foreach (var p in c.Pathways)
+                    {
+                        <div class="pathway-row grid grid-cols-2 gap-2">
+                            <input type="text" class="pw-desc px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" value="@p.PathwayDescription" placeholder="Pathway description" />
+                            <div class="flex gap-2">
+                                <input type="text" class="pw-cert flex-1 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" value="@p.CertificationText" placeholder="Certification" />
+                                <button type="button" onclick="this.closest('.pathway-row').remove()" class="p-2 text-slate-400 hover:text-red-600 dark:hover:text-red-400"><i data-lucide="x" class="w-4 h-4"></i></button>
+                            </div>
+                        </div>
+                    }
+                </div>
+                <button type="button" onclick="addPathwayRow()" class="mt-2 text-sm text-[#7c3aed] hover:underline">+ Add pathway</button>
+                <input type="hidden" name="PathwayJSON" id="PathwayJSON" />
+            </div>
+
+            <input type="hidden" name="PricingJSON" value="@Html.Raw(System.Text.Json.JsonSerializer.Serialize(c.PricingDetails))" />
+            <input type="hidden" name="FeeChargeJSON" value="@Html.Raw(System.Text.Json.JsonSerializer.Serialize(c.FeeCharges))" />
+            <input type="hidden" name="ComboOfferJSON" value="@Html.Raw(System.Text.Json.JsonSerializer.Serialize(c.ComboOffers))" />
+
+            @if (canEdit)
+            {
+                <div class="flex justify-end">
+                    <button type="submit" onclick="return prepareContentForm()" class="px-4 py-2 rounded-xl font-medium bg-[#7c3aed] text-white hover:bg-[#6d28d9] text-sm">Save Content</button>
+                </div>
+            }
+        </form>
+
+        <script>
+            function addPathwayRow() {
+                const div = document.createElement('div');
+                div.className = 'pathway-row grid grid-cols-2 gap-2';
+                div.innerHTML = `<input type="text" class="pw-desc px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" placeholder="Pathway description" />
+                    <div class="flex gap-2">
+                        <input type="text" class="pw-cert flex-1 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" placeholder="Certification" />
+                        <button type="button" onclick="this.closest('.pathway-row').remove()" class="p-2 text-slate-400 hover:text-red-600 dark:hover:text-red-400"><i data-lucide="x" class="w-4 h-4"></i></button>
+                    </div>`;
+                document.getElementById('pathway-rows').appendChild(div);
+                if (window.lucide) lucide.createIcons();
+            }
+            function prepareContentForm() {
+                const pathways = [...document.querySelectorAll('.pathway-row')].map(r => ({
+                    pathwayDescription: r.querySelector('.pw-desc').value,
+                    certificationText: r.querySelector('.pw-cert').value
+                })).filter(p => p.pathwayDescription);
+                document.getElementById('PathwayJSON').value = JSON.stringify(pathways);
+                serializeRepeatableFields(document.getElementById('content-form'));
+                return true;
+            }
+        </script>
+    }
+    else if (Model.ActiveTab == "pricing")
+    {
+        <form method="post" asp-action="Save" class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 p-6 space-y-8">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="CourseID" value="@c.CourseID" />
+            <input type="hidden" name="CourseType" value="@c.CourseType" />
+            <input type="hidden" name="CourseTitle" value="@c.CourseTitle" />
+            <input type="hidden" name="tab" value="pricing" />
+            <input type="hidden" name="DescriptionJSON" value="@Html.Raw(System.Text.Json.JsonSerializer.Serialize(c.Descriptions))" />
+            <input type="hidden" name="PathwayJSON" value="@Html.Raw(System.Text.Json.JsonSerializer.Serialize(c.Pathways))" />
+            <input type="hidden" name="TrainingPointJSON" value="@Html.Raw(System.Text.Json.JsonSerializer.Serialize(c.TrainingPoints))" />
+            <input type="hidden" name="OutcomeJSON" value="@Html.Raw(System.Text.Json.JsonSerializer.Serialize(c.Outcomes))" />
+            <input type="hidden" name="RequirementJSON" value="@Html.Raw(System.Text.Json.JsonSerializer.Serialize(c.Requirements))" />
+            <input type="hidden" name="ComboOfferJSON" value="@Html.Raw(System.Text.Json.JsonSerializer.Serialize(c.ComboOffers))" />
+
+            <div>
+                <h3 class="font-semibold text-slate-800 dark:text-slate-100 mb-3">Pricing Tiers</h3>
+                <div id="pricing-rows" class="space-y-2">
+                    @foreach (var p in c.PricingDetails)
+                    {
+                        <div class="pricing-row grid grid-cols-5 gap-2">
+                            <input type="text" class="pr-tier px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" value="@p.PricingTier" placeholder="Tier name" />
+                            <input type="number" step="0.01" class="pr-sell px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" value="@p.SellingPrice" placeholder="Selling price" />
+                            <input type="number" step="0.01" class="pr-orig px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" value="@p.OriginalPrice" placeholder="Original price" />
+                            <input type="number" step="0.01" class="pr-slbl px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" value="@p.SLBLPrice" placeholder="SLBL price" />
+                            <div class="flex gap-2">
+                                <input type="number" step="0.01" class="pr-slblst flex-1 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" value="@p.SLBLStrikethroughPrice" placeholder="SLBL strike price" />
+                                <button type="button" onclick="this.closest('.pricing-row').remove()" class="p-2 text-slate-400 hover:text-red-600 dark:hover:text-red-400"><i data-lucide="x" class="w-4 h-4"></i></button>
+                            </div>
+                        </div>
+                    }
+                </div>
+                <button type="button" onclick="addPricingRow()" class="mt-2 text-sm text-[#7c3aed] hover:underline">+ Add pricing tier</button>
+                <input type="hidden" name="PricingJSON" id="PricingJSON" />
+            </div>
+
+            <div>
+                <h3 class="font-semibold text-slate-800 dark:text-slate-100 mb-3">Fee Charges</h3>
+                <div id="fee-rows" class="space-y-2">
+                    @foreach (var f in c.FeeCharges)
+                    {
+                        <div class="fee-row grid grid-cols-4 gap-2">
+                            <input type="text" class="fee-type px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" value="@f.FeeType" placeholder="Fee type" />
+                            <input type="text" class="fee-desc col-span-2 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" value="@f.Description" placeholder="Description" />
+                            <div class="flex gap-2">
+                                <input type="number" step="0.01" class="fee-amt flex-1 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" value="@f.Amount" placeholder="Amount" />
+                                <button type="button" onclick="this.closest('.fee-row').remove()" class="p-2 text-slate-400 hover:text-red-600 dark:hover:text-red-400"><i data-lucide="x" class="w-4 h-4"></i></button>
+                            </div>
+                        </div>
+                    }
+                </div>
+                <button type="button" onclick="addFeeRow()" class="mt-2 text-sm text-[#7c3aed] hover:underline">+ Add fee charge</button>
+                <input type="hidden" name="FeeChargeJSON" id="FeeChargeJSON" />
+            </div>
+
+            @if (canEdit)
+            {
+                <div class="flex justify-end">
+                    <button type="submit" onclick="return preparePricingForm()" class="px-4 py-2 rounded-xl font-medium bg-[#7c3aed] text-white hover:bg-[#6d28d9] text-sm">Save Pricing</button>
+                </div>
+            }
+        </form>
+
+        <script>
+            function addPricingRow() {
+                const div = document.createElement('div');
+                div.className = 'pricing-row grid grid-cols-5 gap-2';
+                div.innerHTML = `<input type="text" class="pr-tier px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" placeholder="Tier name" />
+                    <input type="number" step="0.01" class="pr-sell px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" placeholder="Selling price" />
+                    <input type="number" step="0.01" class="pr-orig px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" placeholder="Original price" />
+                    <input type="number" step="0.01" class="pr-slbl px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" placeholder="SLBL price" />
+                    <div class="flex gap-2">
+                        <input type="number" step="0.01" class="pr-slblst flex-1 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" placeholder="SLBL strike price" />
+                        <button type="button" onclick="this.closest('.pricing-row').remove()" class="p-2 text-slate-400 hover:text-red-600 dark:hover:text-red-400"><i data-lucide="x" class="w-4 h-4"></i></button>
+                    </div>`;
+                document.getElementById('pricing-rows').appendChild(div);
+                if (window.lucide) lucide.createIcons();
+            }
+            function addFeeRow() {
+                const div = document.createElement('div');
+                div.className = 'fee-row grid grid-cols-4 gap-2';
+                div.innerHTML = `<input type="text" class="fee-type px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" placeholder="Fee type" />
+                    <input type="text" class="fee-desc col-span-2 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" placeholder="Description" />
+                    <div class="flex gap-2">
+                        <input type="number" step="0.01" class="fee-amt flex-1 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" placeholder="Amount" />
+                        <button type="button" onclick="this.closest('.fee-row').remove()" class="p-2 text-slate-400 hover:text-red-600 dark:hover:text-red-400"><i data-lucide="x" class="w-4 h-4"></i></button>
+                    </div>`;
+                document.getElementById('fee-rows').appendChild(div);
+                if (window.lucide) lucide.createIcons();
+            }
+            function preparePricingForm() {
+                const pricing = [...document.querySelectorAll('.pricing-row')].map(r => ({
+                    pricingTier: r.querySelector('.pr-tier').value,
+                    sellingPrice: parseFloat(r.querySelector('.pr-sell').value) || null,
+                    originalPrice: parseFloat(r.querySelector('.pr-orig').value) || null,
+                    slblPrice: parseFloat(r.querySelector('.pr-slbl').value) || null,
+                    slblStrikethroughPrice: parseFloat(r.querySelector('.pr-slblst').value) || null
+                })).filter(p => p.pricingTier);
+                document.getElementById('PricingJSON').value = JSON.stringify(pricing);
+
+                const fees = [...document.querySelectorAll('.fee-row')].map(r => ({
+                    feeType: r.querySelector('.fee-type').value,
+                    description: r.querySelector('.fee-desc').value,
+                    amount: parseFloat(r.querySelector('.fee-amt').value) || null
+                })).filter(f => f.feeType);
+                document.getElementById('FeeChargeJSON').value = JSON.stringify(fees);
+                return true;
+            }
+        </script>
+    }
+    else if (Model.ActiveTab == "combo")
+    {
+        <form method="post" asp-action="Save" class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 p-6 space-y-4">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="CourseID" value="@c.CourseID" />
+            <input type="hidden" name="CourseType" value="@c.CourseType" />
+            <input type="hidden" name="CourseTitle" value="@c.CourseTitle" />
+            <input type="hidden" name="tab" value="combo" />
+            <input type="hidden" name="DescriptionJSON" value="@Html.Raw(System.Text.Json.JsonSerializer.Serialize(c.Descriptions))" />
+            <input type="hidden" name="PathwayJSON" value="@Html.Raw(System.Text.Json.JsonSerializer.Serialize(c.Pathways))" />
+            <input type="hidden" name="TrainingPointJSON" value="@Html.Raw(System.Text.Json.JsonSerializer.Serialize(c.TrainingPoints))" />
+            <input type="hidden" name="OutcomeJSON" value="@Html.Raw(System.Text.Json.JsonSerializer.Serialize(c.Outcomes))" />
+            <input type="hidden" name="RequirementJSON" value="@Html.Raw(System.Text.Json.JsonSerializer.Serialize(c.Requirements))" />
+            <input type="hidden" name="PricingJSON" value="@Html.Raw(System.Text.Json.JsonSerializer.Serialize(c.PricingDetails))" />
+            <input type="hidden" name="FeeChargeJSON" value="@Html.Raw(System.Text.Json.JsonSerializer.Serialize(c.FeeCharges))" />
+
+            <h3 class="font-semibold text-slate-800 dark:text-slate-100 mb-1">Combo Offers</h3>
+            <div id="combo-rows" class="space-y-2">
+                @foreach (var co in c.ComboOffers)
+                {
+                    <div class="combo-row grid grid-cols-2 gap-2">
+                        <input type="text" class="co-desc px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" value="@co.ComboDescription" placeholder="Combo description" />
+                        <div class="flex gap-2">
+                            <input type="text" class="co-dur flex-1 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" value="@co.ComboDuration" placeholder="Duration" />
+                            <button type="button" onclick="this.closest('.combo-row').remove()" class="p-2 text-slate-400 hover:text-red-600 dark:hover:text-red-400"><i data-lucide="x" class="w-4 h-4"></i></button>
+                        </div>
+                    </div>
+                }
+            </div>
+            <button type="button" onclick="addComboRow()" class="text-sm text-[#7c3aed] hover:underline">+ Add combo offer</button>
+            <input type="hidden" name="ComboOfferJSON" id="ComboOfferJSON" />
+
+            @if (canEdit)
+            {
+                <div class="flex justify-end pt-2">
+                    <button type="submit" onclick="return prepareComboForm()" class="px-4 py-2 rounded-xl font-medium bg-[#7c3aed] text-white hover:bg-[#6d28d9] text-sm">Save Combo Offers</button>
+                </div>
+            }
+        </form>
+
+        <script>
+            function addComboRow() {
+                const div = document.createElement('div');
+                div.className = 'combo-row grid grid-cols-2 gap-2';
+                div.innerHTML = `<input type="text" class="co-desc px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" placeholder="Combo description" />
+                    <div class="flex gap-2">
+                        <input type="text" class="co-dur flex-1 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" placeholder="Duration" />
+                        <button type="button" onclick="this.closest('.combo-row').remove()" class="p-2 text-slate-400 hover:text-red-600 dark:hover:text-red-400"><i data-lucide="x" class="w-4 h-4"></i></button>
+                    </div>`;
+                document.getElementById('combo-rows').appendChild(div);
+                if (window.lucide) lucide.createIcons();
+            }
+            function prepareComboForm() {
+                const combos = [...document.querySelectorAll('.combo-row')].map(r => ({
+                    comboDescription: r.querySelector('.co-desc').value,
+                    comboDuration: r.querySelector('.co-dur').value
+                })).filter(x => x.comboDescription);
+                document.getElementById('ComboOfferJSON').value = JSON.stringify(combos);
+                return true;
+            }
+        </script>
+    }
+    else if (Model.ActiveTab == "subjects")
+    {
+        <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 p-6">
+            <h3 class="font-semibold text-slate-800 dark:text-slate-100 mb-4">Exam Subjects</h3>
+
+            @if (canEdit)
+            {
+                <form method="post" asp-action="SaveSubject" class="grid grid-cols-1 md:grid-cols-6 gap-3 mb-6">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="CourseID" value="@c.CourseID" />
+                    <input type="text" name="SubjectName" placeholder="Subject (e.g. Mathematics)" required
+                           class="md:col-span-2 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" />
+                    <select name="Language" class="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm">
+                        <option value="English">English</option>
+                        <option value="Chinese">Chinese</option>
+                    </select>
+                    <input type="number" name="DurationMinutes" placeholder="Minutes"
+                           class="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" />
+                    <label class="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300 px-1">
+                        <input type="checkbox" name="IsCompulsory" value="true" class="rounded border-slate-300 dark:border-slate-600 text-[#7c3aed] focus:ring-[#7c3aed]" />
+                        Compulsory
+                    </label>
+                    <button type="submit" class="px-4 py-2 rounded-xl font-medium bg-[#7c3aed] text-white hover:bg-[#6d28d9] text-sm">Add</button>
+                </form>
+            }
+
+            @if (!Model.Subjects.Any())
+            {
+                <p class="text-sm text-slate-400 dark:text-slate-500">No subjects added yet.</p>
+            }
+            else
+            {
+                <table class="w-full text-sm">
+                    <thead>
+                        <tr class="border-b border-slate-100 dark:border-slate-700 text-left text-slate-500 dark:text-slate-400">
+                            <th class="py-2 font-medium">Subject</th>
+                            <th class="py-2 font-medium">Language</th>
+                            <th class="py-2 font-medium">Duration</th>
+                            <th class="py-2 font-medium">Compulsory</th>
+                            <th class="py-2 font-medium text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var s in Model.Subjects)
+                        {
+                            <tr class="border-b border-slate-50 dark:border-slate-800 last:border-0">
+                                <td class="py-2 font-medium text-slate-800 dark:text-slate-100">@s.SubjectName</td>
+                                <td class="py-2 text-slate-500 dark:text-slate-400">@s.Language</td>
+                                <td class="py-2 text-slate-500 dark:text-slate-400">@(s.DurationMinutes.HasValue ? $"{s.DurationMinutes} min" : "-")</td>
+                                <td class="py-2 text-slate-500 dark:text-slate-400">@(s.IsCompulsory ? "Yes" : "Optional")</td>
+                                <td class="py-2 text-right">
+                                    @if (canDelete)
+                                    {
+                                        <form method="post" asp-action="DeleteSubject" asp-route-courseId="@c.CourseID" asp-route-id="@s.SubjectID" class="inline">
+                                            @Html.AntiForgeryToken()
+                                            <button type="submit" title="Remove" class="p-2 rounded-xl text-slate-400 dark:text-slate-500 hover:text-red-600 dark:hover:text-red-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+                                                <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                            </button>
+                                        </form>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+        </div>
+    }
+    else if (Model.ActiveTab == "schedules")
+    {
+        <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 p-6">
+            <h3 class="font-semibold text-slate-800 dark:text-slate-100 mb-4">Schedules</h3>
+
+            @if (canEdit)
+            {
+                <form method="post" asp-action="SaveSchedule" class="grid grid-cols-1 md:grid-cols-6 gap-3 mb-6">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="CourseID" value="@c.CourseID" />
+                    <input type="text" name="ScheduleName" placeholder="Batch name" class="md:col-span-2 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" />
+                    <input type="date" name="ScheduleDate" class="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" />
+                    <input type="time" name="StartTime" class="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" />
+                    <input type="time" name="EndTime" class="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" />
+                    <input type="number" name="Capacity" placeholder="Capacity" class="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" />
+                    <input type="text" name="Location" placeholder="Location" class="md:col-span-3 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" />
+                    <input type="text" name="TrainerName" placeholder="Trainer / Invigilator" class="md:col-span-3 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" />
+                    <button type="submit" class="px-4 py-2 rounded-xl font-medium bg-[#7c3aed] text-white hover:bg-[#6d28d9] text-sm">Add Schedule</button>
+                </form>
+            }
+
+            @if (!Model.Schedules.Any())
+            {
+                <p class="text-sm text-slate-400 dark:text-slate-500">No schedules yet.</p>
+            }
+            else
+            {
+                <table class="w-full text-sm">
+                    <thead>
+                        <tr class="border-b border-slate-100 dark:border-slate-700 text-left text-slate-500 dark:text-slate-400">
+                            <th class="py-2 font-medium">Batch</th>
+                            <th class="py-2 font-medium">Date</th>
+                            <th class="py-2 font-medium">Time</th>
+                            <th class="py-2 font-medium">Location</th>
+                            <th class="py-2 font-medium">Capacity</th>
+                            <th class="py-2 font-medium">Status</th>
+                            <th class="py-2 font-medium text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var s in Model.Schedules)
+                        {
+                            <tr class="border-b border-slate-50 dark:border-slate-800 last:border-0">
+                                <td class="py-2 font-medium text-slate-800 dark:text-slate-100">@s.ScheduleName</td>
+                                <td class="py-2 text-slate-500 dark:text-slate-400">@(s.ScheduleDate?.ToString("dd MMM yyyy") ?? "-")</td>
+                                <td class="py-2 text-slate-500 dark:text-slate-400">@(string.IsNullOrEmpty(s.TimeRangeText) ? "-" : s.TimeRangeText)</td>
+                                <td class="py-2 text-slate-500 dark:text-slate-400">@s.Location</td>
+                                <td class="py-2 text-slate-500 dark:text-slate-400">@(s.Capacity?.ToString() ?? "-")</td>
+                                <td class="py-2">
+                                    <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase @(s.IsActive == "A" ? "bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300" : "bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300")">@s.StatusLabel</span>
+                                </td>
+                                <td class="py-2 text-right">
+                                    @if (canDelete)
+                                    {
+                                        <form method="post" asp-action="DeleteSchedule" asp-route-courseId="@c.CourseID" asp-route-id="@s.ScheduleID" class="inline">
+                                            @Html.AntiForgeryToken()
+                                            <button type="submit" title="Remove" class="p-2 rounded-xl text-slate-400 dark:text-slate-500 hover:text-red-600 dark:hover:text-red-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+                                                <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                            </button>
+                                        </form>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+        </div>
+    }
+</div>

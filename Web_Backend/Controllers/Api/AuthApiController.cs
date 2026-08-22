@@ -41,7 +41,7 @@ namespace Web_Backend.Controllers.Api
 
             await authRep.RecordLoginResult(auth.AuthID, success: true);
 
-            Auth.SignIn(new Areas.Admin.Models.SessionUser
+            await Auth.SignIn(new Areas.Admin.Models.SessionUser
             {
                 Id = auth.UserID,
                 Name = auth.FullName,

@@ -1,0 +1,108 @@
+@model Student
+@{
+    ViewData["Title"] = $"{Model.FirstName} {Model.LastName}";
+    string CardCls = "bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 p-6";
+    string LabelCls = "text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider";
+
+    bool canEditStudent = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.Students, 'E');
+}
+
+<div class="max-w-4xl mx-auto page-enter">
+    <div class="mb-6 flex flex-wrap items-start justify-between gap-4">
+        <div>
+            <a asp-action="Index" class="text-sm text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-100 flex items-center gap-1 mb-2">
+                <i data-lucide="arrow-left" class="w-4 h-4"></i> Back to Students
+            </a>
+            <div class="flex items-center gap-3">
+                <h2 class="text-3xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">@Model.FullName</h2>
+                @if (Model.IsSelfRegistered)
+                {
+                    <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-sky-100 dark:bg-sky-950 text-sky-700 dark:text-sky-300 uppercase">Self-registered</span>
+                }
+                @if (Model.IsActive != "A")
+                {
+                    <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 uppercase">Deleted</span>
+                }
+            </div>
+            <p class="text-slate-500 dark:text-slate-400 mt-1 text-sm">@Model.StudentID</p>
+        </div>
+        @if (canEditStudent)
+        {
+            <a asp-action="Edit" asp-route-id="@Model.StudentID"
+               class="px-4 py-2 rounded-xl font-medium bg-[#7c3aed] text-white hover:bg-[#6d28d9] shadow-sm text-sm flex items-center gap-2">
+                <i data-lucide="pencil" class="w-4 h-4"></i> Edit
+            </a>
+        }
+    </div>
+
+    <div class="@CardCls mb-6 flex items-center gap-4">
+        @if (!string.IsNullOrEmpty(Model.ProfileImageUrl))
+        {
+            <img src="@Model.ProfileImageUrl" alt="" class="w-20 h-20 rounded-full object-cover" />
+        }
+        else
+        {
+            <div class="w-20 h-20 rounded-full bg-purple-50 dark:bg-purple-950 flex items-center justify-center text-[#7c3aed] dark:text-purple-300 font-semibold text-2xl">
+                @(Model.FullName.Length > 0 ? Model.FullName[0].ToString().ToUpper() : "?")
+            </div>
+        }
+        <div>
+            <p class="font-semibold text-slate-800 dark:text-slate-100">@Model.FullName</p>
+            <p class="text-sm text-slate-500 dark:text-slate-400">@Model.Email</p>
+            @if (!string.IsNullOrEmpty(Model.Phone))
+            {
+                <p class="text-sm text-slate-500 dark:text-slate-400">@Model.Phone</p>
+            }
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+        <div class="@CardCls space-y-4">
+            <h3 class="font-semibold text-slate-800 dark:text-slate-100">Personal</h3>
+            <div class="grid grid-cols-2 gap-4 text-sm">
+                <div><p class="@LabelCls">Date of Birth</p><p class="text-slate-700 dark:text-slate-200 mt-1">@(Model.DateOfBirth?.ToString("d MMM yyyy") ?? "—")</p></div>
+                <div><p class="@LabelCls">Gender</p><p class="text-slate-700 dark:text-slate-200 mt-1">@(string.IsNullOrEmpty(Model.Gender) ? "—" : Model.Gender)</p></div>
+                <div><p class="@LabelCls">Nationality</p><p class="text-slate-700 dark:text-slate-200 mt-1">@(string.IsNullOrEmpty(Model.Nationality) ? "—" : Model.Nationality)</p></div>
+            </div>
+            <div class="pt-2 border-t border-slate-100 dark:border-slate-700">
+                <p class="@LabelCls mb-1">Address</p>
+                <p class="text-sm text-slate-700 dark:text-slate-200">
+                    @(new[] { Model.AddressLine1, Model.AddressLine2, Model.City, Model.StateProvince, Model.PostalCode, Model.Country }
+                        .Where(v => !string.IsNullOrWhiteSpace(v))
+                        .Any()
+                        ? string.Join(", ", new[] { Model.AddressLine1, Model.AddressLine2, Model.City, Model.StateProvince, Model.PostalCode, Model.Country }.Where(v => !string.IsNullOrWhiteSpace(v)))
+                        : "—")
+                </p>
+            </div>
+        </div>
+
+        <div class="@CardCls space-y-4">
+            <h3 class="font-semibold text-slate-800 dark:text-slate-100">Passport</h3>
+            <div class="flex items-start gap-4">
+                <div class="flex-1 grid grid-cols-1 gap-3 text-sm">
+                    <div><p class="@LabelCls">Number</p><p class="text-slate-700 dark:text-slate-200 mt-1">@(string.IsNullOrEmpty(Model.PassportNumber) ? "—" : Model.PassportNumber)</p></div>
+                    <div><p class="@LabelCls">Country</p><p class="text-slate-700 dark:text-slate-200 mt-1">@(string.IsNullOrEmpty(Model.PassportCountry) ? "—" : Model.PassportCountry)</p></div>
+                    <div><p class="@LabelCls">Expiry</p><p class="text-slate-700 dark:text-slate-200 mt-1">@(Model.PassportExpiryDate?.ToString("d MMM yyyy") ?? "—")</p></div>
+                </div>
+                @if (!string.IsNullOrEmpty(Model.PassportPhotoURL))
+                {
+                    <img src="@Model.PassportPhotoURL" alt="Passport photo" class="w-20 h-14 rounded-lg object-cover border border-slate-200 dark:border-slate-600 flex-shrink-0" />
+                }
+            </div>
+        </div>
+    </div>
+
+    <div class="@CardCls space-y-4">
+        <h3 class="font-semibold text-slate-800 dark:text-slate-100">Emergency Contact</h3>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+            <div><p class="@LabelCls">Name</p><p class="text-slate-700 dark:text-slate-200 mt-1">@(string.IsNullOrEmpty(Model.EmergencyContactName) ? "—" : Model.EmergencyContactName)</p></div>
+            <div><p class="@LabelCls">Phone</p><p class="text-slate-700 dark:text-slate-200 mt-1">@(string.IsNullOrEmpty(Model.EmergencyContactPhone) ? "—" : Model.EmergencyContactPhone)</p></div>
+            <div><p class="@LabelCls">Relationship</p><p class="text-slate-700 dark:text-slate-200 mt-1">@(string.IsNullOrEmpty(Model.EmergencyRelationship) ? "—" : Model.EmergencyRelationship)</p></div>
+        </div>
+    </div>
+
+    <p class="text-xs text-slate-400 dark:text-slate-500 mt-6">
+        Registered @Model.CreatedDate.ToString("d MMM yyyy")
+        @(Model.IsSelfRegistered ? "by the student" : $"by {(string.IsNullOrEmpty(Model.CreatedByName) ? "an admin" : Model.CreatedByName)}").
+    </p>
+</div>

@@ -12,6 +12,9 @@ namespace Web_Backend.Classes
         // can never be revoked by editing the database directly.
         public const string MasterAdminRoleId = "MASTERADMIN";
 
+        // ASP.NET Core's default session cookie name; must match to override its Expires below.
+        private const string SessionCookieName = ".AspNetCore.Session";
+
         private static IHttpContextAccessor _accessor = null!;
 
         public static void Initialize(IHttpContextAccessor accessor)
@@ -21,9 +24,37 @@ namespace Web_Backend.Classes
 
         private static ISession Session => _accessor.HttpContext!.Session;
 
-        public static void SignIn(SessionUser user)
+        // rememberMe controls whether the session cookie survives browser close.
+        // The session's server-side lifetime (IdleTimeout, see Program.cs) is the
+        // same either way; unchecked, the cookie itself expires with the browser
+        // session so the user is effectively signed out once it closes.
+        public static async Task SignIn(SessionUser user, bool rememberMe = false)
         {
             Session.SetObject("CurrentUser", user);
+
+            if (rememberMe)
+            {
+                // The session middleware only persists the store (and thus
+                // finalizes Session.Id) when the response commits — normally
+                // at the very end of the request. Appending our own cookie
+                // with Session.Id here, before that commit, could copy an ID
+                // the middleware then never saves, leaving the next request's
+                // cookie pointing at nothing (symptom: first login attempt
+                // silently "fails" and a second click is needed). Committing
+                // explicitly first guarantees the ID we copy is real.
+                await Session.CommitAsync();
+
+                _accessor.HttpContext!.Response.Cookies.Append(
+                    SessionCookieName,
+                    Session.Id,
+                    new CookieOptions
+                    {
+                        HttpOnly = true,
+                        IsEssential = true,
+                        Expires = DateTimeOffset.UtcNow.AddDays(30),
+                        SameSite = SameSiteMode.Lax
+                    });
+            }
         }
 
         public static void SignOut()

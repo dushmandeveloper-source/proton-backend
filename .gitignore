@@ -27,3 +27,8 @@ publish/
 # Generated at publish time (Database/tools) — a snapshot of pending
 # migrations for whatever DB appsettings.Production.json points at, not source
 Database/generated/
+
+# User-uploaded files (student/profile photos, university images, etc.) —
+# runtime data written by IImageUploader, not source. Each environment
+# (local dev, hosted) accumulates its own independently.
+Web_Backend/wwwroot/Uploads/

@@ -1,0 +1,260 @@
+@model ProfileViewModel
+@{
+    ViewData["Title"] = "My Profile";
+}
+
+<div class="max-w-3xl mx-auto page-enter">
+    <div class="mb-6">
+        <h2 class="text-2xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">My Profile</h2>
+        <p class="text-slate-500 dark:text-slate-400 text-sm mt-1">Your account details@(Model.IsStudent ? " and student registration info" : "").</p>
+    </div>
+
+    <form method="post" asp-action="Save" enctype="multipart/form-data" class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 p-6 space-y-6">
+        @Html.AntiForgeryToken()
+
+        <div class="flex items-center gap-4">
+            @if (!string.IsNullOrEmpty(Model.ProfileImageUrl))
+            {
+                <img src="@Model.ProfileImageUrl" alt="" class="w-16 h-16 rounded-full object-cover" />
+            }
+            else
+            {
+                <div class="w-16 h-16 rounded-full bg-purple-50 dark:bg-purple-950 flex items-center justify-center text-[#7c3aed] dark:text-purple-300 font-semibold text-xl">
+                    @(Model.FirstName.Length > 0 ? Model.FirstName[0].ToString().ToUpper() : "?")
+                </div>
+            }
+            <div>
+                <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Profile Photo</label>
+                <input type="file" name="profileImage" accept="image/*"
+                       class="text-sm text-slate-600 dark:text-slate-300 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-medium file:bg-purple-50 dark:file:bg-purple-950 file:text-[#7c3aed] dark:file:text-purple-300" />
+            </div>
+        </div>
+
+        <div>
+            <h3 class="text-sm font-semibold text-slate-800 dark:text-slate-100 mb-3">Account</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="space-y-1">
+                    <label class="text-sm font-medium text-slate-700 dark:text-slate-300">First Name</label>
+                    <input asp-for="FirstName" class="w-full rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 px-4 py-2.5 text-sm outline-none focus:border-[#7c3aed] focus:ring-1 focus:ring-[#7c3aed]" />
+                </div>
+                <div class="space-y-1">
+                    <label class="text-sm font-medium text-slate-700 dark:text-slate-300">Last Name</label>
+                    <input asp-for="LastName" class="w-full rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 px-4 py-2.5 text-sm outline-none focus:border-[#7c3aed] focus:ring-1 focus:ring-[#7c3aed]" />
+                </div>
+                <div class="space-y-1">
+                    <label class="text-sm font-medium text-slate-700 dark:text-slate-300">Email</label>
+                    <input asp-for="Email" type="email" readonly class="w-full rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-800/60 text-slate-500 dark:text-slate-400 px-4 py-2.5 text-sm outline-none cursor-not-allowed" />
+                </div>
+                <div class="space-y-1">
+                    <label class="text-sm font-medium text-slate-700 dark:text-slate-300">Phone</label>
+                    <input asp-for="Phone" class="w-full rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 px-4 py-2.5 text-sm outline-none focus:border-[#7c3aed] focus:ring-1 focus:ring-[#7c3aed]" />
+                </div>
+                <div class="space-y-1">
+                    <label class="text-sm font-medium text-slate-700 dark:text-slate-300">Role</label>
+                    <input value="@Model.UserTypeName" readonly class="w-full rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-800/60 text-slate-500 dark:text-slate-400 px-4 py-2.5 text-sm outline-none cursor-not-allowed" />
+                </div>
+            </div>
+        </div>
+
+        @if (Model.IsStudent)
+        {
+            <input type="hidden" asp-for="StudentID" />
+
+            <div>
+                <h3 class="text-sm font-semibold text-slate-800 dark:text-slate-100 mb-3">Personal</h3>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="space-y-1">
+                        <label class="text-sm font-medium text-slate-700 dark:text-slate-300">Date of Birth</label>
+                        <input asp-for="DateOfBirth" type="date" class="w-full rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 px-4 py-2.5 text-sm outline-none focus:border-[#7c3aed] focus:ring-1 focus:ring-[#7c3aed]" />
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-sm font-medium text-slate-700 dark:text-slate-300">Gender</label>
+                        <select asp-for="Gender" class="w-full rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 px-4 py-2.5 text-sm outline-none focus:border-[#7c3aed] focus:ring-1 focus:ring-[#7c3aed]">
+                            <option value="">Select...</option>
+                            <option value="Male">Male</option>
+                            <option value="Female">Female</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-sm font-medium text-slate-700 dark:text-slate-300">Nationality</label>
+                        <input asp-for="Nationality" class="w-full rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 px-4 py-2.5 text-sm outline-none focus:border-[#7c3aed] focus:ring-1 focus:ring-[#7c3aed]" />
+                    </div>
+                </div>
+            </div>
+
+            <div>
+                <h3 class="text-sm font-semibold text-slate-800 dark:text-slate-100 mb-3">Address</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="space-y-1 md:col-span-2">
+                        <label class="text-sm font-medium text-slate-700 dark:text-slate-300">Address Line 1</label>
+                        <input asp-for="AddressLine1" class="w-full rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 px-4 py-2.5 text-sm outline-none focus:border-[#7c3aed] focus:ring-1 focus:ring-[#7c3aed]" />
+                    </div>
+                    <div class="space-y-1 md:col-span-2">
+                        <label class="text-sm font-medium text-slate-700 dark:text-slate-300">Address Line 2</label>
+                        <input asp-for="AddressLine2" class="w-full rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 px-4 py-2.5 text-sm outline-none focus:border-[#7c3aed] focus:ring-1 focus:ring-[#7c3aed]" />
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-sm font-medium text-slate-700 dark:text-slate-300">City</label>
+                        <input asp-for="City" class="w-full rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 px-4 py-2.5 text-sm outline-none focus:border-[#7c3aed] focus:ring-1 focus:ring-[#7c3aed]" />
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-sm font-medium text-slate-700 dark:text-slate-300">State / Province</label>
+                        <input asp-for="StateProvince" class="w-full rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 px-4 py-2.5 text-sm outline-none focus:border-[#7c3aed] focus:ring-1 focus:ring-[#7c3aed]" />
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-sm font-medium text-slate-700 dark:text-slate-300">Postal Code</label>
+                        <input asp-for="PostalCode" class="w-full rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 px-4 py-2.5 text-sm outline-none focus:border-[#7c3aed] focus:ring-1 focus:ring-[#7c3aed]" />
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-sm font-medium text-slate-700 dark:text-slate-300">Country</label>
+                        <input asp-for="Country" class="w-full rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 px-4 py-2.5 text-sm outline-none focus:border-[#7c3aed] focus:ring-1 focus:ring-[#7c3aed]" />
+                    </div>
+                </div>
+            </div>
+
+            <div>
+                <h3 class="text-sm font-semibold text-slate-800 dark:text-slate-100 mb-3">Passport</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="space-y-1">
+                        <label class="text-sm font-medium text-slate-700 dark:text-slate-300">Passport Number</label>
+                        <input asp-for="PassportNumber" class="w-full rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 px-4 py-2.5 text-sm outline-none focus:border-[#7c3aed] focus:ring-1 focus:ring-[#7c3aed]" />
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-sm font-medium text-slate-700 dark:text-slate-300">Passport Country</label>
+                        <input asp-for="PassportCountry" class="w-full rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 px-4 py-2.5 text-sm outline-none focus:border-[#7c3aed] focus:ring-1 focus:ring-[#7c3aed]" />
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-sm font-medium text-slate-700 dark:text-slate-300">Passport Expiry</label>
+                        <input asp-for="PassportExpiryDate" type="date" class="w-full rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 px-4 py-2.5 text-sm outline-none focus:border-[#7c3aed] focus:ring-1 focus:ring-[#7c3aed]" />
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-sm font-medium text-slate-700 dark:text-slate-300">Passport Photo</label>
+                        <input type="file" name="passportPhoto" accept="image/*" class="w-full rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 px-4 py-2 text-sm outline-none focus:border-[#7c3aed] focus:ring-1 focus:ring-[#7c3aed] file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-medium file:bg-purple-50 dark:file:bg-purple-950 file:text-[#7c3aed] dark:file:text-purple-300" />
+                        @if (!string.IsNullOrEmpty(Model.PassportPhotoURL))
+                        {
+                            <button type="button" id="viewPassportPhotoBtn" data-photo-url="@Model.PassportPhotoURL"
+                                    class="inline-flex items-center gap-1.5 text-xs text-[#7c3aed] dark:text-purple-300 mt-1 hover:underline">
+                                <i data-lucide="image" class="w-3.5 h-3.5"></i> View current photo
+                            </button>
+                        }
+                    </div>
+                </div>
+            </div>
+
+            <div>
+                <h3 class="text-sm font-semibold text-slate-800 dark:text-slate-100 mb-3">Emergency Contact</h3>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="space-y-1">
+                        <label class="text-sm font-medium text-slate-700 dark:text-slate-300">Name</label>
+                        <input asp-for="EmergencyContactName" class="w-full rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 px-4 py-2.5 text-sm outline-none focus:border-[#7c3aed] focus:ring-1 focus:ring-[#7c3aed]" />
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-sm font-medium text-slate-700 dark:text-slate-300">Phone</label>
+                        <input asp-for="EmergencyContactPhone" class="w-full rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 px-4 py-2.5 text-sm outline-none focus:border-[#7c3aed] focus:ring-1 focus:ring-[#7c3aed]" />
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-sm font-medium text-slate-700 dark:text-slate-300">Relationship</label>
+                        <input asp-for="EmergencyRelationship" class="w-full rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 px-4 py-2.5 text-sm outline-none focus:border-[#7c3aed] focus:ring-1 focus:ring-[#7c3aed]" />
+                    </div>
+                </div>
+            </div>
+        }
+
+        <div class="flex items-center justify-between pt-4 border-t border-slate-100 dark:border-slate-700">
+            <a asp-action="ChangePassword" class="text-sm font-medium text-[#7c3aed] dark:text-[#a78bfa] hover:text-[#6d28d9] dark:hover:text-[#c4b5fd]">Change password</a>
+            <button type="submit" class="px-5 py-2.5 rounded-xl font-medium text-sm bg-[#7c3aed] text-white hover:bg-[#6d28d9] shadow-sm transition-all">
+                Save Changes
+            </button>
+        </div>
+    </form>
+</div>
+
+@if (!string.IsNullOrEmpty(Model.PassportPhotoURL))
+{
+    <div id="photoLightbox" class="fixed inset-0 z-50 hidden bg-black/80 flex items-center justify-center p-4">
+        <div class="absolute top-4 right-4 flex items-center gap-2">
+            <button type="button" id="photoZoomOutBtn" title="Zoom out" class="p-2.5 rounded-xl bg-white/10 text-white hover:bg-white/20 transition-colors">
+                <i data-lucide="zoom-out" class="w-5 h-5"></i>
+            </button>
+            <button type="button" id="photoZoomInBtn" title="Zoom in" class="p-2.5 rounded-xl bg-white/10 text-white hover:bg-white/20 transition-colors">
+                <i data-lucide="zoom-in" class="w-5 h-5"></i>
+            </button>
+            <button type="button" id="photoRotateBtn" title="Rotate" class="p-2.5 rounded-xl bg-white/10 text-white hover:bg-white/20 transition-colors">
+                <i data-lucide="rotate-cw" class="w-5 h-5"></i>
+            </button>
+            <a id="photoDownloadLink" download title="Download" class="p-2.5 rounded-xl bg-white/10 text-white hover:bg-white/20 transition-colors">
+                <i data-lucide="download" class="w-5 h-5"></i>
+            </a>
+            <button type="button" id="photoCloseBtn" title="Close" class="p-2.5 rounded-xl bg-white/10 text-white hover:bg-white/20 transition-colors">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+        </div>
+        <div class="w-full h-full flex items-center justify-center overflow-hidden">
+            <img id="photoLightboxImg" src="" alt="Passport photo" class="max-w-[90vw] max-h-[85vh] object-contain transition-transform duration-200 select-none" draggable="false" />
+        </div>
+    </div>
+}
+
+@section Scripts {
+    @if (!string.IsNullOrEmpty(Model.PassportPhotoURL))
+    {
+        <script>
+            (function () {
+                var openBtn = document.getElementById('viewPassportPhotoBtn');
+                var lightbox = document.getElementById('photoLightbox');
+                var img = document.getElementById('photoLightboxImg');
+                var downloadLink = document.getElementById('photoDownloadLink');
+                var zoom = 1;
+                var rotation = 0;
+
+                function applyTransform() {
+                    img.style.transform = 'scale(' + zoom + ') rotate(' + rotation + 'deg)';
+                }
+
+                function open() {
+                    var url = openBtn.getAttribute('data-photo-url');
+                    img.src = url;
+                    downloadLink.href = url;
+                    zoom = 1;
+                    rotation = 0;
+                    applyTransform();
+                    lightbox.classList.remove('hidden');
+                    document.body.style.overflow = 'hidden';
+                }
+
+                function close() {
+                    lightbox.classList.add('hidden');
+                    document.body.style.overflow = '';
+                }
+
+                if (openBtn) openBtn.addEventListener('click', open);
+                document.getElementById('photoCloseBtn').addEventListener('click', close);
+                lightbox.addEventListener('click', function (e) { if (e.target === lightbox) close(); });
+                document.addEventListener('keydown', function (e) {
+                    if (!lightbox.classList.contains('hidden') && e.key === 'Escape') close();
+                });
+
+                document.getElementById('photoZoomInBtn').addEventListener('click', function () {
+                    zoom = Math.min(zoom + 0.25, 4);
+                    applyTransform();
+                });
+                document.getElementById('photoZoomOutBtn').addEventListener('click', function () {
+                    zoom = Math.max(zoom - 0.25, 0.5);
+                    applyTransform();
+                });
+                document.getElementById('photoRotateBtn').addEventListener('click', function () {
+                    rotation = (rotation + 90) % 360;
+                    applyTransform();
+                });
+
+                // Scroll-to-zoom while hovering the image.
+                img.addEventListener('wheel', function (e) {
+                    e.preventDefault();
+                    zoom = Math.min(Math.max(zoom + (e.deltaY < 0 ? 0.15 : -0.15), 0.5), 4);
+                    applyTransform();
+                }, { passive: false });
+            })();
+        </script>
+    }
+}

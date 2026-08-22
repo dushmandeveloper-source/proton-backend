@@ -21,8 +21,12 @@ builder.Services.AddControllersWithViews(options =>
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddSession(options =>
 {
-    options.IdleTimeout = TimeSpan.FromMinutes(30);
+    // Server-side expiry is capped at the "Remember Me" ceiling (30 days);
+    // the default, shorter-lived experience comes from the session cookie
+    // itself not persisting past browser close (see Auth.SignIn).
+    options.IdleTimeout = TimeSpan.FromDays(30);
     options.Cookie.HttpOnly = true;
+    options.Cookie.IsEssential = true;
 });
 
 builder.Services.AddEndpointsApiExplorer();
@@ -56,6 +60,10 @@ builder.Services.AddTransient<IEmailTemplateData, EmailTemplateData>();
 builder.Services.AddTransient<IPasswordResetData, PasswordResetData>();
 builder.Services.AddTransient<IEmailSender, EmailSender>();
 builder.Services.AddTransient<IUniversityData, UniversityData>();
+builder.Services.AddTransient<IStudentData, StudentData>();
+builder.Services.AddTransient<ICourseCategoryData, CourseCategoryData>();
+builder.Services.AddTransient<ICourseData, CourseData>();
+builder.Services.AddTransient<ICourseScheduleData, CourseScheduleData>();
 builder.Services.AddTransient<IRolePermissionData, RolePermissionData>();
 builder.Services.AddTransient<IUserPermissionOverrideData, UserPermissionOverrideData>();
 builder.Services.AddSingleton<IImageUploader, ImageUploader>();

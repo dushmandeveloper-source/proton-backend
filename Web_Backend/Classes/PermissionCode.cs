@@ -7,16 +7,22 @@ namespace Web_Backend.Classes
     public static class PermissionCode
     {
         public const string Universities = "Universities";
+        public const string Students = "Students";
         public const string UserManagement = "UserManagement";
         public const string EmailSettings = "EmailSettings";
         public const string EmailTemplates = "EmailTemplates";
+        public const string Courses = "Courses";
+        public const string CourseSchedules = "CourseSchedules";
 
         public static readonly (string Code, string Label)[] All =
         {
             (Universities, "Universities"),
+            (Students, "Students"),
             (UserManagement, "User Management"),
             (EmailSettings, "Email Settings"),
             (EmailTemplates, "Email Templates"),
+            (Courses, "Courses"),
+            (CourseSchedules, "Course Schedules"),
         };
     }
 }

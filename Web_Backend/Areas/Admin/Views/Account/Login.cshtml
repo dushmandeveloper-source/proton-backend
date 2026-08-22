@@ -42,10 +42,19 @@
                     <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                         <i data-lucide="lock" class="h-5 w-5 text-slate-400 dark:text-slate-500"></i>
                     </div>
-                    <input asp-for="Password" type="password" placeholder="••••••••"
-                           class="w-full rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 px-4 py-2.5 pl-10 text-sm outline-none transition-all focus:border-[#7c3aed] focus:ring-1 focus:ring-[#7c3aed]" />
+                    <input asp-for="Password" id="passwordInput" type="password" placeholder="••••••••"
+                           class="w-full rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 px-4 py-2.5 pl-10 pr-10 text-sm outline-none transition-all focus:border-[#7c3aed] focus:ring-1 focus:ring-[#7c3aed]" />
+                    <button type="button" id="togglePassword" tabindex="-1" aria-label="Show password"
+                            class="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300">
+                        <i data-lucide="eye" class="h-5 w-5"></i>
+                    </button>
                 </div>
-                <div class="flex justify-end mt-2">
+                <div class="flex items-center justify-between mt-2">
+                    <label class="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400 cursor-pointer">
+                        <input asp-for="RememberMe" type="checkbox"
+                               class="h-4 w-4 rounded border-slate-300 dark:border-slate-600 text-[#7c3aed] focus:ring-[#7c3aed]" />
+                        Remember me
+                    </label>
                     <a asp-action="ForgotPassword" class="text-sm font-medium text-[#7c3aed] dark:text-[#a78bfa] hover:text-[#6d28d9] dark:hover:text-[#c4b5fd]">Forgot password?</a>
                 </div>
             </div>
@@ -55,3 +64,19 @@
         </form>
     </div>
 </div>
+
+<script>
+    (function () {
+        var toggle = document.getElementById('togglePassword');
+        var input = document.getElementById('passwordInput');
+        if (!toggle || !input) return;
+
+        toggle.addEventListener('click', function () {
+            var isHidden = input.type === 'password';
+            input.type = isHidden ? 'text' : 'password';
+            toggle.innerHTML = '<i data-lucide="' + (isHidden ? 'eye-off' : 'eye') + '" class="h-5 w-5"></i>';
+            toggle.setAttribute('aria-label', isHidden ? 'Hide password' : 'Show password');
+            if (window.lucide) lucide.createIcons();
+        });
+    })();
+</script>

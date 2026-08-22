@@ -10,6 +10,8 @@ namespace Web_Backend.Areas.Admin.Models
         [Required]
         public string Password { get; set; } = "";
 
+        public bool RememberMe { get; set; }
+
         public string? ErrorMessage { get; set; }
     }
 

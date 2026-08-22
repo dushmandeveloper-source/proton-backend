@@ -1,0 +1,275 @@
+@model CourseDetailViewModel
+@{
+    var c = Model.Course;
+    ViewData["Title"] = c.CourseTitle;
+    string CardCls = "bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 p-6";
+    string LabelCls = "text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider";
+
+    bool canEdit = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.Courses, 'E');
+}
+
+<div class="max-w-5xl mx-auto page-enter">
+    <div class="mb-6 flex flex-wrap items-start justify-between gap-4">
+        <div>
+            <a asp-action="Index" class="text-sm text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-100 flex items-center gap-1 mb-2">
+                <i data-lucide="arrow-left" class="w-4 h-4"></i> Back to Courses
+            </a>
+            <div class="flex items-center gap-3">
+                <h2 class="text-3xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">@c.CourseTitle</h2>
+                <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase @(c.IsCSCA ? "bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300" : "bg-sky-100 dark:bg-sky-950 text-sky-700 dark:text-sky-300")">@c.CourseType</span>
+                @if (c.IsActive != "A")
+                {
+                    <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 uppercase">Deleted</span>
+                }
+            </div>
+            @if (!string.IsNullOrEmpty(c.CategoryName))
+            {
+                <p class="text-slate-500 dark:text-slate-400 mt-1 text-sm">@c.CategoryName</p>
+            }
+        </div>
+        @if (canEdit)
+        {
+            <a asp-action="Edit" asp-route-id="@c.CourseID"
+               class="px-4 py-2 rounded-xl font-medium bg-[#7c3aed] text-white hover:bg-[#6d28d9] shadow-sm text-sm flex items-center gap-2">
+                <i data-lucide="pencil" class="w-4 h-4"></i> Edit
+            </a>
+        }
+    </div>
+
+    <div class="@CardCls mb-6 !p-0 overflow-hidden">
+        <div class="h-56 bg-slate-100 dark:bg-slate-800 relative">
+            @if (!string.IsNullOrEmpty(c.CourseImageURL))
+            {
+                <img src="@c.CourseImageURL" alt="@c.CourseTitle" class="w-full h-full object-cover" />
+            }
+            else
+            {
+                <div class="w-full h-full flex items-center justify-center">
+                    <i data-lucide="image-off" class="w-8 h-8 text-slate-300 dark:text-slate-600"></i>
+                </div>
+            }
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+        <div class="@CardCls">
+            <p class="@LabelCls mb-1">Duration</p>
+            <p class="text-slate-800 dark:text-slate-100">@(string.IsNullOrEmpty(c.Duration) ? "-" : c.Duration)</p>
+        </div>
+        <div class="@CardCls">
+            <p class="@LabelCls mb-1">Certificate Validity</p>
+            <p class="text-slate-800 dark:text-slate-100">@(string.IsNullOrEmpty(c.CertificateValidity) ? "-" : c.CertificateValidity)</p>
+        </div>
+        <div class="@CardCls">
+            <p class="@LabelCls mb-1">Delivery Method</p>
+            <p class="text-slate-800 dark:text-slate-100">@(string.IsNullOrEmpty(c.DeliveryMethod) ? "-" : c.DeliveryMethod)</p>
+        </div>
+        <div class="@CardCls">
+            <p class="@LabelCls mb-1">Location</p>
+            <p class="text-slate-800 dark:text-slate-100">@(string.IsNullOrEmpty(c.LocationName) ? "-" : c.LocationName)</p>
+        </div>
+        <div class="@CardCls">
+            <p class="@LabelCls mb-1">Base Fee</p>
+            <p class="text-slate-800 dark:text-slate-100">@(c.Fee.HasValue ? $"{c.CurrencyCode} {c.Fee.Value:N0}" : "-")</p>
+        </div>
+        <div class="@CardCls">
+            <p class="@LabelCls mb-1">Handbook</p>
+            @if (!string.IsNullOrEmpty(c.HandbookFileURL))
+            {
+                <a href="@c.HandbookFileURL" target="_blank" class="text-[#7c3aed] hover:underline">@(string.IsNullOrEmpty(c.HandbookTitle) ? "Download" : c.HandbookTitle)</a>
+            }
+            else
+            {
+                <p class="text-slate-800 dark:text-slate-100">-</p>
+            }
+        </div>
+    </div>
+
+    @if (!string.IsNullOrEmpty(c.ShortDescription))
+    {
+        <div class="@CardCls mb-6">
+            <p class="@LabelCls mb-2">Overview</p>
+            <p class="text-slate-700 dark:text-slate-200">@c.ShortDescription</p>
+        </div>
+    }
+
+    @if (c.Descriptions.Any() || c.Outcomes.Any() || c.Requirements.Any() || c.TrainingPoints.Any())
+    {
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+            @if (c.Descriptions.Any())
+            {
+                <div class="@CardCls">
+                    <p class="@LabelCls mb-2">Descriptions</p>
+                    <ul class="list-disc list-inside space-y-1 text-sm text-slate-700 dark:text-slate-200">
+                        @foreach (var d in c.Descriptions.OrderBy(x => x.SortOrder)) { <li>@d.DescriptionText</li> }
+                    </ul>
+                </div>
+            }
+            @if (c.Outcomes.Any())
+            {
+                <div class="@CardCls">
+                    <p class="@LabelCls mb-2">Outcomes</p>
+                    <ul class="list-disc list-inside space-y-1 text-sm text-slate-700 dark:text-slate-200">
+                        @foreach (var o in c.Outcomes.OrderBy(x => x.SortOrder)) { <li>@o.OutcomeDescription</li> }
+                    </ul>
+                </div>
+            }
+            @if (c.Requirements.Any())
+            {
+                <div class="@CardCls">
+                    <p class="@LabelCls mb-2">Requirements</p>
+                    <ul class="list-disc list-inside space-y-1 text-sm text-slate-700 dark:text-slate-200">
+                        @foreach (var r in c.Requirements.OrderBy(x => x.SortOrder)) { <li>@r.RequirementText</li> }
+                    </ul>
+                </div>
+            }
+            @if (c.TrainingPoints.Any())
+            {
+                <div class="@CardCls">
+                    <p class="@LabelCls mb-2">Training Points</p>
+                    <ul class="list-disc list-inside space-y-1 text-sm text-slate-700 dark:text-slate-200">
+                        @foreach (var t in c.TrainingPoints.OrderBy(x => x.SortOrder)) { <li>@t.PointDescription</li> }
+                    </ul>
+                </div>
+            }
+        </div>
+    }
+
+    @if (c.Pathways.Any())
+    {
+        <div class="@CardCls mb-6">
+            <p class="@LabelCls mb-2">Pathways</p>
+            <div class="space-y-2">
+                @foreach (var p in c.Pathways)
+                {
+                    <div class="text-sm text-slate-700 dark:text-slate-200">
+                        <span class="font-medium">@p.PathwayDescription</span>
+                        @if (!string.IsNullOrEmpty(p.CertificationText))
+                        {
+                            <span class="text-slate-400 dark:text-slate-500"> &middot; @p.CertificationText</span>
+                        }
+                    </div>
+                }
+            </div>
+        </div>
+    }
+
+    @if (c.PricingDetails.Any() || c.FeeCharges.Any())
+    {
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+            @if (c.PricingDetails.Any())
+            {
+                <div class="@CardCls">
+                    <p class="@LabelCls mb-2">Pricing Tiers</p>
+                    <table class="w-full text-sm">
+                        <tbody>
+                            @foreach (var p in c.PricingDetails)
+                            {
+                                <tr class="border-b border-slate-50 dark:border-slate-800 last:border-0">
+                                    <td class="py-1.5 text-slate-700 dark:text-slate-200">@p.PricingTier</td>
+                                    <td class="py-1.5 text-right text-slate-800 dark:text-slate-100">@(p.SellingPrice?.ToString("N0") ?? "-")</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+            @if (c.FeeCharges.Any())
+            {
+                <div class="@CardCls">
+                    <p class="@LabelCls mb-2">Fee Charges</p>
+                    <table class="w-full text-sm">
+                        <tbody>
+                            @foreach (var f in c.FeeCharges)
+                            {
+                                <tr class="border-b border-slate-50 dark:border-slate-800 last:border-0">
+                                    <td class="py-1.5 text-slate-700 dark:text-slate-200">@f.FeeType</td>
+                                    <td class="py-1.5 text-right text-slate-800 dark:text-slate-100">@(f.Amount?.ToString("N0") ?? "-")</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    }
+
+    @if (c.ComboOffers.Any())
+    {
+        <div class="@CardCls mb-6">
+            <p class="@LabelCls mb-2">Combo Offers</p>
+            <div class="space-y-2">
+                @foreach (var co in c.ComboOffers)
+                {
+                    <div class="text-sm text-slate-700 dark:text-slate-200">
+                        <span class="font-medium">@co.ComboDescription</span>
+                        @if (!string.IsNullOrEmpty(co.ComboDuration))
+                        {
+                            <span class="text-slate-400 dark:text-slate-500"> &middot; @co.ComboDuration</span>
+                        }
+                    </div>
+                }
+            </div>
+        </div>
+    }
+
+    @if (c.IsCSCA && Model.Subjects.Any())
+    {
+        <div class="@CardCls mb-6">
+            <p class="@LabelCls mb-2">Exam Subjects</p>
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="text-left text-slate-500 dark:text-slate-400">
+                        <th class="py-1.5 font-medium">Subject</th>
+                        <th class="py-1.5 font-medium">Language</th>
+                        <th class="py-1.5 font-medium">Duration</th>
+                        <th class="py-1.5 font-medium">Compulsory</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var s in Model.Subjects)
+                    {
+                        <tr class="border-t border-slate-50 dark:border-slate-800">
+                            <td class="py-1.5 text-slate-800 dark:text-slate-100">@s.SubjectName</td>
+                            <td class="py-1.5 text-slate-500 dark:text-slate-400">@s.Language</td>
+                            <td class="py-1.5 text-slate-500 dark:text-slate-400">@(s.DurationMinutes.HasValue ? $"{s.DurationMinutes} min" : "-")</td>
+                            <td class="py-1.5 text-slate-500 dark:text-slate-400">@(s.IsCompulsory ? "Yes" : "Optional")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+
+    @if (Model.Schedules.Any())
+    {
+        <div class="@CardCls">
+            <p class="@LabelCls mb-2">Schedules</p>
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="text-left text-slate-500 dark:text-slate-400">
+                        <th class="py-1.5 font-medium">Batch</th>
+                        <th class="py-1.5 font-medium">Date</th>
+                        <th class="py-1.5 font-medium">Time</th>
+                        <th class="py-1.5 font-medium">Location</th>
+                        <th class="py-1.5 font-medium">Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var s in Model.Schedules)
+                    {
+                        <tr class="border-t border-slate-50 dark:border-slate-800">
+                            <td class="py-1.5 text-slate-800 dark:text-slate-100">@s.ScheduleName</td>
+                            <td class="py-1.5 text-slate-500 dark:text-slate-400">@(s.ScheduleDate?.ToString("dd MMM yyyy") ?? "-")</td>
+                            <td class="py-1.5 text-slate-500 dark:text-slate-400">@(string.IsNullOrEmpty(s.TimeRangeText) ? "-" : s.TimeRangeText)</td>
+                            <td class="py-1.5 text-slate-500 dark:text-slate-400">@s.Location</td>
+                            <td class="py-1.5">
+                                <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase @(s.IsActive == "A" ? "bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300" : "bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300")">@s.StatusLabel</span>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>

@@ -1,0 +1,333 @@
+@model StudentDetailViewModel
+@{
+    var s = Model.Student;
+    ViewData["Title"] = Model.IsNew ? "Register Student" : $"{s.FirstName} {s.LastName}";
+    var steps = new[]
+    {
+        ("identity",  "Identity",           "user"),
+        ("personal",  "Personal",           "calendar"),
+        ("passport",  "Passport",           "book-open"),
+        ("emergency", "Emergency Contact",  "phone")
+    };
+    string InputCls = "w-full rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 px-4 py-2.5 text-sm outline-none focus:border-[#7c3aed] focus:ring-1 focus:ring-[#7c3aed]";
+    string LabelCls = "text-sm font-medium text-slate-700 dark:text-slate-300";
+    string CardCls = "bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 p-6";
+    string PrimaryBtn = "px-5 py-2.5 rounded-xl font-medium bg-[#7c3aed] text-white hover:bg-[#6d28d9] shadow-sm transition-all text-sm";
+    string SecondaryBtn = "px-5 py-2.5 rounded-xl font-medium text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all text-sm";
+
+    bool canSaveStudent = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.Students, Model.IsNew ? 'A' : 'E');
+    var generatedPassword = TempData["GeneratedPassword"] as string;
+}
+
+<div class="max-w-4xl mx-auto page-enter">
+    <div class="mb-6 flex flex-wrap items-start justify-between gap-4">
+        <div>
+            <a asp-action="Index" class="text-sm text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-100 flex items-center gap-1 mb-2">
+                <i data-lucide="arrow-left" class="w-4 h-4"></i> Back to Students
+            </a>
+            <h2 class="text-3xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">@ViewData["Title"]</h2>
+            @if (!Model.IsNew)
+            {
+                <p class="text-slate-500 dark:text-slate-400 mt-1 text-sm">@s.StudentID</p>
+            }
+        </div>
+    </div>
+
+    @if (!string.IsNullOrEmpty(generatedPassword))
+    {
+        <div class="mb-6 text-sm text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950 border border-emerald-100 dark:border-emerald-900 rounded-xl px-4 py-3">
+            Student account created. Temporary password: <span class="font-mono font-semibold">@generatedPassword</span> — share this with the student so they can sign in and change it.
+        </div>
+    }
+
+    @if (!ViewData.ModelState.IsValid)
+    {
+        <div class="mb-6 text-sm text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-950 border border-red-100 dark:border-red-900 rounded-xl px-4 py-3">
+            <p class="font-medium mb-1">Please fix the following:</p>
+            <ul class="list-disc list-inside space-y-0.5">
+                @foreach (var entry in ViewData.ModelState)
+                {
+                    foreach (var err in entry.Value.Errors)
+                    {
+                        <li>@(string.IsNullOrEmpty(err.ErrorMessage) ? "invalid value" : err.ErrorMessage)</li>
+                    }
+                }
+            </ul>
+        </div>
+    }
+
+    @* ---------- Step indicator ---------- *@
+    <div class="flex items-center gap-2 mb-6 overflow-x-auto">
+        @for (var idx = 0; idx < steps.Length; idx++)
+        {
+            var (key, label, icon) = steps[idx];
+            <div class="step-indicator flex items-center gap-2 flex-shrink-0" data-step-index="@idx">
+                <div class="step-dot w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold border-2 transition-colors @(idx == 0 ? "border-[#7c3aed] bg-[#7c3aed] text-white" : "border-slate-200 dark:border-slate-600 text-slate-400 dark:text-slate-500")">
+                    @(idx + 1)
+                </div>
+                <span class="step-label text-sm font-medium @(idx == 0 ? "text-slate-800 dark:text-slate-100" : "text-slate-400 dark:text-slate-500")">@label</span>
+            </div>
+            if (idx < steps.Length - 1)
+            {
+                <div class="flex-1 h-0.5 bg-slate-200 dark:bg-slate-700 min-w-[24px]"></div>
+            }
+        }
+    </div>
+
+    <form method="post" asp-action="Save" enctype="multipart/form-data" class="space-y-6" id="studentWizardForm">
+        @Html.AntiForgeryToken()
+        <input type="hidden" name="StudentID" value="@s.StudentID" />
+        <input type="hidden" name="UserID" value="@s.UserID" />
+        <input type="hidden" name="IsActive" value="@(Model.IsNew ? "A" : s.IsActive)" id="isActiveField" />
+
+        @* ===== STEP 1: IDENTITY ===== *@
+        <div class="wizard-step space-y-6" data-step="identity">
+            <div class="@CardCls space-y-6">
+                <h3 class="font-semibold text-slate-800 dark:text-slate-100">Photo</h3>
+                <div class="flex items-center gap-4">
+                    @if (!string.IsNullOrEmpty(s.ProfileImageUrl))
+                    {
+                        <img src="@s.ProfileImageUrl" alt="" class="w-16 h-16 rounded-full object-cover" />
+                    }
+                    else
+                    {
+                        <div class="w-16 h-16 rounded-full bg-purple-50 dark:bg-purple-950 flex items-center justify-center text-[#7c3aed] dark:text-purple-300 font-semibold text-xl">
+                            @(s.FirstName.Length > 0 ? s.FirstName[0].ToString().ToUpper() : "?")
+                        </div>
+                    }
+                    <input type="file" name="profileImage" accept="image/*"
+                           class="text-sm text-slate-600 dark:text-slate-300 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-medium file:bg-purple-50 dark:file:bg-purple-950 file:text-[#7c3aed] dark:file:text-purple-300" />
+                </div>
+            </div>
+
+            <div class="@CardCls space-y-6">
+                <h3 class="font-semibold text-slate-800 dark:text-slate-100">Identity</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="space-y-1">
+                        <label class="@LabelCls">First Name <span class="text-red-500">*</span></label>
+                        <input name="FirstName" value="@s.FirstName" required class="@InputCls" />
+                    </div>
+                    <div class="space-y-1">
+                        <label class="@LabelCls">Last Name <span class="text-red-500">*</span></label>
+                        <input name="LastName" value="@s.LastName" required class="@InputCls" />
+                    </div>
+                    <div class="space-y-1">
+                        <label class="@LabelCls">Email <span class="text-red-500">*</span></label>
+                        @if (Model.IsNew)
+                        {
+                            <input name="Email" type="email" value="@s.Email" required class="@InputCls" />
+                        }
+                        else
+                        {
+                            <input name="Email" type="email" value="@s.Email" readonly class="w-full rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-800/60 text-slate-500 dark:text-slate-400 px-4 py-2.5 text-sm outline-none cursor-not-allowed" />
+                        }
+                    </div>
+                    <div class="space-y-1">
+                        <label class="@LabelCls">Phone</label>
+                        <input name="Phone" value="@s.Phone" class="@InputCls" />
+                    </div>
+                </div>
+
+                @if (!Model.IsNew)
+                {
+                    <label class="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300 cursor-pointer">
+                        <input type="checkbox" checked="@(s.IsActive == "A")"
+                               onchange="document.getElementById('isActiveField').value = this.checked ? 'A' : 'I'"
+                               class="rounded border-slate-300 dark:border-slate-600 text-[#7c3aed] focus:ring-[#7c3aed]" />
+                        Active
+                    </label>
+                }
+            </div>
+        </div>
+
+        @* ===== STEP 2: PERSONAL ===== *@
+        <div class="wizard-step space-y-6 hidden" data-step="personal">
+            <div class="@CardCls space-y-6">
+                <h3 class="font-semibold text-slate-800 dark:text-slate-100">Personal</h3>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div class="space-y-1">
+                        <label class="@LabelCls">Date of Birth <span class="text-red-500">*</span></label>
+                        <input name="DateOfBirth" type="date" value="@s.DateOfBirth?.ToString("yyyy-MM-dd")" required class="@InputCls" />
+                    </div>
+                    <div class="space-y-1">
+                        <label class="@LabelCls">Gender <span class="text-red-500">*</span></label>
+                        <select name="Gender" required class="@InputCls">
+                            <option value="">Select...</option>
+                            <option value="Male" selected="@(s.Gender == "Male")">Male</option>
+                            <option value="Female" selected="@(s.Gender == "Female")">Female</option>
+                            <option value="Other" selected="@(s.Gender == "Other")">Other</option>
+                        </select>
+                    </div>
+                    <div class="space-y-1">
+                        <label class="@LabelCls">Nationality <span class="text-red-500">*</span></label>
+                        <input name="Nationality" value="@s.Nationality" required autocomplete="off" data-nationality-picker class="@InputCls" />
+                    </div>
+                </div>
+            </div>
+
+            <div class="@CardCls space-y-6">
+                <h3 class="font-semibold text-slate-800 dark:text-slate-100">Address</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="space-y-1 md:col-span-2">
+                        <label class="@LabelCls">Address Line 1</label>
+                        <input name="AddressLine1" value="@s.AddressLine1" class="@InputCls" />
+                    </div>
+                    <div class="space-y-1 md:col-span-2">
+                        <label class="@LabelCls">Address Line 2</label>
+                        <input name="AddressLine2" value="@s.AddressLine2" class="@InputCls" />
+                    </div>
+                    <div class="space-y-1">
+                        <label class="@LabelCls">City</label>
+                        <input name="City" value="@s.City" class="@InputCls" />
+                    </div>
+                    <div class="space-y-1">
+                        <label class="@LabelCls">State / Province</label>
+                        <input name="StateProvince" value="@s.StateProvince" class="@InputCls" />
+                    </div>
+                    <div class="space-y-1">
+                        <label class="@LabelCls">Postal Code</label>
+                        <input name="PostalCode" value="@s.PostalCode" class="@InputCls" />
+                    </div>
+                    <div class="space-y-1">
+                        <label class="@LabelCls">Country</label>
+                        <input name="Country" value="@s.Country" autocomplete="off" data-country-picker class="@InputCls" />
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        @* ===== STEP 3: PASSPORT ===== *@
+        <div class="wizard-step space-y-6 hidden" data-step="passport">
+            <div class="@CardCls space-y-6">
+                <h3 class="font-semibold text-slate-800 dark:text-slate-100">Passport</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="space-y-1">
+                        <label class="@LabelCls">Passport Number <span class="text-red-500">*</span></label>
+                        <input name="PassportNumber" value="@s.PassportNumber" required class="@InputCls" />
+                    </div>
+                    <div class="space-y-1">
+                        <label class="@LabelCls">Passport Country <span class="text-red-500">*</span></label>
+                        <input name="PassportCountry" value="@s.PassportCountry" required autocomplete="off" data-country-picker class="@InputCls" />
+                    </div>
+                    <div class="space-y-1">
+                        <label class="@LabelCls">Passport Expiry <span class="text-red-500">*</span></label>
+                        <input name="PassportExpiryDate" type="date" value="@s.PassportExpiryDate?.ToString("yyyy-MM-dd")" required class="@InputCls" />
+                    </div>
+                    <div class="space-y-2">
+                        <label class="@LabelCls">Passport Photo</label>
+                        @if (!string.IsNullOrEmpty(s.PassportPhotoURL))
+                        {
+                            <img src="@s.PassportPhotoURL" alt="" class="w-24 h-16 rounded-lg object-cover border border-slate-200 dark:border-slate-600" />
+                        }
+                        <input type="file" name="passportPhoto" accept="image/*"
+                               class="block w-full text-sm text-slate-500 dark:text-slate-400 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-medium file:bg-purple-50 dark:file:bg-purple-950 file:text-[#7c3aed] dark:file:text-purple-300 hover:file:bg-purple-100" />
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        @* ===== STEP 4: EMERGENCY CONTACT ===== *@
+        <div class="wizard-step space-y-6 hidden" data-step="emergency">
+            <div class="@CardCls space-y-6">
+                <h3 class="font-semibold text-slate-800 dark:text-slate-100">Emergency Contact</h3>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div class="space-y-1">
+                        <label class="@LabelCls">Name</label>
+                        <input name="EmergencyContactName" value="@s.EmergencyContactName" class="@InputCls" />
+                    </div>
+                    <div class="space-y-1">
+                        <label class="@LabelCls">Phone</label>
+                        <input name="EmergencyContactPhone" value="@s.EmergencyContactPhone" class="@InputCls" />
+                    </div>
+                    <div class="space-y-1">
+                        <label class="@LabelCls">Relationship</label>
+                        <input name="EmergencyRelationship" value="@s.EmergencyRelationship" class="@InputCls" />
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="flex items-center justify-between">
+            <a asp-action="Index" class="@SecondaryBtn">Cancel</a>
+            <div class="flex items-center gap-3">
+                <button type="button" id="wizardBackBtn" class="@SecondaryBtn hidden">
+                    <i data-lucide="arrow-left" class="w-4 h-4 inline -mt-0.5 mr-1"></i>Back
+                </button>
+                <button type="button" id="wizardNextBtn" class="@PrimaryBtn">
+                    Next<i data-lucide="arrow-right" class="w-4 h-4 inline -mt-0.5 ml-1"></i>
+                </button>
+                @if (canSaveStudent)
+                {
+                    <button type="submit" id="wizardSaveBtn" class="@PrimaryBtn hidden">@(Model.IsNew ? "Register Student" : "Save Changes")</button>
+                }
+            </div>
+        </div>
+    </form>
+</div>
+
+@section Scripts {
+    <script src="~/js/country-picker.js"></script>
+    <script>
+        (function () {
+            var steps = Array.from(document.querySelectorAll('.wizard-step'));
+            var indicators = Array.from(document.querySelectorAll('.step-indicator'));
+            var backBtn = document.getElementById('wizardBackBtn');
+            var nextBtn = document.getElementById('wizardNextBtn');
+            var saveBtn = document.getElementById('wizardSaveBtn');
+            var current = 0;
+
+            function showStep(index) {
+                steps.forEach(function (el, i) { el.classList.toggle('hidden', i !== index); });
+                indicators.forEach(function (el, i) {
+                    var dot = el.querySelector('.step-dot');
+                    var label = el.querySelector('.step-label');
+                    var isActiveOrDone = i <= index;
+                    dot.classList.toggle('border-[#7c3aed]', isActiveOrDone);
+                    dot.classList.toggle('bg-[#7c3aed]', isActiveOrDone);
+                    dot.classList.toggle('text-white', isActiveOrDone);
+                    dot.classList.toggle('border-slate-200', !isActiveOrDone);
+                    dot.classList.toggle('dark:border-slate-600', !isActiveOrDone);
+                    dot.classList.toggle('text-slate-400', !isActiveOrDone);
+                    dot.classList.toggle('dark:text-slate-500', !isActiveOrDone);
+                    label.classList.toggle('text-slate-800', isActiveOrDone);
+                    label.classList.toggle('dark:text-slate-100', isActiveOrDone);
+                    label.classList.toggle('text-slate-400', !isActiveOrDone);
+                    label.classList.toggle('dark:text-slate-500', !isActiveOrDone);
+                });
+                backBtn.classList.toggle('hidden', index === 0);
+                var isLast = index === steps.length - 1;
+                nextBtn.classList.toggle('hidden', isLast);
+                if (saveBtn) saveBtn.classList.toggle('hidden', !isLast);
+                current = index;
+            }
+
+            function validateCurrentStep() {
+                var inputs = steps[current].querySelectorAll('input[required], select[required]');
+                for (var i = 0; i < inputs.length; i++) {
+                    if (!inputs[i].checkValidity()) {
+                        inputs[i].reportValidity();
+                        return false;
+                    }
+                }
+                return true;
+            }
+
+            nextBtn.addEventListener('click', function () {
+                if (!validateCurrentStep()) return;
+                if (current < steps.length - 1) showStep(current + 1);
+            });
+            backBtn.addEventListener('click', function () {
+                if (current > 0) showStep(current - 1);
+            });
+            indicators.forEach(function (el) {
+                el.addEventListener('click', function () {
+                    var target = parseInt(el.getAttribute('data-step-index'), 10);
+                    if (target <= current) showStep(target);
+                });
+                el.style.cursor = 'pointer';
+            });
+
+            showStep(0);
+        })();
+    </script>
+}
