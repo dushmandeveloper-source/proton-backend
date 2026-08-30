@@ -26,6 +26,15 @@
         ? Model.Roles
         : Model.Roles.Where(r => r.UserTypeID != Web_Backend.Classes.Auth.MasterAdminRoleId).ToList();
 
+    // Students must only ever be created/assigned via the Student
+    // Registration flow, never through the generic Add/Edit User forms —
+    // exclude the Student role's option from those role pickers entirely.
+    // The Roles tab's own Add/Edit ROLE list is untouched by this — an
+    // admin still needs to see and manage the Student role definition
+    // itself there.
+    string? studentRoleId = Model.Roles.FirstOrDefault(r => r.UserTypeName.Equals("Student", StringComparison.OrdinalIgnoreCase))?.UserTypeID;
+    var assignableRolesNoStudent = assignableRoles.Where(r => r.UserTypeID != studentRoleId).ToList();
+
     // UserManagement covers both Users and Roles tabs on this one page.
     bool canAddUM = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.UserManagement, 'A');
     bool canEditUM = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.UserManagement, 'E');
@@ -60,15 +69,35 @@
 
     <!-- ============ USERS PANE ============ -->
     <div data-tab-pane="users" class="@(initialPane == "users" ? "" : "hidden")">
-        <div class="flex items-center justify-between mb-4">
-            <a asp-action="Index" asp-route-tab="users" asp-route-showInactive="@(!Model.ShowInactive)"
-               class="text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 flex items-center gap-1.5">
-                <i data-lucide="@(Model.ShowInactive ? "eye-off" : "eye")" class="w-4 h-4"></i>
-                @(Model.ShowInactive ? "Hide deactivated users" : "Show deactivated users")
-            </a>
+        <div class="flex flex-col md:flex-row md:items-center justify-between mb-4 gap-4">
+            <form method="get" class="flex flex-wrap items-center gap-3">
+                <input type="hidden" name="tab" value="users" />
+                <div class="relative w-full sm:w-auto">
+                    <i data-lucide="search" class="w-4 h-4 text-slate-400 dark:text-slate-500 absolute left-3 top-1/2 -translate-y-1/2"></i>
+                    <input type="text" name="KeyW" value="@Model.KeyW" placeholder="Search name or email..."
+                           class="w-full sm:w-auto pl-9 pr-4 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 text-sm focus:outline-none focus:border-purple-400 focus:ring-1 focus:ring-purple-400" />
+                </div>
+                <div class="relative inline-block">
+                    <select name="roleFilter"
+                            class="appearance-none pl-3 pr-8 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 text-sm focus:outline-none focus:border-purple-400 focus:ring-1 focus:ring-purple-400 cursor-pointer">
+                        <option value="">All roles</option>
+                        @foreach (var role in Model.Roles)
+                        {
+                            <option value="@role.UserTypeID" selected="@(role.UserTypeID == Model.RoleFilter)">@role.UserTypeName</option>
+                        }
+                    </select>
+                    <i data-lucide="chevron-down" class="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 dark:text-slate-500 pointer-events-none"></i>
+                </div>
+                <label class="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300 cursor-pointer">
+                    <input type="checkbox" name="showInactive" value="true" checked="@Model.ShowInactive"
+                           class="rounded border-slate-300 dark:border-slate-600 text-[#7c3aed] focus:ring-[#7c3aed]" />
+                    Show deactivated
+                </label>
+                <button type="submit" class="px-4 py-2 rounded-xl font-medium bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all text-sm">Filter</button>
+            </form>
             @if (canAddUM)
             {
-                <a asp-action="Add" class="px-4 py-1.5 rounded-xl font-medium bg-[#7c3aed] text-white hover:bg-[#6d28d9] shadow-sm text-sm flex items-center gap-2">
+                <a asp-action="Add" class="px-4 py-1.5 rounded-xl font-medium bg-[#7c3aed] text-white hover:bg-[#6d28d9] shadow-sm text-sm flex items-center justify-center gap-2 whitespace-nowrap w-full md:w-fit">
                     <i data-lucide="plus" class="w-4 h-4"></i> Add User
                 </a>
             }
@@ -122,6 +151,14 @@
                                                 var rowRoles = canAssignMasterAdmin || user.UserTypeID == Web_Backend.Classes.Auth.MasterAdminRoleId
                                                     ? Model.Roles
                                                     : assignableRoles;
+
+                                                // Same Student exclusion as the Add/Edit User forms: never
+                                                // offer switching a non-Student INTO Student here, but keep
+                                                // showing it if that's the user's actual current role.
+                                                if (user.UserTypeID != studentRoleId)
+                                                {
+                                                    rowRoles = rowRoles.Where(r => r.UserTypeID != studentRoleId).ToList();
+                                                }
                                             }
                                             @foreach (var userType in rowRoles)
                                             {
@@ -189,7 +226,17 @@
                     <tbody class="divide-y divide-slate-100 dark:divide-slate-700">
                         @foreach (var role in Model.Roles)
                         {
+                            // "Admin"/Master Admin get the "Protected" badge language (can't be
+                            // edited/deleted at all); Student/Instructor are ALSO undeletable and
+                            // non-deactivatable (see UserController.ProtectedRoleNames /
+                            // NonDeactivatableRoleNames) even though they can still be edited
+                            // (description only — see the isStudentOrInstructorRole branch further
+                            // down that hides their Permissions grid). Both groups must hide the
+                            // Delete action; only the true isAdminRole group also gets the badge.
                             var isAdminRole = role.UserTypeName.Equals("Admin", StringComparison.OrdinalIgnoreCase) || role.UserTypeID == "MASTERADMIN";
+                            var isUndeletableRole = isAdminRole
+                                || role.UserTypeName.Equals("Student", StringComparison.OrdinalIgnoreCase)
+                                || role.UserTypeName.Equals("Instructor", StringComparison.OrdinalIgnoreCase);
                             <tr class="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors">
                                 <td class="px-6 py-4 font-medium text-slate-800 dark:text-slate-100 text-sm">
                                     @role.UserTypeName
@@ -211,7 +258,7 @@
                                             <i data-lucide="pencil" class="w-4 h-4"></i>
                                         </a>
                                     }
-                                    @if (!isAdminRole && canDeleteUM)
+                                    @if (!isUndeletableRole && canDeleteUM)
                                     {
                                         <form method="post" asp-action="DeleteRole" asp-route-id="@role.UserTypeID" class="inline"
                                               data-confirm="Delete the '@role.UserTypeName' role? Users currently assigned to it will keep the reference, but it won't be selectable anymore." data-confirm-title="Delete role" data-confirm-label="Delete">
@@ -235,7 +282,7 @@
     {
         <div data-tab-pane="form">
             <div class="max-w-3xl bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
-                <div class="p-8">
+                <div class="p-4 sm:p-6 md:p-8">
                     @if (Model.ActiveTab is "addUser" or "editUser")
                     {
                         var isEdit = Model.ActiveTab == "editUser";
@@ -279,74 +326,101 @@
                                 <span class="text-xs text-red-500">@Html.ValidationMessage("Email")</span>
                             </div>
 
-                            <div class="space-y-1">
-                                <label class="text-sm font-medium text-slate-700 dark:text-slate-300">Assign Role</label>
-                                <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mt-2">
-                                    @{
-                                        // Same rule as the quick-select dropdown above: don't offer
-                                        // Master Admin unless the viewer already is one, but still show
-                                        // it if that's this record's current role.
-                                        var formRoles = canAssignMasterAdmin || role == Web_Backend.Classes.Auth.MasterAdminRoleId
-                                            ? Model.Roles
-                                            : assignableRoles;
-                                    }
-                                    @foreach (var userType in formRoles)
-                                    {
-                                        <label class="cursor-pointer relative">
-                                            <input type="radio" name="Role" value="@userType.UserTypeID" class="peer sr-only" checked="@(userType.UserTypeID == role)" />
-                                            <div class="w-full text-center px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-600 text-sm font-medium text-slate-600 dark:text-slate-300 transition-all hover:bg-slate-50 dark:hover:bg-slate-800 peer-checked:border-[#7c3aed] peer-checked:bg-purple-50 dark:peer-checked:bg-purple-950 peer-checked:text-[#7c3aed] dark:peer-checked:text-purple-300 peer-checked:ring-1 peer-checked:ring-[#7c3aed]">
-                                                @userType.UserTypeName
-                                            </div>
-                                        </label>
-                                    }
-                                </div>
-                            </div>
-
-                            <div class="space-y-2">
-                                <label class="text-sm font-medium text-slate-700 dark:text-slate-300">Permissions</label>
-                                <p class="text-xs text-slate-500 dark:text-slate-400">
-                                    Shows what the selected role grants. Tick or untick any box to override it for this user only — leave a box as-is to keep inheriting from the role.
+                            @{
+                                // Students get their own screen in the future and don't have an
+                                // admin role/permission concept at all — for an existing Student
+                                // being edited here, skip Assign-Role and Permissions entirely
+                                // (rather than just excluding Student from the option list) and
+                                // just carry the role through as a hidden field so Save still
+                                // receives it unchanged.
+                                var isEditingStudent = isEdit && role == studentRoleId;
+                            }
+                            @if (isEditingStudent)
+                            {
+                                <input type="hidden" name="Role" value="@role" />
+                                <p class="text-xs text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-xl px-4 py-3">
+                                    This account is a Student — role assignment and permissions don't apply here. Manage this student from the Students section instead.
                                 </p>
-                                @{
-                                    var overrides = isEdit ? Model.EditUserForm!.PermissionOverrides : Model.AddUserForm!.PermissionOverrides;
-                                    var rolePermissionsByRole = ViewBag.RolePermissionsByRole as Dictionary<string, List<PermissionGridViewModel>> ?? new();
-                                }
-                                <div class="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-600">
-                                    <table class="w-full text-left border-collapse" id="user-permission-grid" data-role-defaults="@System.Text.Json.JsonSerializer.Serialize(rolePermissionsByRole)">
-                                        <thead>
-                                            <tr class="bg-slate-50 dark:bg-slate-800 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                                                <th class="px-4 py-3">Module</th>
-                                                <th class="px-4 py-3 text-center">View</th>
-                                                <th class="px-4 py-3 text-center">Add</th>
-                                                <th class="px-4 py-3 text-center">Edit</th>
-                                                <th class="px-4 py-3 text-center">Delete</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody class="divide-y divide-slate-100 dark:divide-slate-700">
-                                            @for (var i = 0; i < overrides.Count; i++)
-                                            {
-                                                var row = overrides[i];
-                                                <tr data-module="@row.ModuleCode">
-                                                    <td class="px-4 py-3 text-sm font-medium text-slate-700 dark:text-slate-200">
-                                                        @row.ModuleLabel
-                                                        <input type="hidden" name="PermissionOverrides[@i].ModuleCode" value="@row.ModuleCode" />
-                                                        <input type="hidden" name="PermissionOverrides[@i].ModuleLabel" value="@row.ModuleLabel" />
-                                                    </td>
-                                                    @foreach (var action in new[] { "CanView", "CanAdd", "CanEdit", "CanDelete" })
-                                                    {
-                                                        var value = action switch { "CanView" => row.CanView, "CanAdd" => row.CanAdd, "CanEdit" => row.CanEdit, _ => row.CanDelete };
-                                                        <td class="px-4 py-3 text-center">
-                                                            <input type="checkbox" class="user-permission-checkbox rounded border-slate-300 dark:border-slate-600 text-[#7c3aed] focus:ring-[#7c3aed]"
-                                                                   data-action="@action" checked="@(value ?? false)" />
-                                                            <input type="hidden" name="PermissionOverrides[@i].@action" class="user-permission-hidden" value="@(value.HasValue ? value.Value.ToString().ToLower() : "")" />
-                                                        </td>
-                                                    }
-                                                </tr>
-                                            }
-                                        </tbody>
-                                    </table>
+                            }
+                            else
+                            {
+                                <div class="space-y-1">
+                                    <label class="text-sm font-medium text-slate-700 dark:text-slate-300">Assign Role</label>
+                                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mt-2">
+                                        @{
+                                            // Same rule as the quick-select dropdown above: don't offer
+                                            // Master Admin unless the viewer already is one, but still show
+                                            // it if that's this record's current role.
+                                            var formRoles = canAssignMasterAdmin || role == Web_Backend.Classes.Auth.MasterAdminRoleId
+                                                ? Model.Roles
+                                                : assignableRoles;
+
+                                            // Never offer Student here — Add User must never create a
+                                            // Student (they need the full registration flow); an
+                                            // existing Student never reaches this branch at all (see
+                                            // isEditingStudent above), so no "keep current role visible"
+                                            // exception is needed anymore.
+                                            formRoles = formRoles.Where(r => r.UserTypeID != studentRoleId).ToList();
+                                        }
+                                        @foreach (var userType in formRoles)
+                                        {
+                                            <label class="cursor-pointer relative">
+                                                <input type="radio" name="Role" value="@userType.UserTypeID" class="peer sr-only" checked="@(userType.UserTypeID == role)" />
+                                                <div class="w-full text-center px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-600 text-sm font-medium text-slate-600 dark:text-slate-300 transition-all hover:bg-slate-50 dark:hover:bg-slate-800 peer-checked:border-[#7c3aed] peer-checked:bg-purple-50 dark:peer-checked:bg-purple-950 peer-checked:text-[#7c3aed] dark:peer-checked:text-purple-300 peer-checked:ring-1 peer-checked:ring-[#7c3aed]">
+                                                    @userType.UserTypeName
+                                                </div>
+                                            </label>
+                                        }
+                                    </div>
+                                    <span class="text-xs text-red-500">@Html.ValidationMessage("Role")</span>
                                 </div>
-                            </div>
+
+                                <div class="space-y-2">
+                                    <label class="text-sm font-medium text-slate-700 dark:text-slate-300">Permissions</label>
+                                    <p class="text-xs text-slate-500 dark:text-slate-400">
+                                        Shows what the selected role grants. Tick or untick any box to override it for this user only — leave a box as-is to keep inheriting from the role.
+                                    </p>
+                                    @{
+                                        var overrides = isEdit ? Model.EditUserForm!.PermissionOverrides : Model.AddUserForm!.PermissionOverrides;
+                                        var rolePermissionsByRole = ViewBag.RolePermissionsByRole as Dictionary<string, List<PermissionGridViewModel>> ?? new();
+                                    }
+                                    <div class="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-600">
+                                        <table class="w-full text-left border-collapse" id="user-permission-grid" data-role-defaults="@System.Text.Json.JsonSerializer.Serialize(rolePermissionsByRole)">
+                                            <thead>
+                                                <tr class="bg-slate-50 dark:bg-slate-800 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                                                    <th class="px-4 py-3">Module</th>
+                                                    <th class="px-4 py-3 text-center">View</th>
+                                                    <th class="px-4 py-3 text-center">Add</th>
+                                                    <th class="px-4 py-3 text-center">Edit</th>
+                                                    <th class="px-4 py-3 text-center">Delete</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody class="divide-y divide-slate-100 dark:divide-slate-700">
+                                                @for (var i = 0; i < overrides.Count; i++)
+                                                {
+                                                    var row = overrides[i];
+                                                    <tr data-module="@row.ModuleCode">
+                                                        <td class="px-4 py-3 text-sm font-medium text-slate-700 dark:text-slate-200">
+                                                            @row.ModuleLabel
+                                                            <input type="hidden" name="PermissionOverrides[@i].ModuleCode" value="@row.ModuleCode" />
+                                                            <input type="hidden" name="PermissionOverrides[@i].ModuleLabel" value="@row.ModuleLabel" />
+                                                        </td>
+                                                        @foreach (var action in new[] { "CanView", "CanAdd", "CanEdit", "CanDelete" })
+                                                        {
+                                                            var value = action switch { "CanView" => row.CanView, "CanAdd" => row.CanAdd, "CanEdit" => row.CanEdit, _ => row.CanDelete };
+                                                            <td class="px-4 py-3 text-center">
+                                                                <input type="checkbox" class="user-permission-checkbox rounded border-slate-300 dark:border-slate-600 text-[#7c3aed] focus:ring-[#7c3aed]"
+                                                                       data-action="@action" checked="@(value ?? false)" />
+                                                                <input type="hidden" name="PermissionOverrides[@i].@action" class="user-permission-hidden" value="@(value.HasValue ? value.Value.ToString().ToLower() : "")" />
+                                                            </td>
+                                                        }
+                                                    </tr>
+                                                }
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            }
 
                             @if (isEdit)
                             {
@@ -391,59 +465,76 @@
 
                             <div class="space-y-2">
                                 <label class="text-sm font-medium text-slate-700 dark:text-slate-300">Permissions</label>
-                                @{ var isMasterAdminRole = roleForm.UserTypeID == "MASTERADMIN"; }
+                                @{
+                                    var isMasterAdminRole = roleForm.UserTypeID == "MASTERADMIN";
+                                    // Student and Instructor aren't admin back-office roles, so they
+                                    // don't get per-module CRUD permissions at all — hide the grid
+                                    // entirely rather than showing an empty/irrelevant one.
+                                    var isStudentOrInstructorRole = roleForm.UserTypeName.Equals("Student", StringComparison.OrdinalIgnoreCase)
+                                        || roleForm.UserTypeName.Equals("Instructor", StringComparison.OrdinalIgnoreCase);
+                                }
                                 @if (isMasterAdminRole)
                                 {
                                     <p class="text-xs text-slate-500 dark:text-slate-400">Master Admin always has full access to every module — this can't be changed.</p>
                                 }
-                                <div class="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-600">
-                                    <table class="w-full text-left border-collapse">
-                                        <thead>
-                                            <tr class="bg-slate-50 dark:bg-slate-800 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                                                <th class="px-4 py-3">Module</th>
-                                                <th class="px-4 py-3 text-center">View</th>
-                                                <th class="px-4 py-3 text-center">Add</th>
-                                                <th class="px-4 py-3 text-center">Edit</th>
-                                                <th class="px-4 py-3 text-center">Delete</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody class="divide-y divide-slate-100 dark:divide-slate-700">
-                                            @for (var i = 0; i < roleForm.Permissions.Count; i++)
-                                            {
-                                                var row = roleForm.Permissions[i];
-                                                <tr>
-                                                    <td class="px-4 py-3 text-sm font-medium text-slate-700 dark:text-slate-200">
-                                                        @row.ModuleLabel
-                                                        <input type="hidden" name="Permissions[@i].ModuleCode" value="@row.ModuleCode" />
-                                                        <input type="hidden" name="Permissions[@i].ModuleLabel" value="@row.ModuleLabel" />
-                                                    </td>
-                                                    <td class="px-4 py-3 text-center">
-                                                        <input type="checkbox" name="Permissions[@i].CanView" value="true" checked="@(row.CanView ?? isMasterAdminRole)" disabled="@isMasterAdminRole"
-                                                               class="rounded border-slate-300 dark:border-slate-600 text-[#7c3aed] focus:ring-[#7c3aed]" />
-                                                    </td>
-                                                    <td class="px-4 py-3 text-center">
-                                                        <input type="checkbox" name="Permissions[@i].CanAdd" value="true" checked="@(row.CanAdd ?? isMasterAdminRole)" disabled="@isMasterAdminRole"
-                                                               class="rounded border-slate-300 dark:border-slate-600 text-[#7c3aed] focus:ring-[#7c3aed]" />
-                                                    </td>
-                                                    <td class="px-4 py-3 text-center">
-                                                        <input type="checkbox" name="Permissions[@i].CanEdit" value="true" checked="@(row.CanEdit ?? isMasterAdminRole)" disabled="@isMasterAdminRole"
-                                                               class="rounded border-slate-300 dark:border-slate-600 text-[#7c3aed] focus:ring-[#7c3aed]" />
-                                                    </td>
-                                                    <td class="px-4 py-3 text-center">
-                                                        <input type="checkbox" name="Permissions[@i].CanDelete" value="true" checked="@(row.CanDelete ?? isMasterAdminRole)" disabled="@isMasterAdminRole"
-                                                               class="rounded border-slate-300 dark:border-slate-600 text-[#7c3aed] focus:ring-[#7c3aed]" />
-                                                    </td>
+                                @if (!isStudentOrInstructorRole)
+                                {
+                                    <div class="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-600">
+                                        <table class="w-full text-left border-collapse">
+                                            <thead>
+                                                <tr class="bg-slate-50 dark:bg-slate-800 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                                                    <th class="px-4 py-3">Module</th>
+                                                    <th class="px-4 py-3 text-center">View</th>
+                                                    <th class="px-4 py-3 text-center">Add</th>
+                                                    <th class="px-4 py-3 text-center">Edit</th>
+                                                    <th class="px-4 py-3 text-center">Delete</th>
                                                 </tr>
-                                            }
-                                        </tbody>
-                                    </table>
-                                </div>
+                                            </thead>
+                                            <tbody class="divide-y divide-slate-100 dark:divide-slate-700">
+                                                @for (var i = 0; i < roleForm.Permissions.Count; i++)
+                                                {
+                                                    var row = roleForm.Permissions[i];
+                                                    <tr>
+                                                        <td class="px-4 py-3 text-sm font-medium text-slate-700 dark:text-slate-200">
+                                                            @row.ModuleLabel
+                                                            <input type="hidden" name="Permissions[@i].ModuleCode" value="@row.ModuleCode" />
+                                                            <input type="hidden" name="Permissions[@i].ModuleLabel" value="@row.ModuleLabel" />
+                                                        </td>
+                                                        <td class="px-4 py-3 text-center">
+                                                            <input type="checkbox" name="Permissions[@i].CanView" value="true" checked="@(row.CanView ?? isMasterAdminRole)" disabled="@isMasterAdminRole"
+                                                                   class="rounded border-slate-300 dark:border-slate-600 text-[#7c3aed] focus:ring-[#7c3aed]" />
+                                                        </td>
+                                                        <td class="px-4 py-3 text-center">
+                                                            <input type="checkbox" name="Permissions[@i].CanAdd" value="true" checked="@(row.CanAdd ?? isMasterAdminRole)" disabled="@isMasterAdminRole"
+                                                                   class="rounded border-slate-300 dark:border-slate-600 text-[#7c3aed] focus:ring-[#7c3aed]" />
+                                                        </td>
+                                                        <td class="px-4 py-3 text-center">
+                                                            <input type="checkbox" name="Permissions[@i].CanEdit" value="true" checked="@(row.CanEdit ?? isMasterAdminRole)" disabled="@isMasterAdminRole"
+                                                                   class="rounded border-slate-300 dark:border-slate-600 text-[#7c3aed] focus:ring-[#7c3aed]" />
+                                                        </td>
+                                                        <td class="px-4 py-3 text-center">
+                                                            <input type="checkbox" name="Permissions[@i].CanDelete" value="true" checked="@(row.CanDelete ?? isMasterAdminRole)" disabled="@isMasterAdminRole"
+                                                                   class="rounded border-slate-300 dark:border-slate-600 text-[#7c3aed] focus:ring-[#7c3aed]" />
+                                                        </td>
+                                                    </tr>
+                                                }
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <p class="text-xs text-slate-500 dark:text-slate-400 italic px-1">This role doesn't use module permissions.</p>
+                                }
                             </div>
 
-                            <label class="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300 cursor-pointer">
-                                <input type="checkbox" name="IsActive" value="true" checked="@roleForm.IsActive" class="rounded border-slate-300 dark:border-slate-600 text-[#7c3aed] focus:ring-[#7c3aed]" />
-                                Active
-                            </label>
+                            <div class="space-y-1">
+                                <label class="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300 cursor-pointer">
+                                    <input type="checkbox" name="IsActive" value="true" checked="@roleForm.IsActive" class="rounded border-slate-300 dark:border-slate-600 text-[#7c3aed] focus:ring-[#7c3aed]" />
+                                    Active
+                                </label>
+                                <span class="text-xs text-red-500">@Html.ValidationMessage("IsActive")</span>
+                            </div>
 
                             <div class="pt-6 border-t border-slate-100 dark:border-slate-700 flex items-center justify-end gap-3">
                                 <a asp-action="Index" asp-route-tab="roles" class="px-4 py-2 rounded-xl font-medium bg-transparent text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all">Cancel</a>

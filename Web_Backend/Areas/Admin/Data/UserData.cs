@@ -22,11 +22,20 @@ namespace Web_Backend.Areas.Admin.Data
                 search.IsActive
             });
 
+        // Instructor-type users for the course schedule "assign instructors"
+        // picker — reuses usr.Users_List's existing UserTypeID filter rather
+        // than adding a new stored proc.
+        public Task<List<AppUser>> GetInstructors() =>
+            GetList(new AppUserSearchView { UserTypeID = "INSTRUCTOR", IsActive = "A" });
+
         public Task<AppUser?> Get(string id) =>
             db.Get<AppUser, object>("usr.Users_Get", new { APIKey = AppData.GetAPIKey(), ID = id });
 
         public Task<AppUser?> GetByEmail(string email) =>
             db.Get<AppUser, object>("usr.Users_GetByEmail", new { APIKey = AppData.GetAPIKey(), Email = email });
+
+        public Task<AppUser?> GetByPhone(string phone) =>
+            db.Get<AppUser, object>("usr.Users_GetByPhone", new { APIKey = AppData.GetAPIKey(), Phone = phone });
 
         public Task<string> AddEdit(AppUser user) =>
             db.Execute("usr.Users_AddEdit", new

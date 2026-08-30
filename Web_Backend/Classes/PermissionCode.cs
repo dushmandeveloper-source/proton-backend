@@ -13,6 +13,9 @@ namespace Web_Backend.Classes
         public const string EmailTemplates = "EmailTemplates";
         public const string Courses = "Courses";
         public const string CourseSchedules = "CourseSchedules";
+        public const string HolidayCalendar = "HolidayCalendar";
+        public const string Exams = "Exams";
+        public const string Enrollments = "Enrollments";
 
         public static readonly (string Code, string Label)[] All =
         {
@@ -23,6 +26,9 @@ namespace Web_Backend.Classes
             (EmailTemplates, "Email Templates"),
             (Courses, "Courses"),
             (CourseSchedules, "Course Schedules"),
+            (HolidayCalendar, "Holiday & Events Calendar"),
+            (Exams, "Exams"),
+            (Enrollments, "Enrollments & Payments"),
         };
     }
 }

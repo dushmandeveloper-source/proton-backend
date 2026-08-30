@@ -1,0 +1,614 @@
+@model ExamDetailViewModel
+@{
+    ViewData["Title"] = Model.IsNew ? "Add Exam" : "Edit Exam";
+    var e = Model.Exam;
+    var courses = ViewBag.Courses as List<Course> ?? new List<Course>();
+    var subjects = ViewBag.Subjects as List<CourseSubject> ?? new List<CourseSubject>();
+    bool canEdit = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.Exams, Model.IsNew ? 'A' : 'E');
+    bool canDelete = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.Exams, 'D');
+}
+
+<div class="max-w-5xl mx-auto page-enter">
+    <div class="flex items-center gap-3 mb-6">
+        <a asp-action="Index" class="p-2 rounded-xl text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700">
+            <i data-lucide="arrow-left" class="w-5 h-5"></i>
+        </a>
+        <div>
+            <h2 class="text-3xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">@ViewData["Title"]</h2>
+            @if (!Model.IsNew)
+            {
+                <p class="text-slate-500 dark:text-slate-400 mt-1 text-sm">@e.ExamTitle</p>
+            }
+        </div>
+    </div>
+
+    <div class="flex gap-2 mb-6 border-b border-slate-100 dark:border-slate-700">
+        @if (Model.IsNew)
+        {
+            <span class="px-4 py-2 text-sm font-medium border-b-2 -mb-px border-[#7c3aed] text-[#7c3aed]">Details</span>
+            <span title="Save the exam details first — this tab unlocks afterward."
+                  class="px-4 py-2 text-sm font-medium border-b-2 -mb-px border-transparent text-slate-300 dark:text-slate-600 cursor-not-allowed">Questions</span>
+        }
+        else
+        {
+            <a asp-action="Edit" asp-route-id="@e.ExamID" asp-route-tab="details"
+               class="px-4 py-2 text-sm font-medium border-b-2 -mb-px @(Model.ActiveTab == "details" ? "border-[#7c3aed] text-[#7c3aed]" : "border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200")">Details</a>
+            <a asp-action="Edit" asp-route-id="@e.ExamID" asp-route-tab="questions"
+               class="px-4 py-2 text-sm font-medium border-b-2 -mb-px @(Model.ActiveTab == "questions" ? "border-[#7c3aed] text-[#7c3aed]" : "border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200")">Questions</a>
+        }
+    </div>
+
+    @if (Model.IsNew || Model.ActiveTab == "details")
+    {
+        <form method="post" asp-action="Save" class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 p-6 space-y-5">
+            @Html.AntiForgeryToken()
+            <input type="hidden" asp-for="Exam.ExamID" />
+
+            @if (!ViewData.ModelState.IsValid)
+            {
+                <div class="flex items-start gap-2 text-sm px-4 py-3 rounded-xl bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-300">
+                    <i data-lucide="alert-triangle" class="w-4 h-4 flex-shrink-0 mt-0.5"></i>
+                    <ul class="list-disc list-inside">
+                        @foreach (var err in ViewData.ModelState.Values.SelectMany(v => v.Errors))
+                        {
+                            <li>@err.ErrorMessage</li>
+                        }
+                    </ul>
+                </div>
+            }
+
+            <div>
+                <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Exam Title</label>
+                <input asp-for="Exam.ExamTitle" class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" />
+                <span asp-validation-for="Exam.ExamTitle" class="text-xs text-red-600"></span>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Course <span class="text-slate-400 font-normal">(optional — leave blank for a standalone exam)</span></label>
+                    <select asp-for="Exam.CourseID" id="course-select" class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm">
+                        <option value="">-- Standalone --</option>
+                        @foreach (var c in courses)
+                        {
+                            <option value="@c.CourseID" selected="@(c.CourseID == e.CourseID)">@c.CourseTitle</option>
+                        }
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Subject <span class="text-slate-400 font-normal">(optional)</span></label>
+                    <select asp-for="Exam.SubjectID" id="subject-select" class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm">
+                        <option value="">-- None --</option>
+                        @foreach (var s in subjects)
+                        {
+                            <option value="@s.SubjectID" selected="@(s.SubjectID == e.SubjectID)">@s.SubjectName</option>
+                        }
+                    </select>
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Description</label>
+                <textarea asp-for="Exam.Description" rows="2" class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm"></textarea>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Duration (minutes)</label>
+                    <input asp-for="Exam.DurationMinutes" type="number" min="1" class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" />
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Max Attempts</label>
+                    <input asp-for="Exam.MaxAttempts" type="number" min="1" class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" />
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Passing Marks</label>
+                    <input asp-for="Exam.PassingMarks" type="number" step="0.01" min="0" class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" />
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Passing Percentage</label>
+                    <input asp-for="Exam.PassingPercentage" type="number" step="0.01" min="0" max="100" class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" />
+                </div>
+            </div>
+
+            @if (!Model.IsNew)
+            {
+                <p class="text-xs text-slate-400 dark:text-slate-500">Total marks: <strong class="text-slate-600 dark:text-slate-300">@e.TotalMarks</strong> (calculated automatically from the Questions tab)</p>
+                <div class="flex items-center gap-2">
+                    <input type="checkbox" name="IsActive" value="A" checked="@(e.IsActive == "A")"
+                           onchange="this.value = this.checked ? 'A' : 'I'"
+                           class="rounded border-slate-300 dark:border-slate-600 text-[#7c3aed] focus:ring-[#7c3aed]" />
+                    <label class="text-sm text-slate-600 dark:text-slate-300">Active</label>
+                </div>
+            }
+
+            <div class="flex justify-end gap-2 pt-2">
+                <a asp-action="Index" class="px-4 py-2 rounded-xl font-medium bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-sm">Cancel</a>
+                @if (canEdit)
+                {
+                    <button type="submit" class="px-4 py-2 rounded-xl font-medium bg-[#7c3aed] text-white hover:bg-[#6d28d9] text-sm flex items-center gap-2">
+                        @if (Model.IsNew)
+                        {
+                            <span>Save &amp; Continue to Questions</span>
+                            <i data-lucide="arrow-right" class="w-4 h-4"></i>
+                        }
+                        else
+                        {
+                            <span>Save</span>
+                        }
+                    </button>
+                }
+            </div>
+        </form>
+
+        <script>
+            (function () {
+                const courseSelect = document.getElementById('course-select');
+                const subjectSelect = document.getElementById('subject-select');
+                if (!courseSelect || !subjectSelect) return;
+
+                courseSelect.addEventListener('change', async () => {
+                    subjectSelect.innerHTML = '<option value="">-- None --</option>';
+                    if (!courseSelect.value) return;
+                    try {
+                        const res = await fetch('@Url.Action("GetSubjects", "Exam")?courseId=' + encodeURIComponent(courseSelect.value));
+                        const subjects = await res.json();
+                        subjects.forEach(s => {
+                            const opt = document.createElement('option');
+                            opt.value = s.subjectID;
+                            opt.textContent = s.subjectName;
+                            subjectSelect.appendChild(opt);
+                        });
+                    } catch { /* leave subject list empty on error */ }
+                });
+            })();
+        </script>
+    }
+    else if (Model.ActiveTab == "questions")
+    {
+        <!-- No <form> wraps this tab (everything here posts via fetch), so a
+             bare antiforgery token is rendered once and read by the JS below
+             for every SaveQuestion/DeleteQuestion call. -->
+        <form id="af-token-holder">@Html.AntiForgeryToken()</form>
+
+        <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 p-6">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="font-semibold text-slate-800 dark:text-slate-100">Questions (@Model.Questions.Count) <span class="text-sm font-normal text-slate-400 dark:text-slate-500">&middot; @e.TotalMarks marks total</span></h3>
+                @if (canEdit)
+                {
+                    <button type="button" onclick="openQuestionModal()" class="px-4 py-2 rounded-xl font-medium bg-[#7c3aed] text-white hover:bg-[#6d28d9] text-sm flex items-center gap-2">
+                        <i data-lucide="plus" class="w-4 h-4"></i> Add Question
+                    </button>
+                }
+            </div>
+
+            <div id="questions-list">
+                @if (!Model.Questions.Any())
+                {
+                    <p class="text-sm text-slate-400 dark:text-slate-500">No questions added yet — click "Add Question" to create the first one.</p>
+                }
+                else
+                {
+                    <div class="space-y-4">
+                        @foreach (var q in Model.Questions)
+                        {
+                            <div class="border border-slate-100 dark:border-slate-700 rounded-2xl p-4">
+                                <div class="flex items-start justify-between gap-3 mb-2">
+                                    <div class="flex-1">
+                                        <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase @(q.IsMCQ ? "bg-sky-100 dark:bg-sky-950 text-sky-700 dark:text-sky-300" : "bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300")">@q.QuestionType</span>
+                                        <span class="text-xs text-slate-400 dark:text-slate-500 ml-2">@q.Marks marks</span>
+                                        <div class="katex-render mt-2 text-sm text-slate-800 dark:text-slate-100" data-latex="@q.QuestionTextLatex"></div>
+                                        @if (!string.IsNullOrEmpty(q.ImageURL))
+                                        {
+                                            <img src="@q.ImageURL" class="mt-2 max-h-40 rounded-lg border border-slate-100 dark:border-slate-700" />
+                                        }
+                                        @if (!string.IsNullOrEmpty(q.AudioURL))
+                                        {
+                                            <audio controls src="@q.AudioURL" class="mt-2 w-full max-w-sm"></audio>
+                                        }
+                                        @if (!string.IsNullOrEmpty(q.VideoURL))
+                                        {
+                                            <video controls src="@q.VideoURL" class="mt-2 max-h-48 rounded-lg"></video>
+                                        }
+                                        @if (q.IsMCQ)
+                                        {
+                                            <div class="pl-4 mt-3 space-y-1.5 border-l-2 border-slate-100 dark:border-slate-700">
+                                                @foreach (var o in q.Options)
+                                                {
+                                                    <div class="flex items-center gap-2 text-sm">
+                                                        @if (o.IsCorrect)
+                                                        {
+                                                            <i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-500 flex-shrink-0"></i>
+                                                        }
+                                                        else
+                                                        {
+                                                            <i data-lucide="circle" class="w-4 h-4 text-slate-300 dark:text-slate-600 flex-shrink-0"></i>
+                                                        }
+                                                        <span class="katex-render text-slate-700 dark:text-slate-200" data-latex="@o.OptionTextLatex"></span>
+                                                    </div>
+                                                }
+                                            </div>
+                                        }
+                                    </div>
+                                    <div class="flex items-center gap-1 flex-shrink-0">
+                                        @if (canEdit)
+                                        {
+                                            <button type="button" onclick="openQuestionModal('@q.QuestionID')" title="Edit" class="p-2 rounded-xl text-slate-400 dark:text-slate-500 hover:text-[#7c3aed] hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+                                                <i data-lucide="pencil" class="w-4 h-4"></i>
+                                            </button>
+                                        }
+                                        @if (canDelete)
+                                        {
+                                            <button type="button" onclick="deleteQuestion('@q.QuestionID')" title="Remove" class="p-2 rounded-xl text-slate-400 dark:text-slate-500 hover:text-red-600 dark:hover:text-red-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+                                                <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                            </button>
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+        </div>
+
+        <!-- ============ Add/Edit Question modal ============ -->
+        <div id="question-modal" class="hidden fixed inset-0 z-[80] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+            <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+                <div class="px-6 py-4 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between sticky top-0 bg-white dark:bg-slate-800 z-10">
+                    <h3 id="question-modal-title" class="text-lg font-semibold text-slate-800 dark:text-slate-100">Add Question</h3>
+                    <button type="button" onclick="closeQuestionModal()" class="p-2 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 rounded-lg"><i data-lucide="x" class="w-5 h-5"></i></button>
+                </div>
+
+                <div class="p-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <!-- Left: the actual authoring form -->
+                    <div class="space-y-4">
+                        <input type="hidden" id="q-id" />
+
+                        <div class="flex flex-wrap gap-4">
+                            <label class="flex items-center gap-2 text-sm">
+                                <input type="radio" name="q-type" value="MCQ" checked class="q-type-radio" onchange="onQuestionTypeChange(); renderPreview();" />
+                                Multiple Choice
+                            </label>
+                            <label class="flex items-center gap-2 text-sm">
+                                <input type="radio" name="q-type" value="Written" class="q-type-radio" onchange="onQuestionTypeChange(); renderPreview();" />
+                                Written (typed answer)
+                            </label>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Question <span class="text-slate-400 font-normal">(click the keyboard icon on the field to insert an equation)</span></label>
+                            <math-field id="q-field" class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" virtual-keyboard-mode="onfocus" default-mode="text" oninput="renderPreview()"></math-field>
+                        </div>
+
+                        <div id="q-mcq-options" class="space-y-2">
+                            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300">Options (tick the correct one)</label>
+                            <div id="q-option-rows" class="space-y-2"></div>
+                            <button type="button" onclick="addOptionRow()" class="text-sm text-[#7c3aed] hover:underline">+ Add option</button>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Marks</label>
+                                <input type="number" id="q-marks" value="1" step="0.5" min="0.5" oninput="renderPreview()" class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" />
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Sort Order</label>
+                                <input type="number" id="q-sort" value="1" class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" />
+                            </div>
+                        </div>
+
+                        <div class="space-y-3">
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Image (optional)</label>
+                                <input type="file" id="q-image-file" accept="image/*" onchange="renderPreview()" class="text-sm" />
+                                <img id="q-image-current" class="hidden mt-1 max-h-24 rounded-lg border border-slate-100 dark:border-slate-700" />
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Audio (optional)</label>
+                                <input type="file" id="q-audio-file" accept="audio/*" onchange="renderPreview()" class="text-sm" />
+                                <audio id="q-audio-current" controls class="hidden mt-1 w-full max-w-xs"></audio>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Video (optional)</label>
+                                <input type="file" id="q-video-file" accept="video/*" onchange="renderPreview()" class="text-sm" />
+                                <video id="q-video-current" controls class="hidden mt-1 max-h-24 rounded-lg"></video>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right: live preview of how the question will render -->
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Preview <span class="text-slate-400 font-normal">(how it will look)</span></label>
+                        <div class="rounded-2xl border border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/60 p-5 min-h-[20rem]">
+                            <div class="flex items-center gap-2 mb-3">
+                                <span id="preview-type-badge" class="px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase bg-sky-100 dark:bg-sky-950 text-sky-700 dark:text-sky-300">MCQ</span>
+                                <span id="preview-marks" class="text-xs text-slate-400 dark:text-slate-500">1 marks</span>
+                            </div>
+                            <div id="preview-question" class="text-sm text-slate-800 dark:text-slate-100 mb-3">Start typing your question…</div>
+                            <div id="preview-media" class="space-y-2 mb-3"></div>
+                            <div id="preview-options" class="space-y-1.5"></div>
+                            <div id="preview-written" class="hidden">
+                                <textarea disabled rows="3" placeholder="Student would type their answer here…" class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm text-slate-400"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="px-6 py-4 bg-slate-50 dark:bg-slate-900/60 border-t border-slate-100 dark:border-slate-700 flex justify-end gap-2 sticky bottom-0">
+                    <button type="button" onclick="closeQuestionModal()" class="px-4 py-2 rounded-xl font-medium bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-600 text-sm">Cancel</button>
+                    <button type="button" onclick="saveQuestionModal()" class="px-4 py-2 rounded-xl font-medium bg-[#7c3aed] text-white hover:bg-[#6d28d9] text-sm">Save Question</button>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            const examId = '@e.ExamID';
+            const antiForgeryToken = document.querySelector('#af-token-holder input[name="__RequestVerificationToken"]')?.value || '';
+
+            // MathLive's physical Spacebar is bound to a math-mode navigation
+            // command by default and does not insert a space character, even
+            // when the field's mode is "text" (the on-screen virtual keyboard's
+            // space button uses a different code path and works fine). Rebind
+            // it on every math-field, present now or added later for MCQ
+            // options, so the physical keyboard behaves like a normal text
+            // field.
+            function fixMathFieldSpaceKey(field) {
+                if (!field || field.dataset.spaceFixed === '1') return;
+                field.dataset.spaceFixed = '1';
+                field.mode = 'text';
+                field.keybindings = [
+                    ...(window.MathfieldElement?.keybindings || []),
+                    { key: 'spacebar', ifMode: 'text', command: ['insert', ' '] },
+                    { key: 'shift+spacebar', ifMode: 'text', command: ['insert', ' '] }
+                ];
+            }
+            function applyMathFieldFixes(root) {
+                (root || document).querySelectorAll('math-field').forEach(fixMathFieldSpaceKey);
+            }
+            document.addEventListener('DOMContentLoaded', () => applyMathFieldFixes());
+            applyMathFieldFixes();
+            new MutationObserver((mutations) => {
+                mutations.forEach(m => m.addedNodes.forEach(n => {
+                    if (n.nodeType !== 1) return;
+                    if (n.tagName === 'MATH-FIELD') fixMathFieldSpaceKey(n);
+                    else if (n.querySelectorAll) applyMathFieldFixes(n);
+                }));
+            }).observe(document.getElementById('q-option-rows') || document.body, { childList: true, subtree: true });
+
+            // MathLive's text-mode serializes plain typed runs as bare
+            // characters (no \text{} wrapper), and KaTeX collapses whitespace
+            // for anything rendered outside \text{} — so a question typed as
+            // "THE EFE WFERGERG" renders as "THEEFEWFERGERG". Wrapping the
+            // whole string in \text{} before handing it to KaTeX preserves
+            // spaces for plain content; math sub-expressions MathLive emits
+            // (e.g. \(x^2\)) still switch back into math mode inside \text{}.
+            function renderMixedLatex(latex, el) {
+                try { katex.render('\\text{' + latex + '}', el, { throwOnError: false }); }
+                catch {
+                    try { katex.render(latex, el, { throwOnError: false }); }
+                    catch { el.textContent = latex; }
+                }
+            }
+
+            function renderKatex() {
+                if (typeof katex === 'undefined') return;
+                document.querySelectorAll('.katex-render').forEach(el => {
+                    const latex = el.dataset.latex || '';
+                    if (!latex || el.dataset.rendered === '1') return;
+                    renderMixedLatex(latex, el);
+                    el.dataset.rendered = '1';
+                });
+                if (window.lucide) lucide.createIcons();
+            }
+            // katex.min.js loads via a deferred <script> in _AdminLayout.cshtml,
+            // which runs after the document is parsed but before
+            // DOMContentLoaded — calling renderKatex() inline here (before that
+            // point) would find `katex` undefined and silently fall back to
+            // raw LaTeX text for every question/option.
+            document.addEventListener('DOMContentLoaded', () => renderKatex());
+
+            // ---------- Add-option-row helper (question modal) ----------
+            function addOptionRow(text, correct) {
+                const div = document.createElement('div');
+                div.className = 'q-option-row flex items-center gap-2';
+                div.innerHTML = `<math-field class="q-option-field flex-1 px-2 py-1.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" default-mode="text" oninput="renderPreview()"></math-field>
+                    <label class="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400">
+                        <input type="radio" name="q-option-correct" class="q-option-correct" onchange="renderPreview()" /> Correct
+                    </label>
+                    <button type="button" onclick="this.closest('.q-option-row').remove(); renderPreview();" class="text-slate-400 hover:text-red-600 dark:hover:text-red-400"><i data-lucide="x" class="w-4 h-4"></i></button>`;
+                document.getElementById('q-option-rows').appendChild(div);
+                if (window.lucide) lucide.createIcons();
+                if (text !== undefined) {
+                    // math-field needs a tick for the custom element to upgrade before .value works
+                    requestAnimationFrame(() => {
+                        const field = div.querySelector('.q-option-field');
+                        field.value = text;
+                        if (correct) div.querySelector('.q-option-correct').checked = true;
+                        renderPreview();
+                    });
+                }
+            }
+
+            function onQuestionTypeChange() {
+                const isMCQ = document.querySelector('.q-type-radio[value="MCQ"]').checked;
+                document.getElementById('q-mcq-options').style.display = isMCQ ? '' : 'none';
+            }
+
+            // ---------- Live preview ----------
+            function renderPreview() {
+                const isMCQ = document.querySelector('.q-type-radio[value="MCQ"]').checked;
+                const badge = document.getElementById('preview-type-badge');
+                badge.textContent = isMCQ ? 'MCQ' : 'Written';
+                badge.className = 'px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase ' +
+                    (isMCQ ? 'bg-sky-100 dark:bg-sky-950 text-sky-700 dark:text-sky-300' : 'bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300');
+
+                const marks = document.getElementById('q-marks').value || '1';
+                document.getElementById('preview-marks').textContent = marks + ' marks';
+
+                const qLatex = document.getElementById('q-field').value || '';
+                const qPreview = document.getElementById('preview-question');
+                if (qLatex.trim()) {
+                    renderMixedLatex(qLatex, qPreview);
+                } else {
+                    qPreview.textContent = 'Start typing your question…';
+                }
+
+                // Media preview
+                const mediaWrap = document.getElementById('preview-media');
+                mediaWrap.innerHTML = '';
+                const imgFile = document.getElementById('q-image-file').files[0];
+                const audFile = document.getElementById('q-audio-file').files[0];
+                const vidFile = document.getElementById('q-video-file').files[0];
+                if (imgFile) { const img = document.createElement('img'); img.src = URL.createObjectURL(imgFile); img.className = 'max-h-32 rounded-lg border border-slate-200 dark:border-slate-700'; mediaWrap.appendChild(img); }
+                else if (!document.getElementById('q-image-current').classList.contains('hidden')) { mediaWrap.appendChild(document.getElementById('q-image-current').cloneNode()); }
+                if (audFile) { const aud = document.createElement('audio'); aud.controls = true; aud.src = URL.createObjectURL(audFile); aud.className = 'w-full max-w-sm'; mediaWrap.appendChild(aud); }
+                if (vidFile) { const vid = document.createElement('video'); vid.controls = true; vid.src = URL.createObjectURL(vidFile); vid.className = 'max-h-32 rounded-lg'; mediaWrap.appendChild(vid); }
+
+                // Options / written preview
+                const optionsWrap = document.getElementById('preview-options');
+                const writtenWrap = document.getElementById('preview-written');
+                optionsWrap.innerHTML = '';
+                if (isMCQ) {
+                    writtenWrap.classList.add('hidden');
+                    document.querySelectorAll('.q-option-row').forEach(row => {
+                        const latex = row.querySelector('.q-option-field').value || '';
+                        if (!latex.trim()) return;
+                        const isCorrect = row.querySelector('.q-option-correct').checked;
+                        const line = document.createElement('div');
+                        line.className = 'flex items-center gap-2 text-sm';
+                        const iconSpan = document.createElement('span');
+                        iconSpan.innerHTML = isCorrect
+                            ? '<i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-500"></i>'
+                            : '<i data-lucide="circle" class="w-4 h-4 text-slate-300 dark:text-slate-600"></i>';
+                        const textSpan = document.createElement('span');
+                        renderMixedLatex(latex, textSpan);
+                        line.appendChild(iconSpan); line.appendChild(textSpan);
+                        optionsWrap.appendChild(line);
+                    });
+                    if (window.lucide) lucide.createIcons();
+                } else {
+                    writtenWrap.classList.remove('hidden');
+                }
+            }
+
+            // ---------- Modal open/close ----------
+            function resetQuestionForm() {
+                document.getElementById('q-id').value = '';
+                document.getElementById('q-field').value = '';
+                document.getElementById('q-marks').value = '1';
+                document.getElementById('q-sort').value = (document.querySelectorAll('#questions-list .border').length || 0) + 1;
+                document.querySelector('.q-type-radio[value="MCQ"]').checked = true;
+                document.getElementById('q-option-rows').innerHTML = '';
+                ['image', 'audio', 'video'].forEach(kind => {
+                    document.getElementById(`q-${kind}-file`).value = '';
+                    const cur = document.getElementById(`q-${kind}-current`);
+                    cur.classList.add('hidden');
+                    cur.removeAttribute('src');
+                });
+                addOptionRow(); addOptionRow();
+                onQuestionTypeChange();
+            }
+
+            async function openQuestionModal(questionId) {
+                resetQuestionForm();
+                document.getElementById('question-modal-title').textContent = questionId ? 'Edit Question' : 'Add Question';
+
+                if (questionId) {
+                    try {
+                        const res = await fetch(`@Url.Action("GetQuestion", "Exam")?id=${encodeURIComponent(questionId)}`);
+                        const q = await res.json();
+                        document.getElementById('q-id').value = q.questionID;
+                        document.getElementById('q-field').value = q.questionTextLatex || '';
+                        document.getElementById('q-marks').value = q.marks || 1;
+                        document.getElementById('q-sort').value = q.sortOrder || 1;
+                        document.querySelector(`.q-type-radio[value="${q.questionType}"]`).checked = true;
+                        onQuestionTypeChange();
+
+                        if (q.imageURL) { const el = document.getElementById('q-image-current'); el.src = q.imageURL; el.classList.remove('hidden'); }
+                        if (q.audioURL) { const el = document.getElementById('q-audio-current'); el.src = q.audioURL; el.classList.remove('hidden'); }
+                        if (q.videoURL) { const el = document.getElementById('q-video-current'); el.src = q.videoURL; el.classList.remove('hidden'); }
+
+                        document.getElementById('q-option-rows').innerHTML = '';
+                        (q.options || []).forEach(o => addOptionRow(o.optionTextLatex, o.isCorrect));
+                        if (!q.options || q.options.length === 0) { addOptionRow(); addOptionRow(); }
+                    } catch {
+                        showToast('Could not load question.', 'error');
+                    }
+                }
+
+                document.getElementById('question-modal').classList.remove('hidden');
+                setTimeout(renderPreview, 50);
+            }
+
+            function closeQuestionModal() {
+                document.getElementById('question-modal').classList.add('hidden');
+            }
+
+            async function saveQuestionModal() {
+                const isMCQ = document.querySelector('.q-type-radio[value="MCQ"]').checked;
+                const qLatex = document.getElementById('q-field').value || '';
+                if (!qLatex.trim()) { showToast('Question text is required.', 'error'); return; }
+
+                const fd = new FormData();
+                fd.append('__RequestVerificationToken', antiForgeryToken);
+                fd.append('ExamID', examId);
+                fd.append('QuestionID', document.getElementById('q-id').value || '');
+                fd.append('QuestionType', isMCQ ? 'MCQ' : 'Written');
+                fd.append('QuestionTextLatex', qLatex);
+                fd.append('Marks', document.getElementById('q-marks').value || '1');
+                fd.append('SortOrder', document.getElementById('q-sort').value || '1');
+
+                const imgFile = document.getElementById('q-image-file').files[0];
+                const audFile = document.getElementById('q-audio-file').files[0];
+                const vidFile = document.getElementById('q-video-file').files[0];
+                if (imgFile) fd.append('imageFile', imgFile);
+                if (audFile) fd.append('audioFile', audFile);
+                if (vidFile) fd.append('videoFile', vidFile);
+
+                if (isMCQ) {
+                    const options = [...document.querySelectorAll('.q-option-row')].map(row => ({
+                        text: row.querySelector('.q-option-field').value || '',
+                        correct: row.querySelector('.q-option-correct').checked
+                    })).filter(o => o.text.trim());
+                    if (options.length < 2) { showToast('Add at least two options.', 'error'); return; }
+                    if (!options.some(o => o.correct)) { showToast('Mark one option as correct.', 'error'); return; }
+                    fd.append('OptionsJson', JSON.stringify(options));
+                }
+
+                try {
+                    const res = await fetch('@Url.Action("SaveQuestion", "Exam")', { method: 'POST', body: fd });
+                    const d = await res.json();
+                    showToast(d.message, d.success ? 'success' : 'error');
+                    if (d.success) {
+                        closeQuestionModal();
+                        setTimeout(() => location.reload(), 400);
+                    }
+                } catch {
+                    showToast('Could not save question.', 'error');
+                }
+            }
+
+            async function deleteQuestion(id) {
+                if (!confirm('Delete this question?')) return;
+                try {
+                    const fd = new FormData();
+                    fd.append('__RequestVerificationToken', antiForgeryToken);
+                    fd.append('id', id);
+                    const res = await fetch('@Url.Action("DeleteQuestion", "Exam")', { method: 'POST', body: fd });
+                    const d = await res.json();
+                    showToast(d.message, d.success ? 'success' : 'error');
+                    if (d.success) setTimeout(() => location.reload(), 300);
+                } catch {
+                    showToast('Could not delete question.', 'error');
+                }
+            }
+
+            document.getElementById('question-modal').addEventListener('click', (e) => {
+                if (e.target === e.currentTarget) closeQuestionModal();
+            });
+        </script>
+    }
+</div>

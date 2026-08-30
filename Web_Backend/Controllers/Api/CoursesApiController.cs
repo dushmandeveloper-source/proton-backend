@@ -57,5 +57,21 @@ namespace Web_Backend.Controllers.Api
                 schedules
             });
         }
+
+        // Lightweight schedules-only lookup — used by the public registration
+        // flow (RegisterPage.jsx) to fetch just the batch list for each
+        // selected course without pulling the whole course-detail payload
+        // (descriptions, pricing, subjects, etc.) once per selected course.
+        // Same projection shape as the "schedules" array returned by
+        // GET api/courses/{id} above, for consistency.
+        [HttpGet("{id}/schedules")]
+        public async Task<IActionResult> GetSchedules(string id)
+        {
+            var course = await rep.Get(id);
+            if (course == null || course.IsActive != "A") return NotFound();
+
+            var schedules = await scheduleRep.GetList(new CourseScheduleSearchView { CourseID = id, IsActive = "A" });
+            return Ok(schedules);
+        }
     }
 }

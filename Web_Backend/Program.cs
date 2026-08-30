@@ -47,7 +47,12 @@ builder.Services.AddCors(options =>
     options.AddPolicy(PublicSiteCors, policy =>
         policy.WithOrigins(publicSiteOrigins)
               .AllowAnyHeader()
-              .AllowAnyMethod());
+              .AllowAnyMethod()
+              // Cookie-based session auth (Auth.SignIn) requires the browser
+              // to send/receive the session cookie cross-origin, which needs
+              // credentialed CORS. Safe only because origins above are an
+              // explicit allowlist, never AllowAnyOrigin().
+              .AllowCredentials());
 });
 
 builder.Services.AddSingleton<IDBAccess>(new MSSQLDataAccess(AppData.GetMSSQLDBCon()));
@@ -61,9 +66,13 @@ builder.Services.AddTransient<IPasswordResetData, PasswordResetData>();
 builder.Services.AddTransient<IEmailSender, EmailSender>();
 builder.Services.AddTransient<IUniversityData, UniversityData>();
 builder.Services.AddTransient<IStudentData, StudentData>();
+builder.Services.AddTransient<ICourseRegistrationData, CourseRegistrationData>();
 builder.Services.AddTransient<ICourseCategoryData, CourseCategoryData>();
 builder.Services.AddTransient<ICourseData, CourseData>();
 builder.Services.AddTransient<ICourseScheduleData, CourseScheduleData>();
+builder.Services.AddTransient<ICourseScheduleNoteData, CourseScheduleNoteData>();
+builder.Services.AddTransient<IHolidayEventData, HolidayEventData>();
+builder.Services.AddTransient<IExamData, ExamData>();
 builder.Services.AddTransient<IRolePermissionData, RolePermissionData>();
 builder.Services.AddTransient<IUserPermissionOverrideData, UserPermissionOverrideData>();
 builder.Services.AddSingleton<IImageUploader, ImageUploader>();

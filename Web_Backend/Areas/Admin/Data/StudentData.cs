@@ -19,7 +19,9 @@ namespace Web_Backend.Areas.Admin.Data
                 APIKey = AppData.GetAPIKey(),
                 search.KeyW,
                 search.RegistrationSource,
-                search.IsActive
+                search.IsActive,
+                search.EnrollmentFilter,
+                search.PaymentStatusFilter
             });
 
         public Task<Student?> Get(string id) =>
@@ -27,6 +29,9 @@ namespace Web_Backend.Areas.Admin.Data
 
         public Task<Student?> GetByUserID(string userId) =>
             db.Get<Student, object>("mst.Student_GetByUserID", new { APIKey = AppData.GetAPIKey(), UserID = userId });
+
+        public Task<Student?> GetByPassportNumber(string passportNumber) =>
+            db.Get<Student, object>("mst.Student_GetByPassportNumber", new { APIKey = AppData.GetAPIKey(), PassportNumber = passportNumber });
 
         public Task<string> AddEdit(Student s) =>
             db.Execute("mst.Student_AddEdit", new

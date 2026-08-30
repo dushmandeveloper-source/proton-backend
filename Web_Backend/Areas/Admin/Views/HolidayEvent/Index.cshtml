@@ -1,0 +1,145 @@
+@model List<HolidayEvent>
+@{
+    ViewData["Title"] = "Holiday & Events Calendar";
+    bool canAdd = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.HolidayCalendar, 'A');
+    bool canEdit = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.HolidayCalendar, 'E');
+    bool canDelete = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.HolidayCalendar, 'D');
+}
+
+<div class="max-w-4xl mx-auto page-enter">
+    <div class="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
+        <div>
+            <h2 class="text-3xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">Holiday &amp; Events Calendar</h2>
+            <p class="text-slate-500 dark:text-slate-400 mt-2">Global dates marked on the Course Schedule calendar. Courses can still be scheduled on these dates with confirmation.</p>
+        </div>
+        @if (canAdd)
+        {
+            <button type="button" onclick="openAddHolidayForm()"
+                    class="px-4 py-2 rounded-xl font-medium bg-[#7c3aed] text-white hover:bg-[#6d28d9] shadow-sm text-sm flex items-center gap-2 w-fit">
+                <i data-lucide="plus" class="w-4 h-4"></i> Add Holiday / Event
+            </button>
+        }
+    </div>
+
+    @if (canAdd || canEdit)
+    {
+        <form id="holiday-form" method="post" asp-action="Save" class="hidden bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 p-6 mb-6">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="HolidayID" id="holiday-id-field" value="" />
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <input type="date" name="HolidayDate" id="holiday-date-field" required
+                       class="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" />
+                <input type="text" name="Title" id="holiday-title-field" placeholder="Title (e.g. New Year's Day)" required
+                       class="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" />
+                <textarea name="Description" id="holiday-description-field" rows="2" placeholder="Description (optional)"
+                          class="md:col-span-2 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm"></textarea>
+            </div>
+            <div class="flex gap-2">
+                <button type="submit" id="holiday-submit-btn" class="px-4 py-2 rounded-xl font-medium bg-[#7c3aed] text-white hover:bg-[#6d28d9] text-sm">Save</button>
+                <button type="button" onclick="closeHolidayForm()"
+                        class="px-4 py-2 rounded-xl font-medium bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-sm">Cancel</button>
+            </div>
+        </form>
+    }
+
+    <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
+        @if (!Model.Any())
+        {
+            <div class="p-12 text-center">
+                <p class="text-sm text-slate-400 dark:text-slate-500">No holidays or events yet. Add one to mark it on the Course Schedule calendar.</p>
+            </div>
+        }
+        else
+        {
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead>
+                        <tr class="border-b border-slate-100 dark:border-slate-700 text-left text-slate-500 dark:text-slate-400">
+                            <th class="px-6 py-3 font-medium">Date</th>
+                            <th class="px-6 py-3 font-medium">Title</th>
+                            <th class="px-6 py-3 font-medium">Description</th>
+                            <th class="px-6 py-3 font-medium text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var h in Model)
+                        {
+                            <tr class="border-b border-slate-50 dark:border-slate-800 last:border-0">
+                                <td class="px-6 py-3">
+                                    <span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-yellow-100 dark:bg-yellow-950 text-yellow-800 dark:text-yellow-300">@h.HolidayDate.ToString("MMM d, yyyy")</span>
+                                </td>
+                                <td class="px-6 py-3 font-medium text-slate-800 dark:text-slate-100">@h.Title</td>
+                                <td class="px-6 py-3 text-slate-500 dark:text-slate-400">@(h.Description ?? "-")</td>
+                                <td class="px-6 py-3 text-right">
+                                    @if (canEdit)
+                                    {
+                                        <button type="button" class="edit-holiday-btn p-2 rounded-xl text-slate-400 dark:text-slate-500 hover:text-[#7c3aed] dark:hover:text-purple-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                                                title="Edit"
+                                                data-holiday='@Html.Raw(System.Text.Json.JsonSerializer.Serialize(new {
+                                                    holidayID = h.HolidayID,
+                                                    holidayDate = h.HolidayDate.ToString("yyyy-MM-dd"),
+                                                    title = h.Title,
+                                                    description = h.Description ?? ""
+                                                }))'>
+                                            <i data-lucide="pencil" class="w-4 h-4"></i>
+                                        </button>
+                                    }
+                                    @if (canDelete)
+                                    {
+                                        <form method="post" asp-action="Delete" asp-route-id="@h.HolidayID" class="inline"
+                                              data-confirm="Delete this holiday/event?" data-confirm-title="Delete holiday/event" data-confirm-label="Delete">
+                                            @Html.AntiForgeryToken()
+                                            <button type="submit" title="Delete" class="p-2 rounded-xl text-slate-400 dark:text-slate-500 hover:text-red-600 dark:hover:text-red-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+                                                <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                            </button>
+                                        </form>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        (function () {
+            const form = document.getElementById('holiday-form');
+            if (!form) return;
+            const idField = document.getElementById('holiday-id-field');
+            const dateField = document.getElementById('holiday-date-field');
+            const titleField = document.getElementById('holiday-title-field');
+            const descField = document.getElementById('holiday-description-field');
+            const submitBtn = document.getElementById('holiday-submit-btn');
+
+            window.openAddHolidayForm = function () {
+                idField.value = '';
+                dateField.value = '';
+                titleField.value = '';
+                descField.value = '';
+                submitBtn.textContent = 'Save';
+                form.classList.remove('hidden');
+                dateField.focus();
+            };
+            window.closeHolidayForm = function () {
+                form.classList.add('hidden');
+            };
+
+            document.querySelectorAll('.edit-holiday-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const data = JSON.parse(btn.dataset.holiday);
+                    idField.value = data.holidayID;
+                    dateField.value = data.holidayDate;
+                    titleField.value = data.title;
+                    descField.value = data.description;
+                    submitBtn.textContent = 'Update';
+                    form.classList.remove('hidden');
+                    form.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                });
+            });
+        })();
+    </script>
+}

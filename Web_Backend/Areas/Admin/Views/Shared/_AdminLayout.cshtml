@@ -8,6 +8,8 @@
     var canViewStudents = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.Students, 'V');
     var canViewCourses = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.Courses, 'V');
     var canViewCourseSchedules = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.CourseSchedules, 'V');
+    var canViewHolidayCalendar = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.HolidayCalendar, 'V');
+    var canViewExams = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.Exams, 'V');
     var canViewEmailSettings = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.EmailSettings, 'V');
     var canViewEmailTemplates = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.EmailTemplates, 'V');
     var canViewUserManagement = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.UserManagement, 'V');
@@ -52,6 +54,15 @@
         }
     </script>
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <!-- MathLive: WYSIWYG equation editor (<math-field>) used on the Exam
+         question editor so admins build equations by clicking, never typing
+         LaTeX by hand. Its value round-trips as a LaTeX string. -->
+    <script defer src="https://cdn.jsdelivr.net/npm/mathlive@0.110.0/mathlive.min.js"></script>
+    <!-- KaTeX: lightweight render-only display of the LaTeX strings MathLive
+         produces, used everywhere a question/option is shown but not being
+         edited (question lists, read-only views). -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.18.4/dist/katex.min.css" integrity="sha384-u1zONI5gPXUx0UKI62c75/zww972y0v2rSK5ZYlVdS6xEuWDeZWUI66v6t1gvlXJ" crossorigin="anonymous">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.18.4/dist/katex.min.js" integrity="sha384-ykMNcWQhhTUb0YV9SPpPUFURHZ+tWmubkakGBP+OgNK/UXdO2gtzglWx0Rj9hnO3" crossorigin="anonymous"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
@@ -103,7 +114,7 @@ else
 
         <div id="sidebar-backdrop" class="hidden md:hidden fixed inset-0 bg-black/40 z-30"></div>
 
-        <aside id="sidebar" class="fixed inset-y-4 left-4 z-40 w-[280px] -translate-x-[120%] transition-transform duration-300 ease-in-out md:relative md:inset-y-auto md:left-auto md:translate-x-0 md:transition-none md:z-20 md:w-[260px] flex-shrink-0 bg-white dark:bg-slate-800 md:bg-white/90 md:dark:bg-slate-800/90 backdrop-blur-xl rounded-[32px] p-4 flex flex-col shadow-[0_8px_30px_rgb(0,0,0,0.02)] border border-white/60 dark:border-slate-700/60">
+        <aside id="sidebar" class="fixed inset-y-4 left-4 z-40 w-[280px] -translate-x-[120%] transition-transform duration-300 ease-in-out md:relative md:inset-y-auto md:left-auto md:translate-x-0 md:transition-none md:z-20 md:w-[260px] flex-shrink-0 bg-white dark:bg-slate-800 md:bg-white/90 md:dark:bg-slate-800/90 backdrop-blur-xl rounded-[32px] p-4 flex flex-col overflow-y-auto custom-scrollbar shadow-[0_8px_30px_rgb(0,0,0,0.02)] border border-white/60 dark:border-slate-700/60">
 
             <div class="flex items-center gap-3 p-3 mb-6 rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-700/50 cursor-pointer transition-colors border border-transparent hover:border-slate-100 dark:hover:border-slate-700">
                 <div class="relative">
@@ -165,6 +176,22 @@ else
                            class="w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-200 group @(activeController == "CourseSchedule" ? "bg-slate-50/80 dark:bg-slate-700/60 text-slate-900 dark:text-slate-100 font-semibold" : "text-slate-500 dark:text-slate-400 hover:bg-slate-50/50 dark:hover:bg-slate-700/40 hover:text-slate-900 dark:hover:text-slate-100")">
                             <i data-lucide="calendar-days" class="w-5 h-5 @(activeController == "CourseSchedule" ? "text-[#5a43f1] dark:text-[#a78bfa]" : "text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300")"></i>
                             <span>Course Schedules</span>
+                        </a>
+                    }
+                    @if (canViewHolidayCalendar)
+                    {
+                        <a asp-area="Admin" asp-controller="HolidayEvent" asp-action="Index"
+                           class="w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-200 group @(activeController == "HolidayEvent" ? "bg-slate-50/80 dark:bg-slate-700/60 text-slate-900 dark:text-slate-100 font-semibold" : "text-slate-500 dark:text-slate-400 hover:bg-slate-50/50 dark:hover:bg-slate-700/40 hover:text-slate-900 dark:hover:text-slate-100")">
+                            <i data-lucide="calendar-heart" class="w-5 h-5 @(activeController == "HolidayEvent" ? "text-[#5a43f1] dark:text-[#a78bfa]" : "text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300")"></i>
+                            <span>Holiday &amp; Events</span>
+                        </a>
+                    }
+                    @if (canViewExams)
+                    {
+                        <a asp-area="Admin" asp-controller="Exam" asp-action="Index"
+                           class="w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-200 group @(activeController == "Exam" ? "bg-slate-50/80 dark:bg-slate-700/60 text-slate-900 dark:text-slate-100 font-semibold" : "text-slate-500 dark:text-slate-400 hover:bg-slate-50/50 dark:hover:bg-slate-700/40 hover:text-slate-900 dark:hover:text-slate-100")">
+                            <i data-lucide="clipboard-list" class="w-5 h-5 @(activeController == "Exam" ? "text-[#5a43f1] dark:text-[#a78bfa]" : "text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300")"></i>
+                            <span>Exams</span>
                         </a>
                     }
                 </div>

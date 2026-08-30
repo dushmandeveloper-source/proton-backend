@@ -12,6 +12,11 @@ namespace Web_Backend.Areas.Admin.Models
         public List<UserType> Roles { get; set; } = new();
         public bool ShowInactive { get; set; }
 
+        // Users tab filter bar state, echoed back so the form shows the
+        // current selection after a GET round-trip (mirrors ShowInactive above).
+        public string KeyW { get; set; } = "";
+        public string RoleFilter { get; set; } = "";
+
         public AddUserViewModel? AddUserForm { get; set; }
         public EditUserViewModel? EditUserForm { get; set; }
         public RoleFormViewModel? RoleForm { get; set; }

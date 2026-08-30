@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using System.Text.Json;
 using Web_Backend.Areas.Admin.Data;
 using Web_Backend.Areas.Admin.Models;
 using Web_Backend.Classes;
@@ -21,14 +22,18 @@ namespace Web_Backend.Areas.Admin.Controllers
         private readonly ICourseData rep;
         private readonly ICourseCategoryData categoryRep;
         private readonly ICourseScheduleData scheduleRep;
+        private readonly IUserData userRep;
         private readonly IImageUploader uploader;
+        private readonly IHolidayEventData holidayRep;
 
-        public CourseController(ICourseData rep, ICourseCategoryData categoryRep, ICourseScheduleData scheduleRep, IImageUploader uploader)
+        public CourseController(ICourseData rep, ICourseCategoryData categoryRep, ICourseScheduleData scheduleRep, IUserData userRep, IImageUploader uploader, IHolidayEventData holidayRep)
         {
             this.rep = rep;
             this.categoryRep = categoryRep;
             this.scheduleRep = scheduleRep;
+            this.userRep = userRep;
             this.uploader = uploader;
+            this.holidayRep = holidayRep;
         }
 
         public async Task<IActionResult> Index(string KeyW = "", string CourseType = "", bool showInactive = false, string tab = "courses")
@@ -292,11 +297,29 @@ namespace Web_Backend.Areas.Admin.Controllers
 
         // ---------- Schedules (tab convenience wrapper over ICourseScheduleData) ----------
         [HttpPost, ValidateAntiForgeryToken]
-        public async Task<IActionResult> SaveSchedule(CourseSchedule form)
+        public async Task<IActionResult> SaveSchedule(CourseSchedule form, string SegmentJSON = "[]", string InstructorUserIDsJSON = "[]")
         {
             Auth.CheckPermission(PermissionCode.CourseSchedules, string.IsNullOrEmpty(form.ScheduleID) ? 'A' : 'E');
             try
             {
+                form.Segments = JsonSerializer.Deserialize<List<CourseScheduleSegment>>(SegmentJSON, new JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? new List<CourseScheduleSegment>();
+                if (form.Segments.Count == 0)
+                {
+                    TempData["ErrorMessage"] = "At least one period (date range, days, time) is required.";
+                    return RedirectToAction("Edit", new { id = form.CourseID, tab = "schedules" });
+                }
+
+                var instructorIds = JsonSerializer.Deserialize<List<string>>(InstructorUserIDsJSON, new JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? new List<string>();
+                if (instructorIds.Count > 0)
+                {
+                    var instructors = await userRep.GetInstructors();
+                    form.Instructors = instructorIds
+                        .Select(id => instructors.FirstOrDefault(u => u.UserID == id))
+                        .Where(u => u != null)
+                        .Select(u => new ScheduleInstructor { UserID = u!.UserID, FullName = u.FullName })
+                        .ToList();
+                }
+
                 form.IsActive = string.IsNullOrEmpty(form.ScheduleID) ? "A" : form.IsActive;
                 await scheduleRep.AddEdit(form);
                 TempData["SuccessMessage"] = "Schedule saved.";
@@ -317,6 +340,27 @@ namespace Web_Backend.Areas.Admin.Controllers
             return RedirectToAction("Edit", new { id = courseId, tab = "schedules" });
         }
 
+        [HttpPost, ValidateAntiForgeryToken]
+        public async Task<IActionResult> ActivateSchedule(string courseId, string id)
+        {
+            Auth.CheckPermission(PermissionCode.CourseSchedules, 'E');
+            try
+            {
+                var schedule = await scheduleRep.Get(id);
+                if (schedule != null)
+                {
+                    schedule.IsActive = "A";
+                    await scheduleRep.AddEdit(schedule);
+                    TempData["SuccessMessage"] = "Schedule activated.";
+                }
+            }
+            catch (Exception ex)
+            {
+                TempData["ErrorMessage"] = "Could not activate schedule: " + ex.Message;
+            }
+            return RedirectToAction("Edit", new { id = courseId, tab = "schedules" });
+        }
+
         private async Task<CourseDetailViewModel> BuildDetail(Course course, string tab)
         {
             var model = new CourseDetailViewModel
@@ -326,6 +370,11 @@ namespace Web_Backend.Areas.Admin.Controllers
                 Categories = await categoryRep.GetList(new CourseCategorySearchView { IsActive = "A" })
             };
             ViewBag.Locations = await rep.GetLocations();
+            ViewBag.Instructors = await userRep.GetInstructors();
+
+            var today = DateTime.Today;
+            var holidays = await holidayRep.GetByDateRange(today.AddYears(-2), today.AddYears(2));
+            ViewBag.Holidays = holidays;
 
             if (!string.IsNullOrEmpty(course.CourseID))
             {

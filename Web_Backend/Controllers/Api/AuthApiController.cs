@@ -94,5 +94,18 @@ namespace Web_Backend.Controllers.Api
             Auth.SignOut();
             return Ok();
         }
+
+        // Lets the React app restore "am I logged in" state after a page
+        // reload, since the session cookie itself carries no user info the
+        // browser can read (HttpOnly).
+        [HttpGet("me")]
+        public IActionResult Me()
+        {
+            var user = Auth.GetUser();
+            if (user == null)
+                return Unauthorized();
+
+            return Ok(new { userId = user.Id, fullName = user.Name, email = user.Email, role = user.Role });
+        }
     }
 }

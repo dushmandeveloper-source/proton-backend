@@ -12,7 +12,14 @@ namespace Web_Backend.Areas.Admin.Controllers
     [Area("Admin")]
     public class UserController : Controller
     {
-        private const string AdminRoleName = "Admin";
+        private static readonly string[] ProtectedRoleNames = { "Admin", "Student", "Instructor" };
+
+        // Student and Instructor specifically (not Admin) must also never be
+        // deactivated — a real dev-data incident showed these rows can end
+        // up IsActive='I' via EditRole's status toggle even though renaming
+        // and deleting were already blocked. Kept separate from
+        // ProtectedRoleNames since Admin isn't included here.
+        private static readonly string[] NonDeactivatableRoleNames = { "Student", "Instructor" };
 
         private readonly IUserData userRep;
         private readonly IUserAuthData authRep;
@@ -32,23 +39,33 @@ namespace Web_Backend.Areas.Admin.Controllers
             this.userPermissionOverrideRep = userPermissionOverrideRep;
         }
 
-        private async Task PopulateLists(UserManagementViewModel model, bool showInactive = false)
+        private async Task PopulateLists(UserManagementViewModel model, bool showInactive = false, string keyW = "", string roleFilter = "")
         {
             // Deleted (soft-deleted) rows drop out of the default view — the
             // data is retained (IsActive='I'); "Show inactive" brings them
             // back into view so they can be restored via Edit.
-            model.Users = await userRep.GetList(new AppUserSearchView { IsActive = showInactive ? "" : "A" });
+            // KeyW/roleFilter narrow the Users tab's list further (matched
+            // against FullName/Email and UserTypeID respectively by
+            // usr.Users_List, which already supports both params).
+            model.Users = await userRep.GetList(new AppUserSearchView
+            {
+                KeyW = keyW,
+                UserTypeID = roleFilter,
+                IsActive = showInactive ? "" : "A"
+            });
             model.Roles = await userTypeRep.GetList(isActive: showInactive ? "" : "A");
             model.ShowInactive = showInactive;
+            model.KeyW = keyW;
+            model.RoleFilter = roleFilter;
         }
 
         [HttpGet]
-        public async Task<IActionResult> Index(string tab = "users", bool showInactive = false)
+        public async Task<IActionResult> Index(string tab = "users", bool showInactive = false, string KeyW = "", string roleFilter = "")
         {
             Auth.CheckPermission(PermissionCode.UserManagement, 'V');
             ViewBag.CurrentUser = Auth.GetUser();
             var model = new UserManagementViewModel { ActiveTab = tab == "roles" ? "roles" : "users" };
-            await PopulateLists(model, showInactive);
+            await PopulateLists(model, showInactive, KeyW, roleFilter);
             return View(model);
         }
 
@@ -102,6 +119,14 @@ namespace Web_Backend.Areas.Admin.Controllers
             // themselves (or anyone) unconditional full access via this form.
             if (form.Role == Auth.MasterAdminRoleId && Auth.GetUser()?.Role != Auth.MasterAdminRoleId)
                 ModelState.AddModelError(nameof(form.Role), "Only a Master Admin can assign the Master Admin role.");
+
+            // Students must only ever be created through the Student
+            // Registration flow (it collects DOB/passport/address/emergency
+            // contact that this generic Add User form doesn't ask for).
+            var addRoles = await userTypeRep.GetList(isActive: "");
+            var addStudentRole = addRoles.FirstOrDefault(t => t.UserTypeName.Equals("Student", StringComparison.OrdinalIgnoreCase));
+            if (addStudentRole != null && string.Equals(form.Role, addStudentRole.UserTypeID, StringComparison.OrdinalIgnoreCase))
+                ModelState.AddModelError(nameof(form.Role), "Students can't be created here — use the Students section to register a new student.");
 
             if (ModelState.IsValid)
             {
@@ -214,6 +239,20 @@ namespace Web_Backend.Areas.Admin.Controllers
                     ModelState.AddModelError(nameof(form.Email), "A user with this email already exists.");
             }
 
+            // Once a user is a Student, this generic form can't move them to
+            // a different role — students are managed from the Students
+            // section, which owns the extra registration data (DOB,
+            // passport, address, emergency contact) this form never touches.
+            var currentUser = await userRep.Get(form.UserID);
+            var roles = await userTypeRep.GetList(isActive: "");
+            var studentRole = roles.FirstOrDefault(t => t.UserTypeName.Equals("Student", StringComparison.OrdinalIgnoreCase));
+            if (currentUser != null && studentRole != null &&
+                currentUser.UserTypeID == studentRole.UserTypeID &&
+                !string.Equals(form.Role, currentUser.UserTypeID, StringComparison.OrdinalIgnoreCase))
+            {
+                ModelState.AddModelError(nameof(form.Role), "A student's role can't be changed here — manage this student from the Students section instead.");
+            }
+
             if (!ModelState.IsValid)
             {
                 var model = new UserManagementViewModel { ActiveTab = "editUser", EditUserForm = form };
@@ -314,6 +353,21 @@ namespace Web_Backend.Areas.Admin.Controllers
             // quick-role-select dropdown.
             if (role == Auth.MasterAdminRoleId && Auth.GetUser()?.Role != Auth.MasterAdminRoleId)
                 return Json(new { success = false, message = "Only a Master Admin can assign the Master Admin role." });
+
+            // Same Student rules as the Add/Edit User forms, enforced here
+            // too since this quick-role-select dropdown is a separate path
+            // to the same underlying change: never assign Student through
+            // here, and never move an existing Student to something else.
+            var quickRoles = await userTypeRep.GetList(isActive: "");
+            var quickStudentRole = quickRoles.FirstOrDefault(t => t.UserTypeName.Equals("Student", StringComparison.OrdinalIgnoreCase));
+            if (quickStudentRole != null)
+            {
+                var quickUser = await userRep.Get(id);
+                if (role == quickStudentRole.UserTypeID)
+                    return Json(new { success = false, message = "Students can't be assigned here — use the Students section to register a new student." });
+                if (quickUser != null && quickUser.UserTypeID == quickStudentRole.UserTypeID)
+                    return Json(new { success = false, message = "A student's role can't be changed here — manage this student from the Students section instead." });
+            }
 
             await userRep.SetUserType(id, role);
             return Json(new { success = true });
@@ -446,6 +500,27 @@ namespace Web_Backend.Areas.Admin.Controllers
                 return RedirectToAction("Index", new { tab = "roles" });
             }
 
+            // Block renaming a protected role (e.g. "Admin" -> "Adminx") even
+            // though the row itself isn't locked from other edits — otherwise
+            // a rename followed by DeleteRole would bypass the protected-name
+            // check there, since that check only matches on the current name.
+            var currentRole = await userTypeRep.Get(form.UserTypeID);
+            if (currentRole != null &&
+                ProtectedRoleNames.Any(n => currentRole.UserTypeName.Equals(n, StringComparison.OrdinalIgnoreCase)) &&
+                !currentRole.UserTypeName.Equals(form.UserTypeName, StringComparison.OrdinalIgnoreCase))
+            {
+                ModelState.AddModelError(nameof(form.UserTypeName), "This role's name can't be changed.");
+            }
+
+            // Block deactivating Student/Instructor outright — only renaming
+            // and deleting were guarded before, which is how these two ended
+            // up IsActive='I' in dev data via this very toggle.
+            if (currentRole != null && !form.IsActive &&
+                NonDeactivatableRoleNames.Any(n => currentRole.UserTypeName.Equals(n, StringComparison.OrdinalIgnoreCase)))
+            {
+                ModelState.AddModelError(nameof(form.IsActive), $"The '{currentRole.UserTypeName}' role can't be deactivated.");
+            }
+
             if (ModelState.IsValid && await RoleNameTaken(form.UserTypeName, excludingId: form.UserTypeID))
                 ModelState.AddModelError(nameof(form.UserTypeName), "A role with this name already exists.");
 
@@ -493,9 +568,9 @@ namespace Web_Backend.Areas.Admin.Controllers
             }
 
             var role = await userTypeRep.Get(id);
-            if (role != null && role.UserTypeName.Equals(AdminRoleName, StringComparison.OrdinalIgnoreCase))
+            if (role != null && ProtectedRoleNames.Any(n => role.UserTypeName.Equals(n, StringComparison.OrdinalIgnoreCase)))
             {
-                TempData["ErrorMessage"] = "The Admin role can't be removed.";
+                TempData["ErrorMessage"] = $"The '{role.UserTypeName}' role can't be removed.";
                 return RedirectToAction("Index", new { tab = "roles" });
             }
 

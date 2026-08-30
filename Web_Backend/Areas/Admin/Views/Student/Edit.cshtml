@@ -2,13 +2,22 @@
 @{
     var s = Model.Student;
     ViewData["Title"] = Model.IsNew ? "Register Student" : $"{s.FirstName} {s.LastName}";
-    var steps = new[]
+    var baseSteps = new[]
     {
         ("identity",  "Identity",           "user"),
         ("personal",  "Personal",           "calendar"),
         ("passport",  "Passport",           "book-open"),
         ("emergency", "Emergency Contact",  "phone")
     };
+    // Course enrollment / payment / welcome email only make sense at
+    // registration time — a one-time convenience, not ongoing management
+    // (that lives on the student's own Details page, View.cshtml). Editing
+    // an existing student never shows this step.
+    var steps = Model.IsNew
+        ? baseSteps.Append(("enrollment", "Enrollment", "graduation-cap")).ToArray()
+        : baseSteps;
+    var availableCourses = ViewBag.AvailableCourses as List<Web_Backend.Areas.Admin.Models.Course> ?? new List<Web_Backend.Areas.Admin.Models.Course>();
+    var availableSchedules = ViewBag.AvailableSchedules as List<Web_Backend.Areas.Admin.Models.CourseSchedule> ?? new List<Web_Backend.Areas.Admin.Models.CourseSchedule>();
     string InputCls = "w-full rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 px-4 py-2.5 text-sm outline-none focus:border-[#7c3aed] focus:ring-1 focus:ring-[#7c3aed]";
     string LabelCls = "text-sm font-medium text-slate-700 dark:text-slate-300";
     string CardCls = "bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 p-6";
@@ -126,6 +135,14 @@
                         <label class="@LabelCls">Phone</label>
                         <input name="Phone" value="@s.Phone" class="@InputCls" />
                     </div>
+                    @if (Model.IsNew)
+                    {
+                        <div class="space-y-1 md:col-span-2">
+                            <label class="@LabelCls">Set a specific password (optional)</label>
+                            <input name="InitialPassword" type="password" autocomplete="new-password" class="@InputCls" />
+                            <p class="text-xs text-slate-400 dark:text-slate-500">Leave blank to auto-generate a temporary password.</p>
+                        </div>
+                    }
                 </div>
 
                 @if (!Model.IsNew)
@@ -247,6 +264,107 @@
             </div>
         </div>
 
+        @if (Model.IsNew)
+        {
+            @* ===== STEP 5: ENROLLMENT (registration-time only) ===== *@
+            <div class="wizard-step space-y-6 hidden" data-step="enrollment">
+                <div class="@CardCls space-y-4">
+                    <h3 class="font-semibold text-slate-800 dark:text-slate-100">Course Enrollment (optional)</h3>
+                    @if (!availableCourses.Any())
+                    {
+                        <p class="text-sm text-slate-400 dark:text-slate-500">No active courses available.</p>
+                    }
+                    else
+                    {
+                        <div class="space-y-2 max-h-64 overflow-y-auto pr-1">
+                            @foreach (var course in availableCourses)
+                            {
+                                var courseSchedules = availableSchedules.Where(s => s.CourseID == course.CourseID).ToList();
+                                <div class="rounded-xl border border-slate-100 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/60">
+                                    <label class="flex items-center justify-between gap-3 px-3 py-2 cursor-pointer">
+                                        <span class="flex items-center gap-2">
+                                            <input type="checkbox" name="SelectedCourseIDs" value="@course.CourseID" data-fee="@(course.Fee ?? 0)"
+                                                   class="course-checkbox rounded border-slate-300 dark:border-slate-600 text-[#7c3aed] focus:ring-[#7c3aed]" />
+                                            <span class="text-sm text-slate-700 dark:text-slate-200">@course.CourseTitle</span>
+                                        </span>
+                                        <span class="text-xs text-slate-400 dark:text-slate-500 whitespace-nowrap">@course.CurrencyCode @((course.Fee ?? 0).ToString("N2"))</span>
+                                    </label>
+                                    <div class="course-schedule-wrap hidden px-3 pb-2 pl-9" data-course-id="@course.CourseID">
+                                        @if (!courseSchedules.Any())
+                                        {
+                                            <p class="text-xs text-slate-400 dark:text-slate-500">No batches scheduled — this course will be enrolled without a batch.</p>
+                                        }
+                                        else
+                                        {
+                                            <select class="course-schedule-select w-full rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 px-3 py-1.5 text-xs outline-none focus:border-[#7c3aed] focus:ring-1 focus:ring-[#7c3aed]" data-course-id="@course.CourseID">
+                                                <option value="">Select a batch...</option>
+                                                @foreach (var sch in courseSchedules)
+                                                {
+                                                    <option value="@sch.ScheduleID">@sch.ScheduleName</option>
+                                                }
+                                            </select>
+                                        }
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                        <div id="enrollmentTotal" class="text-sm font-medium text-slate-700 dark:text-slate-200">Total: 0.00</div>
+                        @if (availableCourses.Count > 1)
+                        {
+                            <p class="text-xs text-slate-400 dark:text-slate-500">If you select more than one course, the payment below will be applied only to the first course listed; record further payments per course afterward from that student's Details page.</p>
+                        }
+                        <input type="hidden" name="CourseScheduleSelectionsJson" id="courseScheduleSelectionsJson" value="" />
+                    }
+                </div>
+
+                <div class="@CardCls space-y-4">
+                    <h3 class="font-semibold text-slate-800 dark:text-slate-100">Payment (optional)</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="space-y-1">
+                            <label class="@LabelCls block mb-1">Payment Method</label>
+                            <div class="flex items-center gap-6 mt-2">
+                                <label class="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-200 cursor-pointer">
+                                    <input type="radio" name="PaymentMethod" value="" checked class="payment-method-radio text-[#7c3aed] focus:ring-[#7c3aed]" />
+                                    None
+                                </label>
+                                <label class="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-200 cursor-pointer">
+                                    <input type="radio" name="PaymentMethod" value="Cash" class="payment-method-radio text-[#7c3aed] focus:ring-[#7c3aed]" />
+                                    Cash
+                                </label>
+                                <label class="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-200 cursor-pointer">
+                                    <input type="radio" name="PaymentMethod" value="BankDeposit" class="payment-method-radio text-[#7c3aed] focus:ring-[#7c3aed]" />
+                                    Bank Deposit
+                                </label>
+                            </div>
+                        </div>
+                        <div class="space-y-1">
+                            <label class="@LabelCls">Initial Payment Amount</label>
+                            <input name="InitialPaymentAmount" type="number" step="0.01" min="0" class="@InputCls" />
+                        </div>
+                    </div>
+
+                    <div id="payment-slip-field" class="hidden space-y-1">
+                        <label class="@LabelCls">Payment Slip</label>
+                        <input type="file" name="paymentSlip" accept="image/*"
+                               class="block w-full text-sm text-slate-500 dark:text-slate-400 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-medium file:bg-purple-50 dark:file:bg-purple-950 file:text-[#7c3aed] dark:file:text-purple-300 hover:file:bg-purple-100" />
+                    </div>
+
+                    <div class="space-y-1">
+                        <label class="@LabelCls">Payment Notes</label>
+                        <input name="PaymentNotes" class="@InputCls" />
+                    </div>
+                </div>
+
+                <div class="@CardCls">
+                    <label class="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300 cursor-pointer">
+                        <input type="checkbox" name="SendWelcomeEmail" value="true"
+                               class="rounded border-slate-300 dark:border-slate-600 text-[#7c3aed] focus:ring-[#7c3aed]" />
+                        Email the student their username, temporary password, and login link now.
+                    </label>
+                </div>
+            </div>
+        }
+
         <div class="flex items-center justify-between">
             <a asp-action="Index" class="@SecondaryBtn">Cancel</a>
             <div class="flex items-center gap-3">
@@ -309,6 +427,14 @@
                         return false;
                     }
                 }
+                // Enrollment step's batch-selection rule (defined further down
+                // in this file's second script block) isn't expressible via
+                // plain HTML [required], since it only applies to checked
+                // courses that have batches. window.protonValidateEnrollmentStep
+                // only exists on the "Enrollment" step's page (new-student wizard).
+                if (steps[current].getAttribute('data-step') === 'enrollment' && window.protonValidateEnrollmentStep) {
+                    if (!window.protonValidateEnrollmentStep()) return false;
+                }
                 return true;
             }
 
@@ -319,6 +445,17 @@
             backBtn.addEventListener('click', function () {
                 if (current > 0) showStep(current - 1);
             });
+
+            // Save is a real submit button on the last step (which may be
+            // Enrollment, for a brand-new student) — it never passes through
+            // nextBtn's click handler, so the same step validation (including
+            // the batch-selection rule) has to be re-run on form submit too.
+            var wizardForm = document.getElementById('studentWizardForm');
+            if (wizardForm) {
+                wizardForm.addEventListener('submit', function (e) {
+                    if (!validateCurrentStep()) e.preventDefault();
+                });
+            }
             indicators.forEach(function (el) {
                 el.addEventListener('click', function () {
                     var target = parseInt(el.getAttribute('data-step-index'), 10);
@@ -328,6 +465,104 @@
             });
 
             showStep(0);
+        })();
+
+        (function () {
+            // Enrollment step: running total of selected course fees.
+            var courseCheckboxes = document.querySelectorAll('.course-checkbox');
+            var totalEl = document.getElementById('enrollmentTotal');
+            if (courseCheckboxes.length && totalEl) {
+                function updateTotal() {
+                    var total = 0;
+                    courseCheckboxes.forEach(function (cb) {
+                        if (cb.checked) total += parseFloat(cb.getAttribute('data-fee')) || 0;
+                    });
+                    totalEl.textContent = 'Total: ' + total.toFixed(2);
+                }
+                courseCheckboxes.forEach(function (cb) { cb.addEventListener('change', updateTotal); });
+                updateTotal();
+            }
+
+            // Payment method: only show the slip upload for Bank Deposit.
+            var radios = document.querySelectorAll('.payment-method-radio');
+            var slipField = document.getElementById('payment-slip-field');
+            if (radios.length && slipField) {
+                function syncSlipField() {
+                    var selected = document.querySelector('.payment-method-radio:checked');
+                    slipField.classList.toggle('hidden', !selected || selected.value !== 'BankDeposit');
+                }
+                radios.forEach(function (r) { r.addEventListener('change', syncSlipField); });
+                syncSlipField();
+            }
+
+            // Enrollment step: each course checkbox reveals its own batch
+            // dropdown (or a "no batches" note) when checked, and hides/clears
+            // it when unchecked. A hidden JSON input (CourseScheduleSelectionsJson)
+            // is rebuilt on every relevant change so Save() can read back
+            // "which batch for which course" without list-bound field names.
+            var jsonInput = document.getElementById('courseScheduleSelectionsJson');
+            var scheduleWraps = document.querySelectorAll('.course-schedule-wrap');
+            var scheduleSelectsByCourse = {};
+            document.querySelectorAll('.course-schedule-select').forEach(function (sel) {
+                scheduleSelectsByCourse[sel.getAttribute('data-course-id')] = sel;
+            });
+
+            function scheduleWrapFor(courseId) {
+                for (var i = 0; i < scheduleWraps.length; i++) {
+                    if (scheduleWraps[i].getAttribute('data-course-id') === courseId) return scheduleWraps[i];
+                }
+                return null;
+            }
+
+            function rebuildScheduleJson() {
+                if (!jsonInput) return;
+                var map = {};
+                courseCheckboxes.forEach(function (cb) {
+                    if (!cb.checked) return;
+                    var courseId = cb.value;
+                    var select = scheduleSelectsByCourse[courseId];
+                    map[courseId] = select ? select.value : '';
+                });
+                jsonInput.value = JSON.stringify(map);
+            }
+
+            courseCheckboxes.forEach(function (cb) {
+                cb.addEventListener('change', function () {
+                    var wrap = scheduleWrapFor(cb.value);
+                    if (wrap) {
+                        wrap.classList.toggle('hidden', !cb.checked);
+                        if (!cb.checked) {
+                            var select = scheduleSelectsByCourse[cb.value];
+                            if (select) select.value = '';
+                        }
+                    }
+                    rebuildScheduleJson();
+                });
+            });
+            document.querySelectorAll('.course-schedule-select').forEach(function (sel) {
+                sel.addEventListener('change', rebuildScheduleJson);
+            });
+            rebuildScheduleJson();
+
+            // Block advancing past the Enrollment step (Next, or Save when
+            // it's the last step) if a checked course has schedules defined
+            // but none picked yet. Courses with zero schedules never block.
+            var enrollmentStep = document.querySelector('.wizard-step[data-step="enrollment"]');
+            if (enrollmentStep) {
+                window.protonValidateEnrollmentStep = function () {
+                    for (var i = 0; i < courseCheckboxes.length; i++) {
+                        var cb = courseCheckboxes[i];
+                        if (!cb.checked) continue;
+                        var select = scheduleSelectsByCourse[cb.value];
+                        if (select && select.value === '') {
+                            select.reportValidity ? (select.setCustomValidity('Select a batch for this course, or uncheck it.'), select.reportValidity(), select.setCustomValidity('')) : alert('Select a batch for every checked course that has batches scheduled.');
+                            select.focus();
+                            return false;
+                        }
+                    }
+                    return true;
+                };
+            }
         })();
     </script>
 }

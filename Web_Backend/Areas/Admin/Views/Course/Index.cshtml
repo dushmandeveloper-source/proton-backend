@@ -34,12 +34,12 @@
         <div class="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
             <form method="get" class="flex flex-wrap items-center gap-3">
                 <input type="hidden" name="tab" value="courses" />
-                <div class="relative">
+                <div class="relative w-full md:w-auto">
                     <i data-lucide="search" class="w-4 h-4 text-slate-400 dark:text-slate-500 absolute left-3 top-1/2 -translate-y-1/2"></i>
                     <input type="text" name="KeyW" value="@keyW" placeholder="Search title or code..."
-                           class="pl-9 pr-4 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 text-sm focus:outline-none focus:border-purple-400 focus:ring-1 focus:ring-purple-400" />
+                           class="w-full md:w-auto pl-9 pr-4 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 text-sm focus:outline-none focus:border-purple-400 focus:ring-1 focus:ring-purple-400" />
                 </div>
-                <select name="CourseType" class="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm">
+                <select name="CourseType" class="w-full md:w-auto px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm">
                     <option value="">All types</option>
                     <option value="General" selected="@(courseType == "General")">General</option>
                     <option value="CSCA" selected="@(courseType == "CSCA")">CSCA</option>
@@ -49,11 +49,11 @@
                            class="rounded border-slate-300 dark:border-slate-600 text-[#7c3aed] focus:ring-[#7c3aed]" />
                     Show deleted
                 </label>
-                <button type="submit" class="px-4 py-2 rounded-xl font-medium bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all text-sm">Filter</button>
+                <button type="submit" class="w-full md:w-auto px-4 py-2 rounded-xl font-medium bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all text-sm">Filter</button>
             </form>
             @if (canAdd)
             {
-                <div class="flex gap-2">
+                <div class="flex flex-wrap gap-2">
                     <a asp-action="Add" asp-route-courseType="General"
                        class="px-4 py-2 rounded-xl font-medium bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 shadow-sm text-sm flex items-center gap-2">
                         <i data-lucide="plus" class="w-4 h-4"></i> Add General Course
