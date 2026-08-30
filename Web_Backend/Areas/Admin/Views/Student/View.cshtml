@@ -1,57 +1,82 @@
-@model Student
+@model StudentDetailsPageViewModel
 @{
-    ViewData["Title"] = $"{Model.FirstName} {Model.LastName}";
+    var Model_Student = Model.Student;
+    ViewData["Title"] = $"{Model_Student.FirstName} {Model_Student.LastName}";
     string CardCls = "bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 p-6";
     string LabelCls = "text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider";
+    string InputCls = "w-full rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 px-3 py-2 text-sm outline-none focus:border-[#7c3aed] focus:ring-1 focus:ring-[#7c3aed]";
 
     bool canEditStudent = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.Students, 'E');
+    bool canAddEnrollment = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.Enrollments, 'A');
+    bool canEditEnrollment = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.Enrollments, 'E');
+    bool canDeleteEnrollment = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.Enrollments, 'D');
+
+    var availableCourses = ViewBag.AvailableCourses as List<Web_Backend.Areas.Admin.Models.Course> ?? new List<Web_Backend.Areas.Admin.Models.Course>();
+    var availableSchedules = ViewBag.AvailableSchedules as List<Web_Backend.Areas.Admin.Models.CourseSchedule> ?? new List<Web_Backend.Areas.Admin.Models.CourseSchedule>();
+
+    // Courses the student isn't already actively registered for — that's
+    // all the "Register for another course" mini-form should offer.
+    var enrolledCourseIds = Model.Registrations.Where(r => r.Registration.IsActive == "A").Select(r => r.Registration.CourseID).ToHashSet();
+    var remainingCourses = availableCourses.Where(c => !enrolledCourseIds.Contains(c.CourseID)).ToList();
 }
 
-<div class="max-w-4xl mx-auto page-enter">
+<div class="max-w-6xl mx-auto page-enter">
     <div class="mb-6 flex flex-wrap items-start justify-between gap-4">
         <div>
             <a asp-action="Index" class="text-sm text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-100 flex items-center gap-1 mb-2">
                 <i data-lucide="arrow-left" class="w-4 h-4"></i> Back to Students
             </a>
             <div class="flex items-center gap-3">
-                <h2 class="text-3xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">@Model.FullName</h2>
-                @if (Model.IsSelfRegistered)
+                <h2 class="text-3xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">@Model_Student.FullName</h2>
+                @if (Model_Student.IsSelfRegistered)
                 {
                     <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-sky-100 dark:bg-sky-950 text-sky-700 dark:text-sky-300 uppercase">Self-registered</span>
                 }
-                @if (Model.IsActive != "A")
+                @if (Model_Student.IsActive != "A")
                 {
                     <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 uppercase">Deleted</span>
                 }
             </div>
-            <p class="text-slate-500 dark:text-slate-400 mt-1 text-sm">@Model.StudentID</p>
+            <p class="text-slate-500 dark:text-slate-400 mt-1 text-sm">@Model_Student.StudentID</p>
         </div>
         @if (canEditStudent)
         {
-            <a asp-action="Edit" asp-route-id="@Model.StudentID"
-               class="px-4 py-2 rounded-xl font-medium bg-[#7c3aed] text-white hover:bg-[#6d28d9] shadow-sm text-sm flex items-center gap-2">
-                <i data-lucide="pencil" class="w-4 h-4"></i> Edit
-            </a>
+            <div class="flex items-center gap-2">
+                <form method="post" asp-action="ResetAndSendPassword"
+                      data-confirm="Generate a new temporary password for @Model_Student.FullName and email it to @Model_Student.Email?"
+                      data-confirm-title="Reset &amp; send password" data-confirm-label="Reset &amp; Send">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="studentId" value="@Model_Student.StudentID" />
+                    <button type="submit"
+                            class="px-4 py-2 rounded-xl font-medium bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 shadow-sm text-sm flex items-center gap-2">
+                        <i data-lucide="key-round" class="w-4 h-4"></i> Reset &amp; Send Password
+                    </button>
+                </form>
+                <a asp-action="Edit" asp-route-id="@Model_Student.StudentID"
+                   class="px-4 py-2 rounded-xl font-medium bg-[#7c3aed] text-white hover:bg-[#6d28d9] shadow-sm text-sm flex items-center gap-2">
+                    <i data-lucide="pencil" class="w-4 h-4"></i> Edit
+                </a>
+            </div>
         }
     </div>
 
     <div class="@CardCls mb-6 flex items-center gap-4">
-        @if (!string.IsNullOrEmpty(Model.ProfileImageUrl))
+        @if (!string.IsNullOrEmpty(Model_Student.ProfileImageUrl))
         {
-            <img src="@Model.ProfileImageUrl" alt="" class="w-20 h-20 rounded-full object-cover" />
+            <img src="@Model_Student.ProfileImageUrl" alt="" class="w-20 h-20 rounded-full object-cover" />
         }
         else
         {
             <div class="w-20 h-20 rounded-full bg-purple-50 dark:bg-purple-950 flex items-center justify-center text-[#7c3aed] dark:text-purple-300 font-semibold text-2xl">
-                @(Model.FullName.Length > 0 ? Model.FullName[0].ToString().ToUpper() : "?")
+                @(Model_Student.FullName.Length > 0 ? Model_Student.FullName[0].ToString().ToUpper() : "?")
             </div>
         }
         <div>
-            <p class="font-semibold text-slate-800 dark:text-slate-100">@Model.FullName</p>
-            <p class="text-sm text-slate-500 dark:text-slate-400">@Model.Email</p>
-            @if (!string.IsNullOrEmpty(Model.Phone))
+            <p class="font-semibold text-slate-800 dark:text-slate-100">@Model_Student.FullName</p>
+            <p class="text-sm text-slate-500 dark:text-slate-400">@Model_Student.Email</p>
+            @if (!string.IsNullOrEmpty(Model_Student.Phone))
             {
-                <p class="text-sm text-slate-500 dark:text-slate-400">@Model.Phone</p>
+                <p class="text-sm text-slate-500 dark:text-slate-400">@Model_Student.Phone</p>
             }
         </div>
     </div>
@@ -59,18 +84,18 @@
     <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
         <div class="@CardCls space-y-4">
             <h3 class="font-semibold text-slate-800 dark:text-slate-100">Personal</h3>
-            <div class="grid grid-cols-2 gap-4 text-sm">
-                <div><p class="@LabelCls">Date of Birth</p><p class="text-slate-700 dark:text-slate-200 mt-1">@(Model.DateOfBirth?.ToString("d MMM yyyy") ?? "—")</p></div>
-                <div><p class="@LabelCls">Gender</p><p class="text-slate-700 dark:text-slate-200 mt-1">@(string.IsNullOrEmpty(Model.Gender) ? "—" : Model.Gender)</p></div>
-                <div><p class="@LabelCls">Nationality</p><p class="text-slate-700 dark:text-slate-200 mt-1">@(string.IsNullOrEmpty(Model.Nationality) ? "—" : Model.Nationality)</p></div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+                <div><p class="@LabelCls">Date of Birth</p><p class="text-slate-700 dark:text-slate-200 mt-1">@(Model_Student.DateOfBirth?.ToString("d MMM yyyy") ?? "—")</p></div>
+                <div><p class="@LabelCls">Gender</p><p class="text-slate-700 dark:text-slate-200 mt-1">@(string.IsNullOrEmpty(Model_Student.Gender) ? "—" : Model_Student.Gender)</p></div>
+                <div><p class="@LabelCls">Nationality</p><p class="text-slate-700 dark:text-slate-200 mt-1">@(string.IsNullOrEmpty(Model_Student.Nationality) ? "—" : Model_Student.Nationality)</p></div>
             </div>
             <div class="pt-2 border-t border-slate-100 dark:border-slate-700">
                 <p class="@LabelCls mb-1">Address</p>
                 <p class="text-sm text-slate-700 dark:text-slate-200">
-                    @(new[] { Model.AddressLine1, Model.AddressLine2, Model.City, Model.StateProvince, Model.PostalCode, Model.Country }
+                    @(new[] { Model_Student.AddressLine1, Model_Student.AddressLine2, Model_Student.City, Model_Student.StateProvince, Model_Student.PostalCode, Model_Student.Country }
                         .Where(v => !string.IsNullOrWhiteSpace(v))
                         .Any()
-                        ? string.Join(", ", new[] { Model.AddressLine1, Model.AddressLine2, Model.City, Model.StateProvince, Model.PostalCode, Model.Country }.Where(v => !string.IsNullOrWhiteSpace(v)))
+                        ? string.Join(", ", new[] { Model_Student.AddressLine1, Model_Student.AddressLine2, Model_Student.City, Model_Student.StateProvince, Model_Student.PostalCode, Model_Student.Country }.Where(v => !string.IsNullOrWhiteSpace(v)))
                         : "—")
                 </p>
             </div>
@@ -80,29 +105,422 @@
             <h3 class="font-semibold text-slate-800 dark:text-slate-100">Passport</h3>
             <div class="flex items-start gap-4">
                 <div class="flex-1 grid grid-cols-1 gap-3 text-sm">
-                    <div><p class="@LabelCls">Number</p><p class="text-slate-700 dark:text-slate-200 mt-1">@(string.IsNullOrEmpty(Model.PassportNumber) ? "—" : Model.PassportNumber)</p></div>
-                    <div><p class="@LabelCls">Country</p><p class="text-slate-700 dark:text-slate-200 mt-1">@(string.IsNullOrEmpty(Model.PassportCountry) ? "—" : Model.PassportCountry)</p></div>
-                    <div><p class="@LabelCls">Expiry</p><p class="text-slate-700 dark:text-slate-200 mt-1">@(Model.PassportExpiryDate?.ToString("d MMM yyyy") ?? "—")</p></div>
+                    <div><p class="@LabelCls">Number</p><p class="text-slate-700 dark:text-slate-200 mt-1">@(string.IsNullOrEmpty(Model_Student.PassportNumber) ? "—" : Model_Student.PassportNumber)</p></div>
+                    <div><p class="@LabelCls">Country</p><p class="text-slate-700 dark:text-slate-200 mt-1">@(string.IsNullOrEmpty(Model_Student.PassportCountry) ? "—" : Model_Student.PassportCountry)</p></div>
+                    <div><p class="@LabelCls">Expiry</p><p class="text-slate-700 dark:text-slate-200 mt-1">@(Model_Student.PassportExpiryDate?.ToString("d MMM yyyy") ?? "—")</p></div>
                 </div>
-                @if (!string.IsNullOrEmpty(Model.PassportPhotoURL))
+                @if (!string.IsNullOrEmpty(Model_Student.PassportPhotoURL))
                 {
-                    <img src="@Model.PassportPhotoURL" alt="Passport photo" class="w-20 h-14 rounded-lg object-cover border border-slate-200 dark:border-slate-600 flex-shrink-0" />
+                    <img src="@Model_Student.PassportPhotoURL" alt="Passport photo" class="w-20 h-14 rounded-lg object-cover border border-slate-200 dark:border-slate-600 flex-shrink-0" />
                 }
             </div>
         </div>
     </div>
 
-    <div class="@CardCls space-y-4">
+    <div class="@CardCls space-y-4 mb-6">
         <h3 class="font-semibold text-slate-800 dark:text-slate-100">Emergency Contact</h3>
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-            <div><p class="@LabelCls">Name</p><p class="text-slate-700 dark:text-slate-200 mt-1">@(string.IsNullOrEmpty(Model.EmergencyContactName) ? "—" : Model.EmergencyContactName)</p></div>
-            <div><p class="@LabelCls">Phone</p><p class="text-slate-700 dark:text-slate-200 mt-1">@(string.IsNullOrEmpty(Model.EmergencyContactPhone) ? "—" : Model.EmergencyContactPhone)</p></div>
-            <div><p class="@LabelCls">Relationship</p><p class="text-slate-700 dark:text-slate-200 mt-1">@(string.IsNullOrEmpty(Model.EmergencyRelationship) ? "—" : Model.EmergencyRelationship)</p></div>
+            <div><p class="@LabelCls">Name</p><p class="text-slate-700 dark:text-slate-200 mt-1">@(string.IsNullOrEmpty(Model_Student.EmergencyContactName) ? "—" : Model_Student.EmergencyContactName)</p></div>
+            <div><p class="@LabelCls">Phone</p><p class="text-slate-700 dark:text-slate-200 mt-1">@(string.IsNullOrEmpty(Model_Student.EmergencyContactPhone) ? "—" : Model_Student.EmergencyContactPhone)</p></div>
+            <div><p class="@LabelCls">Relationship</p><p class="text-slate-700 dark:text-slate-200 mt-1">@(string.IsNullOrEmpty(Model_Student.EmergencyRelationship) ? "—" : Model_Student.EmergencyRelationship)</p></div>
         </div>
     </div>
 
+    @* ===================================================================
+       Courses & Payments — merged in from the old standalone Enrollment
+       admin screens so all enrollment/payment management for this student
+       happens from their own Details page.
+       =================================================================== *@
+    <div class="mb-6">
+        <h3 class="text-xl font-bold text-slate-800 dark:text-slate-100 tracking-tight mb-4">Courses &amp; Payments</h3>
+
+        @if (!Model.Registrations.Any())
+        {
+            <div class="@CardCls">
+                <p class="text-sm text-slate-400 dark:text-slate-500">Not enrolled in any courses yet.</p>
+            </div>
+        }
+        else
+        {
+            <div class="space-y-4">
+                @foreach (var item in Model.Registrations)
+                {
+                    var reg = item.Registration;
+                    var (badgeCls, badgeLabel) = reg.PaymentStatus switch
+                    {
+                        "Paid" => ("bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300", "Paid"),
+                        "PartiallyPaid" => ("bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-300", "Partially Paid"),
+                        _ => ("bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-300", "Unpaid")
+                    };
+                    var registrationSchedules = availableSchedules.Where(s => s.CourseID == reg.CourseID).ToList();
+
+                    <div class="@CardCls space-y-4" data-registration-card="@reg.RegistrationID">
+                        <div class="flex flex-wrap items-start justify-between gap-3">
+                            <div>
+                                <div class="flex items-center gap-2 flex-wrap">
+                                    <h4 class="font-semibold text-slate-800 dark:text-slate-100">@reg.CourseTitle</h4>
+                                    <span class="px-2 py-1 rounded-lg text-[11px] font-medium @badgeCls">@badgeLabel</span>
+                                    @if (reg.IsActive != "A")
+                                    {
+                                        <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 uppercase">Cancelled</span>
+                                    }
+                                </div>
+                                <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">
+                                    @(string.IsNullOrEmpty(reg.ScheduleName) ? "No batch selected" : reg.ScheduleName)
+                                </p>
+                            </div>
+                            @if (canDeleteEnrollment && reg.IsActive == "A")
+                            {
+                                <form method="post" asp-action="CancelCourseRegistration"
+                                      data-confirm="Cancel this registration for @reg.CourseTitle?" data-confirm-title="Cancel registration" data-confirm-label="Cancel Registration">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="studentId" value="@Model_Student.StudentID" />
+                                    <input type="hidden" name="registrationId" value="@reg.RegistrationID" />
+                                    <button type="submit" class="px-3 py-1.5 rounded-xl text-xs font-medium bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-900 transition-colors flex items-center gap-1">
+                                        <i data-lucide="ban" class="w-3.5 h-3.5"></i> Cancel Registration
+                                    </button>
+                                </form>
+                            }
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                            <div class="rounded-xl bg-slate-50 dark:bg-slate-800/60 px-4 py-3">
+                                <p class="@LabelCls">Course Fee</p>
+                                <p class="text-lg font-bold text-slate-800 dark:text-slate-100 mt-1">@reg.CurrencyCode @reg.CourseFee.ToString("N2")</p>
+                            </div>
+                            <div class="rounded-xl bg-slate-50 dark:bg-slate-800/60 px-4 py-3">
+                                <p class="@LabelCls">Amount Paid</p>
+                                <p class="text-lg font-bold text-emerald-600 dark:text-emerald-400 mt-1">@reg.CurrencyCode @item.AmountPaid.ToString("N2")</p>
+                            </div>
+                            <div class="rounded-xl bg-slate-50 dark:bg-slate-800/60 px-4 py-3">
+                                <p class="@LabelCls">Balance Due</p>
+                                <p class="text-lg font-bold text-slate-800 dark:text-slate-100 mt-1">@reg.CurrencyCode @item.BalanceDue.ToString("N2")</p>
+                            </div>
+                        </div>
+
+                        @if (canEditEnrollment && reg.IsActive == "A")
+                        {
+                            <div class="pt-2 border-t border-slate-100 dark:border-slate-700">
+                                <form method="post" asp-action="ChangeCourseSchedule" class="flex flex-wrap items-end gap-3">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="studentId" value="@Model_Student.StudentID" />
+                                    <input type="hidden" name="registrationId" value="@reg.RegistrationID" />
+                                    <input type="hidden" name="courseId" value="@reg.CourseID" />
+                                    <div class="space-y-1">
+                                        <label class="@LabelCls">Batch</label>
+                                        @if (!registrationSchedules.Any())
+                                        {
+                                            <p class="text-xs text-slate-400 dark:text-slate-500 py-2">No batches scheduled for this course.</p>
+                                        }
+                                        else
+                                        {
+                                            <select name="scheduleId" class="@InputCls">
+                                                <option value="" selected="@(string.IsNullOrEmpty(reg.ScheduleID))">No batch</option>
+                                                @foreach (var sch in registrationSchedules)
+                                                {
+                                                    <option value="@sch.ScheduleID" selected="@(sch.ScheduleID == reg.ScheduleID)">@sch.ScheduleName</option>
+                                                }
+                                            </select>
+                                        }
+                                    </div>
+                                    @if (registrationSchedules.Any())
+                                    {
+                                        <button type="submit" class="px-3 py-2 rounded-xl text-xs font-medium bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+                                            Change Batch
+                                        </button>
+                                    }
+                                </form>
+                            </div>
+                        }
+
+                        <div class="pt-2 border-t border-slate-100 dark:border-slate-700">
+                            <p class="@LabelCls mb-2">Payment History</p>
+                            @if (!item.Payments.Any())
+                            {
+                                <p class="text-sm text-slate-400 dark:text-slate-500">No payments recorded yet.</p>
+                            }
+                            else
+                            {
+                                <div class="overflow-x-auto">
+                                    <table class="w-full text-sm">
+                                        <thead>
+                                            <tr class="text-left text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider border-b border-slate-100 dark:border-slate-700">
+                                                <th class="px-3 py-2">Date</th>
+                                                <th class="px-3 py-2">Amount</th>
+                                                <th class="px-3 py-2">Method</th>
+                                                <th class="px-3 py-2">Slip</th>
+                                                <th class="px-3 py-2">Notes</th>
+                                                <th class="px-3 py-2"></th>
+                                            </tr>
+                                        </thead>
+                                        <tbody class="divide-y divide-slate-100 dark:divide-slate-700">
+                                            @foreach (var p in item.Payments)
+                                            {
+                                                <tr class="@(p.IsActive != "A" ? "opacity-50" : "")">
+                                                    <td class="px-3 py-2.5 text-slate-500 dark:text-slate-400 whitespace-nowrap">@p.PaymentDate.ToString("d MMM yyyy")</td>
+                                                    <td class="px-3 py-2.5 text-slate-700 dark:text-slate-200 whitespace-nowrap">@reg.CurrencyCode @p.Amount.ToString("N2")</td>
+                                                    <td class="px-3 py-2.5 text-slate-600 dark:text-slate-300">@p.PaymentMethod</td>
+                                                    <td class="px-3 py-2.5">
+                                                        @if (p.PaymentMethod == "BankDeposit")
+                                                        {
+                                                            if (!string.IsNullOrEmpty(p.PaymentSlipURL))
+                                                            {
+                                                                <a href="@p.PaymentSlipURL" target="_blank" class="text-[#7c3aed] hover:underline text-xs">View slip</a>
+                                                            }
+                                                            @if (p.IsVerified)
+                                                            {
+                                                                <span class="ml-2 px-2 py-0.5 rounded-lg text-[11px] font-medium bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300">Verified</span>
+                                                            }
+                                                            else
+                                                            {
+                                                                <span class="ml-2 px-2 py-0.5 rounded-lg text-[11px] font-medium bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-300">Unverified</span>
+                                                            }
+                                                        }
+                                                        else
+                                                        {
+                                                            <span class="text-slate-400 dark:text-slate-500 text-xs">—</span>
+                                                        }
+                                                    </td>
+                                                    <td class="px-3 py-2.5 text-slate-500 dark:text-slate-400">@(string.IsNullOrEmpty(p.Notes) ? "—" : p.Notes)</td>
+                                                    <td class="px-3 py-2.5 text-right whitespace-nowrap">
+                                                        <div class="flex items-center justify-end gap-1.5">
+                                                            @if (canEditEnrollment && p.PaymentMethod == "BankDeposit" && !p.IsVerified && p.IsActive == "A")
+                                                            {
+                                                                <form method="post" asp-action="VerifyCoursePaymentSlip">
+                                                                    @Html.AntiForgeryToken()
+                                                                    <input type="hidden" name="studentId" value="@Model_Student.StudentID" />
+                                                                    <input type="hidden" name="paymentId" value="@p.PaymentID" />
+                                                                    <button type="submit" class="px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+                                                                        Verify
+                                                                    </button>
+                                                                </form>
+                                                            }
+                                                            @if (canEditEnrollment && p.IsActive == "A")
+                                                            {
+                                                                <button type="button" class="edit-payment-toggle px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors" data-target="edit-payment-@p.PaymentID">
+                                                                    Edit
+                                                                </button>
+                                                            }
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                                @if (canEditEnrollment && p.IsActive == "A")
+                                                {
+                                                    <tr id="edit-payment-@p.PaymentID" class="hidden">
+                                                        <td colspan="6" class="px-3 pb-3">
+                                                            <form method="post" asp-action="EditCoursePayment" enctype="multipart/form-data"
+                                                                  class="bg-slate-50 dark:bg-slate-800/60 rounded-xl p-4 space-y-3">
+                                                                @Html.AntiForgeryToken()
+                                                                <input type="hidden" name="studentId" value="@Model_Student.StudentID" />
+                                                                <input type="hidden" name="paymentId" value="@p.PaymentID" />
+                                                                <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                                                    <div class="space-y-1">
+                                                                        <label class="@LabelCls">Amount</label>
+                                                                        <input type="number" name="amount" step="0.01" min="0.01" value="@p.Amount" required class="@InputCls" />
+                                                                    </div>
+                                                                    <div class="space-y-1">
+                                                                        <label class="@LabelCls block mb-1">Method</label>
+                                                                        <div class="flex items-center gap-4 pt-2">
+                                                                            <label class="flex items-center gap-1.5 text-sm text-slate-700 dark:text-slate-200 cursor-pointer">
+                                                                                <input type="radio" name="paymentMethod" value="Cash" class="edit-payment-method-radio-@p.PaymentID" checked="@(p.PaymentMethod == "Cash")" />
+                                                                                Cash
+                                                                            </label>
+                                                                            <label class="flex items-center gap-1.5 text-sm text-slate-700 dark:text-slate-200 cursor-pointer">
+                                                                                <input type="radio" name="paymentMethod" value="BankDeposit" class="edit-payment-method-radio-@p.PaymentID" checked="@(p.PaymentMethod == "BankDeposit")" />
+                                                                                Bank Deposit
+                                                                            </label>
+                                                                        </div>
+                                                                    </div>
+                                                                    <div class="space-y-1 edit-payment-slip-field-@p.PaymentID @(p.PaymentMethod == "BankDeposit" ? "" : "hidden")">
+                                                                        <label class="@LabelCls">New Slip (optional)</label>
+                                                                        <input type="file" name="paymentSlip" accept="image/*" class="block w-full text-xs text-slate-500 dark:text-slate-400" />
+                                                                    </div>
+                                                                </div>
+                                                                <div class="space-y-1">
+                                                                    <label class="@LabelCls">Notes</label>
+                                                                    <input name="notes" value="@p.Notes" class="@InputCls" />
+                                                                </div>
+                                                                <button type="submit" class="px-3 py-1.5 rounded-xl text-xs font-medium bg-[#7c3aed] text-white hover:bg-[#6d28d9] transition-colors">
+                                                                    Save Payment
+                                                                </button>
+                                                            </form>
+                                                        </td>
+                                                    </tr>
+                                                }
+                                            }
+                                        </tbody>
+                                    </table>
+                                </div>
+                            }
+                        </div>
+
+                        @if (canEditEnrollment && reg.IsActive == "A")
+                        {
+                            <div class="pt-2 border-t border-slate-100 dark:border-slate-700">
+                                <button type="button" class="add-payment-toggle text-xs font-medium text-[#7c3aed] hover:underline flex items-center gap-1" data-target="add-payment-@reg.RegistrationID">
+                                    <i data-lucide="plus" class="w-3.5 h-3.5"></i> Add Payment
+                                </button>
+                                <form method="post" asp-action="AddCoursePayment" enctype="multipart/form-data" id="add-payment-@reg.RegistrationID" class="hidden mt-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl p-4 space-y-3">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="studentId" value="@Model_Student.StudentID" />
+                                    <input type="hidden" name="registrationId" value="@reg.RegistrationID" />
+                                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                        <div class="space-y-1">
+                                            <label class="@LabelCls">Amount</label>
+                                            <input type="number" name="amount" step="0.01" min="0.01" required class="@InputCls" />
+                                        </div>
+                                        <div class="space-y-1">
+                                            <label class="@LabelCls block mb-1">Method</label>
+                                            <div class="flex items-center gap-4 pt-2">
+                                                <label class="flex items-center gap-1.5 text-sm text-slate-700 dark:text-slate-200 cursor-pointer">
+                                                    <input type="radio" name="paymentMethod" value="Cash" class="add-payment-method-radio-@reg.RegistrationID" checked />
+                                                    Cash
+                                                </label>
+                                                <label class="flex items-center gap-1.5 text-sm text-slate-700 dark:text-slate-200 cursor-pointer">
+                                                    <input type="radio" name="paymentMethod" value="BankDeposit" class="add-payment-method-radio-@reg.RegistrationID" />
+                                                    Bank Deposit
+                                                </label>
+                                            </div>
+                                        </div>
+                                        <div class="space-y-1 add-payment-slip-field-@reg.RegistrationID hidden">
+                                            <label class="@LabelCls">Payment Slip</label>
+                                            <input type="file" name="paymentSlip" accept="image/*" class="block w-full text-xs text-slate-500 dark:text-slate-400" />
+                                        </div>
+                                    </div>
+                                    <div class="space-y-1">
+                                        <label class="@LabelCls">Notes</label>
+                                        <input name="notes" class="@InputCls" />
+                                    </div>
+                                    <button type="submit" class="px-3 py-1.5 rounded-xl text-xs font-medium bg-[#7c3aed] text-white hover:bg-[#6d28d9] transition-colors">
+                                        Record Payment
+                                    </button>
+                                </form>
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+        }
+
+        @if (canAddEnrollment)
+        {
+            <div class="@CardCls mt-4">
+                <h4 class="font-semibold text-slate-800 dark:text-slate-100 mb-3">Register for another course</h4>
+                @if (!remainingCourses.Any())
+                {
+                    <p class="text-sm text-slate-400 dark:text-slate-500">No further active courses available to enroll in.</p>
+                }
+                else
+                {
+                    <form method="post" asp-action="AddCourseEnrollment" class="flex flex-wrap items-end gap-3" id="add-enrollment-form">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="studentId" value="@Model_Student.StudentID" />
+                        <div class="space-y-1">
+                            <label class="@LabelCls">Course</label>
+                            <select name="courseId" id="newEnrollmentCourse" required class="@InputCls">
+                                <option value="">Select a course...</option>
+                                @foreach (var course in remainingCourses)
+                                {
+                                    <option value="@course.CourseID">@course.CourseTitle (@course.CurrencyCode @((course.Fee ?? 0).ToString("N2")))</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="space-y-1" id="newEnrollmentScheduleWrap">
+                            <label class="@LabelCls">Batch</label>
+                            <select name="scheduleId" id="newEnrollmentSchedule" class="@InputCls">
+                                <option value="">No batch</option>
+                                @foreach (var sch in availableSchedules)
+                                {
+                                    <option value="@sch.ScheduleID" data-course-id="@sch.CourseID" class="hidden">@sch.ScheduleName</option>
+                                }
+                            </select>
+                            <p id="newEnrollmentNoSchedules" class="text-xs text-slate-400 dark:text-slate-500 hidden">No batches scheduled for this course.</p>
+                        </div>
+                        <button type="submit" class="px-4 py-2 rounded-xl font-medium bg-[#7c3aed] text-white hover:bg-[#6d28d9] shadow-sm text-sm flex items-center gap-2">
+                            <i data-lucide="plus" class="w-4 h-4"></i> Enroll
+                        </button>
+                    </form>
+                }
+            </div>
+        }
+    </div>
+
     <p class="text-xs text-slate-400 dark:text-slate-500 mt-6">
-        Registered @Model.CreatedDate.ToString("d MMM yyyy")
-        @(Model.IsSelfRegistered ? "by the student" : $"by {(string.IsNullOrEmpty(Model.CreatedByName) ? "an admin" : Model.CreatedByName)}").
+        Registered @Model_Student.CreatedDate.ToString("d MMM yyyy")
+        @(Model_Student.IsSelfRegistered ? "by the student" : $"by {(string.IsNullOrEmpty(Model_Student.CreatedByName) ? "an admin" : Model_Student.CreatedByName)}").
     </p>
 </div>
+
+@section Scripts {
+    <script>
+        (function () {
+            // Toggle any inline "Add Payment" / "Edit Payment" form by its
+            // data-target id — same plain-toggle pattern used for the payment
+            // slip field elsewhere in this app (no JS framework).
+            document.querySelectorAll('.add-payment-toggle, .edit-payment-toggle').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    var target = document.getElementById(btn.getAttribute('data-target'));
+                    if (target) target.classList.toggle('hidden');
+                });
+            });
+
+            // Per-registration/-payment "Bank Deposit" radio toggling its own
+            // slip upload field, scoped by a unique class suffix per row so
+            // multiple cards on the page don't interfere with each other.
+            function wireSlipToggle(radioClass, fieldClass) {
+                var radios = document.querySelectorAll('.' + radioClass);
+                var field = document.querySelector('.' + fieldClass);
+                if (!radios.length || !field) return;
+                function sync() {
+                    var selected = document.querySelector('.' + radioClass + ':checked');
+                    field.classList.toggle('hidden', !selected || selected.value !== 'BankDeposit');
+                }
+                radios.forEach(function (r) { r.addEventListener('change', sync); });
+                sync();
+            }
+
+            document.querySelectorAll('[class*="add-payment-method-radio-"]').forEach(function (el) {
+                el.classList.forEach(function (c) {
+                    if (c.indexOf('add-payment-method-radio-') === 0) {
+                        var id = c.substring('add-payment-method-radio-'.length);
+                        wireSlipToggle('add-payment-method-radio-' + id, 'add-payment-slip-field-' + id);
+                    }
+                });
+            });
+            document.querySelectorAll('[class*="edit-payment-method-radio-"]').forEach(function (el) {
+                el.classList.forEach(function (c) {
+                    if (c.indexOf('edit-payment-method-radio-') === 0) {
+                        var id = c.substring('edit-payment-method-radio-'.length);
+                        wireSlipToggle('edit-payment-method-radio-' + id, 'edit-payment-slip-field-' + id);
+                    }
+                });
+            });
+
+            // "Register for another course" — filter the batch dropdown to
+            // only the selected course's schedules, same data-course-id
+            // client-side filtering pattern as Edit.cshtml's wizard.
+            var courseSelect = document.getElementById('newEnrollmentCourse');
+            var scheduleSelect = document.getElementById('newEnrollmentSchedule');
+            var noSchedulesMsg = document.getElementById('newEnrollmentNoSchedules');
+            if (courseSelect && scheduleSelect) {
+                var allOptions = Array.from(scheduleSelect.querySelectorAll('option[data-course-id]'));
+                function syncSchedules() {
+                    var courseId = courseSelect.value;
+                    var anyVisible = false;
+                    allOptions.forEach(function (opt) {
+                        var matches = opt.getAttribute('data-course-id') === courseId;
+                        opt.classList.toggle('hidden', !matches);
+                        opt.disabled = !matches;
+                        if (matches) anyVisible = true;
+                    });
+                    scheduleSelect.value = '';
+                    var hasCourse = !!courseId;
+                    scheduleSelect.classList.toggle('hidden', hasCourse && !anyVisible);
+                    if (noSchedulesMsg) noSchedulesMsg.classList.toggle('hidden', !(hasCourse && !anyVisible));
+                }
+                courseSelect.addEventListener('change', syncSchedules);
+                syncSchedules();
+            }
+        })();
+    </script>
+}

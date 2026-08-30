@@ -25,10 +25,10 @@
     </div>
 
     <form method="get" class="flex flex-wrap items-center gap-3 mb-6">
-        <div class="relative">
+        <div class="relative w-full sm:w-auto">
             <i data-lucide="search" class="w-4 h-4 text-slate-400 dark:text-slate-500 absolute left-3 top-1/2 -translate-y-1/2"></i>
             <input type="text" name="KeyW" value="@keyW" placeholder="Search name or city..."
-                   class="pl-9 pr-4 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 text-sm focus:outline-none focus:border-purple-400 focus:ring-1 focus:ring-purple-400" />
+                   class="w-full sm:w-auto pl-9 pr-4 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 text-sm focus:outline-none focus:border-purple-400 focus:ring-1 focus:ring-purple-400" />
         </div>
         <label class="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300 cursor-pointer">
             <input type="checkbox" name="showInactive" value="true" checked="@showInactive"
@@ -45,7 +45,7 @@
                 <div class="bg-purple-50 dark:bg-purple-950 p-2 rounded-lg"><i data-lucide="map-pin" class="w-5 h-5 text-[#7c3aed] dark:text-purple-300"></i></div>
                 <h3 class="font-semibold text-slate-800 dark:text-slate-100">Locations <span class="text-sm font-normal text-slate-400 dark:text-slate-500">(@mapped.Count mapped)</span></h3>
             </div>
-            <div id="overview-map" style="height: 340px;"></div>
+            <div id="overview-map" class="h-[240px] md:h-[340px]"></div>
         </div>
     }
 

@@ -5,6 +5,13 @@ namespace Web_Backend.Classes
         // Returns the web-relative URL of the saved file, or null if the upload
         // was empty/rejected.
         Task<string?> SaveAsync(IFormFile? file, string subFolder);
+
+        // Same save mechanics (generated filename, folder creation, web-relative
+        // URL) but with a caller-supplied extension whitelist and size limit —
+        // for non-image uploads (audio/video exam-question attachments) where
+        // the image-only defaults below don't apply.
+        Task<string?> SaveMediaAsync(IFormFile? file, string subFolder, string[] allowedExtensions, long maxBytes);
+
         void Delete(string? webRelativeUrl);
     }
 
@@ -20,15 +27,18 @@ namespace Web_Backend.Classes
             this.env = env;
         }
 
-        public async Task<string?> SaveAsync(IFormFile? file, string subFolder)
+        public Task<string?> SaveAsync(IFormFile? file, string subFolder) =>
+            SaveMediaAsync(file, subFolder, AllowedExtensions, MaxBytes);
+
+        public async Task<string?> SaveMediaAsync(IFormFile? file, string subFolder, string[] allowedExtensions, long maxBytes)
         {
             if (file == null || file.Length == 0) return null;
 
             var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
-            if (!AllowedExtensions.Contains(ext))
-                throw new InvalidOperationException($"Unsupported image type '{ext}'. Allowed: {string.Join(", ", AllowedExtensions)}.");
-            if (file.Length > MaxBytes)
-                throw new InvalidOperationException("Image is larger than the 5 MB limit.");
+            if (!allowedExtensions.Contains(ext))
+                throw new InvalidOperationException($"Unsupported file type '{ext}'. Allowed: {string.Join(", ", allowedExtensions)}.");
+            if (file.Length > maxBytes)
+                throw new InvalidOperationException($"File is larger than the {maxBytes / (1024 * 1024)} MB limit.");
 
             // Generated name, never the client-supplied one — a caller-controlled
             // filename could contain path segments or overwrite existing files.

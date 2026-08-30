@@ -23,6 +23,7 @@ appsettings.*.local.json
 appsettings.Development.json
 appsettings.Production.json
 publish/
+DEPLOY_CREDENTIALS.md
 
 # Generated at publish time (Database/tools) — a snapshot of pending
 # migrations for whatever DB appsettings.Production.json points at, not source

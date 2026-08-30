@@ -1,3 +1,4 @@
+using System.Text.Json;
 using DBAccess;
 using Web_Backend.Areas.Admin.Models;
 using Web_Backend.Classes;
@@ -8,13 +9,22 @@ namespace Web_Backend.Areas.Admin.Data
     {
         private readonly IDBAccess db;
 
+        // Matches CourseData.CamelCase: OPENJSON WITH paths on the SQL side
+        // are camelCase ($.startDate, $.daysOfWeek, ...) so the segment list
+        // must be serialized the same way.
+        private static readonly JsonSerializerOptions CamelCase = new()
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+        };
+
         public CourseScheduleData(IDBAccess db)
         {
             this.db = db;
         }
 
-        public Task<List<CourseSchedule>> GetList(CourseScheduleSearchView search) =>
-            db.GetList<CourseSchedule, object>("edu.CourseSchedule_List", new
+        public async Task<List<CourseSchedule>> GetList(CourseScheduleSearchView search)
+        {
+            var raw = await db.GetList<CourseScheduleRaw, object>("edu.CourseSchedule_List", new
             {
                 APIKey = AppData.GetAPIKey(),
                 search.CourseID,
@@ -23,9 +33,25 @@ namespace Web_Backend.Areas.Admin.Data
                 search.ToDate,
                 search.IsActive
             });
+            return raw.Select(ToCourseSchedule).ToList();
+        }
 
-        public Task<CourseSchedule?> Get(string id) =>
-            db.Get<CourseSchedule, object>("edu.CourseSchedule_Get", new { APIKey = AppData.GetAPIKey(), ID = id });
+        public async Task<CourseSchedule?> Get(string id)
+        {
+            var raw = await db.Get<CourseScheduleRaw, object>("edu.CourseSchedule_Get", new { APIKey = AppData.GetAPIKey(), ID = id });
+            return raw == null ? null : ToCourseSchedule(raw);
+        }
+
+        private static CourseSchedule ToCourseSchedule(CourseScheduleRaw raw)
+        {
+            raw.Segments = string.IsNullOrWhiteSpace(raw.SegmentJSON)
+                ? new List<CourseScheduleSegment>()
+                : JsonSerializer.Deserialize<List<CourseScheduleSegment>>(raw.SegmentJSON) ?? new List<CourseScheduleSegment>();
+            raw.Instructors = string.IsNullOrWhiteSpace(raw.InstructorsJSON)
+                ? new List<ScheduleInstructor>()
+                : JsonSerializer.Deserialize<List<ScheduleInstructor>>(raw.InstructorsJSON) ?? new List<ScheduleInstructor>();
+            return raw;
+        }
 
         public Task<string> AddEdit(CourseSchedule s) =>
             db.Execute("edu.CourseSchedule_AddEdit", new
@@ -34,17 +60,25 @@ namespace Web_Backend.Areas.Admin.Data
                 s.ScheduleID,
                 s.CourseID,
                 s.ScheduleName,
-                s.ScheduleDate,
-                s.StartTime,
-                s.EndTime,
                 s.Location,
                 s.Capacity,
-                s.TrainerName,
                 s.Notes,
-                s.IsActive
+                s.IsActive,
+                SegmentJSON = JsonSerializer.Serialize(s.Segments, CamelCase),
+                InstructorUserIDsJSON = JsonSerializer.Serialize(s.Instructors.Select(i => i.UserID).ToList(), CamelCase)
             });
 
         public Task Delete(string id) =>
             db.ExecuteNonQuery("edu.CourseSchedule_Delete", new { APIKey = AppData.GetAPIKey(), ID = id });
+
+        // Shape returned directly by the stored procs — SegmentJSON/
+        // InstructorsJSON are the raw JSON columns, deserialized into
+        // Segments/Instructors by ToCourseSchedule above before handing back
+        // a plain CourseSchedule.
+        private class CourseScheduleRaw : CourseSchedule
+        {
+            public string? SegmentJSON { get; set; }
+            public string? InstructorsJSON { get; set; }
+        }
     }
 }

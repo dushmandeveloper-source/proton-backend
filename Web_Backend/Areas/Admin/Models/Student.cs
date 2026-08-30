@@ -64,6 +64,19 @@ namespace Web_Backend.Areas.Admin.Models
         public string KeyW { get; set; } = "";
         public string RegistrationSource { get; set; } = "";
         public string IsActive { get; set; } = "";
+
+        // "" = all, "Enrolled" = has at least one ACTIVE (IsActive='A')
+        // mst.CourseRegistration row, "NotEnrolled" = has none.
+        public string EnrollmentFilter { get; set; } = "";
+
+        // "" = all, or "Unpaid" | "PartiallyPaid" | "Paid" (mirrors
+        // mst.CourseRegistration.PaymentStatus). A student can have multiple
+        // registrations with different statuses — this filters for "has AT
+        // LEAST ONE active registration with the selected status", not "all
+        // registrations match" (see mst.Student_List in
+        // Database/migrations/0019_student_list_filters.sql for the EXISTS
+        // subquery implementing this).
+        public string PaymentStatusFilter { get; set; } = "";
     }
 
     // Admin-side create/edit form: student identity (usr.Users fields) plus
@@ -119,6 +132,25 @@ namespace Web_Backend.Areas.Admin.Models
         public string EmergencyRelationship { get; set; } = "";
 
         public string IsActive { get; set; } = "A";
+
+        // Registration-time-only extras (5th wizard step, "Enrollment") — only
+        // meaningful when creating a brand-new student. Ignored on edit: course
+        // enrollment here is a one-time convenience at registration; ongoing
+        // enrollment/payment management happens from the student's own Details
+        // page (Views/Student/View.cshtml) instead.
+        public bool SendWelcomeEmail { get; set; }
+        // Optional — set by the admin on the Identity step (new student only)
+        // to use a chosen password instead of an auto-generated temp one. If
+        // blank, StudentController.Save falls back to TempPassword.Generate().
+        public string InitialPassword { get; set; } = "";
+        public List<string> SelectedCourseIDs { get; set; } = new();
+        // JSON map of CourseID -> ScheduleID (or "" for "no batch"), built
+        // client-side by Edit.cshtml's enrollment-step script. Parsed in
+        // StudentController.Save via System.Text.Json.
+        public string CourseScheduleSelectionsJson { get; set; } = "";
+        public string PaymentMethod { get; set; } = "";      // "Cash" | "BankDeposit" | "" (no payment recorded now)
+        public decimal? InitialPaymentAmount { get; set; }
+        public string PaymentNotes { get; set; } = "";
     }
 
     // Backs the step-wizard add/edit page.
@@ -126,6 +158,25 @@ namespace Web_Backend.Areas.Admin.Models
     {
         public StudentFormViewModel Student { get; set; } = new();
         public bool IsNew => string.IsNullOrEmpty(Student.StudentID);
+    }
+
+    // Backs one row of the Student Index (list) page: the student plus their
+    // enrollment/balance summary (or null if not enrolled in anything active),
+    // so Index.cshtml doesn't need a ViewBag lookup dictionary per row.
+    public class StudentIndexRowViewModel
+    {
+        public Student Student { get; set; } = new();
+        public CourseRegistrationStudentSummary? Summary { get; set; }
+    }
+
+    // Backs the read-only Student Details page (Views/Student/View.cshtml):
+    // the student plus their full course registration history (each with
+    // its own payment list), so enrollment/payment management lives on the
+    // student's own page instead of a separate cross-student screen.
+    public class StudentDetailsPageViewModel
+    {
+        public Student Student { get; set; } = new();
+        public List<CourseRegistrationDetailViewModel> Registrations { get; set; } = new();
     }
 
     // Public self-registration payload (Controllers/Api/StudentsApiController.cs).
@@ -155,5 +206,25 @@ namespace Web_Backend.Areas.Admin.Models
         public string EmergencyContactName { get; set; } = "";
         public string EmergencyContactPhone { get; set; } = "";
         public string EmergencyRelationship { get; set; } = "";
+
+        // Courses selected in the registration modal (Controllers/Api/EnrollmentsApiController.cs
+        // register-new). Optional — a visitor can self-register without picking any course.
+        public List<string> CourseIDs { get; set; } = new();
+
+        // Batch selections for the courses above, keyed by CourseID -> ScheduleID.
+        // A course only appears here if it has schedules AND the visitor picked
+        // one — courses with no schedules (or where selection was skipped) are
+        // simply absent, same optionality as CourseIDs itself.
+        public Dictionary<string, string> CourseScheduleSelections { get; set; } = new();
+
+        // Optional payment declaration for the public registration page's
+        // payment step — all blank/zero by default (payment step is entirely
+        // optional). Same "first selected course only" simplification as the
+        // admin wizard (see StudentController.Save): when CourseIDs has more
+        // than one entry, this payment is recorded only against the first.
+        // "Cash" | "BankDeposit" | "" (no payment declared).
+        public string PaymentMethod { get; set; } = "";
+        public decimal? InitialPaymentAmount { get; set; }
+        public string PaymentNotes { get; set; } = "";
     }
 }

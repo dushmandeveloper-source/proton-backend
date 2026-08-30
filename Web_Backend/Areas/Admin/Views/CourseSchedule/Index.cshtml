@@ -5,6 +5,9 @@
     var courseId = ViewBag.CourseID as string ?? "";
     var showInactive = ViewBag.ShowInactive as bool? ?? false;
     var courses = ViewBag.Courses as List<Course> ?? new List<Course>();
+    var instructors = ViewBag.Instructors as List<AppUser> ?? new List<AppUser>();
+    var calendarNotes = ViewBag.CalendarNotes as List<CourseScheduleNote> ?? new List<CourseScheduleNote>();
+    var holidays = ViewBag.Holidays as List<HolidayEvent> ?? new List<HolidayEvent>();
 
     bool canAdd = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.CourseSchedules, 'A');
     bool canDelete = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.CourseSchedules, 'D');
@@ -12,23 +15,65 @@
     // Calendar renders every active/dated schedule regardless of the List
     // tab's KeyW/CourseID filters — it does its own month navigation and a
     // date-filtered subset would just look like missing data as you page
-    // through months.
-    var calendarEvents = Model
-        .Where(s => s.ScheduleDate.HasValue)
-        .Select(s => new
+    // through months. Each segment's date range + weekdays is expanded into
+    // one calendar event per actual occurrence day.
+    var dayNameToCode = new Dictionary<DayOfWeek, string>
+    {
+        [DayOfWeek.Monday] = "Mon", [DayOfWeek.Tuesday] = "Tue", [DayOfWeek.Wednesday] = "Wed",
+        [DayOfWeek.Thursday] = "Thu", [DayOfWeek.Friday] = "Fri", [DayOfWeek.Saturday] = "Sat", [DayOfWeek.Sunday] = "Sun"
+    };
+    var calendarEvents = new List<object>();
+    foreach (var s in Model)
+    {
+        foreach (var seg in s.Segments)
         {
-            id = s.ScheduleID,
-            date = s.ScheduleDate!.Value.ToString("yyyy-MM-dd"),
-            title = string.IsNullOrEmpty(s.ScheduleName) ? s.CourseTitle : s.ScheduleName,
-            courseTitle = s.CourseTitle,
-            courseType = s.CourseType,
-            time = s.TimeRangeText,
-            location = s.Location,
-            capacity = s.Capacity,
-            trainer = s.TrainerName,
-            status = s.StatusLabel,
-            isActive = s.IsActive == "A"
-        });
+            var activeDays = seg.DaysOfWeek.Split(',', StringSplitOptions.RemoveEmptyEntries).ToHashSet();
+            var exceptionDates = seg.ExceptionDates.Split(',', StringSplitOptions.RemoveEmptyEntries).ToHashSet();
+            for (var d = seg.StartDate.Date; d <= seg.EndDate.Date; d = d.AddDays(1))
+            {
+                if (!activeDays.Contains(dayNameToCode[d.DayOfWeek])) continue;
+                if (exceptionDates.Contains(d.ToString("yyyy-MM-dd"))) continue;
+                calendarEvents.Add(new
+                {
+                    id = seg.SegmentID,
+                    scheduleId = s.ScheduleID,
+                    date = d.ToString("yyyy-MM-dd"),
+                    title = string.IsNullOrEmpty(s.ScheduleName) ? s.CourseTitle : s.ScheduleName,
+                    courseTitle = s.CourseTitle,
+                    courseType = s.CourseType,
+                    time = seg.TimeRangeText,
+                    location = s.Location,
+                    capacity = s.Capacity,
+                    trainer = s.InstructorsLabel,
+                    status = s.StatusLabel,
+                    isActive = s.IsActive == "A"
+                });
+            }
+        }
+    }
+
+    // Calendar notes: date-only remarks (optionally linked to a batch),
+    // separate from each batch's own free-text Notes field. Serialized
+    // alongside calendarEvents so the same client-side eventsByDate-style
+    // lookup can merge both in.
+    var calendarNoteData = calendarNotes.Select(n => new
+    {
+        id = n.NoteID,
+        date = n.NoteDate.ToString("yyyy-MM-dd"),
+        text = n.NoteText,
+        scheduleId = n.ScheduleID ?? "",
+        scheduleName = string.IsNullOrEmpty(n.ScheduleName) ? n.CourseTitle : n.ScheduleName
+    });
+
+    // Holiday/event markers: global (no ScheduleID), shown as a yellow cell
+    // marking. Serialized the same way as calendarNoteData so client JS can
+    // build a third by-date lookup map alongside eventsByDate/notesByDate.
+    var calendarHolidayData = holidays.Select(h => new
+    {
+        id = h.HolidayID,
+        date = h.HolidayDate.ToString("yyyy-MM-dd"),
+        title = h.Title
+    });
 }
 
 <div class="max-w-6xl mx-auto page-enter">
@@ -39,7 +84,7 @@
         </div>
         @if (canAdd)
         {
-            <button type="button" onclick="document.getElementById('add-schedule-form').classList.remove('hidden')"
+            <button type="button" onclick="openAddScheduleForm()"
                     class="px-4 py-2 rounded-xl font-medium bg-[#7c3aed] text-white hover:bg-[#6d28d9] shadow-sm text-sm flex items-center gap-2 w-fit">
                 <i data-lucide="plus" class="w-4 h-4"></i> Add Schedule
             </button>
@@ -48,34 +93,51 @@
 
     @if (canAdd)
     {
-        <form id="add-schedule-form" method="post" asp-action="Save" class="hidden bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 p-6 mb-6 grid grid-cols-1 md:grid-cols-4 gap-4">
+        <form id="add-schedule-form" method="post" asp-action="Save" class="hidden bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 p-6 mb-6">
             @Html.AntiForgeryToken()
-            <select name="CourseID" required class="md:col-span-2 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm">
-                <option value="">-- Select course --</option>
-                @foreach (var c in courses)
-                {
-                    <option value="@c.CourseID">@c.CourseTitle (@c.CourseType)</option>
-                }
-            </select>
-            <input type="text" name="ScheduleName" placeholder="Batch name (e.g. Jan 2027 Sitting)"
-                   class="md:col-span-2 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" />
-            <input type="date" name="ScheduleDate"
-                   class="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" />
-            <input type="time" name="StartTime"
-                   class="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" />
-            <input type="time" name="EndTime"
-                   class="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" />
-            <input type="number" name="Capacity" placeholder="Capacity"
-                   class="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" />
-            <input type="text" name="Location" placeholder="Location"
-                   class="md:col-span-2 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" />
-            <input type="text" name="TrainerName" placeholder="Trainer / Invigilator"
-                   class="md:col-span-2 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" />
-            <input type="text" name="Notes" placeholder="Notes (optional)"
-                   class="md:col-span-4 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" />
-            <div class="md:col-span-4 flex gap-2">
-                <button type="submit" class="px-4 py-2 rounded-xl font-medium bg-[#7c3aed] text-white hover:bg-[#6d28d9] text-sm">Save</button>
-                <button type="button" onclick="document.getElementById('add-schedule-form').classList.add('hidden')"
+            <input type="hidden" name="ScheduleID" id="schedule-id-field" value="" />
+            <input type="hidden" name="SegmentJSON" id="segment-json-field" />
+            <input type="hidden" name="InstructorUserIDsJSON" id="instructor-json-field" />
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+                <select name="CourseID" required class="md:col-span-2 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm">
+                    <option value="">-- Select course --</option>
+                    @foreach (var c in courses)
+                    {
+                        <option value="@c.CourseID">@c.CourseTitle (@c.CourseType)</option>
+                    }
+                </select>
+                <input type="text" name="ScheduleName" placeholder="Batch name (e.g. Web Dev - Evening Batch)"
+                       class="md:col-span-2 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" />
+                <input type="number" name="Capacity" placeholder="Capacity"
+                       class="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" />
+                <input type="text" name="Location" placeholder="Location"
+                       class="md:col-span-2 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" />
+                <div class="relative instructor-picker" data-name="InstructorUserIDsJSON">
+                    <input type="text" class="instructor-search px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm w-full" placeholder="Search instructors..." autocomplete="off" />
+                    <div class="instructor-selected flex flex-wrap gap-1 mt-1"></div>
+                    <div class="instructor-dropdown hidden absolute z-10 mt-1 w-full max-h-48 overflow-y-auto bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-xl shadow-lg">
+                        @foreach (var instr in instructors)
+                        {
+                            <label class="instructor-option flex items-center gap-2 px-3 py-2 text-sm cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700">
+                                <input type="checkbox" class="instructor-checkbox hidden" value="@instr.UserID" data-name="@instr.FullName" />
+                                <span>@instr.FullName</span>
+                            </label>
+                        }
+                    </div>
+                </div>
+                <input type="text" name="Notes" placeholder="Notes (optional)"
+                       class="md:col-span-4 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" />
+            </div>
+
+            <div class="mb-2 flex items-center justify-between">
+                <h4 class="text-sm font-semibold text-slate-700 dark:text-slate-200">Periods</h4>
+                <button type="button" id="add-period-btn" class="text-sm text-[#7c3aed] hover:underline">+ Add another period</button>
+            </div>
+            <div id="periods-container" class="space-y-3 mb-4"></div>
+
+            <div class="flex gap-2">
+                <button type="submit" id="add-schedule-submit" class="px-4 py-2 rounded-xl font-medium bg-[#7c3aed] text-white hover:bg-[#6d28d9] text-sm">Save</button>
+                <button type="button" onclick="closeAddScheduleForm()"
                         class="px-4 py-2 rounded-xl font-medium bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-sm">Cancel</button>
             </div>
         </form>
@@ -97,12 +159,12 @@
     <!-- ============ LIST PANE ============ -->
     <div data-tab-pane="list">
         <form method="get" class="flex flex-wrap items-center gap-3 mb-6">
-            <div class="relative">
+            <div class="relative w-full md:w-auto">
                 <i data-lucide="search" class="w-4 h-4 text-slate-400 dark:text-slate-500 absolute left-3 top-1/2 -translate-y-1/2"></i>
                 <input type="text" name="KeyW" value="@keyW" placeholder="Search course, batch, location..."
-                       class="pl-9 pr-4 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 text-sm focus:outline-none focus:border-purple-400 focus:ring-1 focus:ring-purple-400" />
+                       class="w-full md:w-auto pl-9 pr-4 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 text-sm focus:outline-none focus:border-purple-400 focus:ring-1 focus:ring-purple-400" />
             </div>
-            <select name="CourseID" class="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm">
+            <select name="CourseID" class="w-full md:w-auto px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm">
                 <option value="">All courses</option>
                 @foreach (var c in courses)
                 {
@@ -114,7 +176,7 @@
                        class="rounded border-slate-300 dark:border-slate-600 text-[#7c3aed] focus:ring-[#7c3aed]" />
                 Show deleted
             </label>
-            <button type="submit" class="px-4 py-2 rounded-xl font-medium bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all text-sm">Filter</button>
+            <button type="submit" class="w-full md:w-auto px-4 py-2 rounded-xl font-medium bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all text-sm">Filter</button>
         </form>
 
         <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
@@ -132,9 +194,9 @@
                             <tr class="border-b border-slate-100 dark:border-slate-700 text-left text-slate-500 dark:text-slate-400">
                                 <th class="px-6 py-3 font-medium">Course</th>
                                 <th class="px-6 py-3 font-medium">Batch</th>
-                                <th class="px-6 py-3 font-medium">Date</th>
-                                <th class="px-6 py-3 font-medium">Time</th>
+                                <th class="px-6 py-3 font-medium">Periods</th>
                                 <th class="px-6 py-3 font-medium">Location</th>
+                                <th class="px-6 py-3 font-medium">Instructors</th>
                                 <th class="px-6 py-3 font-medium">Capacity</th>
                                 <th class="px-6 py-3 font-medium">Status</th>
                                 <th class="px-6 py-3 font-medium text-right">Actions</th>
@@ -149,9 +211,9 @@
                                         <span class="ml-2 px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase @(s.CourseType == "CSCA" ? "bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300" : "bg-sky-100 dark:bg-sky-950 text-sky-700 dark:text-sky-300")">@s.CourseType</span>
                                     </td>
                                     <td class="px-6 py-3 text-slate-500 dark:text-slate-400">@s.ScheduleName</td>
-                                    <td class="px-6 py-3 text-slate-500 dark:text-slate-400">@(s.ScheduleDate?.ToString("dd MMM yyyy") ?? "-")</td>
-                                    <td class="px-6 py-3 text-slate-500 dark:text-slate-400">@(string.IsNullOrEmpty(s.TimeRangeText) ? "-" : s.TimeRangeText)</td>
+                                    <td class="px-6 py-3 text-slate-500 dark:text-slate-400 text-xs max-w-xs">@s.SegmentsSummary</td>
                                     <td class="px-6 py-3 text-slate-500 dark:text-slate-400">@s.Location</td>
+                                    <td class="px-6 py-3 text-slate-500 dark:text-slate-400">@(string.IsNullOrEmpty(s.InstructorsLabel) ? "-" : s.InstructorsLabel)</td>
                                     <td class="px-6 py-3 text-slate-500 dark:text-slate-400">@(s.Capacity?.ToString() ?? "-")</td>
                                     <td class="px-6 py-3">
                                         <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase @(s.IsActive == "A" ? "bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300" : "bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300")">
@@ -159,6 +221,27 @@
                                         </span>
                                     </td>
                                     <td class="px-6 py-3 text-right">
+                                        <a asp-action="Details" asp-route-id="@s.ScheduleID" title="View"
+                                           class="p-2 rounded-xl text-slate-400 dark:text-slate-500 hover:text-[#7c3aed] dark:hover:text-purple-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors inline-block">
+                                            <i data-lucide="eye" class="w-4 h-4"></i>
+                                        </a>
+                                        @if (canAdd)
+                                        {
+                                            <button type="button" class="edit-schedule-btn p-2 rounded-xl text-slate-400 dark:text-slate-500 hover:text-[#7c3aed] dark:hover:text-purple-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                                                    title="Edit"
+                                                    data-schedule='@Html.Raw(System.Text.Json.JsonSerializer.Serialize(new {
+                                                        scheduleID = s.ScheduleID, courseID = s.CourseID, scheduleName = s.ScheduleName,
+                                                        capacity = s.Capacity, location = s.Location, notes = s.Notes,
+                                                        segments = s.Segments.OrderBy(seg => seg.SortOrder).Select(seg => new {
+                                                            startDate = seg.StartDate.ToString("yyyy-MM-dd"), endDate = seg.EndDate.ToString("yyyy-MM-dd"),
+                                                            daysOfWeek = seg.DaysOfWeek, startTime = seg.StartTime.HasValue ? seg.StartTime.Value.ToString("hh\\:mm") : "",
+                                                            endTime = seg.EndTime.HasValue ? seg.EndTime.Value.ToString("hh\\:mm") : "", exceptionDates = seg.ExceptionDates
+                                                        }),
+                                                        instructorIDs = s.Instructors.Select(i => i.UserID)
+                                                    }))'>
+                                                <i data-lucide="pencil" class="w-4 h-4"></i>
+                                            </button>
+                                        }
                                         @if (canDelete && s.IsActive == "A")
                                         {
                                             <form method="post" asp-action="Delete" asp-route-id="@s.ScheduleID" class="inline"
@@ -166,6 +249,15 @@
                                                 @Html.AntiForgeryToken()
                                                 <button type="submit" title="Delete" class="p-2 rounded-xl text-slate-400 dark:text-slate-500 hover:text-red-600 dark:hover:text-red-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
                                                     <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                                </button>
+                                            </form>
+                                        }
+                                        @if (canDelete && s.IsActive != "A")
+                                        {
+                                            <form method="post" asp-action="Activate" asp-route-id="@s.ScheduleID" class="inline">
+                                                @Html.AntiForgeryToken()
+                                                <button type="submit" title="Activate" class="p-2 rounded-xl text-slate-400 dark:text-slate-500 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+                                                    <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
                                                 </button>
                                             </form>
                                         }
@@ -182,29 +274,54 @@
     <!-- ============ CALENDAR PANE ============ -->
     <div data-tab-pane="calendar" class="hidden">
         <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 p-4 md:p-6">
-            <div class="flex items-center justify-between mb-4">
-                <h3 id="cal-title" class="text-lg font-semibold text-slate-800 dark:text-slate-100"></h3>
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-4">
                 <div class="flex items-center gap-1">
                     <button type="button" id="cal-prev" class="p-2 rounded-xl text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
                         <i data-lucide="chevron-left" class="w-5 h-5"></i>
                     </button>
-                    <button type="button" id="cal-today" class="px-3 py-1.5 rounded-xl text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">Today</button>
+                    <h3 id="cal-title" class="text-lg font-semibold text-slate-800 dark:text-slate-100 min-w-0"></h3>
                     <button type="button" id="cal-next" class="p-2 rounded-xl text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
                         <i data-lucide="chevron-right" class="w-5 h-5"></i>
                     </button>
+                    <button type="button" id="cal-today" class="px-3 py-1.5 rounded-xl text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">Today</button>
+                </div>
+                <!-- View-mode toggle: reuses the exact List/Calendar tab-strip button styling. -->
+                <div class="flex gap-4 border-b border-slate-200 dark:border-slate-700 md:border-0" id="cal-view-strip">
+                    <button type="button" data-view-target="month" class="cal-view-btn pb-2 md:pb-0 text-sm font-medium border-b-2 md:border-b md:px-3 md:py-1.5 md:rounded-xl -mb-px md:mb-0 transition-colors border-[#7c3aed] text-[#7c3aed] md:bg-purple-50 md:dark:bg-purple-950">Month</button>
+                    <button type="button" data-view-target="week" class="cal-view-btn pb-2 md:pb-0 text-sm font-medium border-b-2 md:border-b md:px-3 md:py-1.5 md:rounded-xl -mb-px md:mb-0 transition-colors border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200">Week</button>
+                    <button type="button" data-view-target="day" class="cal-view-btn pb-2 md:pb-0 text-sm font-medium border-b-2 md:border-b md:px-3 md:py-1.5 md:rounded-xl -mb-px md:mb-0 transition-colors border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200">Day</button>
                 </div>
             </div>
 
-            <div class="grid grid-cols-7 gap-1 md:gap-2 mb-1 text-center">
-                @foreach (var d in new[] { "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat" })
-                {
-                    <div class="text-[10px] md:text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider py-1">@d</div>
-                }
+            <!-- Month view -->
+            <div id="cal-view-month">
+                <div class="grid grid-cols-7 gap-1 md:gap-2 mb-1 text-center">
+                    @foreach (var d in new[] { "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat" })
+                    {
+                        <div class="text-[10px] md:text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider py-1">@d</div>
+                    }
+                </div>
+                <div id="cal-grid" class="grid grid-cols-7 gap-1 md:gap-2"></div>
             </div>
-            <div id="cal-grid" class="grid grid-cols-7 gap-1 md:gap-2"></div>
+
+            <!-- Week view: 7-column row on desktop, stacked cards on mobile -->
+            <div id="cal-view-week" class="hidden">
+                <div class="hidden md:grid md:grid-cols-7 gap-1 md:gap-2 mb-1 text-center">
+                    @foreach (var d in new[] { "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat" })
+                    {
+                        <div class="text-[10px] md:text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider py-1">@d</div>
+                    }
+                </div>
+                <div id="cal-week-grid" class="grid grid-cols-1 md:grid-cols-7 gap-2"></div>
+            </div>
+
+            <!-- Day view: vertical agenda list for the selected day -->
+            <div id="cal-view-day" class="hidden">
+                <div id="cal-day-agenda" class="space-y-2"></div>
+            </div>
         </div>
 
-        <!-- Day detail drawer: shown on mobile tap / desktop click of a day with events -->
+        <!-- Day detail drawer: shown on mobile tap / desktop click of a day with events (month/week views), and for add-note affordance -->
         <div id="cal-day-panel" class="hidden mt-4 bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 p-6">
             <div class="flex items-center justify-between mb-4">
                 <h4 id="cal-day-title" class="font-semibold text-slate-800 dark:text-slate-100"></h4>
@@ -212,7 +329,31 @@
                     <i data-lucide="x" class="w-4 h-4"></i>
                 </button>
             </div>
-            <div id="cal-day-events" class="space-y-2"></div>
+            <div id="cal-day-events" class="space-y-2 mb-3"></div>
+
+            <!-- Existing notes for the selected date -->
+            <div id="cal-day-notes" class="space-y-2 mb-3"></div>
+
+            <!-- Add-note mini-form -->
+            <div class="pt-3 border-t border-slate-100 dark:border-slate-700">
+                <button type="button" id="cal-add-note-toggle" class="text-sm text-[#7c3aed] hover:underline flex items-center gap-1">
+                    <i data-lucide="plus" class="w-3.5 h-3.5"></i> Add a note for this date
+                </button>
+                <form id="cal-note-form" method="post" asp-action="SaveNote" class="hidden mt-3 space-y-2">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="NoteID" id="cal-note-id" value="" />
+                    <input type="hidden" name="NoteDate" id="cal-note-date" value="" />
+                    <select name="ScheduleID" id="cal-note-schedule" class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm">
+                        <option value="">-- General note (not linked) --</option>
+                    </select>
+                    <textarea name="NoteText" id="cal-note-text" rows="2" placeholder="Remark for this date..." required
+                              class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm"></textarea>
+                    <div class="flex gap-2">
+                        <button type="submit" class="px-3 py-1.5 rounded-xl font-medium bg-[#7c3aed] text-white hover:bg-[#6d28d9] text-sm">Save note</button>
+                        <button type="button" id="cal-note-cancel" class="px-3 py-1.5 rounded-xl font-medium bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-sm">Cancel</button>
+                    </div>
+                </form>
+            </div>
         </div>
     </div>
 </div>
@@ -235,28 +376,614 @@
             });
         });
 
-        // ---------- Schedule calendar: dependency-free month grid ----------
+        // ---------- Searchable multi-select instructor picker ----------
+        // One per .instructor-picker container (this page only has one, in
+        // the add-schedule form, but written to support more than one).
+        // Posts a bare JSON array of selected UserID strings — the widget
+        // already has FullName client-side for rendering pills, so there's
+        // no need to round-trip it through the server.
+        function initInstructorPicker(picker) {
+            const search = picker.querySelector('.instructor-search');
+            const dropdown = picker.querySelector('.instructor-dropdown');
+            const selectedBox = picker.querySelector('.instructor-selected');
+            const checkboxes = Array.from(picker.querySelectorAll('.instructor-checkbox'));
+
+            function renderSelected() {
+                selectedBox.innerHTML = '';
+                checkboxes.filter(cb => cb.checked).forEach(cb => {
+                    const pill = document.createElement('span');
+                    pill.className = 'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300';
+                    pill.innerHTML = `${cb.dataset.name} <button type="button" class="hover:text-red-600 dark:hover:text-red-400" aria-label="Remove">&times;</button>`;
+                    pill.querySelector('button').addEventListener('click', () => {
+                        cb.checked = false;
+                        renderSelected();
+                    });
+                    selectedBox.appendChild(pill);
+                });
+            }
+
+            search.addEventListener('focus', () => dropdown.classList.remove('hidden'));
+            search.addEventListener('input', () => {
+                const term = search.value.trim().toLowerCase();
+                picker.querySelectorAll('.instructor-option').forEach(opt => {
+                    const name = opt.textContent.trim().toLowerCase();
+                    opt.classList.toggle('hidden', term.length > 0 && !name.includes(term));
+                });
+            });
+            document.addEventListener('click', (e) => {
+                if (!picker.contains(e.target)) dropdown.classList.add('hidden');
+            });
+            checkboxes.forEach(cb => {
+                cb.closest('.instructor-option').addEventListener('click', (e) => {
+                    e.preventDefault();
+                    cb.checked = !cb.checked;
+                    renderSelected();
+                });
+            });
+
+            return {
+                getSelectedIds: () => checkboxes.filter(cb => cb.checked).map(cb => cb.value),
+                renderSelected: renderSelected
+            };
+        }
+        document.querySelectorAll('.instructor-picker').forEach(p => { p._picker = initInstructorPicker(p); });
+
+        // ---------- Repeatable period rows for the add-schedule form ----------
+        (function () {
+            const container = document.getElementById('periods-container');
+            const addBtn = document.getElementById('add-period-btn');
+            const form = document.getElementById('add-schedule-form');
+            const jsonField = document.getElementById('segment-json-field');
+            const instructorJsonField = document.getElementById('instructor-json-field');
+            if (!container || !addBtn || !form || !jsonField) return;
+
+            const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+            let periodCount = 0;
+
+            function pad(n) { return String(n).padStart(2, '0'); }
+            function toISO(y, m, d) { return `${y}-${pad(m + 1)}-${pad(d)}`; }
+            function dowCode(jsDay) { return ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][jsDay]; }
+
+            // Native <input type="time"> shows 12h/24h per the browser's OS
+            // locale, not something a page can force — so a live "6:00 PM"
+            // label is shown alongside it, always in 12-hour format
+            // regardless of the visitor's locale.
+            function formatAmPm(hhmm) {
+                if (!hhmm) return '';
+                const [h, m] = hhmm.split(':').map(Number);
+                const period = h >= 12 ? 'PM' : 'AM';
+                const h12 = h % 12 === 0 ? 12 : h % 12;
+                return `${h12}:${pad(m)} ${period}`;
+            }
+
+            function setDayChecked(label, checked) {
+                const cb = label.querySelector('input');
+                cb.checked = checked;
+                label.classList.toggle('bg-[#7c3aed]', checked);
+                label.classList.toggle('text-white', checked);
+                label.classList.toggle('border-[#7c3aed]', checked);
+            }
+
+            // Renders one click-to-pick-a-range month calendar per period row.
+            // Click a day to start a range, click another to complete it
+            // (either order); once at least one weekday checkbox is active,
+            // only the matching in-range days are highlighted as "selected" —
+            // otherwise the whole range shows shaded so the admin can see
+            // what they're about to pick days within.
+            function initPeriodCalendar(row, initialData = null) {
+                const calGrid = row.querySelector('.period-cal-grid');
+                const calTitle = row.querySelector('.period-cal-title');
+                const rangeLabel = row.querySelector('.period-range-label');
+                let viewDate = new Date();
+                viewDate.setDate(1);
+                let startISO = null;
+                let endISO = null;
+                const offDates = new Set();
+
+                if (initialData) {
+                    startISO = initialData.startDate;
+                    endISO = initialData.endDate;
+                    (initialData.exceptionDates || '').split(',').filter(Boolean).forEach(d => offDates.add(d));
+                    viewDate = new Date(initialData.startDate + 'T00:00:00');
+                    viewDate.setDate(1);
+                }
+
+                function activeDays() {
+                    return Array.from(row.querySelectorAll('.period-day:checked')).map(cb => cb.value);
+                }
+
+                function inRange(iso) {
+                    if (!startISO) return false;
+                    if (!endISO) return iso === startISO;
+                    return iso >= startISO && iso <= endISO;
+                }
+
+                function isClassDay(iso, jsDay) {
+                    const days = activeDays();
+                    if (!inRange(iso)) return false;
+                    if (offDates.has(iso)) return false;
+                    if (days.length === 0) return true;
+                    return days.includes(dowCode(jsDay));
+                }
+
+                function isOffDay(iso, jsDay) {
+                    // Only a day that WOULD be a class day (in range + on an
+                    // active weekday) counts as a marked-off exception —
+                    // toggling an irrelevant day is a no-op, so its offDates
+                    // entry (if stale from an earlier weekday selection) is
+                    // just ignored rather than shown.
+                    const days = activeDays();
+                    if (!inRange(iso) || !offDates.has(iso)) return false;
+                    return days.length === 0 || days.includes(dowCode(jsDay));
+                }
+
+                function updateLabel() {
+                    const offCount = offDates.size;
+                    const offText = offCount > 0 ? ` · ${offCount} day${offCount === 1 ? '' : 's'} off` : '';
+                    if (startISO && endISO) {
+                        rangeLabel.textContent = `${startISO} to ${endISO}${offText}`;
+                    } else if (startISO) {
+                        rangeLabel.textContent = `${startISO} — pick an end date`;
+                    } else {
+                        rangeLabel.textContent = 'Click a start date, then an end date';
+                    }
+                }
+
+                function render() {
+                    const year = viewDate.getFullYear();
+                    const month = viewDate.getMonth();
+                    calTitle.textContent = viewDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+
+                    const firstDayOfWeek = new Date(year, month, 1).getDay();
+                    const daysInMonth = new Date(year, month + 1, 0).getDate();
+                    const daysInPrevMonth = new Date(year, month, 0).getDate();
+                    const totalCells = Math.ceil((firstDayOfWeek + daysInMonth) / 7) * 7;
+
+                    let cells = '';
+                    for (let i = 0; i < totalCells; i++) {
+                        let cellYear = year, cellMonth = month, dayNum, isOtherMonth = false;
+                        if (i < firstDayOfWeek) {
+                            dayNum = daysInPrevMonth - firstDayOfWeek + i + 1;
+                            cellMonth = month - 1; isOtherMonth = true;
+                        } else if (i >= firstDayOfWeek + daysInMonth) {
+                            dayNum = i - firstDayOfWeek - daysInMonth + 1;
+                            cellMonth = month + 1; isOtherMonth = true;
+                        } else {
+                            dayNum = i - firstDayOfWeek + 1;
+                        }
+                        if (cellMonth < 0) { cellMonth = 11; cellYear--; }
+                        if (cellMonth > 11) { cellMonth = 0; cellYear++; }
+
+                        const iso = toISO(cellYear, cellMonth, dayNum);
+                        const jsDay = new Date(cellYear, cellMonth, dayNum).getDay();
+                        const selected = isClassDay(iso, jsDay);
+                        const off = isOffDay(iso, jsDay);
+                        const shaded = !isOtherMonth && inRange(iso) && !selected && !off;
+                        const isEndpoint = iso === startISO || iso === endISO;
+
+                        cells += `<button type="button" data-iso="${iso}" title="${off ? 'Click to restore this class day' : (selected ? 'Click to mark this day off' : '')}"
+                            class="period-cal-day text-xs rounded-lg py-1.5 transition-colors
+                                ${isOtherMonth ? 'text-slate-300 dark:text-slate-700 cursor-default' : 'cursor-pointer'}
+                                ${selected ? 'bg-[#7c3aed] text-white font-semibold' : ''}
+                                ${off ? 'bg-slate-200 dark:bg-slate-700 text-slate-400 dark:text-slate-500 line-through' : ''}
+                                ${shaded ? 'bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300' : ''}
+                                ${!selected && !off && !shaded && !isOtherMonth ? 'hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200' : ''}
+                                ${isEndpoint ? 'ring-2 ring-[#7c3aed]' : ''}"
+                            ${isOtherMonth ? 'disabled' : ''}>${dayNum}</button>`;
+                    }
+                    calGrid.innerHTML = cells;
+
+                    calGrid.querySelectorAll('.period-cal-day:not([disabled])').forEach(btn => {
+                        btn.addEventListener('click', () => {
+                            const iso = btn.dataset.iso;
+                            const jsDay = new Date(iso + 'T00:00:00').getDay();
+                            const rangeComplete = startISO && endISO;
+
+                            // Once the range is set, clicking a day that would
+                            // be a class day (or already marked off) toggles
+                            // the off-day exception instead of restarting the
+                            // range — restarting the range needs a fresh
+                            // range-not-yet-complete click, same as before.
+                            if (rangeComplete && (isClassDay(iso, jsDay) || isOffDay(iso, jsDay))) {
+                                if (offDates.has(iso)) offDates.delete(iso);
+                                else offDates.add(iso);
+                                updateLabel();
+                                render();
+                                return;
+                            }
+
+                            if (!startISO || rangeComplete) {
+                                startISO = iso;
+                                endISO = null;
+                                offDates.clear();
+                            } else if (iso < startISO) {
+                                endISO = startISO;
+                                startISO = iso;
+                            } else {
+                                endISO = iso;
+                            }
+                            updateLabel();
+                            render();
+                        });
+                    });
+                    updateLabel();
+                }
+
+                row.querySelector('.period-cal-prev').addEventListener('click', () => {
+                    viewDate.setMonth(viewDate.getMonth() - 1);
+                    render();
+                });
+                row.querySelector('.period-cal-next').addEventListener('click', () => {
+                    viewDate.setMonth(viewDate.getMonth() + 1);
+                    render();
+                });
+                row.querySelectorAll('.period-day-label').forEach(label => {
+                    label.addEventListener('click', () => render());
+                });
+
+                render();
+
+                return {
+                    getRange: () => ({
+                        startDate: startISO,
+                        endDate: endISO || startISO,
+                        exceptionDates: Array.from(offDates).sort().join(',')
+                    })
+                };
+            }
+
+            function addPeriodRow(prefill = null) {
+                const idx = periodCount++;
+                const row = document.createElement('div');
+                row.className = 'period-row bg-slate-50 dark:bg-slate-800/60 rounded-xl p-3 space-y-3';
+                row.dataset.periodIndex = idx;
+                row.innerHTML = `
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <div class="flex items-center justify-between mb-2">
+                                <button type="button" class="period-cal-prev p-1 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400">
+                                    <i data-lucide="chevron-left" class="w-4 h-4"></i>
+                                </button>
+                                <span class="period-cal-title text-xs font-semibold text-slate-700 dark:text-slate-200"></span>
+                                <button type="button" class="period-cal-next p-1 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400">
+                                    <i data-lucide="chevron-right" class="w-4 h-4"></i>
+                                </button>
+                            </div>
+                            <div class="grid grid-cols-7 gap-0.5 mb-0.5 text-center">
+                                ${['S', 'M', 'T', 'W', 'T', 'F', 'S'].map(d => `<div class="text-[9px] font-semibold text-slate-400 dark:text-slate-500 uppercase">${d}</div>`).join('')}
+                            </div>
+                            <div class="period-cal-grid grid grid-cols-7 gap-0.5"></div>
+                            <p class="period-range-label text-[11px] text-slate-500 dark:text-slate-400 mt-1.5"></p>
+                        </div>
+                        <div class="space-y-3">
+                            <div>
+                                <p class="text-xs font-medium text-slate-600 dark:text-slate-300 mb-1.5">Days of week</p>
+                                <div class="flex flex-wrap gap-1">
+                                    ${DAYS.map(d => `
+                                        <label class="period-day-label px-2 py-1 rounded-lg border border-slate-200 dark:border-slate-600 text-xs cursor-pointer select-none">
+                                            <input type="checkbox" class="period-day hidden" value="${d}" /> ${d}
+                                        </label>`).join('')}
+                                </div>
+                            </div>
+                            <div class="flex gap-2">
+                                <div class="flex-1">
+                                    <input type="time" class="period-start-time w-full px-2 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 text-sm" required />
+                                    <p class="period-start-time-label text-[11px] text-slate-400 dark:text-slate-500 mt-0.5"></p>
+                                </div>
+                                <div class="flex-1">
+                                    <input type="time" class="period-end-time w-full px-2 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 text-sm" required />
+                                    <p class="period-end-time-label text-[11px] text-slate-400 dark:text-slate-500 mt-0.5"></p>
+                                </div>
+                            </div>
+                            <button type="button" class="remove-period-btn text-xs text-red-500 hover:underline">Remove period</button>
+                        </div>
+                    </div>
+                `;
+                row.querySelectorAll('.period-day-label').forEach(label => {
+                    const cb = label.querySelector('input');
+                    label.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        setDayChecked(label, !cb.checked);
+                    });
+                });
+                row.querySelector('.remove-period-btn').addEventListener('click', () => {
+                    if (container.children.length > 1) row.remove();
+                });
+
+                const startTimeInput = row.querySelector('.period-start-time');
+                const endTimeInput = row.querySelector('.period-end-time');
+                const startTimeLabel = row.querySelector('.period-start-time-label');
+                const endTimeLabel = row.querySelector('.period-end-time-label');
+                startTimeInput.addEventListener('input', () => { startTimeLabel.textContent = formatAmPm(startTimeInput.value); });
+                endTimeInput.addEventListener('input', () => { endTimeLabel.textContent = formatAmPm(endTimeInput.value); });
+
+                if (prefill) {
+                    const activeDayCodes = (prefill.daysOfWeek || '').split(',').filter(Boolean);
+                    row.querySelectorAll('.period-day-label').forEach(label => {
+                        const cb = label.querySelector('input');
+                        setDayChecked(label, activeDayCodes.includes(cb.value));
+                    });
+                    startTimeInput.value = prefill.startTime || '';
+                    endTimeInput.value = prefill.endTime || '';
+                }
+                startTimeLabel.textContent = formatAmPm(startTimeInput.value);
+                endTimeLabel.textContent = formatAmPm(endTimeInput.value);
+
+                container.appendChild(row);
+                row._calendar = initPeriodCalendar(row, prefill);
+                if (window.lucide) lucide.createIcons();
+            }
+
+            addBtn.addEventListener('click', () => addPeriodRow());
+            addPeriodRow();
+
+            function expandSegmentDates(segments) {
+                // Mirrors the server-side day-expansion in
+                // CourseSchedule/Index.cshtml's calendarEvents block (see the
+                // razor code-block at the top of this file) so the client can
+                // check occurrence dates against holidaysByDate without a
+                // round trip.
+                const dowCodeToJs = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+                const dates = new Set();
+                segments.forEach(seg => {
+                    const activeDays = new Set(seg.daysOfWeek.split(',').filter(Boolean));
+                    const exceptionDates = new Set(seg.exceptionDates.split(',').filter(Boolean));
+                    const start = new Date(seg.startDate + 'T00:00:00');
+                    const end = new Date(seg.endDate + 'T00:00:00');
+                    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+                        const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                        const code = Object.keys(dowCodeToJs).find(k => dowCodeToJs[k] === d.getDay());
+                        if (!activeDays.has(code)) continue;
+                        if (exceptionDates.has(iso)) continue;
+                        dates.add(iso);
+                    }
+                });
+                return dates;
+            }
+
+            form.addEventListener('submit', (e) => {
+                const segments = [];
+                const rows = Array.from(container.querySelectorAll('.period-row'));
+                const missingRange = rows.some(row => !row._calendar.getRange().startDate);
+                if (missingRange) {
+                    e.preventDefault();
+                    showToast('Pick a start and end date on the calendar for every period.', 'error');
+                    return;
+                }
+                rows.forEach((row, i) => {
+                    const days = Array.from(row.querySelectorAll('.period-day:checked')).map(cb => cb.value);
+                    const range = row._calendar.getRange();
+                    segments.push({
+                        startDate: range.startDate,
+                        endDate: range.endDate,
+                        daysOfWeek: DAYS.filter(d => days.includes(d)).join(','),
+                        startTime: row.querySelector('.period-start-time').value,
+                        endTime: row.querySelector('.period-end-time').value,
+                        sortOrder: i,
+                        exceptionDates: range.exceptionDates
+                    });
+                });
+                if (segments.some(s => !s.daysOfWeek)) {
+                    e.preventDefault();
+                    showToast('Select at least one day of week for every period.', 'error');
+                    return;
+                }
+
+                // ---------- Holiday confirmation ----------
+                // Global holiday/event dates (window.protonHolidaysByDate,
+                // built in the calendar IIFE below) are informational, not a
+                // hard block: scheduling on a marked date is allowed, but
+                // only after an explicit confirmation naming the holiday.
+                if (!form.dataset.holidayConfirmed) {
+                    const occurrenceDates = expandSegmentDates(segments);
+                    const holidaysByDateMap = window.protonHolidaysByDate || {};
+                    const hitTitles = [];
+                    occurrenceDates.forEach(iso => {
+                        (holidaysByDateMap[iso] || []).forEach(h => {
+                            if (!hitTitles.includes(h.title)) hitTitles.push(h.title);
+                        });
+                    });
+                    if (hitTitles.length > 0) {
+                        e.preventDefault();
+                        const message = hitTitles.length === 1
+                            ? `This date is marked as a holiday: ${hitTitles[0]}. Schedule anyway?`
+                            : `This date range includes marked holidays: ${hitTitles.join(', ')}. Schedule anyway?`;
+                        if (window.confirm(message)) {
+                            form.dataset.holidayConfirmed = '1';
+                            jsonField.value = JSON.stringify(segments);
+                            const picker = form.querySelector('.instructor-picker');
+                            if (picker && picker._picker && instructorJsonField) {
+                                instructorJsonField.value = JSON.stringify(picker._picker.getSelectedIds());
+                            }
+                            form.requestSubmit ? form.requestSubmit() : form.submit();
+                        }
+                        return;
+                    }
+                }
+                form.dataset.holidayConfirmed = '';
+
+                jsonField.value = JSON.stringify(segments);
+
+                const picker = form.querySelector('.instructor-picker');
+                if (picker && picker._picker && instructorJsonField) {
+                    instructorJsonField.value = JSON.stringify(picker._picker.getSelectedIds());
+                }
+            });
+
+            // ---------- Edit mode ----------
+            const scheduleIdField = document.getElementById('schedule-id-field');
+            const submitBtn = document.getElementById('add-schedule-submit');
+
+            function resetFormToAddMode() {
+                scheduleIdField.value = '';
+                const courseSelect = form.querySelector('[name="CourseID"]');
+                if (courseSelect) courseSelect.value = '';
+                ['ScheduleName', 'Capacity', 'Location', 'Notes'].forEach(name => {
+                    const field = form.querySelector(`[name="${name}"]`);
+                    if (field) field.value = '';
+                });
+                container.innerHTML = '';
+                periodCount = 0;
+                addPeriodRow();
+
+                const picker = form.querySelector('.instructor-picker');
+                form.querySelectorAll('.instructor-checkbox').forEach(cb => { cb.checked = false; });
+                if (picker && picker._picker) picker._picker.renderSelected();
+
+                if (submitBtn) submitBtn.textContent = 'Save';
+            }
+
+            document.querySelectorAll('.edit-schedule-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const data = JSON.parse(btn.dataset.schedule);
+
+                    form.classList.remove('hidden');
+                    scheduleIdField.value = data.scheduleID;
+
+                    const courseSelect = form.querySelector('[name="CourseID"]');
+                    if (courseSelect) courseSelect.value = data.courseID;
+                    const nameField = form.querySelector('[name="ScheduleName"]');
+                    if (nameField) nameField.value = data.scheduleName || '';
+                    const capacityField = form.querySelector('[name="Capacity"]');
+                    if (capacityField) capacityField.value = data.capacity ?? '';
+                    const locationField = form.querySelector('[name="Location"]');
+                    if (locationField) locationField.value = data.location || '';
+                    const notesField = form.querySelector('[name="Notes"]');
+                    if (notesField) notesField.value = data.notes || '';
+
+                    container.innerHTML = '';
+                    periodCount = 0;
+                    (data.segments || []).forEach(seg => addPeriodRow(seg));
+                    if (window.lucide) lucide.createIcons();
+
+                    const picker = form.querySelector('.instructor-picker');
+                    const instructorIDs = data.instructorIDs || [];
+                    form.querySelectorAll('.instructor-checkbox').forEach(cb => {
+                        cb.checked = instructorIDs.includes(cb.value);
+                    });
+                    if (picker && picker._picker) picker._picker.renderSelected();
+
+                    if (submitBtn) submitBtn.textContent = 'Update batch';
+                });
+            });
+
+            window.openAddScheduleForm = function () {
+                resetFormToAddMode();
+                form.classList.remove('hidden');
+            };
+            window.closeAddScheduleForm = function () {
+                form.classList.add('hidden');
+            };
+        })();
+
+        // ---------- Schedule calendar: dependency-free month/week/day views ----------
         (function () {
             const events = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(calendarEvents));
+            const notes = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(calendarNoteData));
+            const holidays = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(calendarHolidayData));
+            const canManageNotes = @Html.Raw((canAdd || canDelete) ? "true" : "false");
+
             const eventsByDate = {};
             events.forEach(e => {
                 (eventsByDate[e.date] = eventsByDate[e.date] || []).push(e);
             });
 
-            let viewDate = new Date();
-            viewDate.setDate(1);
+            const notesByDate = {};
+            notes.forEach(n => {
+                (notesByDate[n.date] = notesByDate[n.date] || []).push(n);
+            });
 
+            const holidaysByDate = {};
+            holidays.forEach(h => {
+                (holidaysByDate[h.date] = holidaysByDate[h.date] || []).push(h);
+            });
+            // Exposed so the add-schedule submit handler (defined earlier in
+            // this file, outside this IIFE) can check occurrence dates
+            // against holidays without duplicating the by-date map.
+            window.protonHolidaysByDate = holidaysByDate;
+
+            let viewMode = 'month'; // 'month' | 'week' | 'day'
+            let viewDate = new Date(); // anchor date: 1st-of-month for month view, any day in the week for week view, the day itself for day view
+            viewDate.setHours(0, 0, 0, 0);
+
+            const monthPane = document.getElementById('cal-view-month');
+            const weekPane = document.getElementById('cal-view-week');
+            const dayPane = document.getElementById('cal-view-day');
             const grid = document.getElementById('cal-grid');
+            const weekGrid = document.getElementById('cal-week-grid');
+            const dayAgenda = document.getElementById('cal-day-agenda');
             const title = document.getElementById('cal-title');
             const dayPanel = document.getElementById('cal-day-panel');
             const dayTitle = document.getElementById('cal-day-title');
             const dayEvents = document.getElementById('cal-day-events');
+            const dayNotesBox = document.getElementById('cal-day-notes');
+
+            const noteForm = document.getElementById('cal-note-form');
+            const noteToggle = document.getElementById('cal-add-note-toggle');
+            const noteCancel = document.getElementById('cal-note-cancel');
+            const noteIdField = document.getElementById('cal-note-id');
+            const noteDateField = document.getElementById('cal-note-date');
+            const noteScheduleSelect = document.getElementById('cal-note-schedule');
+            const noteTextField = document.getElementById('cal-note-text');
 
             function toKey(y, m, d) {
                 return `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
             }
+            function todayKey() {
+                const t = new Date();
+                return toKey(t.getFullYear(), t.getMonth(), t.getDate());
+            }
+            function startOfWeek(d) {
+                const r = new Date(d);
+                r.setDate(r.getDate() - r.getDay());
+                return r;
+            }
 
-            function render() {
+            // ---------- Shared cell/label rendering (month + week use the same look) ----------
+            function cellContentHtml(key, dayEventsList, dayNotesList, dayHolidaysList) {
+                const dotsHtml = dayEventsList.slice(0, 3).map(e =>
+                    `<span class="w-1.5 h-1.5 rounded-full ${e.courseType === 'CSCA' ? 'bg-purple-500' : 'bg-sky-500'} ${!e.isActive ? 'opacity-30' : ''}"></span>`
+                ).join('')
+                + (dayHolidaysList.length > 0 ? '<span class="w-1.5 h-1.5 rounded-full bg-yellow-400"></span>' : '')
+                + (dayNotesList.length > 0 ? '<span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span>' : '');
+
+                const labelsHtml = dayEventsList.slice(0, 2).map(e =>
+                    `<div class="hidden md:block text-[10px] leading-tight truncate px-1 py-0.5 rounded ${e.courseType === 'CSCA' ? 'bg-purple-50 text-purple-700 dark:bg-purple-950 dark:text-purple-300' : 'bg-sky-50 text-sky-700 dark:bg-sky-950 dark:text-sky-300'} ${!e.isActive ? 'opacity-40' : ''}">${e.title}</div>`
+                ).join('');
+                const moreCount = dayEventsList.length > 2 ? `<div class="hidden md:block text-[10px] text-slate-400 dark:text-slate-500 px-1">+${dayEventsList.length - 2} more</div>` : '';
+                const holidayLabel = dayHolidaysList.length > 0
+                    ? `<div class="hidden md:flex items-center gap-1 text-[10px] leading-tight truncate px-1 py-0.5 rounded bg-yellow-100 text-yellow-800 dark:bg-yellow-950 dark:text-yellow-300"><i data-lucide="star" class="w-2.5 h-2.5"></i> ${dayHolidaysList[0].title}</div>`
+                    : '';
+                const noteLabel = dayNotesList.length > 0
+                    ? `<div class="hidden md:flex items-center gap-1 text-[10px] leading-tight truncate px-1 py-0.5 rounded bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"><i data-lucide="sticky-note" class="w-2.5 h-2.5"></i> ${dayNotesList.length} note${dayNotesList.length === 1 ? '' : 's'}</div>`
+                    : '';
+
+                return { dotsHtml, labelsHtml: holidayLabel + labelsHtml + moreCount + noteLabel };
+            }
+
+            function dayCellHtml(key, dayNum, isOtherMonth, isToday, big) {
+                const dayEventsList = eventsByDate[key] || [];
+                const dayNotesList = notesByDate[key] || [];
+                const dayHolidaysList = holidaysByDate[key] || [];
+                const { dotsHtml, labelsHtml } = cellContentHtml(key, dayEventsList, dayNotesList, dayHolidaysList);
+                const hasContent = dayEventsList.length > 0 || dayNotesList.length > 0 || dayHolidaysList.length > 0;
+                const isHoliday = dayHolidaysList.length > 0 && !isOtherMonth;
+
+                return `
+                    <button type="button" data-day-key="${key}"
+                            class="cal-day-cell relative ${big ? 'md:h-32' : 'md:h-24'} aspect-square md:aspect-auto rounded-xl border text-left p-1.5 md:p-2 flex flex-col gap-1 transition-colors
+                                ${isOtherMonth ? 'border-transparent text-slate-300 dark:text-slate-700' : (isHoliday ? 'bg-yellow-50 dark:bg-yellow-950/30 border-yellow-200 dark:border-yellow-800 text-slate-700 dark:text-slate-200 hover:bg-yellow-100 dark:hover:bg-yellow-950/50' : 'border-slate-100 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800')}
+                                ${isToday ? 'ring-2 ring-[#7c3aed] ring-inset' : ''}
+                                cursor-pointer">
+                        <span class="text-xs md:text-sm font-medium ${isToday ? 'text-[#7c3aed] dark:text-purple-300 font-bold' : ''}">${dayNum}</span>
+                        <div class="flex md:hidden gap-0.5 flex-wrap">${dotsHtml}</div>
+                        <div class="hidden md:flex md:flex-col gap-0.5 overflow-hidden">${labelsHtml}</div>
+                        ${!hasContent ? '<span class="hidden md:block text-[10px] text-slate-300 dark:text-slate-600 mt-auto">+ note</span>' : ''}
+                    </button>`;
+            }
+
+            // ---------- Month view ----------
+            function renderMonth() {
                 const year = viewDate.getFullYear();
                 const month = viewDate.getMonth();
                 title.textContent = viewDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
@@ -264,8 +991,7 @@
                 const firstDayOfWeek = new Date(year, month, 1).getDay();
                 const daysInMonth = new Date(year, month + 1, 0).getDate();
                 const daysInPrevMonth = new Date(year, month, 0).getDate();
-                const today = new Date();
-                const todayKey = toKey(today.getFullYear(), today.getMonth(), today.getDate());
+                const tKey = todayKey();
 
                 let cells = '';
                 const totalCells = Math.ceil((firstDayOfWeek + daysInMonth) / 7) * 7;
@@ -286,44 +1012,62 @@
                     if (cellMonth > 11) { cellMonth = 0; cellYear++; }
 
                     const key = toKey(cellYear, cellMonth, dayNum);
-                    const dayEventsList = eventsByDate[key] || [];
-                    const isToday = key === todayKey;
-
-                    const dotsHtml = dayEventsList.slice(0, 3).map(e =>
-                        `<span class="w-1.5 h-1.5 rounded-full ${e.courseType === 'CSCA' ? 'bg-purple-500' : 'bg-sky-500'} ${!e.isActive ? 'opacity-30' : ''}"></span>`
-                    ).join('');
-
-                    const labelsHtml = dayEventsList.slice(0, 2).map(e =>
-                        `<div class="hidden md:block text-[10px] leading-tight truncate px-1 py-0.5 rounded ${e.courseType === 'CSCA' ? 'bg-purple-50 text-purple-700 dark:bg-purple-950 dark:text-purple-300' : 'bg-sky-50 text-sky-700 dark:bg-sky-950 dark:text-sky-300'} ${!e.isActive ? 'opacity-40' : ''}">${e.title}</div>`
-                    ).join('');
-                    const moreCount = dayEventsList.length > 2 ? `<div class="hidden md:block text-[10px] text-slate-400 dark:text-slate-500 px-1">+${dayEventsList.length - 2} more</div>` : '';
-
-                    cells += `
-                        <button type="button" data-day-key="${key}"
-                                class="cal-day-cell relative aspect-square md:aspect-auto md:h-24 rounded-xl border text-left p-1.5 md:p-2 flex flex-col gap-1 transition-colors
-                                    ${isOtherMonth ? 'border-transparent text-slate-300 dark:text-slate-700' : 'border-slate-100 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800'}
-                                    ${isToday ? 'ring-2 ring-[#7c3aed] ring-inset' : ''}
-                                    ${dayEventsList.length > 0 ? 'cursor-pointer' : 'cursor-default'}">
-                            <span class="text-xs md:text-sm font-medium ${isToday ? 'text-[#7c3aed] dark:text-purple-300 font-bold' : ''}">${dayNum}</span>
-                            <div class="flex md:hidden gap-0.5 flex-wrap">${dotsHtml}</div>
-                            <div class="hidden md:flex md:flex-col gap-0.5 overflow-hidden">${labelsHtml}${moreCount}</div>
-                        </button>`;
+                    cells += dayCellHtml(key, dayNum, isOtherMonth, key === tKey, false);
                 }
 
                 grid.innerHTML = cells;
-
                 grid.querySelectorAll('.cal-day-cell').forEach(cell => {
-                    const key = cell.dataset.dayKey;
-                    const list = eventsByDate[key] || [];
-                    if (list.length === 0) return;
-                    cell.addEventListener('click', () => showDay(key, list));
+                    cell.addEventListener('click', () => showDay(cell.dataset.dayKey));
                 });
             }
 
-            function showDay(key, list) {
-                const d = new Date(key + 'T00:00:00');
-                dayTitle.textContent = d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
-                dayEvents.innerHTML = list.map(e => `
+            // ---------- Week view ----------
+            function renderWeek() {
+                const start = startOfWeek(viewDate);
+                const end = new Date(start); end.setDate(end.getDate() + 6);
+                const fmt = d => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                title.textContent = `${fmt(start)} - ${fmt(end)}, ${end.getFullYear()}`;
+
+                const tKey = todayKey();
+                let cells = '';
+                for (let i = 0; i < 7; i++) {
+                    const d = new Date(start); d.setDate(d.getDate() + i);
+                    const key = toKey(d.getFullYear(), d.getMonth(), d.getDate());
+                    const label = d.toLocaleDateString('en-US', { weekday: 'short' });
+                    cells += `<div class="md:flex md:flex-col md:gap-1">
+                        <div class="md:hidden text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">${label}</div>
+                        ${dayCellHtml(key, d.getDate(), false, key === tKey, true)}
+                    </div>`;
+                }
+                weekGrid.innerHTML = cells;
+                weekGrid.querySelectorAll('.cal-day-cell').forEach(cell => {
+                    cell.addEventListener('click', () => showDay(cell.dataset.dayKey));
+                });
+            }
+
+            // ---------- Day view (agenda list) ----------
+            function renderDayView() {
+                const key = toKey(viewDate.getFullYear(), viewDate.getMonth(), viewDate.getDate());
+                title.textContent = viewDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+
+                const list = eventsByDate[key] || [];
+                const noteList = notesByDate[key] || [];
+                if (list.length === 0 && noteList.length === 0) {
+                    dayAgenda.innerHTML = `<p class="text-sm text-slate-400 dark:text-slate-500 py-6 text-center">No batches or notes on this date.</p>`;
+                } else {
+                    dayAgenda.innerHTML = eventCardsHtml(list) + noteCardsHtml(noteList);
+                }
+                if (window.lucide) lucide.createIcons();
+
+                // Day view doubles as the "click to manage this date" surface —
+                // open the same day panel (events already shown above it, so
+                // just the note-adding affordance is useful here).
+                showDay(key, { skipScroll: true, agendaMode: true });
+            }
+
+            // ---------- Shared event/note card renderers (used by day-detail drawer AND day-view agenda) ----------
+            function eventCardsHtml(list) {
+                return list.map(e => `
                     <div class="p-3 rounded-xl border border-slate-100 dark:border-slate-700 ${!e.isActive ? 'opacity-50' : ''}">
                         <div class="flex items-center gap-2 mb-1">
                             <span class="font-medium text-slate-800 dark:text-slate-100 text-sm">${e.title}</span>
@@ -338,27 +1082,173 @@
                         </div>
                     </div>
                 `).join('');
-                dayPanel.classList.remove('hidden');
-                if (window.lucide) lucide.createIcons();
-                dayPanel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
             }
 
+            function noteCardsHtml(list) {
+                return list.map(n => `
+                    <div class="p-3 rounded-xl border border-amber-100 dark:border-amber-900 bg-amber-50 dark:bg-amber-950/40">
+                        <div class="flex items-start gap-2">
+                            <i data-lucide="sticky-note" class="w-4 h-4 mt-0.5 text-amber-500 dark:text-amber-400 flex-shrink-0"></i>
+                            <div class="flex-1 min-w-0">
+                                ${n.scheduleName ? `<div class="text-xs font-medium text-amber-700 dark:text-amber-300 mb-0.5">${n.scheduleName}</div>` : ''}
+                                <p class="text-sm text-slate-700 dark:text-slate-200 break-words">${n.text}</p>
+                            </div>
+                            ${canManageNotes ? `
+                            <div class="flex items-center gap-1 flex-shrink-0">
+                                <button type="button" class="cal-note-edit-btn p-1 rounded-lg text-slate-400 hover:text-[#7c3aed] hover:bg-white dark:hover:bg-slate-800" data-note-id="${n.id}" data-note-date="${n.date}" data-note-schedule="${n.scheduleId}" data-note-text="${n.text.replace(/"/g, '&quot;')}" title="Edit">
+                                    <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
+                                </button>
+                                <button type="button" class="cal-note-delete-btn p-1 rounded-lg text-slate-400 hover:text-red-600 hover:bg-white dark:hover:bg-slate-800" data-note-id="${n.id}" title="Delete">
+                                    <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                                </button>` : ''}
+                        </div>
+                    </div>
+                `).join('');
+            }
+
+            // Reuses the page's own antiforgery token (same hidden field the
+            // add-schedule form carries) — a real <form> is submitted per
+            // delete, same data-confirm modal flow as every other destructive
+            // action on this page, just built here instead of by Razor since
+            // note rows are rendered client-side.
+            function submitDeleteNote(noteId) {
+                const token = document.querySelector('input[name="__RequestVerificationToken"]').value;
+                const form = document.createElement('form');
+                form.method = 'post';
+                form.action = '@Url.Action("DeleteNote", "CourseSchedule")';
+                form.dataset.confirm = 'Delete this note?';
+                form.dataset.confirmTitle = 'Delete note';
+                form.dataset.confirmLabel = 'Delete';
+                form.innerHTML = `<input type="hidden" name="__RequestVerificationToken" value="${token}" />
+                                   <input type="hidden" name="id" value="${noteId}" />`;
+                document.body.appendChild(form);
+                form.requestSubmit ? form.requestSubmit() : form.submit();
+            }
+
+            // ---------- Day detail drawer (shared by month/week click AND day-view) ----------
+            function showDay(key, opts) {
+                opts = opts || {};
+                const d = new Date(key + 'T00:00:00');
+                dayTitle.textContent = d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+
+                const list = eventsByDate[key] || [];
+                const noteList = notesByDate[key] || [];
+                const holidayList = holidaysByDate[key] || [];
+
+                // In day-view mode the agenda pane already shows the events, so
+                // the drawer just carries the notes + add-note affordance to
+                // avoid showing everything twice.
+                const holidayBanner = holidayList.length > 0
+                    ? holidayList.map(h => `<div class="p-3 rounded-xl border border-yellow-200 dark:border-yellow-800 bg-yellow-50 dark:bg-yellow-950/40 flex items-center gap-2 mb-2">
+                        <i data-lucide="star" class="w-4 h-4 text-yellow-600 dark:text-yellow-400 flex-shrink-0"></i>
+                        <span class="text-sm font-medium text-yellow-800 dark:text-yellow-300">Holiday: ${h.title}</span>
+                      </div>`).join('')
+                    : '';
+                dayEvents.innerHTML = holidayBanner + (opts.agendaMode ? '' : eventCardsHtml(list));
+                dayNotesBox.innerHTML = noteCardsHtml(noteList);
+                wireNoteRowButtons();
+
+                // Populate the "link to a batch on this date" select from
+                // today's own events.
+                noteScheduleSelect.innerHTML = '<option value="">-- General note (not linked) --</option>' +
+                    list.map(e => `<option value="${e.scheduleId || ''}">${e.title}</option>`).join('');
+
+                resetNoteForm(key);
+
+                dayPanel.classList.remove('hidden');
+                if (window.lucide) lucide.createIcons();
+                if (!opts.skipScroll) dayPanel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+
+            function wireNoteRowButtons() {
+                dayNotesBox.querySelectorAll('.cal-note-delete-btn').forEach(btn => {
+                    btn.addEventListener('click', () => submitDeleteNote(btn.dataset.noteId));
+                });
+                dayNotesBox.querySelectorAll('.cal-note-edit-btn').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        noteForm.classList.remove('hidden');
+                        noteToggle.classList.add('hidden');
+                        noteIdField.value = btn.dataset.noteId;
+                        noteDateField.value = btn.dataset.noteDate;
+                        noteScheduleSelect.value = btn.dataset.noteSchedule || '';
+                        noteTextField.value = btn.dataset.noteText || '';
+                        noteTextField.focus();
+                    });
+                });
+            }
+
+            function resetNoteForm(key) {
+                noteForm.classList.add('hidden');
+                noteToggle.classList.remove('hidden');
+                noteIdField.value = '';
+                noteDateField.value = key;
+                noteScheduleSelect.value = '';
+                noteTextField.value = '';
+            }
+
+            noteToggle.addEventListener('click', () => {
+                noteForm.classList.remove('hidden');
+                noteToggle.classList.add('hidden');
+                noteTextField.focus();
+            });
+            noteCancel.addEventListener('click', () => {
+                resetNoteForm(noteDateField.value);
+            });
+
+            document.getElementById('cal-day-close').addEventListener('click', () => dayPanel.classList.add('hidden'));
+
+            // ---------- View-mode switching (reuses the List/Calendar tab-strip active/inactive classes) ----------
+            function setActiveViewBtn(mode) {
+                document.querySelectorAll('.cal-view-btn').forEach(b => {
+                    const active = b.dataset.viewTarget === mode;
+                    b.classList.toggle('border-[#7c3aed]', active);
+                    b.classList.toggle('text-[#7c3aed]', active);
+                    b.classList.toggle('md:bg-purple-50', active);
+                    b.classList.toggle('md:dark:bg-purple-950', active);
+                    b.classList.toggle('border-transparent', !active);
+                    b.classList.toggle('text-slate-500', !active);
+                    b.classList.toggle('dark:text-slate-400', !active);
+                });
+            }
+
+            function render() {
+                monthPane.classList.toggle('hidden', viewMode !== 'month');
+                weekPane.classList.toggle('hidden', viewMode !== 'week');
+                dayPane.classList.toggle('hidden', viewMode !== 'day');
+                if (viewMode === 'month') renderMonth();
+                else if (viewMode === 'week') renderWeek();
+                else renderDayView();
+                if (window.lucide) lucide.createIcons();
+            }
+
+            document.querySelectorAll('.cal-view-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    viewMode = btn.dataset.viewTarget;
+                    setActiveViewBtn(viewMode);
+                    dayPanel.classList.add('hidden');
+                    render();
+                });
+            });
+
             document.getElementById('cal-prev').addEventListener('click', () => {
-                viewDate.setMonth(viewDate.getMonth() - 1);
+                if (viewMode === 'month') viewDate.setMonth(viewDate.getMonth() - 1);
+                else if (viewMode === 'week') viewDate.setDate(viewDate.getDate() - 7);
+                else viewDate.setDate(viewDate.getDate() - 1);
                 dayPanel.classList.add('hidden');
                 render();
             });
             document.getElementById('cal-next').addEventListener('click', () => {
-                viewDate.setMonth(viewDate.getMonth() + 1);
+                if (viewMode === 'month') viewDate.setMonth(viewDate.getMonth() + 1);
+                else if (viewMode === 'week') viewDate.setDate(viewDate.getDate() + 7);
+                else viewDate.setDate(viewDate.getDate() + 1);
                 dayPanel.classList.add('hidden');
                 render();
             });
             document.getElementById('cal-today').addEventListener('click', () => {
-                viewDate = new Date(); viewDate.setDate(1);
+                viewDate = new Date(); viewDate.setHours(0, 0, 0, 0);
                 dayPanel.classList.add('hidden');
                 render();
             });
-            document.getElementById('cal-day-close').addEventListener('click', () => dayPanel.classList.add('hidden'));
 
             render();
         })();
