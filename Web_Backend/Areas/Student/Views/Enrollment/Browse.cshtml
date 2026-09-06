@@ -1,0 +1,65 @@
+@model List<Web_Backend.Areas.Admin.Models.Course>
+@{
+    ViewData["Title"] = "Browse Courses";
+    var enrolledCourseIds = ViewBag.EnrolledCourseIds as HashSet<string> ?? new HashSet<string>();
+}
+
+<div class="max-w-5xl mx-auto space-y-6 page-enter">
+    <div>
+        <h2 class="text-2xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">Browse Courses</h2>
+        <p class="text-slate-500 dark:text-slate-400 text-sm mt-1">Pick a course to see its available schedules and enroll.</p>
+    </div>
+
+    @if (Model.Count == 0)
+    {
+        <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 p-10 text-center">
+            <p class="text-sm text-slate-400 dark:text-slate-500">No active courses are available right now.</p>
+        </div>
+    }
+    else
+    {
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+            @foreach (var course in Model)
+            {
+                <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 p-6 flex flex-col gap-3">
+                    <div>
+                        <h3 class="font-semibold text-lg text-slate-800 dark:text-slate-100">@course.CourseTitle</h3>
+                        @if (!string.IsNullOrEmpty(course.ShortDescription))
+                        {
+                            <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">@course.ShortDescription</p>
+                        }
+                    </div>
+                    <div class="flex items-center gap-4 text-sm text-slate-500 dark:text-slate-400">
+                        @if (!string.IsNullOrEmpty(course.Duration))
+                        {
+                            <span class="inline-flex items-center gap-1"><i data-lucide="clock" class="w-4 h-4"></i>@course.Duration</span>
+                        }
+                        @if (course.Fee.HasValue)
+                        {
+                            <span class="inline-flex items-center gap-1 font-semibold text-slate-700 dark:text-slate-200"><i data-lucide="badge-dollar-sign" class="w-4 h-4"></i>@course.CurrencyCode @course.Fee.Value.ToString("N2")</span>
+                        }
+                    </div>
+                    <div class="mt-2 flex items-center gap-2">
+                        <a asp-area="Student" asp-controller="Enrollment" asp-action="Info" asp-route-courseId="@course.CourseID"
+                           class="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl font-medium text-sm border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all">
+                            <i data-lucide="info" class="w-4 h-4"></i> View Info
+                        </a>
+                        @if (enrolledCourseIds.Contains(course.CourseID))
+                        {
+                            <span class="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-medium text-sm bg-emerald-50 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-300">
+                                <i data-lucide="badge-check" class="w-4 h-4"></i> Already Enrolled
+                            </span>
+                        }
+                        else
+                        {
+                            <a asp-area="Student" asp-controller="Enrollment" asp-action="Enroll" asp-route-courseId="@course.CourseID"
+                               class="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-medium text-sm bg-[#7c3aed] text-white hover:bg-[#6d28d9] shadow-sm transition-all">
+                                <i data-lucide="arrow-right" class="w-4 h-4"></i> Enroll
+                            </a>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>

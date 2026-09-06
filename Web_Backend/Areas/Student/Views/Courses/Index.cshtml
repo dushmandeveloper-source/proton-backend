@@ -1,0 +1,55 @@
+@model List<Web_Backend.Areas.Admin.Models.CourseRegistration>
+@{
+    ViewData["Title"] = "My Courses";
+}
+
+<div class="max-w-5xl mx-auto space-y-8 page-enter">
+
+    <div>
+        <p class="text-sm font-medium text-slate-500 dark:text-slate-400 mb-2">My Courses</p>
+        <h1 class="text-3xl md:text-4xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">
+            Your Enrollments
+        </h1>
+    </div>
+
+    <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
+        <div class="p-6 border-b border-slate-100 dark:border-slate-700 flex items-center gap-3">
+            <div class="bg-purple-50 dark:bg-purple-950 p-2 rounded-lg"><i data-lucide="graduation-cap" class="w-5 h-5 text-purple-600 dark:text-purple-300"></i></div>
+            <h3 class="font-semibold text-lg text-slate-800 dark:text-slate-100">Enrolled Courses</h3>
+        </div>
+
+        @if (Model.Count == 0)
+        {
+            <div class="p-10 text-center">
+                <p class="text-sm text-slate-400 dark:text-slate-500">You are not enrolled in any courses yet.</p>
+            </div>
+        }
+        else
+        {
+            <div class="divide-y divide-slate-100 dark:divide-slate-700">
+                @foreach (var reg in Model)
+                {
+                    <div class="p-5 flex flex-col md:flex-row md:items-center gap-3 md:gap-6">
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <p class="font-semibold text-slate-800 dark:text-slate-100">@reg.CourseTitle</p>
+                                <span class="inline-flex px-2.5 py-1 rounded-full text-xs font-medium @(reg.PaymentStatus == "Paid" ? "bg-emerald-50 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-300" : reg.PaymentStatus == "PartiallyPaid" ? "bg-amber-50 dark:bg-amber-950 text-amber-600 dark:text-amber-300" : "bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400")">
+                                    @reg.PaymentStatus
+                                </span>
+                            </div>
+                            <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                                Fee: @reg.CurrencyCode @reg.CourseFee.ToString("N2") &middot;
+                                Paid: @reg.CurrencyCode @reg.AmountPaid.ToString("N2") &middot;
+                                Balance: @reg.CurrencyCode @reg.BalanceDue.ToString("N2")
+                            </p>
+                        </div>
+                        <a asp-action="Details" asp-route-registrationId="@reg.RegistrationID"
+                           class="px-4 py-2 rounded-xl font-medium text-sm bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors flex items-center gap-2 w-fit">
+                            View Details <i data-lucide="arrow-right" class="w-4 h-4"></i>
+                        </a>
+                    </div>
+                }
+            </div>
+        }
+    </div>
+</div>

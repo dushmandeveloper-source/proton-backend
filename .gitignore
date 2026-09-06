@@ -15,6 +15,10 @@ out/
 *.nupkg
 packages/
 
+# npm (Web_Backend/package.json — Tailwind CLI build for the Admin views'
+# compiled CSS, replacing the play-CDN script; see wwwroot/css/tailwind.css)
+node_modules/
+
 # OS
 .DS_Store
 

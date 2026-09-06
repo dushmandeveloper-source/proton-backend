@@ -29,6 +29,8 @@ namespace Web_Backend.Areas.Admin.Models
         public string PassportCountry { get; set; } = "";
         public DateTime? PassportExpiryDate { get; set; }
         public string PassportPhotoURL { get; set; } = "";
+        public string PassportVerificationStatus { get; set; } = "";
+        public bool PassportLocked { get; set; }
         public string EmergencyContactName { get; set; } = "";
         public string EmergencyContactPhone { get; set; } = "";
         public string EmergencyRelationship { get; set; } = "";

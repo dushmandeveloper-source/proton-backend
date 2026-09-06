@@ -1,0 +1,53 @@
+@model Web_Backend.Areas.LecturerPortal.Models.RescheduleRequestFormModel
+@{
+    ViewData["Title"] = "Request Reschedule";
+}
+
+<div class="max-w-2xl mx-auto space-y-8 page-enter">
+
+    <div>
+        <p class="text-sm font-medium text-slate-500 dark:text-slate-400 mb-2">@Model.CourseTitle &middot; @Model.ScheduleName</p>
+        <h1 class="text-3xl md:text-4xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">Request Reschedule</h1>
+        <p class="text-sm text-slate-500 dark:text-slate-400 mt-2">Move a single class occurrence to a different date. This request needs admin approval before it takes effect.</p>
+    </div>
+
+    <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
+        <form asp-action="Create" method="post" class="p-6 space-y-5">
+            <input type="hidden" asp-for="ScheduleID" />
+            <input type="hidden" asp-for="SegmentID" />
+            <input type="hidden" asp-for="ScheduleName" />
+            <input type="hidden" asp-for="CourseTitle" />
+
+            <div>
+                <label class="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-1.5">Original Class Date</label>
+                <input asp-for="OriginalDate" type="date"
+                       class="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-[#7c3aed]/40" />
+                <span asp-validation-for="OriginalDate" class="text-xs text-red-600 dark:text-red-400"></span>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-1.5">Proposed New Date</label>
+                <input asp-for="ProposedNewDate" type="date"
+                       class="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-[#7c3aed]/40" />
+                <span asp-validation-for="ProposedNewDate" class="text-xs text-red-600 dark:text-red-400"></span>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-1.5">Reason (optional)</label>
+                <textarea asp-for="Remark" rows="3"
+                          class="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-[#7c3aed]/40"></textarea>
+            </div>
+
+            <div class="flex items-center gap-3 pt-2">
+                <button type="submit"
+                        class="px-5 py-2.5 rounded-xl font-medium text-sm bg-[#7c3aed] text-white hover:bg-[#6d28d9] shadow-sm transition-all">
+                    Submit Request
+                </button>
+                <a asp-action="Index"
+                   class="px-5 py-2.5 rounded-xl font-medium text-sm bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+                    Cancel
+                </a>
+            </div>
+        </form>
+    </div>
+</div>

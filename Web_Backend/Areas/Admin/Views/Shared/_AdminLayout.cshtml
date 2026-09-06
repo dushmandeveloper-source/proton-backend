@@ -14,6 +14,8 @@
     var canViewEmailTemplates = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.EmailTemplates, 'V');
     var canViewUserManagement = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.UserManagement, 'V');
     var canAddUser = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.UserManagement, 'A');
+    var canViewLectureNotes = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.LectureNotes, 'V');
+    var canViewLectureSchedule = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.LectureSchedule, 'V');
 }
 <!DOCTYPE html>
 <html lang="en">
@@ -28,31 +30,7 @@
             document.documentElement.classList.add('dark');
         }
     </script>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        // Stock Tailwind slate-50/100/400/500 read as near-white-on-white in
-        // light mode — every card border, muted label, and secondary text
-        // color in the admin views uses these, so low contrast shows up
-        // everywhere at once. Re-tuning the scale here (rather than editing
-        // every view) darkens/saturates just the light-mode-relevant shades;
-        // dark mode already uses 700/800/900/950 and is untouched.
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    colors: {
-                        slate: {
-                            50: '#eef1f6',
-                            100: '#e2e7f0',
-                            200: '#cbd3e1',
-                            400: '#64748b',
-                            500: '#475569',
-                        }
-                    },
-                }
-            }
-        }
-    </script>
+    <link rel="stylesheet" href="~/css/tailwind.css" asp-append-version="true" />
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
     <!-- MathLive: WYSIWYG equation editor (<math-field>) used on the Exam
          question editor so admins build equations by clicking, never typing
@@ -178,6 +156,22 @@ else
                             <span>Course Schedules</span>
                         </a>
                     }
+                    @if (canViewLectureSchedule)
+                    {
+                        <a asp-area="Admin" asp-controller="LectureSchedule" asp-action="Index"
+                           class="w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-200 group @(activeController == "LectureSchedule" ? "bg-slate-50/80 dark:bg-slate-700/60 text-slate-900 dark:text-slate-100 font-semibold" : "text-slate-500 dark:text-slate-400 hover:bg-slate-50/50 dark:hover:bg-slate-700/40 hover:text-slate-900 dark:hover:text-slate-100")">
+                            <i data-lucide="calendar-clock" class="w-5 h-5 @(activeController == "LectureSchedule" ? "text-[#5a43f1] dark:text-[#a78bfa]" : "text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300")"></i>
+                            <span>Lecture Schedule</span>
+                        </a>
+                    }
+                    @if (canViewLectureNotes)
+                    {
+                        <a asp-area="Admin" asp-controller="LectureNote" asp-action="Index"
+                           class="w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-200 group @(activeController == "LectureNote" ? "bg-slate-50/80 dark:bg-slate-700/60 text-slate-900 dark:text-slate-100 font-semibold" : "text-slate-500 dark:text-slate-400 hover:bg-slate-50/50 dark:hover:bg-slate-700/40 hover:text-slate-900 dark:hover:text-slate-100")">
+                            <i data-lucide="file-text" class="w-5 h-5 @(activeController == "LectureNote" ? "text-[#5a43f1] dark:text-[#a78bfa]" : "text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300")"></i>
+                            <span>Lecture Notes</span>
+                        </a>
+                    }
                     @if (canViewHolidayCalendar)
                     {
                         <a asp-area="Admin" asp-controller="HolidayEvent" asp-action="Index"
@@ -225,6 +219,11 @@ else
                        class="w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-200 group @(activeController == "User" ? "bg-slate-50/80 dark:bg-slate-700/60 text-slate-900 dark:text-slate-100 font-semibold" : "text-slate-500 dark:text-slate-400 hover:bg-slate-50/50 dark:hover:bg-slate-700/40 hover:text-slate-900 dark:hover:text-slate-100")">
                         <i data-lucide="users" class="w-5 h-5 @(activeController == "User" ? "text-[#5a43f1] dark:text-[#a78bfa]" : "text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300")"></i>
                         <span>User Management</span>
+                    </a>
+                    <a asp-area="Admin" asp-controller="Lecturer" asp-action="Index"
+                       class="w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-200 group @(activeController == "Lecturer" ? "bg-slate-50/80 dark:bg-slate-700/60 text-slate-900 dark:text-slate-100 font-semibold" : "text-slate-500 dark:text-slate-400 hover:bg-slate-50/50 dark:hover:bg-slate-700/40 hover:text-slate-900 dark:hover:text-slate-100")">
+                        <i data-lucide="user-cog" class="w-5 h-5 @(activeController == "Lecturer" ? "text-[#5a43f1] dark:text-[#a78bfa]" : "text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300")"></i>
+                        <span>Lecturers</span>
                     </a>
                 }
                 <a asp-area="Admin" asp-controller="Profile" asp-action="Index"

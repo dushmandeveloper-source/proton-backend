@@ -233,6 +233,7 @@
                                                         scheduleID = s.ScheduleID, courseID = s.CourseID, scheduleName = s.ScheduleName,
                                                         capacity = s.Capacity, location = s.Location, notes = s.Notes,
                                                         segments = s.Segments.OrderBy(seg => seg.SortOrder).Select(seg => new {
+                                                            segmentId = seg.SegmentID,
                                                             startDate = seg.StartDate.ToString("yyyy-MM-dd"), endDate = seg.EndDate.ToString("yyyy-MM-dd"),
                                                             daysOfWeek = seg.DaysOfWeek, startTime = seg.StartTime.HasValue ? seg.StartTime.Value.ToString("hh\\:mm") : "",
                                                             endTime = seg.EndTime.HasValue ? seg.EndTime.Value.ToString("hh\\:mm") : "", exceptionDates = seg.ExceptionDates
@@ -360,6 +361,21 @@
 
 @section Scripts {
     <script>
+        // Built here, at the very top of this Scripts block, so it's ready
+        // before the add-schedule form's period-picker calendar (initPeriodCalendar,
+        // further down this file) does its first render — that calendar reads
+        // window.protonHolidaysByDate directly. The bottom List/Calendar view's
+        // own IIFE further down rebuilds the identical map for its own use,
+        // which is fine (same source data, harmless to compute twice).
+        window.protonHolidaysByDate = (function () {
+            const holidays = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(calendarHolidayData));
+            const byDate = {};
+            holidays.forEach(h => {
+                (byDate[h.date] = byDate[h.date] || []).push(h);
+            });
+            return byDate;
+        })();
+
         document.querySelectorAll('.tab-btn').forEach(btn => {
             btn.addEventListener('click', () => {
                 document.querySelectorAll('.tab-btn').forEach(b => {
@@ -561,15 +577,26 @@
                         const shaded = !isOtherMonth && inRange(iso) && !selected && !off;
                         const isEndpoint = iso === startISO || iso === endISO;
 
-                        cells += `<button type="button" data-iso="${iso}" title="${off ? 'Click to restore this class day' : (selected ? 'Click to mark this day off' : '')}"
-                            class="period-cal-day text-xs rounded-lg py-1.5 transition-colors
+                        // Same global holiday map the bottom List/Calendar view
+                        // populates (window.protonHolidaysByDate) — reused here
+                        // rather than re-fetching, so a holiday shows up in this
+                        // picker too and an admin doesn't accidentally schedule
+                        // a class on a day marked off.
+                        const dayHolidays = (window.protonHolidaysByDate || {})[iso] || [];
+                        const isHoliday = dayHolidays.length > 0 && !isOtherMonth;
+                        const holidayTitle = isHoliday ? dayHolidays.map(h => h.title).join(', ') : '';
+
+                        cells += `<button type="button" data-iso="${iso}" title="${holidayTitle ? `Holiday: ${holidayTitle}` : ''}${off ? ' — Click to restore this class day' : (selected ? ' — Click to mark this day off' : '')}"
+                            class="period-cal-day relative text-xs rounded-lg py-1.5 transition-colors
                                 ${isOtherMonth ? 'text-slate-300 dark:text-slate-700 cursor-default' : 'cursor-pointer'}
                                 ${selected ? 'bg-[#7c3aed] text-white font-semibold' : ''}
                                 ${off ? 'bg-slate-200 dark:bg-slate-700 text-slate-400 dark:text-slate-500 line-through' : ''}
                                 ${shaded ? 'bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300' : ''}
-                                ${!selected && !off && !shaded && !isOtherMonth ? 'hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200' : ''}
-                                ${isEndpoint ? 'ring-2 ring-[#7c3aed]' : ''}"
-                            ${isOtherMonth ? 'disabled' : ''}>${dayNum}</button>`;
+                                ${!selected && !off && !shaded && isHoliday ? 'bg-yellow-50 dark:bg-yellow-950/30 text-yellow-800 dark:text-yellow-300' : ''}
+                                ${!selected && !off && !shaded && !isHoliday && !isOtherMonth ? 'hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200' : ''}
+                                ${isEndpoint ? 'ring-2 ring-[#7c3aed]' : ''}
+                                ${isHoliday ? 'ring-1 ring-yellow-400 dark:ring-yellow-600' : ''}"
+                            ${isOtherMonth ? 'disabled' : ''}>${dayNum}${isHoliday ? '<span class="absolute top-0.5 right-0.5 w-1.5 h-1.5 rounded-full bg-yellow-400"></span>' : ''}</button>`;
                     }
                     calGrid.innerHTML = cells;
 
@@ -697,6 +724,12 @@
                 startTimeInput.addEventListener('input', () => { startTimeLabel.textContent = formatAmPm(startTimeInput.value); });
                 endTimeInput.addEventListener('input', () => { endTimeLabel.textContent = formatAmPm(endTimeInput.value); });
 
+                // Existing segment's identity, if editing — carried through
+                // to submit so the server can update this segment in place
+                // instead of deleting+recreating it (which breaks once a
+                // CourseScheduleReschedule row references its SegmentID).
+                row.dataset.segmentId = prefill?.segmentId || '';
+
                 if (prefill) {
                     const activeDayCodes = (prefill.daysOfWeek || '').split(',').filter(Boolean);
                     row.querySelectorAll('.period-day-label').forEach(label => {
@@ -754,6 +787,7 @@
                     const days = Array.from(row.querySelectorAll('.period-day:checked')).map(cb => cb.value);
                     const range = row._calendar.getRange();
                     segments.push({
+                        segmentId: row.dataset.segmentId || '',
                         startDate: range.startDate,
                         endDate: range.endDate,
                         daysOfWeek: DAYS.filter(d => days.includes(d)).join(','),

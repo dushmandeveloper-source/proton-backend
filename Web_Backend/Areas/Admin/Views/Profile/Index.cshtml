@@ -114,23 +114,31 @@
             </div>
 
             <div>
-                <h3 class="text-sm font-semibold text-slate-800 dark:text-slate-100 mb-3">Passport</h3>
+                <h3 class="text-sm font-semibold text-slate-800 dark:text-slate-100 mb-3 flex items-center gap-2">
+                    Passport
+                    @if (Model.PassportLocked)
+                    {
+                        <span class="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-300">
+                            <i data-lucide="lock" class="w-3 h-3"></i> Locked — verified
+                        </span>
+                    }
+                </h3>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div class="space-y-1">
                         <label class="text-sm font-medium text-slate-700 dark:text-slate-300">Passport Number</label>
-                        <input asp-for="PassportNumber" class="w-full rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 px-4 py-2.5 text-sm outline-none focus:border-[#7c3aed] focus:ring-1 focus:ring-[#7c3aed]" />
+                        <input asp-for="PassportNumber" disabled="@Model.PassportLocked" class="w-full rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 px-4 py-2.5 text-sm outline-none focus:border-[#7c3aed] focus:ring-1 focus:ring-[#7c3aed] disabled:bg-slate-50 disabled:dark:bg-slate-800/60 disabled:text-slate-500 disabled:dark:text-slate-400 disabled:cursor-not-allowed" />
                     </div>
                     <div class="space-y-1">
                         <label class="text-sm font-medium text-slate-700 dark:text-slate-300">Passport Country</label>
-                        <input asp-for="PassportCountry" class="w-full rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 px-4 py-2.5 text-sm outline-none focus:border-[#7c3aed] focus:ring-1 focus:ring-[#7c3aed]" />
+                        <input asp-for="PassportCountry" disabled="@Model.PassportLocked" class="w-full rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 px-4 py-2.5 text-sm outline-none focus:border-[#7c3aed] focus:ring-1 focus:ring-[#7c3aed] disabled:bg-slate-50 disabled:dark:bg-slate-800/60 disabled:text-slate-500 disabled:dark:text-slate-400 disabled:cursor-not-allowed" />
                     </div>
                     <div class="space-y-1">
                         <label class="text-sm font-medium text-slate-700 dark:text-slate-300">Passport Expiry</label>
-                        <input asp-for="PassportExpiryDate" type="date" class="w-full rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 px-4 py-2.5 text-sm outline-none focus:border-[#7c3aed] focus:ring-1 focus:ring-[#7c3aed]" />
+                        <input asp-for="PassportExpiryDate" type="date" disabled="@Model.PassportLocked" class="w-full rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 px-4 py-2.5 text-sm outline-none focus:border-[#7c3aed] focus:ring-1 focus:ring-[#7c3aed] disabled:bg-slate-50 disabled:dark:bg-slate-800/60 disabled:text-slate-500 disabled:dark:text-slate-400 disabled:cursor-not-allowed" />
                     </div>
                     <div class="space-y-1">
                         <label class="text-sm font-medium text-slate-700 dark:text-slate-300">Passport Photo</label>
-                        <input type="file" name="passportPhoto" accept="image/*" class="w-full rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 px-4 py-2 text-sm outline-none focus:border-[#7c3aed] focus:ring-1 focus:ring-[#7c3aed] file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-medium file:bg-purple-50 dark:file:bg-purple-950 file:text-[#7c3aed] dark:file:text-purple-300" />
+                        <input type="file" name="passportPhoto" accept="image/*" disabled="@Model.PassportLocked" class="w-full rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 px-4 py-2 text-sm outline-none focus:border-[#7c3aed] focus:ring-1 focus:ring-[#7c3aed] file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-medium file:bg-purple-50 dark:file:bg-purple-950 file:text-[#7c3aed] dark:file:text-purple-300 disabled:bg-slate-50 disabled:dark:bg-slate-800/60 disabled:cursor-not-allowed" />
                         @if (!string.IsNullOrEmpty(Model.PassportPhotoURL))
                         {
                             <button type="button" id="viewPassportPhotoBtn" data-photo-url="@Model.PassportPhotoURL"

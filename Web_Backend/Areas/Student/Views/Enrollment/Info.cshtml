@@ -1,0 +1,310 @@
+@model Web_Backend.Areas.StudentPortal.Models.CourseInfoViewModel
+@{
+    var c = Model.Course;
+    ViewData["Title"] = c.CourseTitle;
+    var alreadyEnrolled = ViewBag.AlreadyEnrolled as bool? ?? false;
+}
+
+<div class="max-w-4xl mx-auto space-y-6 page-enter">
+    <a asp-action="Browse" class="inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200">
+        <i data-lucide="arrow-left" class="w-4 h-4"></i> Back to courses
+    </a>
+
+    <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
+        @if (!string.IsNullOrEmpty(c.CourseImageURL))
+        {
+            <div class="relative">
+                <img src="@c.CourseImageURL" alt="" class="w-full h-64 object-cover" />
+                <span class="absolute top-4 left-4 px-3 py-1 rounded-full text-xs font-semibold @(c.IsCSCA ? "bg-purple-600 text-white" : "bg-white/90 text-slate-700")">@c.CourseType</span>
+            </div>
+        }
+        <div class="p-6 md:p-8 space-y-2 border-b border-slate-100 dark:border-slate-700">
+            @if (string.IsNullOrEmpty(c.CourseImageURL))
+            {
+                <span class="inline-block px-3 py-1 rounded-full text-xs font-semibold @(c.IsCSCA ? "bg-purple-50 dark:bg-purple-950 text-purple-600 dark:text-purple-300" : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300")">@c.CourseType</span>
+            }
+            @if (!string.IsNullOrEmpty(c.CategoryName))
+            {
+                <p class="text-xs font-medium text-slate-400 dark:text-slate-500 uppercase tracking-wider">@c.CategoryName</p>
+            }
+            <h1 class="text-2xl md:text-3xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">@c.CourseTitle</h1>
+            @if (!string.IsNullOrEmpty(c.Duration) || !string.IsNullOrEmpty(c.DeliveryMethod) || !string.IsNullOrEmpty(c.LocationName))
+            {
+                <p class="text-sm text-slate-500 dark:text-slate-400">
+                    @string.Join(" · ", new[] { c.Duration, c.DeliveryMethod, c.LocationName }.Where(s => !string.IsNullOrEmpty(s)))
+                </p>
+            }
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-0 md:divide-x divide-slate-100 dark:divide-slate-700">
+            <div class="md:col-span-2 p-6 md:p-8 space-y-8">
+                @if (!string.IsNullOrEmpty(c.ShortDescription))
+                {
+                    <p class="text-slate-600 dark:text-slate-300 text-base leading-relaxed">@c.ShortDescription</p>
+                }
+
+                @if (!string.IsNullOrEmpty(c.AboutHtml))
+                {
+                    <div>
+                        <h2 class="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-3">About this course</h2>
+                        <div class="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">@Html.Raw(c.AboutHtml)</div>
+                    </div>
+                }
+
+                @if (c.Descriptions.Count > 0)
+                {
+                    <div>
+                        <h2 class="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-3">What's covered</h2>
+                        <ul class="space-y-2">
+                            @foreach (var d in c.Descriptions)
+                            {
+                                <li class="flex items-start gap-2 text-sm text-slate-600 dark:text-slate-300">
+                                    <i data-lucide="check-circle-2" class="w-4 h-4 mt-0.5 text-emerald-500 dark:text-emerald-400 flex-shrink-0"></i>
+                                    <span>@d.DescriptionText</span>
+                                </li>
+                            }
+                        </ul>
+                    </div>
+                }
+
+                @if (c.IsCSCA && Model.Subjects.Count > 0)
+                {
+                    <div>
+                        <h2 class="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-3">Exam subjects</h2>
+                        <div class="overflow-x-auto rounded-xl border border-slate-100 dark:border-slate-700">
+                            <table class="w-full text-sm">
+                                <thead>
+                                    <tr class="text-left text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider border-b border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60">
+                                        <th class="px-4 py-2.5">Subject</th>
+                                        <th class="px-4 py-2.5">Language</th>
+                                        <th class="px-4 py-2.5">Duration</th>
+                                        <th class="px-4 py-2.5">Type</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-100 dark:divide-slate-700">
+                                    @foreach (var s in Model.Subjects)
+                                    {
+                                        <tr>
+                                            <td class="px-4 py-2.5 font-medium text-slate-800 dark:text-slate-100">@s.SubjectName</td>
+                                            <td class="px-4 py-2.5 text-slate-600 dark:text-slate-300">@s.Language</td>
+                                            <td class="px-4 py-2.5 text-slate-600 dark:text-slate-300">@(s.DurationMinutes.HasValue ? $"{s.DurationMinutes} min" : "—")</td>
+                                            <td class="px-4 py-2.5 text-slate-600 dark:text-slate-300">@(s.IsCompulsory ? "Compulsory" : "Optional")</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                }
+
+                @if (c.Outcomes.Count > 0)
+                {
+                    <div>
+                        <h2 class="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-3">Learning outcomes</h2>
+                        <ul class="space-y-2">
+                            @foreach (var o in c.Outcomes)
+                            {
+                                <li class="flex items-start gap-2 text-sm text-slate-600 dark:text-slate-300">
+                                    <i data-lucide="check-circle-2" class="w-4 h-4 mt-0.5 text-emerald-500 dark:text-emerald-400 flex-shrink-0"></i>
+                                    <span>@o.OutcomeDescription</span>
+                                </li>
+                            }
+                        </ul>
+                    </div>
+                }
+
+                @if (c.TrainingPoints.Count > 0)
+                {
+                    <div>
+                        <h2 class="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-3">Training points</h2>
+                        <ul class="space-y-2">
+                            @foreach (var t in c.TrainingPoints)
+                            {
+                                <li class="flex items-start gap-2 text-sm text-slate-600 dark:text-slate-300">
+                                    <i data-lucide="check-circle-2" class="w-4 h-4 mt-0.5 text-emerald-500 dark:text-emerald-400 flex-shrink-0"></i>
+                                    <span>@t.PointDescription</span>
+                                </li>
+                            }
+                        </ul>
+                    </div>
+                }
+
+                @if (c.Requirements.Count > 0)
+                {
+                    <div>
+                        <h2 class="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-3">Requirements</h2>
+                        <ul class="space-y-2">
+                            @foreach (var r in c.Requirements)
+                            {
+                                <li class="flex items-start gap-2 text-sm text-slate-600 dark:text-slate-300">
+                                    <i data-lucide="check-circle-2" class="w-4 h-4 mt-0.5 text-emerald-500 dark:text-emerald-400 flex-shrink-0"></i>
+                                    <span>@r.RequirementText</span>
+                                </li>
+                            }
+                        </ul>
+                    </div>
+                }
+
+                @if (c.Pathways.Count > 0)
+                {
+                    <div>
+                        <h2 class="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-3">Pathways</h2>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            @foreach (var p in c.Pathways)
+                            {
+                                <div class="rounded-xl border border-slate-100 dark:border-slate-700 p-4 bg-slate-50 dark:bg-slate-800/60">
+                                    <p class="text-sm text-slate-700 dark:text-slate-200">@p.PathwayDescription</p>
+                                    @if (!string.IsNullOrEmpty(p.CertificationText))
+                                    {
+                                        <p class="text-xs text-slate-400 dark:text-slate-500 mt-1">@p.CertificationText</p>
+                                    }
+                                </div>
+                            }
+                        </div>
+                    </div>
+                }
+
+                @if (Model.Schedules.Count > 0)
+                {
+                    <div>
+                        <h2 class="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-3">@(c.IsCSCA ? "Upcoming exam sessions" : "Upcoming batches")</h2>
+                        <div class="overflow-x-auto rounded-xl border border-slate-100 dark:border-slate-700">
+                            <table class="w-full text-sm">
+                                <thead>
+                                    <tr class="text-left text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider border-b border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60">
+                                        <th class="px-4 py-2.5">Batch</th>
+                                        <th class="px-4 py-2.5">Periods</th>
+                                        <th class="px-4 py-2.5">Location</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-100 dark:divide-slate-700">
+                                    @foreach (var s in Model.Schedules)
+                                    {
+                                        <tr>
+                                            <td class="px-4 py-2.5 font-medium text-slate-800 dark:text-slate-100">@(string.IsNullOrEmpty(s.ScheduleName) ? "—" : s.ScheduleName)</td>
+                                            <td class="px-4 py-2.5 text-slate-600 dark:text-slate-300">@(string.IsNullOrEmpty(s.SegmentsSummary) ? "—" : s.SegmentsSummary)</td>
+                                            <td class="px-4 py-2.5 text-slate-600 dark:text-slate-300">@(string.IsNullOrEmpty(s.Location) ? "—" : s.Location)</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                }
+            </div>
+
+            <aside class="p-6 md:p-8 space-y-5 bg-slate-50/60 dark:bg-slate-800/30">
+                <div>
+                    <h3 class="text-sm font-semibold text-slate-800 dark:text-slate-100 mb-3">Course Summary</h3>
+                    <dl class="space-y-2 text-sm">
+                        @if (!string.IsNullOrEmpty(c.CategoryName))
+                        {
+                            <div class="flex justify-between gap-3"><dt class="text-slate-500 dark:text-slate-400">Category</dt><dd class="text-slate-800 dark:text-slate-100 font-medium text-right">@c.CategoryName</dd></div>
+                        }
+                        @if (!string.IsNullOrEmpty(c.Duration))
+                        {
+                            <div class="flex justify-between gap-3"><dt class="text-slate-500 dark:text-slate-400">Duration</dt><dd class="text-slate-800 dark:text-slate-100 font-medium text-right">@c.Duration</dd></div>
+                        }
+                        @if (!string.IsNullOrEmpty(c.DeliveryMethod))
+                        {
+                            <div class="flex justify-between gap-3"><dt class="text-slate-500 dark:text-slate-400">Delivery</dt><dd class="text-slate-800 dark:text-slate-100 font-medium text-right">@c.DeliveryMethod</dd></div>
+                        }
+                        @if (!string.IsNullOrEmpty(c.LocationName))
+                        {
+                            <div class="flex justify-between gap-3"><dt class="text-slate-500 dark:text-slate-400">Location</dt><dd class="text-slate-800 dark:text-slate-100 font-medium text-right">@c.LocationName</dd></div>
+                        }
+                        @if (!string.IsNullOrEmpty(c.CertificateValidity))
+                        {
+                            <div class="flex justify-between gap-3"><dt class="text-slate-500 dark:text-slate-400">Certificate validity</dt><dd class="text-slate-800 dark:text-slate-100 font-medium text-right">@c.CertificateValidity</dd></div>
+                        }
+                        @if (c.Fee.HasValue)
+                        {
+                            <div class="flex justify-between gap-3"><dt class="text-slate-500 dark:text-slate-400">Fee</dt><dd class="text-slate-800 dark:text-slate-100 font-semibold text-right">@c.CurrencyCode @c.Fee.Value.ToString("N2")</dd></div>
+                        }
+                    </dl>
+                </div>
+
+                @if (c.PricingDetails.Count > 0)
+                {
+                    <div class="pt-4 border-t border-slate-200 dark:border-slate-700">
+                        <h3 class="text-sm font-semibold text-slate-800 dark:text-slate-100 mb-3">Pricing Tiers</h3>
+                        <ul class="space-y-2 text-sm">
+                            @foreach (var p in c.PricingDetails)
+                            {
+                                <li class="flex justify-between gap-3">
+                                    <span class="text-slate-500 dark:text-slate-400">@p.PricingTier</span>
+                                    <span class="text-slate-800 dark:text-slate-100 font-medium text-right">
+                                        @if (p.OriginalPrice.HasValue && p.OriginalPrice != p.SellingPrice)
+                                        {
+                                            <span class="line-through text-slate-400 dark:text-slate-500 mr-1.5">@c.CurrencyCode @p.OriginalPrice.Value.ToString("N2")</span>
+                                        }
+                                        @(p.SellingPrice.HasValue ? $"{c.CurrencyCode} {p.SellingPrice.Value:N2}" : "—")
+                                    </span>
+                                </li>
+                            }
+                        </ul>
+                    </div>
+                }
+
+                @if (c.FeeCharges.Count > 0)
+                {
+                    <div class="pt-4 border-t border-slate-200 dark:border-slate-700">
+                        <h3 class="text-sm font-semibold text-slate-800 dark:text-slate-100 mb-3">Additional Charges</h3>
+                        <ul class="space-y-2 text-sm">
+                            @foreach (var f in c.FeeCharges)
+                            {
+                                <li class="flex justify-between gap-3">
+                                    <span class="text-slate-500 dark:text-slate-400">@f.FeeType</span>
+                                    <span class="text-slate-800 dark:text-slate-100 font-medium text-right">@(f.Amount.HasValue ? $"{c.CurrencyCode} {f.Amount.Value:N2}" : "—")</span>
+                                </li>
+                            }
+                        </ul>
+                    </div>
+                }
+
+                @if (c.ComboOffers.Count > 0)
+                {
+                    <div class="pt-4 border-t border-slate-200 dark:border-slate-700">
+                        <h3 class="text-sm font-semibold text-slate-800 dark:text-slate-100 mb-3">Combo Offers</h3>
+                        <ul class="space-y-2 text-sm">
+                            @foreach (var co in c.ComboOffers)
+                            {
+                                <li>
+                                    <p class="text-slate-800 dark:text-slate-100 font-medium">@co.ComboDescription</p>
+                                    @if (!string.IsNullOrEmpty(co.ComboDuration))
+                                    {
+                                        <p class="text-xs text-slate-400 dark:text-slate-500">@co.ComboDuration</p>
+                                    }
+                                </li>
+                            }
+                        </ul>
+                    </div>
+                }
+
+                @if (!string.IsNullOrEmpty(c.HandbookFileURL))
+                {
+                    <a href="@c.HandbookFileURL" target="_blank" rel="noopener noreferrer"
+                       class="flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl font-medium text-sm border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-800 transition-all">
+                        <i data-lucide="file-text" class="w-4 h-4"></i> @(string.IsNullOrEmpty(c.HandbookTitle) ? "Download Course Handbook" : c.HandbookTitle)
+                    </a>
+                }
+
+                <div class="pt-4 border-t border-slate-200 dark:border-slate-700">
+                    @if (alreadyEnrolled)
+                    {
+                        <span class="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-medium text-sm bg-emerald-50 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-300">
+                            <i data-lucide="badge-check" class="w-4 h-4"></i> Already Enrolled
+                        </span>
+                    }
+                    else
+                    {
+                        <a asp-action="Enroll" asp-route-courseId="@c.CourseID"
+                           class="flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl font-medium text-sm bg-[#7c3aed] text-white hover:bg-[#6d28d9] shadow-sm transition-all">
+                            <i data-lucide="arrow-right" class="w-4 h-4"></i> View Schedules &amp; Enroll
+                        </a>
+                    }
+                </div>
+            </aside>
+        </div>
+    </div>
+</div>

@@ -28,6 +28,12 @@ namespace Web_Backend.Areas.Admin.Models
         // sprocs, never set directly by app code.
         public string PaymentStatus { get; set; } = "Unpaid";
 
+        // Populated only by mst.CourseRegistration_ListByStudent (0020_student_dashboard.sql).
+        // Other sprocs (Get/List/AddEdit) leave these at their 0 default —
+        // use CourseRegistrationDetailViewModel's computed AmountPaid/BalanceDue instead.
+        public decimal AmountPaid { get; set; }
+        public decimal BalanceDue { get; set; }
+
         // "Self" or "Admin".
         public string RegistrationSource { get; set; } = "Self";
         public string CreatedByUserID { get; set; } = "";

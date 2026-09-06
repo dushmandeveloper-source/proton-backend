@@ -50,6 +50,11 @@ namespace Web_Backend.Areas.Admin.Models
 
         public DateTime? EarliestStartDate => Segments.Count == 0 ? null : Segments.Min(s => s.StartDate);
         public DateTime? LatestEndDate => Segments.Count == 0 ? null : Segments.Max(s => s.EndDate);
+
+        // Populated only by edu.CourseSchedule_ListForInstructor (Lecturer
+        // "My Batches" list) — a headcount only, never the roster/PII, per
+        // the Lecturer Portal plan's explicit privacy constraint.
+        public int EnrolledCount { get; set; }
     }
 
     public class ScheduleInstructor

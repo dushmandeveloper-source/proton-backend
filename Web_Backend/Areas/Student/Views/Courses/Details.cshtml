@@ -1,0 +1,215 @@
+@model Web_Backend.Areas.StudentPortal.Models.CourseDetailsViewModel
+@{
+    ViewData["Title"] = "Course Details";
+    var courseTitle = Model.Course?.CourseTitle ?? Model.Registration.CourseTitle;
+}
+
+<div class="max-w-5xl mx-auto space-y-8 page-enter">
+
+    <div class="flex items-center justify-between flex-wrap gap-4">
+        <div>
+            <p class="text-sm font-medium text-slate-500 dark:text-slate-400 mb-2">My Courses</p>
+            <h1 class="text-3xl md:text-4xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">
+                @courseTitle
+            </h1>
+        </div>
+        <a asp-action="Index"
+           class="px-4 py-2 rounded-xl font-medium text-sm bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors flex items-center gap-2 w-fit">
+            <i data-lucide="arrow-left" class="w-4 h-4"></i> Back to My Courses
+        </a>
+    </div>
+
+    @* ---------- Course info ---------- *@
+    <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
+        <div class="p-6 border-b border-slate-100 dark:border-slate-700 flex items-center gap-3">
+            <div class="bg-purple-50 dark:bg-purple-950 p-2 rounded-lg"><i data-lucide="book-open" class="w-5 h-5 text-purple-600 dark:text-purple-300"></i></div>
+            <h3 class="font-semibold text-lg text-slate-800 dark:text-slate-100">Course Information</h3>
+        </div>
+        <div class="p-6 space-y-4">
+            @if (Model.Course == null)
+            {
+                <p class="text-sm text-slate-400 dark:text-slate-500">Course details are unavailable.</p>
+            }
+            else
+            {
+                @if (!string.IsNullOrEmpty(Model.Course.ShortDescription))
+                {
+                    <p class="text-sm text-slate-600 dark:text-slate-300">@Model.Course.ShortDescription</p>
+                }
+                <div class="flex flex-wrap gap-6 text-sm">
+                    @if (!string.IsNullOrEmpty(Model.Course.Duration))
+                    {
+                        <div>
+                            <p class="text-xs text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-0.5">Duration</p>
+                            <p class="text-slate-700 dark:text-slate-200 font-medium">@Model.Course.Duration</p>
+                        </div>
+                    }
+                    @if (!string.IsNullOrEmpty(Model.Course.DeliveryMethod))
+                    {
+                        <div>
+                            <p class="text-xs text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-0.5">Delivery Method</p>
+                            <p class="text-slate-700 dark:text-slate-200 font-medium">@Model.Course.DeliveryMethod</p>
+                        </div>
+                    }
+                </div>
+                @if (!string.IsNullOrEmpty(Model.Course.AboutHtml))
+                {
+                    <div class="prose prose-sm dark:prose-invert max-w-none text-slate-600 dark:text-slate-300">
+                        @Html.Raw(Model.Course.AboutHtml)
+                    </div>
+                }
+            }
+        </div>
+    </div>
+
+    @* ---------- Payment summary ---------- *@
+    <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
+        <div class="p-6 border-b border-slate-100 dark:border-slate-700 flex items-center gap-3">
+            <div class="bg-amber-50 dark:bg-amber-950 p-2 rounded-lg"><i data-lucide="wallet" class="w-5 h-5 text-amber-600 dark:text-amber-300"></i></div>
+            <h3 class="font-semibold text-lg text-slate-800 dark:text-slate-100">Payment Summary</h3>
+            <span class="ml-auto inline-flex px-2.5 py-1 rounded-full text-xs font-medium @(Model.Registration.PaymentStatus == "Paid" ? "bg-emerald-50 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-300" : Model.Registration.PaymentStatus == "PartiallyPaid" ? "bg-amber-50 dark:bg-amber-950 text-amber-600 dark:text-amber-300" : "bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400")">
+                @Model.Registration.PaymentStatus
+            </span>
+        </div>
+        <div class="p-6 grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div>
+                <p class="text-xs text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">Course Fee</p>
+                <p class="text-xl font-bold text-slate-800 dark:text-slate-100">@Model.Registration.CurrencyCode @Model.Registration.CourseFee.ToString("N2")</p>
+            </div>
+            <div>
+                <p class="text-xs text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">Amount Paid</p>
+                <p class="text-xl font-bold text-emerald-600 dark:text-emerald-300">@Model.Registration.CurrencyCode @Model.Registration.AmountPaid.ToString("N2")</p>
+            </div>
+            <div>
+                <p class="text-xs text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">Balance Due</p>
+                <p class="text-xl font-bold text-amber-600 dark:text-amber-300">@Model.Registration.CurrencyCode @Model.Registration.BalanceDue.ToString("N2")</p>
+            </div>
+        </div>
+        @if (Model.Registration.BalanceDue > 0)
+        {
+            <div class="px-6 pb-6">
+                <a asp-action="PayBalance" asp-route-registrationId="@Model.Registration.RegistrationID"
+                   class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-sm bg-[#7c3aed] text-white hover:bg-[#6d28d9] shadow-sm transition-all">
+                    <i data-lucide="wallet" class="w-4 h-4"></i> Pay Balance
+                </a>
+            </div>
+        }
+    </div>
+
+    @* ---------- Payment history ---------- *@
+    <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
+        <div class="p-6 border-b border-slate-100 dark:border-slate-700 flex items-center gap-3">
+            <div class="bg-indigo-50 dark:bg-indigo-950 p-2 rounded-lg"><i data-lucide="receipt" class="w-5 h-5 text-indigo-600 dark:text-indigo-300"></i></div>
+            <h3 class="font-semibold text-lg text-slate-800 dark:text-slate-100">Payment History</h3>
+        </div>
+        @if (Model.Payments.Count == 0)
+        {
+            <div class="p-10 text-center">
+                <p class="text-sm text-slate-400 dark:text-slate-500">No payments recorded yet.</p>
+            </div>
+        }
+        else
+        {
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead>
+                        <tr class="text-left text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider border-b border-slate-100 dark:border-slate-700">
+                            <th class="px-6 py-3">Date</th>
+                            <th class="px-6 py-3">Amount</th>
+                            <th class="px-6 py-3">Method</th>
+                            <th class="px-6 py-3">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100 dark:divide-slate-700">
+                        @foreach (var payment in Model.Payments)
+                        {
+                            <tr>
+                                <td class="px-6 py-3 text-slate-600 dark:text-slate-300">@payment.PaymentDate.ToString("MMM d, yyyy")</td>
+                                <td class="px-6 py-3 font-medium text-slate-800 dark:text-slate-100">@Model.Registration.CurrencyCode @payment.Amount.ToString("N2")</td>
+                                <td class="px-6 py-3 text-slate-600 dark:text-slate-300">@payment.PaymentMethod</td>
+                                <td class="px-6 py-3">
+                                    @if (payment.IsVerified)
+                                    {
+                                        <span class="inline-flex px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-50 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-300">Verified</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="inline-flex px-2.5 py-1 rounded-full text-xs font-medium bg-amber-50 dark:bg-amber-950 text-amber-600 dark:text-amber-300">Pending</span>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+
+    @* ---------- Lecture materials ---------- *@
+    <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
+        <div class="p-6 border-b border-slate-100 dark:border-slate-700 flex items-center gap-3">
+            <div class="bg-emerald-50 dark:bg-emerald-950 p-2 rounded-lg"><i data-lucide="file-text" class="w-5 h-5 text-emerald-600 dark:text-emerald-300"></i></div>
+            <h3 class="font-semibold text-lg text-slate-800 dark:text-slate-100">Lecture Materials</h3>
+        </div>
+        @if (Model.Materials.Count == 0)
+        {
+            <div class="p-10 text-center">
+                <p class="text-sm text-slate-400 dark:text-slate-500">No lecture materials have been shared for this course yet.</p>
+            </div>
+        }
+        else
+        {
+            <div class="divide-y divide-slate-100 dark:divide-slate-700">
+                @foreach (var m in Model.Materials.OrderByDescending(m => m.MaterialDate))
+                {
+                    <div class="p-4 px-6 flex items-center justify-between gap-4">
+                        <div class="flex items-center gap-3">
+                            <div class="p-2 rounded-lg bg-slate-50 dark:bg-slate-800 flex-shrink-0">
+                                <i data-lucide="@(m.FileType == "Video" ? "video" : m.FileType == "Image" ? "image" : "file-text")" class="w-4 h-4 text-slate-500 dark:text-slate-400"></i>
+                            </div>
+                            <div>
+                                <p class="text-sm font-medium text-slate-800 dark:text-slate-100">@m.Title</p>
+                                <p class="text-xs text-slate-400 dark:text-slate-500">@m.MaterialDate.ToString("MMM d, yyyy") &middot; @m.FileType</p>
+                            </div>
+                        </div>
+                        <a href="@m.FileURL" target="_blank" rel="noopener"
+                           class="px-3 py-1.5 rounded-lg font-medium text-xs bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors flex-shrink-0">
+                            View
+                        </a>
+                    </div>
+                }
+            </div>
+        }
+    </div>
+
+    @* ---------- Schedule segments ---------- *@
+    <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
+        <div class="p-6 border-b border-slate-100 dark:border-slate-700 flex items-center gap-3">
+            <div class="bg-indigo-50 dark:bg-indigo-950 p-2 rounded-lg"><i data-lucide="calendar-days" class="w-5 h-5 text-indigo-600 dark:text-indigo-300"></i></div>
+            <h3 class="font-semibold text-lg text-slate-800 dark:text-slate-100">Class Schedule</h3>
+        </div>
+        @if (Model.Segments.Count == 0)
+        {
+            <div class="p-10 text-center">
+                <p class="text-sm text-slate-400 dark:text-slate-500">No schedule segments found for this course.</p>
+            </div>
+        }
+        else
+        {
+            <div class="p-5 space-y-3">
+                @foreach (var seg in Model.Segments)
+                {
+                    <div class="rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700 px-4 py-3">
+                        <p class="text-sm font-semibold text-slate-800 dark:text-slate-100">
+                            @seg.ScheduleName &middot; @seg.StartTime.ToString(@"hh\:mm") - @seg.EndTime.ToString(@"hh\:mm") &middot; @seg.Location
+                        </p>
+                        @if (!string.IsNullOrEmpty(seg.InstructorNames))
+                        {
+                            <p class="text-xs text-slate-400 dark:text-slate-500 mt-0.5">Instructor(s): @seg.InstructorNames</p>
+                        }
+                    </div>
+                }
+            </div>
+        }
+    </div>
+</div>

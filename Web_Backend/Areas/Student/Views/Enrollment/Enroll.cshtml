@@ -1,0 +1,120 @@
+@model Web_Backend.Areas.StudentPortal.Models.EnrollmentFormModel
+@{
+    ViewData["Title"] = "Enroll";
+    var course = ViewBag.Course as Web_Backend.Areas.Admin.Models.Course;
+    var schedules = ViewBag.Schedules as List<Web_Backend.Areas.Admin.Models.CourseSchedule> ?? new();
+}
+
+<div class="max-w-2xl mx-auto page-enter">
+    <div class="mb-6">
+        <h2 class="text-2xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">Enroll in @course?.CourseTitle</h2>
+        <p class="text-slate-500 dark:text-slate-400 text-sm mt-1">Confirm the batch and, optionally, declare a payment.</p>
+    </div>
+
+    <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 p-6 mb-6 flex items-center justify-between">
+        <div>
+            <p class="text-sm font-semibold text-slate-800 dark:text-slate-100">@course?.CourseTitle</p>
+            @if (!string.IsNullOrEmpty(course?.Duration))
+            {
+                <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">@course.Duration</p>
+            }
+            <a asp-action="Info" asp-route-courseId="@course?.CourseID"
+               class="inline-flex items-center gap-1 text-xs font-medium text-[#7c3aed] dark:text-purple-300 hover:underline mt-1.5">
+                <i data-lucide="info" class="w-3.5 h-3.5"></i> View full course info
+            </a>
+        </div>
+        <div class="text-right">
+            <p class="text-xs text-slate-400 dark:text-slate-500">Course Fee</p>
+            <p class="text-lg font-bold text-slate-800 dark:text-slate-100">@course?.CurrencyCode @(course?.Fee?.ToString("N2") ?? "0.00")</p>
+        </div>
+    </div>
+
+    <form method="post" asp-action="Enroll" enctype="multipart/form-data" id="enrollForm" class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 p-6 space-y-6">
+        @Html.AntiForgeryToken()
+        <input type="hidden" asp-for="CourseID" />
+
+        <div>
+            <h3 class="text-sm font-semibold text-slate-800 dark:text-slate-100 mb-3">Batch / Schedule</h3>
+            @if (schedules.Count == 0)
+            {
+                <p class="text-sm text-slate-400 dark:text-slate-500">No schedules are defined for this course yet — you can still enroll now.</p>
+            }
+            else
+            {
+                <div class="space-y-1">
+                    <label class="text-sm font-medium text-slate-700 dark:text-slate-300">Choose a batch</label>
+                    <select asp-for="ScheduleID" class="w-full rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 px-4 py-2.5 text-sm outline-none focus:border-[#7c3aed] focus:ring-1 focus:ring-[#7c3aed]">
+                        <option value="">No specific batch</option>
+                        @foreach (var sched in schedules)
+                        {
+                            <option value="@sched.ScheduleID">@sched.ScheduleName @(!string.IsNullOrEmpty(sched.Location) ? $"({sched.Location})" : "")</option>
+                        }
+                    </select>
+                </div>
+            }
+        </div>
+
+        <div>
+            <h3 class="text-sm font-semibold text-slate-800 dark:text-slate-100 mb-3">Payment (optional)</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="space-y-1">
+                    <label class="text-sm font-medium text-slate-700 dark:text-slate-300">Payment Method</label>
+                    <select asp-for="PaymentMethod" id="paymentMethodSelect" class="w-full rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 px-4 py-2.5 text-sm outline-none focus:border-[#7c3aed] focus:ring-1 focus:ring-[#7c3aed]">
+                        <option value="">No payment now</option>
+                        <option value="Cash">Cash</option>
+                        <option value="BankDeposit">Bank Deposit</option>
+                    </select>
+                </div>
+                <div class="space-y-1">
+                    <label class="text-sm font-medium text-slate-700 dark:text-slate-300">Amount</label>
+                    <input asp-for="InitialPaymentAmount" type="number" step="0.01" min="0" class="w-full rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 px-4 py-2.5 text-sm outline-none focus:border-[#7c3aed] focus:ring-1 focus:ring-[#7c3aed]" />
+                </div>
+                <div class="space-y-1 md:col-span-2" id="paymentSlipField" style="display:none;">
+                    <label id="paymentSlipLabel" class="text-sm font-medium text-slate-700 dark:text-slate-300">Receipt / Bank Deposit Slip</label>
+                    <input type="file" name="PaymentSlip" accept="image/*,.pdf" class="w-full rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 px-4 py-2 text-sm outline-none focus:border-[#7c3aed] focus:ring-1 focus:ring-[#7c3aed] file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-medium file:bg-purple-50 dark:file:bg-purple-950 file:text-[#7c3aed] dark:file:text-purple-300" />
+                    <p class="text-xs text-slate-400 dark:text-slate-500">Required — attach a photo or scan of your receipt.</p>
+                </div>
+                <div class="space-y-1 md:col-span-2">
+                    <label class="text-sm font-medium text-slate-700 dark:text-slate-300">Notes</label>
+                    <input asp-for="PaymentNotes" class="w-full rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 px-4 py-2.5 text-sm outline-none focus:border-[#7c3aed] focus:ring-1 focus:ring-[#7c3aed]" />
+                </div>
+            </div>
+        </div>
+
+        <div class="flex items-center justify-between pt-4 border-t border-slate-100 dark:border-slate-700">
+            <a asp-action="Browse" class="text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200">Back to courses</a>
+            <button type="submit" id="enrollSubmitBtn" class="px-5 py-2.5 rounded-xl font-medium text-sm bg-[#7c3aed] text-white hover:bg-[#6d28d9] shadow-sm transition-all disabled:opacity-60 disabled:cursor-not-allowed">
+                Confirm Enrollment
+            </button>
+        </div>
+    </form>
+</div>
+
+@section Scripts {
+    <script>
+        (function () {
+            var select = document.getElementById('paymentMethodSelect');
+            var slipField = document.getElementById('paymentSlipField');
+            var slipLabel = document.getElementById('paymentSlipLabel');
+            function sync() {
+                var hasPayment = select.value === 'Cash' || select.value === 'BankDeposit';
+                slipField.style.display = hasPayment ? '' : 'none';
+                slipLabel.textContent = select.value === 'Cash' ? 'Cash Receipt' : 'Bank Deposit Slip';
+            }
+            select.addEventListener('change', sync);
+            sync();
+        })();
+
+        // Prevent a double-click (or the browser re-firing submit while the
+        // multipart upload is still in flight) from posting this form twice,
+        // which would enroll/pay for the same course two separate times.
+        (function () {
+            var form = document.getElementById('enrollForm');
+            var btn = document.getElementById('enrollSubmitBtn');
+            form.addEventListener('submit', function () {
+                btn.disabled = true;
+                btn.textContent = 'Enrolling…';
+            });
+        })();
+    </script>
+}

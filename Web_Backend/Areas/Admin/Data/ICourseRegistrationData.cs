@@ -13,6 +13,7 @@ namespace Web_Backend.Areas.Admin.Data
         Task<List<CourseRegistration>> GetByStudent(string studentId);
         Task<List<CourseRegistration>> GetList(CourseRegistrationSearchView search);
         Task<List<CourseRegistrationStudentSummary>> GetSummaryByStudent();
+        Task<CourseRegistrationStudentSummary?> GetSummaryForStudent(string studentId);
         Task Delete(string id);
     }
 }

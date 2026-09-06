@@ -1,0 +1,63 @@
+@model List<AppUser>
+@{
+    ViewData["Title"] = "Lecturers";
+    bool canAdd = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.UserManagement, 'A');
+}
+
+<div class="max-w-5xl mx-auto page-enter">
+    <div class="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
+        <div>
+            <h2 class="text-3xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">Lecturers</h2>
+            <p class="text-slate-500 dark:text-slate-400 mt-2">Instructor accounts with access to the Lecturer Portal.</p>
+        </div>
+        @if (canAdd)
+        {
+            <a asp-action="Add" class="px-4 py-2 rounded-xl font-medium bg-[#7c3aed] text-white hover:bg-[#6d28d9] shadow-sm text-sm flex items-center gap-2 w-fit">
+                <i data-lucide="plus" class="w-4 h-4"></i> Add Lecturer
+            </a>
+        }
+    </div>
+
+    <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
+        @if (!Model.Any())
+        {
+            <div class="p-12 text-center">
+                <p class="text-sm text-slate-400 dark:text-slate-500">No lecturers yet. Add one to grant Lecturer Portal access.</p>
+            </div>
+        }
+        else
+        {
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead>
+                        <tr class="border-b border-slate-100 dark:border-slate-700 text-left text-slate-500 dark:text-slate-400">
+                            <th class="px-6 py-3 font-medium">Name</th>
+                            <th class="px-6 py-3 font-medium">Email</th>
+                            <th class="px-6 py-3 font-medium">Phone</th>
+                            <th class="px-6 py-3 font-medium">Status</th>
+                            <th class="px-6 py-3 font-medium text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var l in Model)
+                        {
+                            <tr class="border-b border-slate-50 dark:border-slate-800 last:border-0">
+                                <td class="px-6 py-3 font-medium text-slate-800 dark:text-slate-100">@l.FullName</td>
+                                <td class="px-6 py-3 text-slate-600 dark:text-slate-300">@l.Email</td>
+                                <td class="px-6 py-3 text-slate-600 dark:text-slate-300">@l.Phone</td>
+                                <td class="px-6 py-3">
+                                    <span class="px-2 py-0.5 rounded-full text-xs font-semibold @(l.IsActive == "A" ? "bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300" : "bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400")">@l.StatusLabel</span>
+                                </td>
+                                <td class="px-6 py-3 text-right">
+                                    <a asp-action="Details" asp-route-id="@l.UserID" title="View" class="p-2 rounded-xl text-slate-400 dark:text-slate-500 hover:text-[#7c3aed] dark:hover:text-purple-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors inline-block">
+                                        <i data-lucide="eye" class="w-4 h-4"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+</div>

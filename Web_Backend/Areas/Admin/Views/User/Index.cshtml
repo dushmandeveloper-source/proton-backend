@@ -182,6 +182,13 @@
                                                 <i data-lucide="key-round" class="w-4 h-4"></i>
                                             </button>
                                         </form>
+                                        <form method="post" asp-action="Unlock" asp-route-id="@user.UserID" class="inline"
+                                              data-confirm="Unlock @user.FullName's account? This clears any failed-login lockout so they can sign in again." data-confirm-title="Unlock account" data-confirm-label="Unlock">
+                                            @Html.AntiForgeryToken()
+                                            <button type="submit" title="Unlock account" class="text-slate-400 dark:text-slate-500 hover:text-emerald-600 dark:hover:text-emerald-400 p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+                                                <i data-lucide="lock-open" class="w-4 h-4"></i>
+                                            </button>
+                                        </form>
                                     }
                                     @if (canDeleteUM)
                                     {

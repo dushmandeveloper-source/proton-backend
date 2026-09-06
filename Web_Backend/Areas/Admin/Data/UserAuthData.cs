@@ -20,6 +20,13 @@ namespace Web_Backend.Areas.Admin.Data
                 UsernameOrEmail = usernameOrEmail
             });
 
+        public Task<UserAuthRecord?> FindByUserId(string userId) =>
+            db.Get<UserAuthRecord, object>("usr.UserAuth_FindByUserId", new
+            {
+                APIKey = AppData.GetAPIKey(),
+                UserID = userId
+            });
+
         public Task RecordLoginResult(string authId, bool success) =>
             db.ExecuteNonQuery("usr.UserAuth_RecordLoginResult", new
             {

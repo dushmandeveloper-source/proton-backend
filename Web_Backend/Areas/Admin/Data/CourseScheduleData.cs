@@ -68,6 +68,54 @@ namespace Web_Backend.Areas.Admin.Data
                 InstructorUserIDsJSON = JsonSerializer.Serialize(s.Instructors.Select(i => i.UserID).ToList(), CamelCase)
             });
 
+        public Task<List<StudentScheduleSegment>> GetSegmentsForStudent(string studentId, DateTime fromDate, DateTime toDate) =>
+            db.GetList<StudentScheduleSegment, object>("edu.CourseScheduleSegment_ListForStudent", new
+            {
+                APIKey = AppData.GetAPIKey(),
+                StudentID = studentId,
+                FromDate = fromDate,
+                ToDate = toDate
+            });
+
+        // Instructor-scoped analogue of GetList, for the Lecturer "My
+        // Batches" list — edu.CourseSchedule_ListForInstructor returns
+        // SegmentJSON + EnrolledCount but no InstructorsJSON (a lecturer
+        // viewing their own batch doesn't need the co-instructor list
+        // re-fetched here), so this uses its own raw shape rather than
+        // ToCourseSchedule/CourseScheduleRaw below.
+        public async Task<List<CourseSchedule>> GetListForInstructor(string userId)
+        {
+            var raw = await db.GetList<CourseScheduleInstructorRaw, object>("edu.CourseSchedule_ListForInstructor", new
+            {
+                APIKey = AppData.GetAPIKey(),
+                UserID = userId
+            });
+            return raw.Select(r =>
+            {
+                r.Segments = string.IsNullOrWhiteSpace(r.SegmentJSON)
+                    ? new List<CourseScheduleSegment>()
+                    : JsonSerializer.Deserialize<List<CourseScheduleSegment>>(r.SegmentJSON) ?? new List<CourseScheduleSegment>();
+                return (CourseSchedule)r;
+            }).ToList();
+        }
+
+        public Task<List<StudentScheduleSegment>> GetSegmentsForInstructor(string userId, DateTime fromDate, DateTime toDate) =>
+            db.GetList<StudentScheduleSegment, object>("edu.CourseScheduleSegment_ListForInstructor", new
+            {
+                APIKey = AppData.GetAPIKey(),
+                UserID = userId,
+                FromDate = fromDate,
+                ToDate = toDate
+            });
+
+        public Task<List<StudentRosterEntry>> GetStudentRosterForInstructor(string scheduleId, string userId) =>
+            db.GetList<StudentRosterEntry, object>("edu.CourseSchedule_ListStudentRoster", new
+            {
+                APIKey = AppData.GetAPIKey(),
+                ScheduleID = scheduleId,
+                UserID = userId
+            });
+
         public Task Delete(string id) =>
             db.ExecuteNonQuery("edu.CourseSchedule_Delete", new { APIKey = AppData.GetAPIKey(), ID = id });
 
@@ -79,6 +127,11 @@ namespace Web_Backend.Areas.Admin.Data
         {
             public string? SegmentJSON { get; set; }
             public string? InstructorsJSON { get; set; }
+        }
+
+        private class CourseScheduleInstructorRaw : CourseSchedule
+        {
+            public string? SegmentJSON { get; set; }
         }
     }
 }

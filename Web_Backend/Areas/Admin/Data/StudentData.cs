@@ -60,6 +60,53 @@ namespace Web_Backend.Areas.Admin.Data
                 s.IsActive
             });
 
+        public Task<string> UpdateOwnProfile(string studentId, string userId, StudentProfileUpdateRequest request) =>
+            db.Execute("mst.Student_UpdateOwnProfile", new
+            {
+                APIKey = AppData.GetAPIKey(),
+                StudentID = studentId,
+                UserID = userId,
+                request.FirstName,
+                request.LastName,
+                request.Phone,
+                request.DateOfBirth,
+                request.Gender,
+                request.Nationality,
+                request.AddressLine1,
+                request.AddressLine2,
+                request.City,
+                request.StateProvince,
+                request.PostalCode,
+                request.Country,
+                request.EmergencyContactName,
+                request.EmergencyContactPhone,
+                request.EmergencyContactRelationship
+            });
+
+        // No try/catch here — the "Passport is verified and cannot be
+        // edited." SqlException must propagate up to the controller, which
+        // maps it to a 409 Conflict (see StudentDashboardApiController).
+        public Task<string> UpdatePassportInfo(string studentId, string userId, StudentPassportUpdateRequest request) =>
+            db.Execute("mst.Student_UpdatePassportInfo", new
+            {
+                APIKey = AppData.GetAPIKey(),
+                StudentID = studentId,
+                UserID = userId,
+                request.PassportNumber,
+                request.PassportCountry,
+                request.PassportExpiryDate,
+                request.PassportPhotoURL
+            });
+
+        public Task<string> VerifyPassport(string studentId, string status, string verifiedByUserId) =>
+            db.Execute("mst.Student_VerifyPassport", new
+            {
+                APIKey = AppData.GetAPIKey(),
+                StudentID = studentId,
+                Status = status,
+                VerifiedByUserID = verifiedByUserId
+            });
+
         public Task Delete(string id) =>
             db.ExecuteNonQuery("mst.Student_Delete", new { APIKey = AppData.GetAPIKey(), ID = id });
     }

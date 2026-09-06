@@ -13,12 +13,20 @@ ASP.NET Core layers config files by `ASPNETCORE_ENVIRONMENT`:
 | Environment | Trigger | Config file | Database used |
 |---|---|---|---|
 | Local (`dotnet run`) | `ASPNETCORE_ENVIRONMENT=Development` (set in `Properties/launchSettings.json`) | `appsettings.Development.json` (gitignored) | Local SQL Server (`VS-PW0C7J84\DUSHMAN001`, DB `Proton_Admin`) |
-| Hosted (published to the live site) | `ASPNETCORE_ENVIRONMENT=Production` (the IIS host's default) | `appsettings.Production.json` (gitignored) | Hosted SQL Server (`sql5112.site4now.net`, DB `db_aa66ca_protondb`) |
+| Hosted (published to the live site, reachable at `admin.protonbusiness.com`) | `ASPNETCORE_ENVIRONMENT=Production` (the IIS host's default) | `appsettings.Production.json` (gitignored) | Hosted SQL Server (`sql8005.site4now.net`, DB `db_acdcb3_hasinividumini98`) |
 
 Both `appsettings.Development.json` and `appsettings.Production.json` are
 gitignored because they hold real credentials. `appsettings.json` (the base,
 committed file) intentionally has **empty** `DBSettings` — it must never hold
 a real password, since it's the one file that ships in git.
+
+The hosted DB moved from `sql5112.site4now.net` / `db_aa66ca_protondb` to
+`sql8005.site4now.net` / `db_acdcb3_hasinividumini98` (restored from a backup
+of the old one), reachable going forward at `admin.protonbusiness.com`. All
+24 migrations under `Database/migrations/` are applied on the new database.
+`stu.protonbusiness.com` was also mentioned as a second domain but its
+purpose (student portal? frontend?) hasn't been confirmed yet — nothing in
+config points at it yet.
 
 **First-time local setup:** copy `Web_Backend/appsettings.Development.json.example`
 to `Web_Backend/appsettings.Development.json` and fill in your local SQL

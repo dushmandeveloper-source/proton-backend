@@ -86,6 +86,9 @@ namespace Web_Backend.Areas.Admin.Data
         public Task<List<CourseRegistrationStudentSummary>> GetSummaryByStudent() =>
             db.GetList<CourseRegistrationStudentSummary, object>("mst.CourseRegistration_SummaryByStudent", new { APIKey = AppData.GetAPIKey() });
 
+        public Task<CourseRegistrationStudentSummary?> GetSummaryForStudent(string studentId) =>
+            db.Get<CourseRegistrationStudentSummary, object>("mst.CourseRegistration_SummaryByStudent_Single", new { APIKey = AppData.GetAPIKey(), StudentID = studentId });
+
         public Task Delete(string id) =>
             db.ExecuteNonQuery("mst.CourseRegistration_Delete", new { APIKey = AppData.GetAPIKey(), ID = id });
     }
