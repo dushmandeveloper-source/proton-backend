@@ -208,15 +208,14 @@ namespace Web_Backend.Controllers.Api
             var emailSent = true;
             try
             {
-                var loginUrl = configuration["ApplicationSettings:PublicLoginUrl"] ?? "";
-                var dashboardUrl = configuration["ApplicationSettings:PublicDashboardUrl"] ?? "";
+                var loginUrl = PortalUrls.Student(configuration, Request);
                 var description =
                     $"Your Proton student account has been created.<br/><br/>" +
+                    $"Student portal: <strong>{loginUrl}</strong><br/>" +
                     $"Email: <strong>{request.Email}</strong><br/>" +
                     $"Temporary Password: <strong>{tempPassword}</strong><br/><br/>" +
-                    "Please sign in and change your password as soon as possible." +
-                    $"<br/><br/>Access your Student Dashboard: <a href=\"{dashboardUrl}\">{dashboardUrl}</a>";
-                await emailSender.SendTemplateEmailAsync(request.Email, fullName, "STUDENT_WELCOME_EMAIL", description, "Sign In", loginUrl, "");
+                    "Please sign in and change your password as soon as possible.";
+                await emailSender.SendTemplateEmailAsync(request.Email, fullName, "STUDENT_WELCOME_EMAIL", description, "Sign In to Student Portal", loginUrl, "");
             }
             catch (Exception)
             {

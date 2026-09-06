@@ -31,7 +31,12 @@ namespace Web_Backend.Classes
             }
             else if (context.Exception is UnauthorizedAccessException)
             {
-                context.Result = new RedirectToActionResult("Login", "Account", new { area = "Admin" });
+                // Send them to the sign-in page of the portal they were trying
+                // to reach — each area has its own branded Account/Login, so
+                // bouncing a student to the Admin login would be wrong.
+                var area = context.RouteData.Values["area"] as string;
+                if (area != "Student" && area != "Lecturer") area = "Admin";
+                context.Result = new RedirectToActionResult("Login", "Account", new { area });
                 context.ExceptionHandled = true;
             }
         }

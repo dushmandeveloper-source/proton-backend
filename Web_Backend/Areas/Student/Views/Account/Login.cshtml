@@ -1,0 +1,93 @@
+@model LoginViewModel
+@{
+    ViewData["Title"] = "Student Sign In";
+    ViewData["AuthPage"] = true;
+}
+
+<div class="min-h-screen flex items-center justify-center p-4">
+    <div class="w-full max-w-md bg-white dark:bg-slate-800 rounded-[32px] p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white/60 dark:border-slate-700 relative overflow-hidden">
+        <div class="absolute -top-20 -right-20 w-40 h-40 bg-cyan-400 rounded-full mix-blend-multiply filter blur-[64px] opacity-40 dark:opacity-20"></div>
+
+        <div class="text-center mb-8 relative z-10">
+            <div class="mx-auto w-12 h-12 bg-gradient-to-br from-[#06b6d4] to-[#2563eb] rounded-2xl flex items-center justify-center mb-4 shadow-lg shadow-cyan-500/30">
+                <i data-lucide="graduation-cap" class="text-white w-6 h-6"></i>
+            </div>
+            <span class="inline-block text-xs font-semibold uppercase tracking-wider text-cyan-600 dark:text-cyan-400 mb-2">Student Portal</span>
+            <h1 class="text-2xl font-bold text-slate-800 dark:text-slate-100">Welcome back</h1>
+            <p class="text-slate-500 dark:text-slate-400 text-sm mt-2">Sign in to view your courses and schedule</p>
+        </div>
+
+        @if (!string.IsNullOrEmpty(Model.ErrorMessage))
+        {
+            <div class="mb-4 text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950 border border-red-100 dark:border-red-900 rounded-xl px-4 py-2 relative z-10">
+                @Model.ErrorMessage
+            </div>
+        }
+        @if (TempData["SuccessMessage"] is string okMsg && !string.IsNullOrEmpty(okMsg))
+        {
+            <div class="mb-4 text-sm text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950 border border-emerald-100 dark:border-emerald-900 rounded-xl px-4 py-2 relative z-10">
+                @okMsg
+            </div>
+        }
+
+        <form method="post" class="space-y-5 relative z-10">
+            @Html.AntiForgeryToken()
+            <div class="space-y-1">
+                <label class="text-sm font-medium text-slate-700 dark:text-slate-300">Email Address</label>
+                <div class="relative">
+                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <i data-lucide="mail" class="h-5 w-5 text-slate-400 dark:text-slate-500"></i>
+                    </div>
+                    <input asp-for="Email" type="email" placeholder="you@example.com"
+                           class="w-full rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 px-4 py-2.5 pl-10 text-sm outline-none transition-all focus:border-[#0891b2] focus:ring-1 focus:ring-[#0891b2]" />
+                </div>
+                <span asp-validation-for="Email" class="text-xs text-red-500"></span>
+            </div>
+            <div class="space-y-1">
+                <label class="text-sm font-medium text-slate-700 dark:text-slate-300">Password</label>
+                <div class="relative">
+                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <i data-lucide="lock" class="h-5 w-5 text-slate-400 dark:text-slate-500"></i>
+                    </div>
+                    <input asp-for="Password" id="passwordInput" type="password" placeholder="••••••••"
+                           class="w-full rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 px-4 py-2.5 pl-10 pr-10 text-sm outline-none transition-all focus:border-[#0891b2] focus:ring-1 focus:ring-[#0891b2]" />
+                    <button type="button" id="togglePassword" tabindex="-1" aria-label="Show password"
+                            class="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300">
+                        <i data-lucide="eye" class="h-5 w-5"></i>
+                    </button>
+                </div>
+                <div class="flex items-center justify-between mt-2">
+                    <label class="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400 cursor-pointer">
+                        <input asp-for="RememberMe" type="checkbox"
+                               class="h-4 w-4 rounded border-slate-300 dark:border-slate-600 text-[#0891b2] focus:ring-[#0891b2]" />
+                        Remember me
+                    </label>
+                    <a asp-action="ForgotPassword" class="text-sm font-medium text-[#0891b2] dark:text-[#22d3ee] hover:text-[#0e7490] dark:hover:text-[#67e8f9]">Forgot password?</a>
+                </div>
+            </div>
+            <button type="submit" class="w-full py-3 mt-4 rounded-xl font-medium text-base bg-[#0891b2] text-white hover:bg-[#0e7490] shadow-lg shadow-cyan-500/25 transition-all">
+                Sign In
+            </button>
+        </form>
+
+        <p class="text-center text-xs text-slate-400 dark:text-slate-500 mt-6 relative z-10">
+            Staff sign-in is at <a asp-area="Admin" asp-controller="Account" asp-action="Login" class="underline hover:text-slate-600 dark:hover:text-slate-300">the admin portal</a>.
+        </p>
+    </div>
+</div>
+
+<script>
+    (function () {
+        var toggle = document.getElementById('togglePassword');
+        var input = document.getElementById('passwordInput');
+        if (!toggle || !input) return;
+
+        toggle.addEventListener('click', function () {
+            var isHidden = input.type === 'password';
+            input.type = isHidden ? 'text' : 'password';
+            toggle.innerHTML = '<i data-lucide="' + (isHidden ? 'eye-off' : 'eye') + '" class="h-5 w-5"></i>';
+            toggle.setAttribute('aria-label', isHidden ? 'Hide password' : 'Show password');
+            if (window.lucide) lucide.createIcons();
+        });
+    })();
+</script>

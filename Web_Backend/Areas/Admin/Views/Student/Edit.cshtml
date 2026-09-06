@@ -453,7 +453,17 @@
             var wizardForm = document.getElementById('studentWizardForm');
             if (wizardForm) {
                 wizardForm.addEventListener('submit', function (e) {
-                    if (!validateCurrentStep()) e.preventDefault();
+                    if (!validateCurrentStep()) { e.preventDefault(); return; }
+                    // Guards against a double-click (or slow network + a second
+                    // click) submitting the same course-registration list twice,
+                    // which the backend would otherwise report as a spurious
+                    // "already registered" enrollment failure on the retry.
+                    if (wizardForm.dataset.submitting === '1') { e.preventDefault(); return; }
+                    wizardForm.dataset.submitting = '1';
+                    if (saveBtn) {
+                        saveBtn.disabled = true;
+                        saveBtn.textContent = 'Saving…';
+                    }
                 });
             }
             indicators.forEach(function (el) {

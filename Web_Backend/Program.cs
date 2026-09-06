@@ -10,6 +10,7 @@ SettingHelper.Initialize(builder.Configuration);
 builder.Services.AddControllersWithViews(options =>
 {
     options.Filters.Add<UnauthorizedRedirectFilter>();
+    options.Filters.Add<AreaAccessFilter>();
 
     // These models follow the stored-procedure convention where an empty id
     // means "insert" (see @UniversityID = '' in the sprocs), so a non-nullable
@@ -60,6 +61,7 @@ builder.Services.AddSingleton<IDBAccess>(new MSSQLDataAccess(AppData.GetMSSQLDBC
 builder.Services.AddTransient<IUserData, UserData>();
 builder.Services.AddTransient<IUserAuthData, UserAuthData>();
 builder.Services.AddTransient<IUserTypeData, UserTypeData>();
+builder.Services.AddTransient<PortalSignIn>();
 builder.Services.AddTransient<IEmailSettingsData, EmailSettingsData>();
 builder.Services.AddTransient<IEmailTemplateData, EmailTemplateData>();
 builder.Services.AddTransient<IPasswordResetData, PasswordResetData>();

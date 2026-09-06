@@ -20,8 +20,18 @@
 
         @if (Model.Count == 0)
         {
+            @* A student with no enrolments would otherwise hit a dead end here,
+               so point them straight at the course catalogue. *@
             <div class="p-10 text-center">
-                <p class="text-sm text-slate-400 dark:text-slate-500">You are not enrolled in any courses yet.</p>
+                <div class="mx-auto w-12 h-12 rounded-2xl bg-purple-50 dark:bg-purple-950 flex items-center justify-center mb-4">
+                    <i data-lucide="graduation-cap" class="w-6 h-6 text-purple-600 dark:text-purple-300"></i>
+                </div>
+                <p class="font-semibold text-slate-800 dark:text-slate-100">You are not enrolled in any courses yet</p>
+                <p class="text-sm text-slate-400 dark:text-slate-500 mt-1 mb-5">Browse the available courses and enrol to get started.</p>
+                <a asp-area="Student" asp-controller="Enrollment" asp-action="Browse"
+                   class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium bg-[#7c3aed] text-white hover:bg-[#6d28d9] shadow-sm text-sm transition-colors">
+                    <i data-lucide="plus" class="w-4 h-4"></i> Enroll in a Course
+                </a>
             </div>
         }
         else

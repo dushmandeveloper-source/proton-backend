@@ -19,11 +19,18 @@ namespace Web_Backend.Controllers.Api
     {
         private readonly IUserAuthData authRep;
         private readonly IPasswordResetData resetRep;
+        private readonly IUserTypeData userTypeRep;
+        private readonly IEmailSender emailSender;
+        private readonly IConfiguration configuration;
 
-        public AuthApiController(IUserAuthData authRep, IPasswordResetData resetRep)
+        public AuthApiController(IUserAuthData authRep, IPasswordResetData resetRep, IUserTypeData userTypeRep,
+            IEmailSender emailSender, IConfiguration configuration)
         {
             this.authRep = authRep;
             this.resetRep = resetRep;
+            this.userTypeRep = userTypeRep;
+            this.emailSender = emailSender;
+            this.configuration = configuration;
         }
 
         [HttpPost("login")]
@@ -66,11 +73,24 @@ namespace Web_Backend.Controllers.Api
                     .Replace('+', '-').Replace('/', '_').TrimEnd('=');
                 await resetRep.CreateToken(auth.AuthID, auth.Email, token, DateTime.UtcNow.AddMinutes(30));
 
-                // Dev mode: no SMTP sender wired up yet, so the token is
-                // returned directly instead of being emailed.
-                return Ok(new { message = "Reset token issued.", token });
+                // The link points back at the public site's own reset page,
+                // not a portal route — this endpoint serves the React front
+                // end. Falls back to the request origin so local dev needs no
+                // config.
+                var siteBase = (configuration["ApplicationSettings:PublicSiteUrl"] ?? "").TrimEnd('/');
+                if (string.IsNullOrWhiteSpace(siteBase))
+                    siteBase = $"{Request.Scheme}://{Request.Host}";
+
+                var resetUrl = $"{siteBase}/reset-password?token={Uri.EscapeDataString(token)}";
+                var description = "We received a request to reset your Proton account password. This link expires in 30 minutes.";
+                await emailSender.SendTemplateEmailAsync(
+                    auth.Email, auth.Email, "PASSWORD_RESET", description, "Reset Password", resetUrl);
             }
 
+            // Always the same reply, whether or not the address exists —
+            // varying it would let anyone probe which emails have accounts.
+            // The token is never returned in the response: it goes only to the
+            // inbox that owns the address.
             return Ok(new { message = "If that email exists, a reset link has been sent." });
         }
 
@@ -99,13 +119,33 @@ namespace Web_Backend.Controllers.Api
         // reload, since the session cookie itself carries no user info the
         // browser can read (HttpOnly).
         [HttpGet("me")]
-        public IActionResult Me()
+        public async Task<IActionResult> Me()
         {
             var user = Auth.GetUser();
             if (user == null)
                 return Unauthorized();
 
-            return Ok(new { userId = user.Id, fullName = user.Name, email = user.Email, role = user.Role });
+            // user.Role is a UserTypeID (an opaque DB id), not a readable name,
+            // so only the server can say which portal this account belongs to.
+            // Resolving it here means callers get a ready-to-use dashboard link
+            // instead of trying to map ids themselves. Mirrors the mapping in
+            // AreaAccessFilter: anyone who is neither Student nor Instructor is
+            // treated as staff and belongs in the Admin area.
+            var userTypes = await userTypeRep.GetList();
+            var roleName = userTypes.FirstOrDefault(t => t.UserTypeID == user.Role)?.UserTypeName;
+            var area = roleName == "Student" ? "Student"
+                     : roleName == "Instructor" ? "Lecturer"
+                     : "Admin";
+
+            return Ok(new
+            {
+                userId = user.Id,
+                fullName = user.Name,
+                email = user.Email,
+                role = user.Role,
+                roleName,
+                dashboardUrl = $"/{area}/Dashboard/Index"
+            });
         }
     }
 }
