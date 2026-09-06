@@ -4,6 +4,22 @@ This project runs against different databases and API URLs depending on
 where it's running. Nothing needs to be toggled by hand — each environment
 picks up its own config automatically.
 
+## Repo layout: DBAccess lives inside Web_Backend/
+
+`DBAccess/` (the small IDBAccess/MSSQLDataAccess project Web_Backend
+references) lives at `Web_Backend/DBAccess/`, not as a sibling of
+`Web_Backend/` at the repo root — moved here because the deploy host's app
+config pins its build root to the `Web_Backend/` subfolder, so a sibling
+`../DBAccess` was invisible to it (`dotnet publish` failed with `DBAccess
+could not be found` for every type it exposes). `Web_Backend.csproj`'s
+`ProjectReference` points at `DBAccess/DBAccess.csproj` accordingly, and
+explicitly `<Compile Remove="DBAccess/**/*.cs" />`s that folder from its own
+compile items — otherwise the SDK's default `**/*.cs` glob double-compiles
+DBAccess's two source files directly into Web_Backend on top of the
+ProjectReference, producing duplicate type identities (CS0436).
+`Database/` (migrations) stays at the repo root as a sibling — it's not
+part of the .NET build, so this doesn't affect it.
+
 ## Backend (this repo)
 
 ASP.NET Core layers config files by `ASPNETCORE_ENVIRONMENT`:
