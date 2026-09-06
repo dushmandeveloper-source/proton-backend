@@ -32,8 +32,14 @@
        (the not-yet-applied files under Database/migrations, concatenated) so
        there's always a single script ready to hand-run against the hosted DB
        after uploading the publish output. Reads hosted DB creds straight out
-       of appsettings.Production.json — never duplicated into this file. -->
-  <Target Name="GeneratePendingMigrations" AfterTargets="Publish">
+       of appsettings.Production.json — never duplicated into this file.
+
+       Skipped unless that file is actually present: the hosted container
+       build clones only the repo (appsettings.Production.json is gitignored)
+       and has no pwsh, so there the Exec could only ever fail — it logged
+       MSB3073 "pwsh: not found" on every deploy. -->
+  <Target Name="GeneratePendingMigrations" AfterTargets="Publish"
+          Condition="Exists('$(ProjectDir)appsettings.Production.json')">
     <Exec Command="pwsh -NoProfile -File &quot;$(ProjectDir)..\Database\tools\generate-pending-from-appsettings.ps1&quot; -AppSettingsPath &quot;$(ProjectDir)appsettings.Production.json&quot;"
           ContinueOnError="WarnAndContinue" />
   </Target>
