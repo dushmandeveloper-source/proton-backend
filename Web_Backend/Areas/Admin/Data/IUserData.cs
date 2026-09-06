@@ -11,6 +11,10 @@ namespace Web_Backend.Areas.Admin.Data
         Task<AppUser?> GetByPhone(string phone);
         Task<string> AddEdit(AppUser user);
         Task SetUserType(string userId, string userTypeId);
+        // Soft delete — flips IsActive to 'I'; the row stays queryable.
         Task Delete(string id);
+        // Permanent delete — removes the account and its auth/override/student
+        // rows outright. Refuses (throws) when real history references it.
+        Task HardDelete(string id, string logUserId);
     }
 }

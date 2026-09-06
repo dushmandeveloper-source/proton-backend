@@ -317,11 +317,32 @@ namespace Web_Backend.Areas.Admin.Controllers
                         }
                     }
 
-                    for (var i = 0; i < form.SelectedCourseIDs.Count; i++)
+                    // De-dupe the submitted course IDs: the form only ever renders one
+                    // checkbox per course, but a double-submit (double-click, or a
+                    // resubmitted request) can otherwise send the same course twice,
+                    // which the DB's (StudentID, CourseID) guard would then reject on
+                    // the second attempt and report as a spurious enrollment failure.
+                    var uniqueCourseIds = form.SelectedCourseIDs.Distinct().ToList();
+                    var alreadyRegistered = (await registrationRep.GetByStudent(studentId))
+                        .Where(r => r.IsActive == "A")
+                        .Select(r => r.CourseID)
+                        .ToHashSet();
+
+                    for (var i = 0; i < uniqueCourseIds.Count; i++)
                     {
-                        var courseId = form.SelectedCourseIDs[i];
+                        var courseId = uniqueCourseIds[i];
                         var isFirst = i == 0;
                         var scheduleId = scheduleSelections.TryGetValue(courseId, out var sid) ? sid : "";
+
+                        // Pre-check rather than relying solely on the DB's unique-constraint
+                        // throw: gives a clear, specific message instead of surfacing the
+                        // stored procedure's generic exception text.
+                        if (alreadyRegistered.Contains(courseId))
+                        {
+                            enrollmentWarnings.Add($"Already registered for course '{courseId}' — skipped.");
+                            continue;
+                        }
+
                         try
                         {
                             var course = await courseRep.Get(courseId);
@@ -350,15 +371,16 @@ namespace Web_Backend.Areas.Admin.Controllers
 
                 if (isNew && form.SendWelcomeEmail)
                 {
-                    var loginUrl = configuration["ApplicationSettings:PublicLoginUrl"] ?? "";
+                    var loginUrl = PortalUrls.Student(configuration, Request);
                     var description =
                         $"Your Proton student account has been created.<br/><br/>" +
+                        $"Student portal: <strong>{loginUrl}</strong><br/>" +
                         $"Email: <strong>{form.Email}</strong><br/>" +
                         $"Temporary Password: <strong>{tempPassword}</strong><br/><br/>" +
                         "Please sign in and change your password as soon as possible.";
                     try
                     {
-                        await emailSender.SendTemplateEmailAsync(form.Email, $"{form.FirstName} {form.LastName}", "STUDENT_WELCOME_EMAIL", description, "Sign In", loginUrl, "");
+                        await emailSender.SendTemplateEmailAsync(form.Email, $"{form.FirstName} {form.LastName}", "STUDENT_WELCOME_EMAIL", description, "Sign In to Student Portal", loginUrl, "");
                     }
                     catch (Exception ex)
                     {
@@ -370,14 +392,14 @@ namespace Web_Backend.Areas.Admin.Controllers
                     ? $"'{form.FirstName} {form.LastName}' registered as a student." + (enrolledCount > 0 ? $" Enrolled in {enrolledCount} course(s)." : "")
                     : $"'{form.FirstName} {form.LastName}' saved.";
 
+                TempData["SuccessMessage"] = successMessage;
                 if (enrollmentWarnings.Any())
                 {
-                    TempData["SuccessMessage"] = successMessage;
-                    TempData["ErrorMessage"] = string.Join(" ", enrollmentWarnings);
-                }
-                else
-                {
-                    TempData["SuccessMessage"] = successMessage;
+                    // Explicitly framed as "student saved, but ..." — a plain
+                    // ErrorMessage next to a SuccessMessage reads as ambiguous
+                    // (did the whole save fail or not?) when in fact the student
+                    // record is fine and only specific course enrollments failed.
+                    TempData["ErrorMessage"] = "Student record saved, but: " + string.Join(" ", enrollmentWarnings);
                 }
 
                 return RedirectToAction("Details", new { id = studentId });
@@ -448,13 +470,14 @@ namespace Web_Backend.Areas.Admin.Controllers
                     await authRep.AddEdit(auth.AuthID, student.UserID, student.Email, student.Email, hash, salt);
                 }
 
-                var loginUrl = configuration["ApplicationSettings:PublicLoginUrl"] ?? "";
+                var loginUrl = PortalUrls.Student(configuration, Request);
                 var description =
                     $"Your Proton student account password has been reset by an administrator.<br/><br/>" +
+                    $"Student portal: <strong>{loginUrl}</strong><br/>" +
                     $"Email: <strong>{student.Email}</strong><br/>" +
                     $"New Temporary Password: <strong>{tempPassword}</strong><br/><br/>" +
                     "Please sign in and change your password as soon as possible.";
-                await emailSender.SendTemplateEmailAsync(student.Email, student.FullName, "STUDENT_WELCOME_EMAIL", description, "Sign In", loginUrl, "");
+                await emailSender.SendTemplateEmailAsync(student.Email, student.FullName, "STUDENT_WELCOME_EMAIL", description, "Sign In to Student Portal", loginUrl, "");
 
                 TempData["SuccessMessage"] = $"New password generated and emailed to {student.Email}.";
             }

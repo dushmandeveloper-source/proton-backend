@@ -64,5 +64,8 @@ namespace Web_Backend.Areas.Admin.Data
 
         public Task Delete(string id) =>
             db.ExecuteNonQuery("usr.Users_Delete", new { APIKey = AppData.GetAPIKey(), ID = id });
+
+        public Task HardDelete(string id, string logUserId) =>
+            db.ExecuteNonQuery("usr.Users_HardDelete", new { APIKey = AppData.GetAPIKey(), ID = id, LogUserID = logUserId });
     }
 }

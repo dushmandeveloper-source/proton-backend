@@ -3,12 +3,18 @@ using Web_Backend.Areas.Admin.Data;
 using Web_Backend.Areas.Admin.Models;
 using Web_Backend.Classes;
 
-namespace Web_Backend.Areas.Admin.Controllers
+// Namespace is StudentPortal, not Student: a `Student` namespace would collide
+// with the Admin area's `Student` model type (CS0118). Same convention the
+// other controllers in this area already follow.
+namespace Web_Backend.Areas.StudentPortal.Controllers
 {
-    [Area("Admin")]
+    // Student-facing sign-in. Mirrors the Lecturer and Admin AccountControllers
+    // — the shared credential/permission/reset plumbing lives in PortalSignIn
+    // so the three only differ in branding and which portal they admit.
+    [Area("Student")]
     public class AccountController : Controller
     {
-        private const Portal ThisPortal = Portal.Admin;
+        private const Portal ThisPortal = Portal.Student;
 
         private readonly PortalSignIn signIn;
         private readonly IEmailSender emailSender;
@@ -44,7 +50,7 @@ namespace Web_Backend.Areas.Admin.Controllers
                 return View(model);
             }
 
-            return RedirectToAction("Index", "Dashboard");
+            return RedirectToAction("Index", "Dashboard", new { area = "Student" });
         }
 
         [HttpGet]
@@ -59,8 +65,8 @@ namespace Web_Backend.Areas.Admin.Controllers
             var (issued, email, fullName, token) = await signIn.CreateResetTokenAsync(model.Email, ThisPortal);
             if (issued)
             {
-                var resetUrl = Url.Action("ResetPassword", "Account", new { area = "Admin", token }, Request.Scheme) ?? "#";
-                var description = "We received a request to reset your Proton Admin password. This link expires in 30 minutes.";
+                var resetUrl = Url.Action("ResetPassword", "Account", new { area = "Student", token }, Request.Scheme) ?? "#";
+                var description = "We received a request to reset your Proton student account password. This link expires in 30 minutes.";
                 var sent = await emailSender.SendTemplateEmailAsync(email, fullName, "PASSWORD_RESET", description, "Reset Password", resetUrl);
 
                 model.Message = sent

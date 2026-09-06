@@ -3,12 +3,16 @@ using Web_Backend.Areas.Admin.Data;
 using Web_Backend.Areas.Admin.Models;
 using Web_Backend.Classes;
 
-namespace Web_Backend.Areas.Admin.Controllers
+// Namespace is LecturerPortal — see the sibling controllers in this area.
+namespace Web_Backend.Areas.LecturerPortal.Controllers
 {
-    [Area("Admin")]
+    // Lecturer-facing sign-in. See Areas/Student/Controllers/AccountController
+    // — same shape, different portal and branding; shared plumbing is in
+    // PortalSignIn.
+    [Area("Lecturer")]
     public class AccountController : Controller
     {
-        private const Portal ThisPortal = Portal.Admin;
+        private const Portal ThisPortal = Portal.Lecturer;
 
         private readonly PortalSignIn signIn;
         private readonly IEmailSender emailSender;
@@ -44,7 +48,7 @@ namespace Web_Backend.Areas.Admin.Controllers
                 return View(model);
             }
 
-            return RedirectToAction("Index", "Dashboard");
+            return RedirectToAction("Index", "Dashboard", new { area = "Lecturer" });
         }
 
         [HttpGet]
@@ -59,8 +63,8 @@ namespace Web_Backend.Areas.Admin.Controllers
             var (issued, email, fullName, token) = await signIn.CreateResetTokenAsync(model.Email, ThisPortal);
             if (issued)
             {
-                var resetUrl = Url.Action("ResetPassword", "Account", new { area = "Admin", token }, Request.Scheme) ?? "#";
-                var description = "We received a request to reset your Proton Admin password. This link expires in 30 minutes.";
+                var resetUrl = Url.Action("ResetPassword", "Account", new { area = "Lecturer", token }, Request.Scheme) ?? "#";
+                var description = "We received a request to reset your Proton lecturer account password. This link expires in 30 minutes.";
                 var sent = await emailSender.SendTemplateEmailAsync(email, fullName, "PASSWORD_RESET", description, "Reset Password", resetUrl);
 
                 model.Message = sent

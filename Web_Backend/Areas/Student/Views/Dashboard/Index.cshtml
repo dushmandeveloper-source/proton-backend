@@ -36,7 +36,23 @@
         </div>
     }
 
+    @* A student with no enrolments has an empty dashboard — surface the next
+       step up here as a banner rather than leaving them to find the empty
+       "Enrolled Courses" card further down the page. *@
+    @if (Model.Registrations.Count == 0)
+    {
+        <div class="rounded-[20px] border border-purple-100 dark:border-purple-900 bg-purple-50 dark:bg-purple-950 p-4 flex items-center gap-3">
+            <i data-lucide="graduation-cap" class="w-5 h-5 text-purple-600 dark:text-purple-300 flex-shrink-0"></i>
+            <p class="text-sm text-purple-700 dark:text-purple-300 flex-1"><strong>You're not enrolled in any courses yet.</strong> Browse the available courses to get started.</p>
+            <a asp-area="Student" asp-controller="Enrollment" asp-action="Browse" class="text-sm font-medium text-purple-700 dark:text-purple-300 underline whitespace-nowrap">Enroll now</a>
+        </div>
+    }
+
     @* ---------- This Week's Classes ---------- *@
+    @* Without an enrolment this is just seven rows of "No classes", which adds
+       nothing — the banner above already says what to do instead. *@
+    @if (Model.Registrations.Count > 0)
+    {
     <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
         <div class="p-6 border-b border-slate-100 dark:border-slate-700 flex items-center gap-3">
             <div class="bg-indigo-50 dark:bg-indigo-950 p-2 rounded-lg"><i data-lucide="calendar-days" class="w-5 h-5 text-indigo-600 dark:text-indigo-300"></i></div>
@@ -76,6 +92,7 @@
             }
         </div>
     </div>
+    }
 
     @* ---------- Enrolled Courses + stat tiles ---------- *@
     <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -96,20 +113,17 @@
         </div>
     </div>
 
+    @* Hidden entirely when empty — the banner at the top of the page already
+       carries this message and its "Enroll now" link, and repeating the same
+       call to action twice on one screen just adds noise. *@
+    @if (Model.Registrations.Count > 0)
+    {
     <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
         <div class="p-6 border-b border-slate-100 dark:border-slate-700 flex items-center gap-3">
             <div class="bg-purple-50 dark:bg-purple-950 p-2 rounded-lg"><i data-lucide="graduation-cap" class="w-5 h-5 text-purple-600 dark:text-purple-300"></i></div>
             <h3 class="font-semibold text-lg text-slate-800 dark:text-slate-100">Enrolled Courses</h3>
         </div>
-        @if (Model.Registrations.Count == 0)
-        {
-            <div class="p-10 text-center">
-                <p class="text-sm text-slate-400 dark:text-slate-500">You are not enrolled in any courses yet.</p>
-            </div>
-        }
-        else
-        {
-            <div class="overflow-x-auto">
+        <div class="overflow-x-auto">
                 <table class="w-full text-sm">
                     <thead>
                         <tr class="text-left text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider border-b border-slate-100 dark:border-slate-700">
@@ -137,11 +151,15 @@
                         }
                     </tbody>
                 </table>
-            </div>
-        }
+        </div>
     </div>
+    }
 
     @* ---------- Pending Payments ---------- *@
+    @* Nothing can be due without an enrolment, so this card only makes sense
+       once the student has one. *@
+    @if (Model.Registrations.Count > 0)
+    {
     <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
         <div class="p-6 border-b border-slate-100 dark:border-slate-700 flex items-center gap-3">
             <div class="bg-amber-50 dark:bg-amber-950 p-2 rounded-lg"><i data-lucide="wallet" class="w-5 h-5 text-amber-600 dark:text-amber-300"></i></div>
@@ -150,13 +168,7 @@
         @{
             var pending = Model.Registrations.Where(r => r.BalanceDue > 0).ToList();
         }
-        @if (Model.Summary == null)
-        {
-            <div class="p-10 text-center">
-                <p class="text-sm text-slate-400 dark:text-slate-500">No enrollments yet.</p>
-            </div>
-        }
-        else if (pending.Count == 0)
+        @if (pending.Count == 0)
         {
             <div class="p-10 text-center">
                 <p class="text-sm text-slate-400 dark:text-slate-500">No pending payments — you're all caught up.</p>
@@ -181,11 +193,13 @@
             </div>
         }
     </div>
+    }
 
     <div class="flex justify-center pb-4">
         <a asp-area="Student" asp-controller="Enrollment" asp-action="Browse"
            class="px-6 py-3 rounded-xl font-medium text-sm bg-[#7c3aed] text-white hover:bg-[#6d28d9] shadow-sm transition-all flex items-center gap-2">
-            <i data-lucide="plus" class="w-4 h-4"></i> Enroll in a New Course
+            <i data-lucide="plus" class="w-4 h-4"></i>
+            @(Model.Registrations.Count == 0 ? "Enroll in a Course" : "Enroll in a New Course")
         </a>
     </div>
 </div>

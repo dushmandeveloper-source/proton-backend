@@ -304,6 +304,26 @@ namespace Web_Backend.Areas.Admin.Controllers
             return RedirectToAction("Index", new { tab = "users" });
         }
 
+        // Permanent counterpart to Delete above, which only deactivates. The
+        // stored procedure refuses when the account carries real history
+        // (registrations, batch assignments, reschedules, materials), so the
+        // guard rails live in one place rather than being re-checked here.
+        [HttpPost, ValidateAntiForgeryToken]
+        public async Task<IActionResult> HardDelete(string id)
+        {
+            Auth.CheckPermission(PermissionCode.UserManagement, 'D');
+            try
+            {
+                await userRep.HardDelete(id, Auth.GetUserId());
+                TempData["SuccessMessage"] = "User permanently deleted.";
+            }
+            catch (Exception ex)
+            {
+                TempData["ErrorMessage"] = "Could not permanently delete user: " + ex.Message;
+            }
+            return RedirectToAction("Index", new { tab = "users" });
+        }
+
         [HttpPost, ValidateAntiForgeryToken]
         public async Task<IActionResult> ResetPassword(string id)
         {

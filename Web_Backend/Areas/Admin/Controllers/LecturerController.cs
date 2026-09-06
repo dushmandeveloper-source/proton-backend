@@ -156,15 +156,16 @@ namespace Web_Backend.Areas.Admin.Controllers
 
                 if (isNew && sendWelcomeEmail)
                 {
-                    var loginUrl = configuration["ApplicationSettings:PublicLoginUrl"] ?? "";
+                    var loginUrl = PortalUrls.Lecturer(configuration, Request);
                     var description =
                         $"Your Proton lecturer account has been created.<br/><br/>" +
+                        $"Lecturer portal: <strong>{loginUrl}</strong><br/>" +
                         $"Email: <strong>{form.Email}</strong><br/>" +
                         $"Temporary Password: <strong>{tempPassword}</strong><br/><br/>" +
                         "Please sign in and change your password as soon as possible.";
                     try
                     {
-                        await emailSender.SendTemplateEmailAsync(form.Email, $"{form.FirstName} {form.LastName}", "LECTURER_WELCOME_EMAIL", description, "Sign In", loginUrl, "");
+                        await emailSender.SendTemplateEmailAsync(form.Email, $"{form.FirstName} {form.LastName}", "LECTURER_WELCOME_EMAIL", description, "Sign In to Lecturer Portal", loginUrl, "");
                     }
                     catch (Exception ex)
                     {
@@ -243,13 +244,14 @@ namespace Web_Backend.Areas.Admin.Controllers
                     await authRep.AddEdit(auth.AuthID, userId, lecturer.Email, lecturer.Email, hash, salt);
                 }
 
-                var loginUrl = configuration["ApplicationSettings:PublicLoginUrl"] ?? "";
+                var loginUrl = PortalUrls.Lecturer(configuration, Request);
                 var description =
                     $"Your Proton lecturer account password has been reset by an administrator.<br/><br/>" +
+                    $"Lecturer portal: <strong>{loginUrl}</strong><br/>" +
                     $"Email: <strong>{lecturer.Email}</strong><br/>" +
                     $"New Temporary Password: <strong>{tempPassword}</strong><br/><br/>" +
                     "Please sign in and change your password as soon as possible.";
-                await emailSender.SendTemplateEmailAsync(lecturer.Email, lecturer.FullName, "LECTURER_WELCOME_EMAIL", description, "Sign In", loginUrl, "");
+                await emailSender.SendTemplateEmailAsync(lecturer.Email, lecturer.FullName, "LECTURER_WELCOME_EMAIL", description, "Sign In to Lecturer Portal", loginUrl, "");
 
                 TempData["SuccessMessage"] = $"New password generated and emailed to {lecturer.Email}.";
             }

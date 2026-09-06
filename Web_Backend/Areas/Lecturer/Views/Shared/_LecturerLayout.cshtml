@@ -3,6 +3,9 @@
     string activeController = ViewContext.RouteData.Values["controller"]?.ToString() ?? "";
     string? successMsg = TempData["SuccessMessage"] as string;
     string? errorMsg = TempData["ErrorMessage"] as string;
+    // Sign-in/forgot/reset pages render bare (no sidebar shell) — same
+    // convention as _AdminLayout.
+    var isAuthPage = ViewData["AuthPage"] as bool? ?? false;
 }
 <!DOCTYPE html>
 <html lang="en">
@@ -43,13 +46,19 @@
 
 <div id="toast-container" class="fixed top-4 right-4 z-[100] flex flex-col gap-2 items-end pointer-events-none"></div>
 
+@if (isAuthPage)
+{
+    @RenderBody()
+}
+else
+{
 <div class="min-h-screen p-4 md:p-6 flex flex-col md:flex-row gap-6 font-sans">
 
     <div id="sidebar-backdrop" class="hidden md:hidden fixed inset-0 bg-black/40 z-30"></div>
 
-    <aside id="sidebar" class="fixed inset-y-4 left-4 z-40 w-[280px] -translate-x-[120%] transition-transform duration-300 ease-in-out md:relative md:inset-y-auto md:left-auto md:translate-x-0 md:transition-none md:z-20 md:w-[260px] flex-shrink-0 bg-white dark:bg-slate-800 md:bg-white/90 md:dark:bg-slate-800/90 backdrop-blur-xl rounded-[32px] p-4 flex flex-col overflow-y-auto custom-scrollbar shadow-[0_8px_30px_rgb(0,0,0,0.02)] border border-white/60 dark:border-slate-700/60">
+    <aside id="sidebar" class="fixed inset-y-4 left-4 z-40 w-[280px] -translate-x-[120%] transition-transform duration-300 ease-in-out md:relative md:inset-y-auto md:left-auto md:translate-x-0 md:transition-none md:z-20 md:w-[260px] md:h-[calc(100vh-3rem)] flex-shrink-0 bg-white dark:bg-slate-800 md:bg-white/90 md:dark:bg-slate-800/90 backdrop-blur-xl rounded-[32px] p-4 flex flex-col overflow-hidden shadow-[0_8px_30px_rgb(0,0,0,0.02)] border border-white/60 dark:border-slate-700/60">
 
-        <div class="flex items-center gap-3 p-3 mb-6 rounded-2xl">
+        <div class="flex-shrink-0 flex items-center gap-3 p-3 mb-6 rounded-2xl">
             <div class="relative">
                 <div class="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-100 to-purple-100 dark:from-indigo-900 dark:to-purple-900 text-indigo-700 dark:text-indigo-300 font-bold flex items-center justify-center text-sm border-2 border-white dark:border-slate-800 shadow-sm">
                     @((currentUser?.Name ?? "L").Substring(0, 1).ToUpper())
@@ -65,7 +74,7 @@
             </button>
         </div>
 
-        <nav class="flex-1 space-y-1">
+        <nav class="flex-1 min-h-0 overflow-y-auto custom-scrollbar space-y-1 -mr-1 pr-1">
             <a asp-area="Lecturer" asp-controller="Dashboard" asp-action="Index"
                class="w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-200 group @(activeController == "Dashboard" ? "bg-slate-50/80 dark:bg-slate-700/60 text-slate-900 dark:text-slate-100 font-semibold" : "text-slate-500 dark:text-slate-400 hover:bg-slate-50/50 dark:hover:bg-slate-700/40 hover:text-slate-900 dark:hover:text-slate-100")">
                 <i data-lucide="home" class="w-5 h-5 @(activeController == "Dashboard" ? "text-[#5a43f1] dark:text-[#a78bfa]" : "text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300")"></i>
@@ -99,7 +108,7 @@
             </div>
         </nav>
 
-        <div class="mt-auto pt-4 border-t border-slate-100 dark:border-slate-700 space-y-1">
+        <div class="flex-shrink-0 pt-4 border-t border-slate-100 dark:border-slate-700 space-y-1">
             <a asp-area="Lecturer" asp-controller="Profile" asp-action="Index"
                class="w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-200 group @(activeController == "Profile" ? "bg-slate-50/80 dark:bg-slate-700/60 text-slate-900 dark:text-slate-100 font-semibold" : "text-slate-500 dark:text-slate-400 hover:bg-slate-50/50 dark:hover:bg-slate-700/40 hover:text-slate-900 dark:hover:text-slate-100")">
                 <i data-lucide="user-circle" class="w-5 h-5 @(activeController == "Profile" ? "text-[#5a43f1] dark:text-[#a78bfa]" : "text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300")"></i>
@@ -110,7 +119,7 @@
                 <i data-lucide="key-round" class="w-5 h-5 text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300"></i>
                 <span>Change Password</span>
             </a>
-            <a asp-area="Admin" asp-controller="Account" asp-action="Logout"
+            <a asp-area="Lecturer" asp-controller="Account" asp-action="Logout"
                class="w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-slate-500 dark:text-slate-400 hover:bg-slate-50/50 dark:hover:bg-slate-700/40 hover:text-slate-900 dark:hover:text-slate-100 transition-all duration-200 group">
                 <i data-lucide="log-out" class="w-5 h-5 text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300"></i>
                 <span>Log out</span>
@@ -144,6 +153,7 @@
         </div>
     </main>
 </div>
+}
 
 @RenderSection("Scripts", required: false)
 
