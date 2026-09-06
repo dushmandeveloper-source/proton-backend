@@ -1,0 +1,163 @@
+@model Web_Backend.Areas.Admin.Models.CourseSchedule
+@{
+    ViewData["Title"] = "Batch Details";
+    var materials = ViewBag.Materials as List<Web_Backend.Areas.Admin.Models.LectureMaterial> ?? new();
+    var roster = ViewBag.Roster as List<Web_Backend.Areas.Admin.Models.StudentRosterEntry> ?? new();
+}
+
+<div class="max-w-5xl mx-auto space-y-8 page-enter">
+
+    <div class="flex items-center justify-between flex-wrap gap-4">
+        <div>
+            <p class="text-sm font-medium text-slate-500 dark:text-slate-400 mb-2">My Batches</p>
+            <h1 class="text-3xl md:text-4xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">
+                @Model.CourseTitle
+            </h1>
+        </div>
+        <a asp-action="Index"
+           class="px-4 py-2 rounded-xl font-medium text-sm bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors flex items-center gap-2 w-fit">
+            <i data-lucide="arrow-left" class="w-4 h-4"></i> Back to My Batches
+        </a>
+    </div>
+
+    @* ---------- Batch info ---------- *@
+    <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
+        <div class="p-6 border-b border-slate-100 dark:border-slate-700 flex items-center gap-3">
+            <div class="bg-purple-50 dark:bg-purple-950 p-2 rounded-lg"><i data-lucide="graduation-cap" class="w-5 h-5 text-purple-600 dark:text-purple-300"></i></div>
+            <h3 class="font-semibold text-lg text-slate-800 dark:text-slate-100">Batch Information</h3>
+            <span class="ml-auto inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400">
+                <i data-lucide="users" class="w-3 h-3"></i> @Model.EnrolledCount enrolled
+            </span>
+        </div>
+        <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-6 text-sm">
+            <div>
+                <p class="text-xs text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-0.5">Batch Name</p>
+                <p class="text-slate-700 dark:text-slate-200 font-medium">@Model.ScheduleName</p>
+            </div>
+            <div>
+                <p class="text-xs text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-0.5">Location</p>
+                <p class="text-slate-700 dark:text-slate-200 font-medium">@Model.Location</p>
+            </div>
+        </div>
+    </div>
+
+    @* ---------- Enrolled students ---------- *@
+    <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
+        <div class="p-6 border-b border-slate-100 dark:border-slate-700 flex items-center gap-3">
+            <div class="bg-sky-50 dark:bg-sky-950 p-2 rounded-lg"><i data-lucide="users" class="w-5 h-5 text-sky-600 dark:text-sky-300"></i></div>
+            <h3 class="font-semibold text-lg text-slate-800 dark:text-slate-100">Enrolled Students</h3>
+            <span class="ml-auto text-xs font-medium text-slate-400 dark:text-slate-500">@roster.Count student(s)</span>
+        </div>
+        @if (roster.Count == 0)
+        {
+            <div class="p-10 text-center">
+                <p class="text-sm text-slate-400 dark:text-slate-500">No students enrolled in this batch yet.</p>
+            </div>
+        }
+        else
+        {
+            <div class="divide-y divide-slate-100 dark:divide-slate-700">
+                @foreach (var student in roster)
+                {
+                    <div class="p-4 px-6 flex items-center gap-4">
+                        @if (!string.IsNullOrEmpty(student.ProfileImageUrl))
+                        {
+                            <img src="@student.ProfileImageUrl" alt="" class="w-10 h-10 rounded-full object-cover flex-shrink-0" />
+                        }
+                        else
+                        {
+                            <div class="w-10 h-10 rounded-full bg-purple-50 dark:bg-purple-950 flex items-center justify-center text-[#7c3aed] dark:text-purple-300 font-semibold text-sm flex-shrink-0">
+                                @(student.StudentName.Length > 0 ? student.StudentName[0].ToString().ToUpper() : "?")
+                            </div>
+                        }
+                        <div class="min-w-0">
+                            <p class="text-sm font-medium text-slate-800 dark:text-slate-100 truncate">@student.StudentName</p>
+                            <p class="text-xs text-slate-400 dark:text-slate-500 truncate">
+                                @student.StudentEmail
+                                @if (student.DateOfBirth.HasValue)
+                                {
+                                    <span>&middot; DOB: @student.DateOfBirth.Value.ToString("MMM d, yyyy")</span>
+                                }
+                            </p>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    </div>
+
+    @* ---------- Segments ---------- *@
+    <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
+        <div class="p-6 border-b border-slate-100 dark:border-slate-700 flex items-center gap-3">
+            <div class="bg-indigo-50 dark:bg-indigo-950 p-2 rounded-lg"><i data-lucide="calendar-days" class="w-5 h-5 text-indigo-600 dark:text-indigo-300"></i></div>
+            <h3 class="font-semibold text-lg text-slate-800 dark:text-slate-100">Class Schedule</h3>
+        </div>
+        @if (Model.Segments.Count == 0)
+        {
+            <div class="p-10 text-center">
+                <p class="text-sm text-slate-400 dark:text-slate-500">No schedule segments found for this batch.</p>
+            </div>
+        }
+        else
+        {
+            <div class="p-5 space-y-3">
+                @foreach (var seg in Model.Segments.OrderBy(s => s.SortOrder))
+                {
+                    <div class="rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700 px-4 py-3 flex items-center justify-between gap-4">
+                        <div>
+                            <p class="text-sm font-semibold text-slate-800 dark:text-slate-100">
+                                @seg.DateRangeText &middot; @seg.DaysOfWeekLabel &middot; @seg.TimeRangeText
+                            </p>
+                            @if (seg.ExceptionCount > 0)
+                            {
+                                <p class="text-xs text-amber-600 dark:text-amber-300 mt-0.5">@seg.ExceptionCount day(s) skipped</p>
+                            }
+                        </div>
+                        <div class="flex items-center gap-2 flex-shrink-0">
+                            <a asp-area="Lecturer" asp-controller="Reschedule" asp-action="Create" asp-route-scheduleId="@Model.ScheduleID" asp-route-segmentId="@seg.SegmentID"
+                               class="px-3 py-1.5 rounded-lg font-medium text-xs bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900 transition-colors">
+                                Request Reschedule
+                            </a>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    </div>
+
+    @* ---------- Lecture materials ---------- *@
+    <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
+        <div class="p-6 border-b border-slate-100 dark:border-slate-700 flex items-center gap-3">
+            <div class="bg-emerald-50 dark:bg-emerald-950 p-2 rounded-lg"><i data-lucide="file-text" class="w-5 h-5 text-emerald-600 dark:text-emerald-300"></i></div>
+            <h3 class="font-semibold text-lg text-slate-800 dark:text-slate-100">Lecture Materials</h3>
+            <a asp-area="Lecturer" asp-controller="Notes" asp-action="Upload" asp-route-scheduleId="@Model.ScheduleID"
+               class="ml-auto px-3 py-1.5 rounded-lg font-medium text-xs bg-[#7c3aed] text-white hover:bg-[#6d28d9] transition-all flex items-center gap-1">
+                <i data-lucide="upload" class="w-3.5 h-3.5"></i> Upload
+            </a>
+        </div>
+        @if (materials.Count == 0)
+        {
+            <div class="p-10 text-center">
+                <p class="text-sm text-slate-400 dark:text-slate-500">No materials uploaded for this batch yet.</p>
+            </div>
+        }
+        else
+        {
+            <div class="divide-y divide-slate-100 dark:divide-slate-700">
+                @foreach (var m in materials)
+                {
+                    <div class="p-4 px-6 flex items-center justify-between gap-4">
+                        <div>
+                            <p class="text-sm font-medium text-slate-800 dark:text-slate-100">@m.Title</p>
+                            <p class="text-xs text-slate-400 dark:text-slate-500">@m.MaterialDate.ToString("MMM d, yyyy") &middot; @m.FileType &middot; by @m.UploadedByName (@m.UploadedByRole)</p>
+                        </div>
+                        <a href="@m.FileURL" target="_blank" rel="noopener"
+                           class="px-3 py-1.5 rounded-lg font-medium text-xs bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors flex-shrink-0">
+                            View
+                        </a>
+                    </div>
+                }
+            </div>
+        }
+    </div>
+</div>

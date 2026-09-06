@@ -30,6 +30,14 @@ namespace Web_Backend.Areas.Admin.Models
         public DateTime? PassportExpiryDate { get; set; }
         public string PassportPhotoURL { get; set; } = "";
 
+        // Passport verification (0020_student_dashboard.sql): admin reviews
+        // passport info the student submitted; once Verified, the passport
+        // fields become locked against further self-service edits (see
+        // mst.Student_UpdatePassportInfo).
+        public string PassportVerificationStatus { get; set; } = "Pending";
+        public string? PassportVerifiedByUserID { get; set; }
+        public DateTime? PassportVerifiedDate { get; set; }
+
         // Emergency contact
         public string EmergencyContactName { get; set; } = "";
         public string EmergencyContactPhone { get; set; } = "";

@@ -1,0 +1,114 @@
+@model List<LectureMaterial>
+@{
+    ViewData["Title"] = "Lecture Notes";
+    bool canAdd = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.LectureNotes, 'A');
+    bool canDelete = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.LectureNotes, 'D');
+    var batches = ViewBag.Batches as List<CourseSchedule> ?? new();
+}
+
+<div class="max-w-5xl mx-auto page-enter">
+    <div class="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
+        <div>
+            <h2 class="text-3xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">Lecture Notes</h2>
+            <p class="text-slate-500 dark:text-slate-400 mt-2">Every material uploaded by lecturers and admins, across all batches.</p>
+        </div>
+        @if (canAdd)
+        {
+            <button type="button" onclick="openUploadForm()"
+                    class="px-4 py-2 rounded-xl font-medium bg-[#7c3aed] text-white hover:bg-[#6d28d9] shadow-sm text-sm flex items-center gap-2 w-fit">
+                <i data-lucide="upload" class="w-4 h-4"></i> Upload Material
+            </button>
+        }
+    </div>
+
+    @if (canAdd)
+    {
+        <form id="upload-form" method="post" asp-action="Upload" enctype="multipart/form-data" class="hidden bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 p-6 mb-6">
+            @Html.AntiForgeryToken()
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <select name="scheduleId" required class="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm">
+                    <option value="">-- Select batch --</option>
+                    @foreach (var b in batches)
+                    {
+                        <option value="@b.ScheduleID">@b.CourseTitle &middot; @b.ScheduleName</option>
+                    }
+                </select>
+                <input type="date" name="materialDate" required class="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" />
+                <input type="text" name="title" placeholder="Title" required class="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" />
+                <input type="file" name="file" required class="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" />
+                <textarea name="description" rows="2" placeholder="Description (optional)"
+                          class="md:col-span-2 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm"></textarea>
+            </div>
+            <p class="text-xs text-slate-400 dark:text-slate-500 mb-4">Max 100 MB. Allowed: PDF, Word, PowerPoint, Excel, JPG/PNG/WEBP, MP4/MOV/WEBM.</p>
+            <div class="flex gap-2">
+                <button type="submit" class="px-4 py-2 rounded-xl font-medium bg-[#7c3aed] text-white hover:bg-[#6d28d9] text-sm">Upload</button>
+                <button type="button" onclick="closeUploadForm()"
+                        class="px-4 py-2 rounded-xl font-medium bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-sm">Cancel</button>
+            </div>
+        </form>
+    }
+
+    <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
+        @if (!Model.Any())
+        {
+            <div class="p-12 text-center">
+                <p class="text-sm text-slate-400 dark:text-slate-500">No lecture materials uploaded yet.</p>
+            </div>
+        }
+        else
+        {
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead>
+                        <tr class="border-b border-slate-100 dark:border-slate-700 text-left text-slate-500 dark:text-slate-400">
+                            <th class="px-6 py-3 font-medium">Date</th>
+                            <th class="px-6 py-3 font-medium">Batch</th>
+                            <th class="px-6 py-3 font-medium">Title</th>
+                            <th class="px-6 py-3 font-medium">Type</th>
+                            <th class="px-6 py-3 font-medium">Uploaded By</th>
+                            <th class="px-6 py-3 font-medium text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var m in Model)
+                        {
+                            <tr class="border-b border-slate-50 dark:border-slate-800 last:border-0">
+                                <td class="px-6 py-3 text-slate-600 dark:text-slate-300">@m.MaterialDate.ToString("MMM d, yyyy")</td>
+                                <td class="px-6 py-3 text-slate-600 dark:text-slate-300">@m.CourseTitle &middot; @m.ScheduleName</td>
+                                <td class="px-6 py-3 font-medium text-slate-800 dark:text-slate-100">@m.Title</td>
+                                <td class="px-6 py-3 text-slate-500 dark:text-slate-400">@m.FileType</td>
+                                <td class="px-6 py-3 text-slate-500 dark:text-slate-400">@m.UploadedByName (@m.UploadedByRole)</td>
+                                <td class="px-6 py-3 text-right">
+                                    <a href="@m.FileURL" target="_blank" rel="noopener" title="View" class="p-2 rounded-xl text-slate-400 dark:text-slate-500 hover:text-[#7c3aed] dark:hover:text-purple-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors inline-block">
+                                        <i data-lucide="eye" class="w-4 h-4"></i>
+                                    </a>
+                                    @if (canDelete)
+                                    {
+                                        <form method="post" asp-action="Delete" asp-route-id="@m.MaterialID" class="inline"
+                                              data-confirm="Delete this lecture material?" data-confirm-title="Delete material" data-confirm-label="Delete">
+                                            @Html.AntiForgeryToken()
+                                            <button type="submit" title="Delete" class="p-2 rounded-xl text-slate-400 dark:text-slate-500 hover:text-red-600 dark:hover:text-red-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+                                                <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                            </button>
+                                        </form>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        (function () {
+            const form = document.getElementById('upload-form');
+            if (!form) return;
+            window.openUploadForm = function () { form.classList.remove('hidden'); form.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); };
+            window.closeUploadForm = function () { form.classList.add('hidden'); };
+        })();
+    </script>
+}

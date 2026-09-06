@@ -9,6 +9,9 @@ namespace Web_Backend.Areas.Admin.Data
         Task<Student?> GetByUserID(string userId);
         Task<Student?> GetByPassportNumber(string passportNumber);
         Task<string> AddEdit(Student student);
+        Task<string> UpdateOwnProfile(string studentId, string userId, StudentProfileUpdateRequest request);
+        Task<string> UpdatePassportInfo(string studentId, string userId, StudentPassportUpdateRequest request);
+        Task<string> VerifyPassport(string studentId, string status, string verifiedByUserId);
         Task Delete(string id);
     }
 }

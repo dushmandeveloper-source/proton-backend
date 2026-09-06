@@ -1,0 +1,90 @@
+@model Web_Backend.Areas.StudentPortal.Models.PayBalanceFormModel
+@{
+    ViewData["Title"] = "Pay Balance";
+    var registration = ViewBag.Registration as Web_Backend.Areas.Admin.Models.CourseRegistration;
+    var course = ViewBag.Course as Web_Backend.Areas.Admin.Models.Course;
+}
+
+<div class="max-w-xl mx-auto page-enter">
+    <a asp-action="Details" asp-route-registrationId="@Model.RegistrationID" class="inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 mb-4">
+        <i data-lucide="arrow-left" class="w-4 h-4"></i> Back to course
+    </a>
+
+    <div class="mb-6">
+        <h2 class="text-2xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">Pay Balance</h2>
+        <p class="text-slate-500 dark:text-slate-400 text-sm mt-1">@(course?.CourseTitle ?? registration?.CourseTitle)</p>
+    </div>
+
+    <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 p-6 mb-6 flex items-center justify-between">
+        <div>
+            <p class="text-xs text-slate-400 dark:text-slate-500">Course Fee</p>
+            <p class="text-sm font-semibold text-slate-700 dark:text-slate-200">@registration?.CurrencyCode @registration?.CourseFee.ToString("N2")</p>
+        </div>
+        <div>
+            <p class="text-xs text-slate-400 dark:text-slate-500">Already Paid</p>
+            <p class="text-sm font-semibold text-emerald-600 dark:text-emerald-300">@registration?.CurrencyCode @registration?.AmountPaid.ToString("N2")</p>
+        </div>
+        <div class="text-right">
+            <p class="text-xs text-slate-400 dark:text-slate-500">Balance Due</p>
+            <p class="text-lg font-bold text-amber-600 dark:text-amber-300">@registration?.CurrencyCode @registration?.BalanceDue.ToString("N2")</p>
+        </div>
+    </div>
+
+    <form method="post" asp-action="PayBalance" enctype="multipart/form-data" id="payBalanceForm" class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 p-6 space-y-5">
+        @Html.AntiForgeryToken()
+        <input type="hidden" asp-for="RegistrationID" />
+
+        <div class="space-y-1">
+            <label class="text-sm font-medium text-slate-700 dark:text-slate-300">Payment Method</label>
+            <select asp-for="PaymentMethod" id="pbMethodSelect" class="w-full rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 px-4 py-2.5 text-sm outline-none focus:border-[#7c3aed] focus:ring-1 focus:ring-[#7c3aed]">
+                <option value="">Select…</option>
+                <option value="Cash">Cash</option>
+                <option value="BankDeposit">Bank Deposit</option>
+            </select>
+        </div>
+
+        <div class="space-y-1">
+            <label class="text-sm font-medium text-slate-700 dark:text-slate-300">Amount</label>
+            <input asp-for="Amount" type="number" step="0.01" min="0.01" max="@registration?.BalanceDue" class="w-full rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 px-4 py-2.5 text-sm outline-none focus:border-[#7c3aed] focus:ring-1 focus:ring-[#7c3aed]" />
+            <p class="text-xs text-slate-400 dark:text-slate-500">Defaults to the full remaining balance — reduce it to pay partially.</p>
+        </div>
+
+        <div class="space-y-1">
+            <label id="pbSlipLabel" class="text-sm font-medium text-slate-700 dark:text-slate-300">Receipt</label>
+            <input type="file" name="PaymentSlip" accept="image/*,.pdf" class="w-full rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 px-4 py-2 text-sm outline-none focus:border-[#7c3aed] focus:ring-1 focus:ring-[#7c3aed] file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-medium file:bg-purple-50 dark:file:bg-purple-950 file:text-[#7c3aed] dark:file:text-purple-300" />
+            <p class="text-xs text-slate-400 dark:text-slate-500">Required — attach a photo or scan of your receipt/slip.</p>
+        </div>
+
+        <div class="space-y-1">
+            <label class="text-sm font-medium text-slate-700 dark:text-slate-300">Notes (optional)</label>
+            <input asp-for="Notes" class="w-full rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 px-4 py-2.5 text-sm outline-none focus:border-[#7c3aed] focus:ring-1 focus:ring-[#7c3aed]" />
+        </div>
+
+        <button type="submit" id="pbSubmitBtn" class="w-full py-3 rounded-xl font-medium text-base bg-[#7c3aed] text-white hover:bg-[#6d28d9] shadow-lg shadow-purple-500/25 transition-all disabled:opacity-60 disabled:cursor-not-allowed">
+            Submit Payment
+        </button>
+    </form>
+</div>
+
+@section Scripts {
+    <script>
+        (function () {
+            var select = document.getElementById('pbMethodSelect');
+            var label = document.getElementById('pbSlipLabel');
+            function sync() {
+                label.textContent = select.value === 'Cash' ? 'Cash Receipt' : 'Bank Deposit Slip';
+            }
+            select.addEventListener('change', sync);
+            sync();
+        })();
+
+        (function () {
+            var form = document.getElementById('payBalanceForm');
+            var btn = document.getElementById('pbSubmitBtn');
+            form.addEventListener('submit', function () {
+                btn.disabled = true;
+                btn.textContent = 'Submitting…';
+            });
+        })();
+    </script>
+}

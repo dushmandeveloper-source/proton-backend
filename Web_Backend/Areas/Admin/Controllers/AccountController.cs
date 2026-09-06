@@ -14,26 +14,40 @@ namespace Web_Backend.Areas.Admin.Controllers
         private readonly IEmailSender emailSender;
         private readonly IRolePermissionData rolePermissionRep;
         private readonly IUserPermissionOverrideData userPermissionOverrideRep;
+        private readonly IUserTypeData userTypeRep;
 
         public AccountController(
             IUserAuthData authRep,
             IPasswordResetData resetRep,
             IEmailSender emailSender,
             IRolePermissionData rolePermissionRep,
-            IUserPermissionOverrideData userPermissionOverrideRep)
+            IUserPermissionOverrideData userPermissionOverrideRep,
+            IUserTypeData userTypeRep)
         {
             this.authRep = authRep;
             this.resetRep = resetRep;
             this.emailSender = emailSender;
             this.rolePermissionRep = rolePermissionRep;
             this.userPermissionOverrideRep = userPermissionOverrideRep;
+            this.userTypeRep = userTypeRep;
         }
 
         [HttpGet]
-        public IActionResult Login()
+        public async Task<IActionResult> Login()
         {
             if (Auth.IsLoggedIn())
+            {
+                var userTypes = await userTypeRep.GetList();
+                var studentTypeId = userTypes.FirstOrDefault(t => t.UserTypeName == "Student")?.UserTypeID;
+                if (studentTypeId != null && Auth.GetUser()?.Role == studentTypeId)
+                    return RedirectToAction("Index", "Dashboard", new { area = "Student" });
+
+                var instructorTypeId = userTypes.FirstOrDefault(t => t.UserTypeName == "Instructor")?.UserTypeID;
+                if (instructorTypeId != null && Auth.GetUser()?.Role == instructorTypeId)
+                    return RedirectToAction("Index", "Dashboard", new { area = "Lecturer" });
+
                 return RedirectToAction("Index", "Dashboard");
+            }
             return View(new LoginViewModel());
         }
 
@@ -100,6 +114,19 @@ namespace Web_Backend.Areas.Admin.Controllers
                 Role = auth.UserTypeID,
                 Permissions = effective
             }, model.RememberMe);
+
+            // Students land on their own self-service dashboard (Areas/Student);
+            // Instructors (Lecturers) land on Areas/Lecturer; every other
+            // role keeps the existing Admin dashboard.
+            var userTypes = await userTypeRep.GetList();
+            var studentTypeId = userTypes.FirstOrDefault(t => t.UserTypeName == "Student")?.UserTypeID;
+            if (studentTypeId != null && auth.UserTypeID == studentTypeId)
+                return RedirectToAction("Index", "Dashboard", new { area = "Student" });
+
+            var instructorTypeId = userTypes.FirstOrDefault(t => t.UserTypeName == "Instructor")?.UserTypeID;
+            if (instructorTypeId != null && auth.UserTypeID == instructorTypeId)
+                return RedirectToAction("Index", "Dashboard", new { area = "Lecturer" });
+
             return RedirectToAction("Index", "Dashboard");
         }
 

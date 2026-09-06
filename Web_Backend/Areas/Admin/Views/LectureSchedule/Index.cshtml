@@ -1,0 +1,175 @@
+@{
+    ViewData["Title"] = "Lecture Schedule";
+    bool canEdit = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.LectureSchedule, 'E');
+    var lecturers = ViewBag.Lecturers as List<AppUser> ?? new();
+    var selectedLecturerUserId = ViewBag.SelectedLecturerUserId as string ?? "";
+    var lecturerBatches = ViewBag.LecturerBatches as List<CourseSchedule> ?? new();
+    var allBatches = ViewBag.AllBatches as List<CourseSchedule> ?? new();
+    var pendingReschedules = ViewBag.PendingReschedules as List<CourseScheduleReschedule> ?? new();
+}
+
+<div class="max-w-6xl mx-auto page-enter">
+    <div class="mb-6">
+        <h2 class="text-3xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">Lecture Schedule</h2>
+        <p class="text-slate-500 dark:text-slate-400 mt-2">Browse batches by lecturer or by batch, and review pending reschedule requests.</p>
+    </div>
+
+    @* ---------- Tabs ---------- *@
+    <div class="flex gap-2 mb-6 border-b border-slate-100 dark:border-slate-700">
+        <button type="button" class="tab-btn px-4 py-2.5 text-sm font-medium border-b-2 border-[#7c3aed] text-[#7c3aed] dark:text-purple-300" data-tab="by-lecturer">By Lecturer</button>
+        <button type="button" class="tab-btn px-4 py-2.5 text-sm font-medium border-b-2 border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-100" data-tab="by-batch">By Batch</button>
+        <button type="button" class="tab-btn px-4 py-2.5 text-sm font-medium border-b-2 border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-100" data-tab="pending">
+            Pending Reschedules
+            @if (pendingReschedules.Count > 0)
+            {
+                <span class="ml-1 inline-flex items-center justify-center w-5 h-5 rounded-full bg-amber-100 dark:bg-amber-900 text-amber-700 dark:text-amber-300 text-[11px] font-semibold">@pendingReschedules.Count</span>
+            }
+        </button>
+    </div>
+
+    @* ---------- Tab: By Lecturer ---------- *@
+    <div class="tab-panel" data-panel="by-lecturer">
+        <form method="get" class="mb-6 flex items-center gap-3">
+            <select name="lecturerUserId" onchange="this.form.submit()" class="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm">
+                <option value="">-- Select lecturer --</option>
+                @foreach (var l in lecturers)
+                {
+                    <option value="@l.UserID" selected="@(l.UserID == selectedLecturerUserId)">@l.FullName</option>
+                }
+            </select>
+        </form>
+
+        <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
+            @if (string.IsNullOrEmpty(selectedLecturerUserId))
+            {
+                <div class="p-12 text-center"><p class="text-sm text-slate-400 dark:text-slate-500">Select a lecturer to see their assigned batches.</p></div>
+            }
+            else if (!lecturerBatches.Any())
+            {
+                <div class="p-12 text-center"><p class="text-sm text-slate-400 dark:text-slate-500">This lecturer has no assigned batches.</p></div>
+            }
+            else
+            {
+                <div class="divide-y divide-slate-100 dark:divide-slate-700">
+                    @foreach (var b in lecturerBatches)
+                    {
+                        <div class="p-4 px-6 flex items-center justify-between gap-4">
+                            <div>
+                                <p class="text-sm font-medium text-slate-800 dark:text-slate-100">@b.CourseTitle &middot; @b.ScheduleName</p>
+                                <p class="text-xs text-slate-400 dark:text-slate-500 mt-0.5">@b.SegmentsSummary</p>
+                            </div>
+                            <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 flex-shrink-0">
+                                <i data-lucide="users" class="w-3 h-3"></i> @b.EnrolledCount enrolled
+                            </span>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+
+    @* ---------- Tab: By Batch ---------- *@
+    <div class="tab-panel hidden" data-panel="by-batch">
+        <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
+            @if (!allBatches.Any())
+            {
+                <div class="p-12 text-center"><p class="text-sm text-slate-400 dark:text-slate-500">No batches found.</p></div>
+            }
+            else
+            {
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead>
+                            <tr class="border-b border-slate-100 dark:border-slate-700 text-left text-slate-500 dark:text-slate-400">
+                                <th class="px-6 py-3 font-medium">Course</th>
+                                <th class="px-6 py-3 font-medium">Batch</th>
+                                <th class="px-6 py-3 font-medium">Schedule</th>
+                                <th class="px-6 py-3 font-medium">Instructor(s)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var b in allBatches)
+                            {
+                                <tr class="border-b border-slate-50 dark:border-slate-800 last:border-0">
+                                    <td class="px-6 py-3 font-medium text-slate-800 dark:text-slate-100">@b.CourseTitle</td>
+                                    <td class="px-6 py-3 text-slate-600 dark:text-slate-300">@b.ScheduleName</td>
+                                    <td class="px-6 py-3 text-slate-500 dark:text-slate-400 text-xs">@b.SegmentsSummary</td>
+                                    <td class="px-6 py-3 text-slate-600 dark:text-slate-300">@(string.IsNullOrEmpty(b.InstructorsLabel) ? "-" : b.InstructorsLabel)</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </div>
+
+    @* ---------- Tab: Pending Reschedules ---------- *@
+    <div class="tab-panel hidden" data-panel="pending">
+        <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
+            @if (!pendingReschedules.Any())
+            {
+                <div class="p-12 text-center"><p class="text-sm text-slate-400 dark:text-slate-500">No pending reschedule requests.</p></div>
+            }
+            else
+            {
+                <div class="divide-y divide-slate-100 dark:divide-slate-700">
+                    @foreach (var r in pendingReschedules)
+                    {
+                        <div class="p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                            <div>
+                                <p class="text-sm font-medium text-slate-800 dark:text-slate-100">@r.CourseTitle &middot; @r.ScheduleName</p>
+                                <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Requested by @r.RequestedByName</p>
+                                <p class="text-xs text-slate-400 dark:text-slate-500 mt-1">
+                                    @r.OriginalDate.ToString("MMM d, yyyy") &rarr; @r.ProposedNewDate.ToString("MMM d, yyyy")
+                                    @if (!string.IsNullOrEmpty(r.Remark)) { <text> &middot; "@r.Remark"</text> }
+                                </p>
+                            </div>
+                            @if (canEdit)
+                            {
+                                <div class="flex items-center gap-2 flex-shrink-0">
+                                    <form method="post" asp-action="Approve" asp-route-rescheduleId="@r.RescheduleID"
+                                          data-confirm="Approve this reschedule? The original date will be skipped and the new date added to the calendar." data-confirm-title="Approve reschedule" data-confirm-label="Approve">
+                                        @Html.AntiForgeryToken()
+                                        <button type="submit" class="px-3 py-1.5 rounded-lg font-medium text-xs bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900 transition-colors">
+                                            Approve
+                                        </button>
+                                    </form>
+                                    <form method="post" asp-action="Reject" asp-route-rescheduleId="@r.RescheduleID"
+                                          data-confirm="Reject this reschedule request?" data-confirm-title="Reject reschedule" data-confirm-label="Reject">
+                                        @Html.AntiForgeryToken()
+                                        <button type="submit" class="px-3 py-1.5 rounded-lg font-medium text-xs bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-900 transition-colors">
+                                            Reject
+                                        </button>
+                                    </form>
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        (function () {
+            const tabButtons = document.querySelectorAll('.tab-btn');
+            const panels = document.querySelectorAll('.tab-panel');
+            tabButtons.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    tabButtons.forEach(b => {
+                        b.classList.remove('border-[#7c3aed]', 'text-[#7c3aed]', 'dark:text-purple-300');
+                        b.classList.add('border-transparent', 'text-slate-500', 'dark:text-slate-400');
+                    });
+                    btn.classList.add('border-[#7c3aed]', 'text-[#7c3aed]', 'dark:text-purple-300');
+                    btn.classList.remove('border-transparent', 'text-slate-500', 'dark:text-slate-400');
+
+                    const target = btn.dataset.tab;
+                    panels.forEach(p => p.classList.toggle('hidden', p.dataset.panel !== target));
+                });
+            });
+        })();
+    </script>
+}

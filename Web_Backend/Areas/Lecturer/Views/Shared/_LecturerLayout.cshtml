@@ -1,0 +1,223 @@
+@{
+    var currentUser = ViewBag.CurrentUser as Web_Backend.Areas.Admin.Models.SessionUser;
+    string activeController = ViewContext.RouteData.Values["controller"]?.ToString() ?? "";
+    string? successMsg = TempData["SuccessMessage"] as string;
+    string? errorMsg = TempData["ErrorMessage"] as string;
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>@ViewData["Title"] - Proton Lecturer</title>
+    <script>
+        // Applied before Tailwind loads so there's no flash of the wrong theme.
+        if (localStorage.getItem('theme') === 'dark' ||
+            (!localStorage.getItem('theme') && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark');
+        }
+    </script>
+    <link rel="stylesheet" href="~/css/tailwind.css" asp-append-version="true" />
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 20px; }
+        .dark .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #475569; }
+        @@keyframes page-enter-kf { from { opacity: 0; transform: translateY(1rem); } to { opacity: 1; transform: translateY(0); } }
+        .page-enter { animation: page-enter-kf 0.5s ease-out; }
+        @@keyframes toast-in-kf { from { opacity: 0; transform: translateX(1rem); } to { opacity: 1; transform: translateX(0); } }
+        .toast-in { animation: toast-in-kf 0.25s ease-out; }
+
+        html:not(.dark) .shadow-sm  { box-shadow: 0 2px 8px -2px rgb(15 23 42 / 0.10), 0 1px 3px -1px rgb(15 23 42 / 0.08) !important; }
+        html:not(.dark) .shadow     { box-shadow: 0 4px 14px -4px rgb(15 23 42 / 0.14), 0 2px 6px -2px rgb(15 23 42 / 0.08) !important; }
+        html:not(.dark) .shadow-md  { box-shadow: 0 8px 22px -6px rgb(15 23 42 / 0.18), 0 3px 8px -3px rgb(15 23 42 / 0.10) !important; }
+        html:not(.dark) .shadow-lg  { box-shadow: 0 14px 34px -10px rgb(15 23 42 / 0.22), 0 5px 12px -4px rgb(15 23 42 / 0.12) !important; }
+        html:not(.dark) .shadow-xl  { box-shadow: 0 22px 46px -12px rgb(15 23 42 / 0.26) !important; }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-[#dbe7f3] to-[#d3cdf5] dark:from-slate-950 dark:to-slate-900 min-h-screen">
+
+<div id="toast-container" class="fixed top-4 right-4 z-[100] flex flex-col gap-2 items-end pointer-events-none"></div>
+
+<div class="min-h-screen p-4 md:p-6 flex flex-col md:flex-row gap-6 font-sans">
+
+    <div id="sidebar-backdrop" class="hidden md:hidden fixed inset-0 bg-black/40 z-30"></div>
+
+    <aside id="sidebar" class="fixed inset-y-4 left-4 z-40 w-[280px] -translate-x-[120%] transition-transform duration-300 ease-in-out md:relative md:inset-y-auto md:left-auto md:translate-x-0 md:transition-none md:z-20 md:w-[260px] flex-shrink-0 bg-white dark:bg-slate-800 md:bg-white/90 md:dark:bg-slate-800/90 backdrop-blur-xl rounded-[32px] p-4 flex flex-col overflow-y-auto custom-scrollbar shadow-[0_8px_30px_rgb(0,0,0,0.02)] border border-white/60 dark:border-slate-700/60">
+
+        <div class="flex items-center gap-3 p-3 mb-6 rounded-2xl">
+            <div class="relative">
+                <div class="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-100 to-purple-100 dark:from-indigo-900 dark:to-purple-900 text-indigo-700 dark:text-indigo-300 font-bold flex items-center justify-center text-sm border-2 border-white dark:border-slate-800 shadow-sm">
+                    @((currentUser?.Name ?? "L").Substring(0, 1).ToUpper())
+                </div>
+                <div class="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white dark:border-slate-800 rounded-full"></div>
+            </div>
+            <div class="flex-1 min-w-0">
+                <h4 class="text-sm font-semibold text-slate-800 dark:text-slate-100 truncate">@(currentUser?.Name ?? "Lecturer")</h4>
+                <p class="text-xs text-slate-500 dark:text-slate-400 truncate">Lecturer Portal</p>
+            </div>
+            <button type="button" id="sidebar-close" class="md:hidden p-1 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300">
+                <i data-lucide="x" class="w-4 h-4"></i>
+            </button>
+        </div>
+
+        <nav class="flex-1 space-y-1">
+            <a asp-area="Lecturer" asp-controller="Dashboard" asp-action="Index"
+               class="w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-200 group @(activeController == "Dashboard" ? "bg-slate-50/80 dark:bg-slate-700/60 text-slate-900 dark:text-slate-100 font-semibold" : "text-slate-500 dark:text-slate-400 hover:bg-slate-50/50 dark:hover:bg-slate-700/40 hover:text-slate-900 dark:hover:text-slate-100")">
+                <i data-lucide="home" class="w-5 h-5 @(activeController == "Dashboard" ? "text-[#5a43f1] dark:text-[#a78bfa]" : "text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300")"></i>
+                <span>Overview</span>
+            </a>
+
+            <a asp-area="Lecturer" asp-controller="Schedule" asp-action="Index"
+               class="w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-200 group @(activeController == "Schedule" ? "bg-slate-50/80 dark:bg-slate-700/60 text-slate-900 dark:text-slate-100 font-semibold" : "text-slate-500 dark:text-slate-400 hover:bg-slate-50/50 dark:hover:bg-slate-700/40 hover:text-slate-900 dark:hover:text-slate-100")">
+                <i data-lucide="calendar-days" class="w-5 h-5 @(activeController == "Schedule" ? "text-[#5a43f1] dark:text-[#a78bfa]" : "text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300")"></i>
+                <span>My Schedule</span>
+            </a>
+
+            <a asp-area="Lecturer" asp-controller="Courses" asp-action="Index"
+               class="w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-200 group @(activeController == "Courses" ? "bg-slate-50/80 dark:bg-slate-700/60 text-slate-900 dark:text-slate-100 font-semibold" : "text-slate-500 dark:text-slate-400 hover:bg-slate-50/50 dark:hover:bg-slate-700/40 hover:text-slate-900 dark:hover:text-slate-100")">
+                <i data-lucide="graduation-cap" class="w-5 h-5 @(activeController == "Courses" ? "text-[#5a43f1] dark:text-[#a78bfa]" : "text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300")"></i>
+                <span>My Batches</span>
+            </a>
+
+            <div class="py-2">
+                <p class="px-4 text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2 mt-4">Class Management</p>
+                <a asp-area="Lecturer" asp-controller="Reschedule" asp-action="Index"
+                   class="w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-200 group @(activeController == "Reschedule" ? "bg-slate-50/80 dark:bg-slate-700/60 text-slate-900 dark:text-slate-100 font-semibold" : "text-slate-500 dark:text-slate-400 hover:bg-slate-50/50 dark:hover:bg-slate-700/40 hover:text-slate-900 dark:hover:text-slate-100")">
+                    <i data-lucide="calendar-clock" class="w-5 h-5 @(activeController == "Reschedule" ? "text-[#5a43f1] dark:text-[#a78bfa]" : "text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300")"></i>
+                    <span>Reschedule Requests</span>
+                </a>
+                <a asp-area="Lecturer" asp-controller="Notes" asp-action="Index"
+                   class="w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-200 group @(activeController == "Notes" ? "bg-slate-50/80 dark:bg-slate-700/60 text-slate-900 dark:text-slate-100 font-semibold" : "text-slate-500 dark:text-slate-400 hover:bg-slate-50/50 dark:hover:bg-slate-700/40 hover:text-slate-900 dark:hover:text-slate-100")">
+                    <i data-lucide="file-text" class="w-5 h-5 @(activeController == "Notes" ? "text-[#5a43f1] dark:text-[#a78bfa]" : "text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300")"></i>
+                    <span>Lecture Notes</span>
+                </a>
+            </div>
+        </nav>
+
+        <div class="mt-auto pt-4 border-t border-slate-100 dark:border-slate-700 space-y-1">
+            <a asp-area="Lecturer" asp-controller="Profile" asp-action="Index"
+               class="w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-200 group @(activeController == "Profile" ? "bg-slate-50/80 dark:bg-slate-700/60 text-slate-900 dark:text-slate-100 font-semibold" : "text-slate-500 dark:text-slate-400 hover:bg-slate-50/50 dark:hover:bg-slate-700/40 hover:text-slate-900 dark:hover:text-slate-100")">
+                <i data-lucide="user-circle" class="w-5 h-5 @(activeController == "Profile" ? "text-[#5a43f1] dark:text-[#a78bfa]" : "text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300")"></i>
+                <span>My Profile</span>
+            </a>
+            <a asp-area="Lecturer" asp-controller="Profile" asp-action="ChangePassword"
+               class="w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-200 group text-slate-500 dark:text-slate-400 hover:bg-slate-50/50 dark:hover:bg-slate-700/40 hover:text-slate-900 dark:hover:text-slate-100">
+                <i data-lucide="key-round" class="w-5 h-5 text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300"></i>
+                <span>Change Password</span>
+            </a>
+            <a asp-area="Admin" asp-controller="Account" asp-action="Logout"
+               class="w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-slate-500 dark:text-slate-400 hover:bg-slate-50/50 dark:hover:bg-slate-700/40 hover:text-slate-900 dark:hover:text-slate-100 transition-all duration-200 group">
+                <i data-lucide="log-out" class="w-5 h-5 text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300"></i>
+                <span>Log out</span>
+            </a>
+        </div>
+    </aside>
+
+    <main class="flex-1 relative bg-white/95 dark:bg-slate-800/95 backdrop-blur-3xl rounded-[32px] overflow-hidden shadow-[0_8px_30px_rgb(0,0,0,0.03)] border border-white/80 dark:border-slate-700/80 flex flex-col h-[calc(100vh-3rem)]">
+        <div class="absolute inset-0 z-0 pointer-events-none opacity-[0.4] dark:opacity-[0.08]"
+             style="background-image: linear-gradient(to right, #e5e7eb 1px, transparent 1px), linear-gradient(to bottom, #e5e7eb 1px, transparent 1px); background-size: 40px 40px;"></div>
+
+        <header class="relative z-10 px-4 md:px-8 py-5 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between bg-white/50 dark:bg-slate-800/50 backdrop-blur-sm">
+            <div class="flex items-center gap-2">
+                <button type="button" id="sidebar-open" class="md:hidden p-2 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl transition-colors">
+                    <i data-lucide="menu" class="w-5 h-5"></i>
+                </button>
+                <h1 class="text-sm font-semibold text-slate-500 dark:text-slate-400 hidden md:block">@ViewData["Title"]</h1>
+            </div>
+
+            <div class="flex items-center gap-4">
+                <button type="button" id="theme-toggle" class="p-2 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl transition-colors">
+                    <i data-lucide="sun" id="theme-icon-light" class="w-5 h-5 hidden"></i>
+                    <i data-lucide="moon" id="theme-icon-dark" class="w-5 h-5 hidden"></i>
+                </button>
+            </div>
+        </header>
+
+        <div class="relative z-10 flex-1 overflow-y-auto p-6 md:p-10 custom-scrollbar">
+            @Html.AntiForgeryToken()
+            @RenderBody()
+        </div>
+    </main>
+</div>
+
+@RenderSection("Scripts", required: false)
+
+<script>
+    // ---------- Mobile sidebar drawer ----------
+    (function () {
+        const sidebar = document.getElementById('sidebar');
+        const backdrop = document.getElementById('sidebar-backdrop');
+        if (!sidebar || !backdrop) return;
+
+        function openSidebar() {
+            sidebar.style.transform = 'translateX(0)';
+            backdrop.classList.remove('hidden');
+        }
+        function closeSidebar() {
+            sidebar.style.transform = '';
+            backdrop.classList.add('hidden');
+        }
+        document.getElementById('sidebar-open')?.addEventListener('click', openSidebar);
+        document.getElementById('sidebar-close')?.addEventListener('click', closeSidebar);
+        backdrop.addEventListener('click', closeSidebar);
+        document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeSidebar(); });
+        window.addEventListener('resize', () => { if (window.innerWidth >= 768) closeSidebar(); });
+    })();
+
+    // ---------- Theme toggle ----------
+    (function () {
+        const root = document.documentElement;
+        const lightIcon = document.getElementById('theme-icon-light');
+        const darkIcon = document.getElementById('theme-icon-dark');
+        function syncIcon() {
+            const isDark = root.classList.contains('dark');
+            if (lightIcon) lightIcon.classList.toggle('hidden', !isDark);
+            if (darkIcon) darkIcon.classList.toggle('hidden', isDark);
+        }
+        syncIcon();
+        document.getElementById('theme-toggle')?.addEventListener('click', () => {
+            root.classList.toggle('dark');
+            localStorage.setItem('theme', root.classList.contains('dark') ? 'dark' : 'light');
+            syncIcon();
+        });
+    })();
+
+    // ---------- Toasts ----------
+    function showToast(message, type) {
+        const container = document.getElementById('toast-container');
+        if (!container || !message) return;
+        const isError = type === 'error';
+        const toast = document.createElement('div');
+        toast.className = 'toast-in pointer-events-auto max-w-sm w-full rounded-xl shadow-lg border px-4 py-3 flex items-start gap-3 ' +
+            (isError
+                ? 'bg-red-50 dark:bg-red-950 border-red-100 dark:border-red-900 text-red-700 dark:text-red-300'
+                : 'bg-emerald-50 dark:bg-emerald-950 border-emerald-100 dark:border-emerald-900 text-emerald-700 dark:text-emerald-300');
+        toast.innerHTML =
+            '<i data-lucide="' + (isError ? 'circle-x' : 'circle-check') + '" class="w-5 h-5 flex-shrink-0 mt-0.5"></i>' +
+            '<span class="text-sm flex-1">' + message + '</span>' +
+            '<button type="button" class="flex-shrink-0 opacity-60 hover:opacity-100" onclick="this.closest(\'div.toast-in\').remove()">' +
+            '<i data-lucide="x" class="w-4 h-4"></i></button>';
+        container.appendChild(toast);
+        if (window.lucide) lucide.createIcons();
+        setTimeout(() => toast.remove(), 6000);
+    }
+
+    @if (!string.IsNullOrEmpty(successMsg))
+    {
+        @Html.Raw($"showToast({System.Text.Json.JsonSerializer.Serialize(successMsg)}, 'success');")
+    }
+    @if (!string.IsNullOrEmpty(errorMsg))
+    {
+        @Html.Raw($"showToast({System.Text.Json.JsonSerializer.Serialize(errorMsg)}, 'error');")
+    }
+
+    if (window.lucide) { lucide.createIcons(); }
+</script>
+
+</body>
+</html>

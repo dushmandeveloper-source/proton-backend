@@ -209,11 +209,13 @@ namespace Web_Backend.Controllers.Api
             try
             {
                 var loginUrl = configuration["ApplicationSettings:PublicLoginUrl"] ?? "";
+                var dashboardUrl = configuration["ApplicationSettings:PublicDashboardUrl"] ?? "";
                 var description =
                     $"Your Proton student account has been created.<br/><br/>" +
                     $"Email: <strong>{request.Email}</strong><br/>" +
                     $"Temporary Password: <strong>{tempPassword}</strong><br/><br/>" +
-                    "Please sign in and change your password as soon as possible.";
+                    "Please sign in and change your password as soon as possible." +
+                    $"<br/><br/>Access your Student Dashboard: <a href=\"{dashboardUrl}\">{dashboardUrl}</a>";
                 await emailSender.SendTemplateEmailAsync(request.Email, fullName, "STUDENT_WELCOME_EMAIL", description, "Sign In", loginUrl, "");
             }
             catch (Exception)

@@ -75,6 +75,8 @@ builder.Services.AddTransient<IHolidayEventData, HolidayEventData>();
 builder.Services.AddTransient<IExamData, ExamData>();
 builder.Services.AddTransient<IRolePermissionData, RolePermissionData>();
 builder.Services.AddTransient<IUserPermissionOverrideData, UserPermissionOverrideData>();
+builder.Services.AddTransient<ICourseScheduleRescheduleData, CourseScheduleRescheduleData>();
+builder.Services.AddTransient<ILectureMaterialData, LectureMaterialData>();
 builder.Services.AddSingleton<IImageUploader, ImageUploader>();
 
 var app = builder.Build();
@@ -109,50 +111,53 @@ app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Home}/{action=Index}/{id?}");
 
-await SeedDevDataAsync(app.Services);
+await SeedContactEmailTemplatesAsync(app.Services);
 
 app.Run();
 
-// Dev-only seed so the app has demo data (matching the original Gemini mock's
-// INITIAL_USERS) on first run against a fresh Proton_Admin database.
-// Idempotent: skips entirely once any row exists in usr.Users.
-static async Task SeedDevDataAsync(IServiceProvider services)
+// Seeds the two syst.EmailTemplate rows the public Contact Us form
+// (ContactApiController) sends through SendTemplateEmailAsync — one for
+// notifying Admin/SuperAdmin users of a new submission, one thanking the
+// client who submitted it. Idempotent: skips a template whose TemplateCode
+// already exists, so re-running (or running against a database an admin
+// has since customized these in) never overwrites it.
+static async Task SeedContactEmailTemplatesAsync(IServiceProvider services)
 {
     using var scope = services.CreateScope();
-    var userRep = scope.ServiceProvider.GetRequiredService<IUserData>();
-    var authRep = scope.ServiceProvider.GetRequiredService<IUserAuthData>();
-    var userTypeRep = scope.ServiceProvider.GetRequiredService<IUserTypeData>();
+    var templateRep = scope.ServiceProvider.GetRequiredService<IEmailTemplateData>();
 
-    var existing = await userRep.GetList(new AppUserSearchView());
-    if (existing.Count > 0) return;
+    var existing = await templateRep.GetList();
+    bool HasCode(string code) => existing.Any(t => t.TemplateCode == code);
 
-    var userTypes = await userTypeRep.GetList();
-    string TypeId(string name) => userTypes.FirstOrDefault(t => t.UserTypeName == name)?.UserTypeID ?? "";
-
-    var seedUsers = new[]
+    if (!HasCode("CONTACT_ADMIN_NOTIFY"))
     {
-        new { First = "Alice", Last = "Freeman", Email = "alice@example.com", Type = "Student", Active = true },
-        new { First = "Robert", Last = "Smith", Email = "robert@example.com", Type = "Instructor", Active = true },
-        new { First = "Emma", Last = "Watson", Email = "emma@example.com", Type = "Student", Active = false },
-        new { First = "John", Last = "Doe", Email = "john.admin@example.com", Type = "Admin", Active = true },
-        new { First = "Sarah", Last = "Connor", Email = "sarah@example.com", Type = "Student", Active = true },
-    };
-
-    const string devPassword = "Admin@123";
-
-    foreach (var seed in seedUsers)
-    {
-        var userId = await userRep.AddEdit(new AppUser
+        await templateRep.AddEdit(new EmailTemplate
         {
-            FullName = $"{seed.First} {seed.Last}",
-            FirstName = seed.First,
-            LastName = seed.Last,
-            Email = seed.Email,
-            UserTypeID = TypeId(seed.Type),
-            IsActive = seed.Active ? "A" : "I"
+            TemplateCode = "CONTACT_ADMIN_NOTIFY",
+            TemplateName = "Contact Form - Admin Notification",
+            Subject = "New Contact Form Submission",
+            BodyHtml =
+                "<p>Hi {ToName},</p>" +
+                "<p>A new message was submitted through the {WebName} contact form.</p>" +
+                "<p>{Description}</p>" +
+                "<table class=\"btn\"><tr><td><a href=\"{URL}\">{ActionName}</a></td></tr></table>",
+            IsActive = "A"
         });
+    }
 
-        var (hash, salt) = PasswordHasher.Hash(devPassword);
-        await authRep.AddEdit("", userId, seed.Email, seed.Email, hash, salt);
+    if (!HasCode("CONTACT_CLIENT_THANKS"))
+    {
+        await templateRep.AddEdit(new EmailTemplate
+        {
+            TemplateCode = "CONTACT_CLIENT_THANKS",
+            TemplateName = "Contact Form - Client Acknowledgement",
+            Subject = "Thanks for reaching out to {WebName}",
+            BodyHtml =
+                "<p>Hi {ToName},</p>" +
+                "<p>Thanks for contacting {WebName} — we've received your message and someone " +
+                "from our team will get back to you shortly.</p>" +
+                "<p>{Description}</p>",
+            IsActive = "A"
+        });
     }
 }

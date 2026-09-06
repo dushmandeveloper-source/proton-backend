@@ -1,0 +1,82 @@
+@model Web_Backend.Areas.StudentPortal.Models.StudentCalendarViewModel
+@{
+    ViewData["Title"] = "Schedule";
+}
+
+<div class="max-w-6xl mx-auto space-y-8 page-enter">
+
+    <div class="flex items-center justify-between flex-wrap gap-4">
+        <div>
+            <p class="text-sm font-medium text-slate-500 dark:text-slate-400 mb-2">Monthly Calendar</p>
+            <h1 class="text-3xl md:text-4xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">
+                @Model.MonthLabel
+            </h1>
+        </div>
+        <div class="flex items-center gap-2">
+            <a asp-action="Index" asp-route-year="@Model.PrevYear" asp-route-month="@Model.PrevMonth"
+               class="p-2 rounded-xl bg-white dark:bg-slate-900/60 border border-slate-100 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:text-[#5a43f1] dark:hover:text-[#a78bfa] hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors shadow-sm">
+                <i data-lucide="chevron-left" class="w-5 h-5"></i>
+            </a>
+            <a asp-action="Index"
+               class="px-4 py-2 rounded-xl bg-white dark:bg-slate-900/60 border border-slate-100 dark:border-slate-700 text-sm font-medium text-slate-600 dark:text-slate-300 hover:text-[#5a43f1] dark:hover:text-[#a78bfa] hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors shadow-sm">
+                Today
+            </a>
+            <a asp-action="Index" asp-route-year="@Model.NextYear" asp-route-month="@Model.NextMonth"
+               class="p-2 rounded-xl bg-white dark:bg-slate-900/60 border border-slate-100 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:text-[#5a43f1] dark:hover:text-[#a78bfa] hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors shadow-sm">
+                <i data-lucide="chevron-right" class="w-5 h-5"></i>
+            </a>
+        </div>
+    </div>
+
+    <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
+        <div class="p-6 border-b border-slate-100 dark:border-slate-700 flex items-center gap-3">
+            <div class="bg-indigo-50 dark:bg-indigo-950 p-2 rounded-lg"><i data-lucide="calendar-days" class="w-5 h-5 text-indigo-600 dark:text-indigo-300"></i></div>
+            <h3 class="font-semibold text-lg text-slate-800 dark:text-slate-100">Class Calendar</h3>
+        </div>
+
+        <div class="overflow-x-auto">
+            <div class="min-w-[700px]">
+                <div class="grid grid-cols-7 border-b border-slate-100 dark:border-slate-700">
+                    @foreach (var label in new[] { "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun" })
+                    {
+                        <div class="px-3 py-2 text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider text-center">@label</div>
+                    }
+                </div>
+
+                @foreach (var week in Model.Weeks)
+                {
+                    <div class="grid grid-cols-7 divide-x divide-slate-100 dark:divide-slate-700 border-b border-slate-100 dark:border-slate-700 last:border-b-0">
+                        @foreach (var day in week.Days)
+                        {
+                            <div class="min-h-[110px] p-2 flex flex-col gap-1.5 @(day.IsCurrentMonth ? "" : "opacity-50") @(day.Holidays.Count > 0 ? "bg-amber-50/60 dark:bg-amber-950/30" : day.IsToday ? "bg-indigo-50/60 dark:bg-indigo-950/40" : "")">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-xs font-semibold inline-flex items-center justify-center w-6 h-6 rounded-full @(day.IsToday ? "bg-[#7c3aed] text-white" : day.IsCurrentMonth ? "text-slate-700 dark:text-slate-200" : "text-slate-300 dark:text-slate-600")">
+                                        @day.Date.Day
+                                    </span>
+                                    @if (day.Holidays.Count > 0)
+                                    {
+                                        <i data-lucide="calendar-heart" class="w-3.5 h-3.5 text-amber-500 dark:text-amber-400" title="@string.Join(", ", day.Holidays.Select(h => h.Title))"></i>
+                                    }
+                                </div>
+                                <div class="flex-1 space-y-1 overflow-hidden">
+                                    @foreach (var holiday in day.Holidays)
+                                    {
+                                        <div class="text-[11px] truncate rounded-md bg-amber-100 dark:bg-amber-900/60 text-amber-700 dark:text-amber-300 px-1.5 py-0.5 font-medium" title="@holiday.Title@(string.IsNullOrEmpty(holiday.Description) ? "" : $" — {holiday.Description}")">
+                                            @holiday.Title
+                                        </div>
+                                    }
+                                    @foreach (var seg in day.Classes)
+                                    {
+                                        <div class="text-[11px] truncate rounded-md bg-indigo-50 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 px-1.5 py-0.5" title="@seg.CourseTitle (@seg.StartTime.ToString(@"hh\:mm") - @seg.EndTime.ToString(@"hh\:mm"))">
+                                            @seg.StartTime.ToString(@"hh\:mm") @seg.CourseTitle
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>

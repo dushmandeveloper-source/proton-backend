@@ -316,16 +316,28 @@ namespace Web_Backend.Areas.Admin.Controllers
                 return RedirectToAction("Index", new { tab = "users" });
             }
 
-            var auth = await authRep.FindForLogin(user.Email);
-            if (auth == null)
-            {
-                TempData["ErrorMessage"] = $"'{user.FullName}' has no password login to reset.";
-                return RedirectToAction("Index", new { tab = "users" });
-            }
-
+            // Looked up by UserID (the real relationship), not by email —
+            // the user's usr.Users.Email may have been edited since their
+            // usr.UserAuth row was created, and that row's own Email/
+            // Username column is never kept in sync automatically.
+            var auth = await authRep.FindByUserId(user.UserID);
             var tempPassword = GenerateTempPassword();
             var (hash, salt) = PasswordHasher.Hash(tempPassword);
-            await authRep.EditPassword(auth.AuthID, hash, salt);
+
+            if (auth == null)
+            {
+                // No usr.UserAuth row exists yet — create it now rather than
+                // failing, so "reset password" always results in a working
+                // login the admin can hand to the user.
+                await authRep.AddEdit("", user.UserID, user.Email, user.Email, hash, salt);
+            }
+            else
+            {
+                // Pass the existing AuthID + the CURRENT email so a stale
+                // Username/Email on this row gets corrected at the same
+                // time the password resets.
+                await authRep.AddEdit(auth.AuthID, user.UserID, user.Email, user.Email, hash, salt);
+            }
 
             var loginUrl = Url.Action("Login", "Account", new { area = "Admin" }, Request.Scheme) ?? "#";
             var description =
@@ -339,6 +351,33 @@ namespace Web_Backend.Areas.Admin.Controllers
             TempData["NewCredentialsEmail"] = user.Email;
             TempData["NewCredentialsPassword"] = tempPassword;
             TempData["NewCredentialsEmailSent"] = emailSent;
+            return RedirectToAction("Index", new { tab = "users" });
+        }
+
+        [HttpPost, ValidateAntiForgeryToken]
+        public async Task<IActionResult> Unlock(string id)
+        {
+            Auth.CheckPermission(PermissionCode.UserManagement, 'E');
+
+            var user = await userRep.Get(id);
+            if (user == null)
+            {
+                TempData["ErrorMessage"] = "User not found.";
+                return RedirectToAction("Index", new { tab = "users" });
+            }
+
+            // Looked up by UserID, same as ResetPassword above — the auth
+            // row's own Email/Username column can go stale independently of
+            // usr.Users.Email.
+            var auth = await authRep.FindByUserId(user.UserID);
+            if (auth == null)
+            {
+                TempData["ErrorMessage"] = "This user has no login set up yet.";
+                return RedirectToAction("Index", new { tab = "users" });
+            }
+
+            await authRep.Unlock(auth.AuthID);
+            TempData["SuccessMessage"] = $"'{user.FullName}' has been unlocked and can sign in again.";
             return RedirectToAction("Index", new { tab = "users" });
         }
 

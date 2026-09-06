@@ -15,7 +15,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\DBAccess\DBAccess.csproj" />
+    <ProjectReference Include="../DBAccess/DBAccess.csproj" />
   </ItemGroup>
 
   <!-- On every publish, regenerate Database/generated/pending-migrations.sql

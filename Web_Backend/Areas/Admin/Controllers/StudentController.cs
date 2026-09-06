@@ -425,16 +425,28 @@ namespace Web_Backend.Areas.Admin.Controllers
 
             try
             {
-                var auth = await authRep.FindForLogin(student.Email);
-                if (auth == null)
-                {
-                    TempData["ErrorMessage"] = $"'{student.FullName}' has no password login to reset.";
-                    return RedirectToAction("Details", new { id = studentId });
-                }
-
+                // Looked up by UserID (the real relationship), not by email —
+                // the student's usr.Users.Email may have been edited since
+                // their usr.UserAuth row was created, and that row's own
+                // Email/Username column is never kept in sync automatically.
+                var auth = await authRep.FindByUserId(student.UserID);
                 var tempPassword = TempPassword.Generate();
                 var (hash, salt) = PasswordHasher.Hash(tempPassword);
-                await authRep.EditPassword(auth.AuthID, hash, salt);
+
+                if (auth == null)
+                {
+                    // No usr.UserAuth row exists yet — create it now rather
+                    // than failing, so "reset password" always results in a
+                    // working login the admin can hand to the student.
+                    await authRep.AddEdit("", student.UserID, student.Email, student.Email, hash, salt);
+                }
+                else
+                {
+                    // Pass the existing AuthID + the CURRENT email so a
+                    // stale Username/Email on this row gets corrected at the
+                    // same time the password resets.
+                    await authRep.AddEdit(auth.AuthID, student.UserID, student.Email, student.Email, hash, salt);
+                }
 
                 var loginUrl = configuration["ApplicationSettings:PublicLoginUrl"] ?? "";
                 var description =

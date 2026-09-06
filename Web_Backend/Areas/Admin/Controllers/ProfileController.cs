@@ -79,6 +79,14 @@ namespace Web_Backend.Areas.Admin.Controllers
                 {
                     var newPassportPhoto = await uploader.SaveAsync(passportPhoto, "Students");
 
+                    // Passport fields are locked once an admin has verified them
+                    // (mst.Student.PassportVerificationStatus == "Verified") — the
+                    // rest of the profile (name, address, emergency contact, etc.)
+                    // still saves normally in this same call, only the passport
+                    // fields fall back to the existing stored values instead of
+                    // whatever was posted/uploaded.
+                    var passportLocked = student.PassportVerificationStatus == "Verified";
+
                     await studentRep.AddEdit(new Student
                     {
                         StudentID = student.StudentID,
@@ -92,10 +100,10 @@ namespace Web_Backend.Areas.Admin.Controllers
                         StateProvince = form.StateProvince,
                         PostalCode = form.PostalCode,
                         Country = form.Country,
-                        PassportNumber = form.PassportNumber,
-                        PassportCountry = form.PassportCountry,
-                        PassportExpiryDate = form.PassportExpiryDate,
-                        PassportPhotoURL = newPassportPhoto ?? "",
+                        PassportNumber = passportLocked ? student.PassportNumber : form.PassportNumber,
+                        PassportCountry = passportLocked ? student.PassportCountry : form.PassportCountry,
+                        PassportExpiryDate = passportLocked ? student.PassportExpiryDate : form.PassportExpiryDate,
+                        PassportPhotoURL = passportLocked ? student.PassportPhotoURL : (newPassportPhoto ?? ""),
                         EmergencyContactName = form.EmergencyContactName,
                         EmergencyContactPhone = form.EmergencyContactPhone,
                         EmergencyRelationship = form.EmergencyRelationship,
@@ -103,6 +111,9 @@ namespace Web_Backend.Areas.Admin.Controllers
                         RegistrationSource = student.RegistrationSource,
                         IsActive = student.IsActive
                     });
+
+                    if (passportLocked)
+                        TempData["ErrorMessage"] = "Passport is verified and cannot be edited.";
                 }
 
                 // Refresh the session copy so the sidebar/header reflect the new name/email immediately.
@@ -110,7 +121,8 @@ namespace Web_Backend.Areas.Admin.Controllers
                 current.Name = $"{form.FirstName} {form.LastName}".Trim();
                 await Auth.SignIn(current);
 
-                TempData["SuccessMessage"] = "Profile updated.";
+                if (TempData["ErrorMessage"] == null)
+                    TempData["SuccessMessage"] = "Profile updated.";
             }
             catch (Exception ex)
             {
@@ -195,6 +207,8 @@ namespace Web_Backend.Areas.Admin.Controllers
                 model.PassportCountry = student.PassportCountry;
                 model.PassportExpiryDate = student.PassportExpiryDate;
                 model.PassportPhotoURL = student.PassportPhotoURL;
+                model.PassportVerificationStatus = student.PassportVerificationStatus;
+                model.PassportLocked = student.PassportVerificationStatus == "Verified";
                 model.EmergencyContactName = student.EmergencyContactName;
                 model.EmergencyContactPhone = student.EmergencyContactPhone;
                 model.EmergencyRelationship = student.EmergencyRelationship;
