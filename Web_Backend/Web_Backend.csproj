@@ -15,7 +15,17 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="../DBAccess/DBAccess.csproj" />
+    <ProjectReference Include="DBAccess/DBAccess.csproj" />
+  </ItemGroup>
+
+  <!-- DBAccess now lives inside this project's own folder (moved here so a
+       deploy host whose build root is pinned to Web_Backend/ can still see
+       it — see ENVIRONMENTS.md). The SDK's default **/*.cs glob would
+       otherwise compile its two source files a second time directly into
+       this project (on top of the ProjectReference above), producing two
+       separate IDBAccess/MSSQLDataAccess type identities (CS0436). -->
+  <ItemGroup>
+    <Compile Remove="DBAccess/**/*.cs" />
   </ItemGroup>
 
   <!-- On every publish, regenerate Database/generated/pending-migrations.sql
