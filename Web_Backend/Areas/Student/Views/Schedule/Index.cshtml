@@ -59,7 +59,8 @@
                                     time = $"{seg.StartTime.ToString(@"hh\:mm")} - {seg.EndTime.ToString(@"hh\:mm")}",
                                     location = seg.Location,
                                     instructorNames = seg.InstructorNames,
-                                    meetingLink = seg.MeetingLink
+                                    meetingLink = seg.MeetingLink,
+                                    isMakeup = seg.CourseTitle.EndsWith("(Makeup Class)")
                                 })
                             };
                             <button type="button" class="cal-day-cell text-left min-h-[110px] p-2 flex flex-col gap-1.5 @(day.IsCurrentMonth ? "" : "opacity-50") @(day.Holidays.Count > 0 ? "bg-amber-50/60 dark:bg-amber-950/30" : day.IsToday ? "bg-indigo-50/60 dark:bg-indigo-950/40" : "") hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors"
@@ -82,9 +83,11 @@
                                     }
                                     @foreach (var seg in day.Classes)
                                     {
+                                        var isMakeup = seg.CourseTitle.EndsWith("(Makeup Class)");
+                                        var chipCls = isMakeup ? "bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300" : "bg-indigo-50 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300";
                                         var classTitle = $"{seg.StartTime.ToString(@"hh\:mm")} {seg.CourseTitle}";
                                         var classTip = $"{seg.CourseTitle} ({seg.StartTime.ToString(@"hh\:mm")} - {seg.EndTime.ToString(@"hh\:mm")})";
-                                        <div class="text-[11px] truncate rounded-md bg-indigo-50 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 px-1.5 py-0.5" title="@classTip">
+                                        <div class="text-[11px] truncate rounded-md px-1.5 py-0.5 @chipCls" title="@classTip">
                                             @classTitle
                                         </div>
                                     }
@@ -118,9 +121,12 @@
         function eventCardsHtml(list) {
             if (list.length === 0) return '<p class="text-sm text-slate-400 dark:text-slate-500">No classes on this day.</p>';
             return list.map(e => `
-                <div class="p-3 rounded-xl border border-slate-100 dark:border-slate-700 flex items-start justify-between gap-3">
+                <div class="p-3 rounded-xl border border-slate-100 dark:border-slate-700 flex items-start justify-between gap-3 ${e.isMakeup ? 'bg-emerald-50/60 dark:bg-emerald-950/30' : ''}">
                     <div class="min-w-0">
-                        <p class="font-medium text-slate-800 dark:text-slate-100 text-sm mb-1">${e.title}</p>
+                        <div class="flex items-center gap-2 mb-1">
+                            <span class="font-medium text-slate-800 dark:text-slate-100 text-sm">${e.title}</span>
+                            ${e.isMakeup ? '<span class="px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase bg-emerald-100 dark:bg-emerald-900 text-emerald-700 dark:text-emerald-300">Makeup</span>' : ''}
+                        </div>
                         <div class="text-xs text-slate-500 dark:text-slate-400 space-y-0.5">
                             ${e.scheduleName ? `<div>${e.scheduleName}</div>` : ''}
                             ${e.time ? `<div class="flex items-center gap-1"><i data-lucide="clock" class="w-3 h-3"></i> ${e.time}</div>` : ''}

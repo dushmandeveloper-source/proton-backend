@@ -15,12 +15,14 @@ namespace Web_Backend.Areas.Admin.Controllers
     {
         private readonly ICourseScheduleData scheduleRep;
         private readonly ICourseScheduleRescheduleData rescheduleRep;
+        private readonly IExamScheduleRescheduleData examRescheduleRep;
         private readonly IUserData userRep;
 
-        public LectureScheduleController(ICourseScheduleData scheduleRep, ICourseScheduleRescheduleData rescheduleRep, IUserData userRep)
+        public LectureScheduleController(ICourseScheduleData scheduleRep, ICourseScheduleRescheduleData rescheduleRep, IExamScheduleRescheduleData examRescheduleRep, IUserData userRep)
         {
             this.scheduleRep = scheduleRep;
             this.rescheduleRep = rescheduleRep;
+            this.examRescheduleRep = examRescheduleRep;
             this.userRep = userRep;
         }
 
@@ -37,6 +39,11 @@ namespace Web_Backend.Areas.Admin.Controllers
 
             ViewBag.AllBatches = await scheduleRep.GetList(new CourseScheduleSearchView { IsActive = "A" });
             ViewBag.PendingReschedules = await rescheduleRep.ListPending();
+
+            if (Auth.HasPermission(PermissionCode.Exams, 'V'))
+            {
+                ViewBag.PendingExamReschedules = await examRescheduleRep.ListPending();
+            }
 
             return View();
         }
@@ -64,6 +71,38 @@ namespace Web_Backend.Areas.Admin.Controllers
             try
             {
                 await rescheduleRep.Reject(rescheduleId, Auth.GetUserId(), adminRemark);
+                TempData["SuccessMessage"] = "Reschedule request rejected.";
+            }
+            catch (Exception ex)
+            {
+                TempData["ErrorMessage"] = "Could not reject: " + ex.Message;
+            }
+            return RedirectToAction("Index");
+        }
+
+        [HttpPost, ValidateAntiForgeryToken]
+        public async Task<IActionResult> ApproveExam(string rescheduleId, string? adminRemark = "")
+        {
+            Auth.CheckPermission(PermissionCode.Exams, 'E');
+            try
+            {
+                await examRescheduleRep.Approve(rescheduleId, Auth.GetUserId(), adminRemark ?? "");
+                TempData["SuccessMessage"] = "Reschedule approved — the calendar now reflects the skip and makeup date.";
+            }
+            catch (Exception ex)
+            {
+                TempData["ErrorMessage"] = "Could not approve: " + ex.Message;
+            }
+            return RedirectToAction("Index");
+        }
+
+        [HttpPost, ValidateAntiForgeryToken]
+        public async Task<IActionResult> RejectExam(string rescheduleId, string? adminRemark = "")
+        {
+            Auth.CheckPermission(PermissionCode.Exams, 'E');
+            try
+            {
+                await examRescheduleRep.Reject(rescheduleId, Auth.GetUserId(), adminRemark ?? "");
                 TempData["SuccessMessage"] = "Reschedule request rejected.";
             }
             catch (Exception ex)

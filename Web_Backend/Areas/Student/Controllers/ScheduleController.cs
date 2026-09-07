@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Web_Backend.Areas.Admin.Data;
+using Web_Backend.Areas.Admin.Models;
 using Web_Backend.Areas.StudentPortal.Models;
 using Web_Backend.Classes;
 
@@ -15,12 +16,14 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
         private readonly IStudentData studentRep;
         private readonly ICourseScheduleData scheduleRep;
         private readonly IHolidayEventData holidayRep;
+        private readonly ICourseScheduleRescheduleData rescheduleRep;
 
-        public ScheduleController(IStudentData studentRep, ICourseScheduleData scheduleRep, IHolidayEventData holidayRep)
+        public ScheduleController(IStudentData studentRep, ICourseScheduleData scheduleRep, IHolidayEventData holidayRep, ICourseScheduleRescheduleData rescheduleRep)
         {
             this.studentRep = studentRep;
             this.scheduleRep = scheduleRep;
             this.holidayRep = holidayRep;
+            this.rescheduleRep = rescheduleRep;
         }
 
         [HttpGet]
@@ -51,6 +54,43 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
             var segments = await scheduleRep.GetSegmentsForStudent(student.StudentID, gridStart, gridEnd);
             var holidays = await holidayRep.GetByDateRange(gridStart, gridEnd);
 
+            // Approved makeup dates for the student's enrolled batches,
+            // overlaid as synthetic one-off "segments" on their
+            // ProposedNewDate — same approach as
+            // Areas/Lecturer/Controllers/ScheduleController.cs, so students
+            // see the actual moved date for a class instead of the stale
+            // original occurrence (which Approve() has already excepted out
+            // of the segment's recurring pattern).
+            var scheduleIds = segments.Select(s => s.ScheduleID).Distinct().ToList();
+            var makeups = new List<(DateTime Date, StudentScheduleSegment Segment)>();
+            foreach (var scheduleId in scheduleIds)
+            {
+                var requests = await rescheduleRep.ListForSchedule(scheduleId);
+                foreach (var r in requests.Where(r => r.Status == "Approved"
+                    && r.ProposedNewDate.Date >= gridStart.Date && r.ProposedNewDate.Date <= gridEnd.Date))
+                {
+                    var original = segments.FirstOrDefault(s => s.SegmentID == r.SegmentID);
+                    if (original == null) continue;
+
+                    makeups.Add((r.ProposedNewDate.Date, new StudentScheduleSegment
+                    {
+                        SegmentID = original.SegmentID,
+                        ScheduleID = original.ScheduleID,
+                        CourseID = original.CourseID,
+                        CourseTitle = original.CourseTitle + " (Makeup Class)",
+                        ScheduleName = original.ScheduleName,
+                        Location = original.Location,
+                        StartDate = r.ProposedNewDate.Date,
+                        EndDate = r.ProposedNewDate.Date,
+                        DaysOfWeek = ScheduleExpansion.CodeFor(r.ProposedNewDate.DayOfWeek),
+                        StartTime = original.StartTime,
+                        EndTime = original.EndTime,
+                        InstructorNames = original.InstructorNames,
+                        MeetingLink = original.MeetingLink
+                    }));
+                }
+            }
+
             var weeks = new List<CalendarWeek>();
             var cursor = gridStart;
             while (cursor <= gridEnd)
@@ -60,12 +100,15 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
                 {
                     var dayCode = ScheduleExpansion.CodeFor(cursor.DayOfWeek);
                     var day = cursor;
+                    var classesForDay = ScheduleExpansion.ForDay(segments, cursor, dayCode);
+                    var makeupsForDay = makeups.Where(m => m.Date == day.Date).Select(m => m.Segment);
+
                     week.Days.Add(new CalendarDay
                     {
                         Date = cursor,
                         IsCurrentMonth = cursor.Month == targetMonth && cursor.Year == targetYear,
                         IsToday = cursor.Date == DateTime.Today,
-                        Classes = ScheduleExpansion.ForDay(segments, cursor, dayCode),
+                        Classes = classesForDay.Concat(makeupsForDay).ToList(),
                         Holidays = holidays.Where(h => h.HolidayDate.Date == day.Date).ToList()
                     });
                     cursor = cursor.AddDays(1);

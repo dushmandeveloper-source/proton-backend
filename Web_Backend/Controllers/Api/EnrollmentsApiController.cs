@@ -91,50 +91,60 @@ namespace Web_Backend.Controllers.Api
             var userTypes = await userTypeRep.GetList();
             var studentTypeId = userTypes.FirstOrDefault(t => t.UserTypeName == "Student")?.UserTypeID ?? "";
 
-            var userId = await userRep.AddEdit(new AppUser
+            string userId;
+            string tempPassword;
+            string studentId;
+            try
             {
-                FullName = $"{request.FirstName} {request.LastName}".Trim(),
-                FirstName = request.FirstName,
-                LastName = request.LastName,
-                Email = request.Email,
-                Phone = request.Phone,
-                UserTypeID = studentTypeId,
-                IsActive = "A"
-            });
+                userId = await userRep.AddEdit(new AppUser
+                {
+                    FullName = $"{request.FirstName} {request.LastName}".Trim(),
+                    FirstName = request.FirstName,
+                    LastName = request.LastName,
+                    Email = request.Email,
+                    Phone = request.Phone,
+                    UserTypeID = studentTypeId,
+                    IsActive = "A"
+                });
 
-            // Unlike the admin-created-student flow (where InitialPassword is an
-            // optional admin override), the public registration form no longer
-            // asks the visitor to type a password at all — a secure temp
-            // password is always generated and emailed instead (see the
-            // mandatory SendTemplateEmailAsync call below), mirroring
-            // StudentController.Save's auto-generated-password path exactly.
-            var tempPassword = TempPassword.Generate();
-            var (hash, salt) = PasswordHasher.Hash(tempPassword);
-            await authRep.AddEdit("", userId, request.Email, request.Email, hash, salt);
+                // Unlike the admin-created-student flow (where InitialPassword is an
+                // optional admin override), the public registration form no longer
+                // asks the visitor to type a password at all — a secure temp
+                // password is always generated and emailed instead (see the
+                // mandatory SendTemplateEmailAsync call below), mirroring
+                // StudentController.Save's auto-generated-password path exactly.
+                tempPassword = TempPassword.Generate();
+                var (hash, salt) = PasswordHasher.Hash(tempPassword);
+                await authRep.AddEdit("", userId, request.Email, request.Email, hash, salt);
 
-            var studentId = await studentRep.AddEdit(new Student
+                studentId = await studentRep.AddEdit(new Student
+                {
+                    UserID = userId,
+                    DateOfBirth = request.DateOfBirth,
+                    Gender = request.Gender,
+                    Nationality = request.Nationality,
+                    AddressLine1 = request.AddressLine1,
+                    AddressLine2 = request.AddressLine2,
+                    City = request.City,
+                    StateProvince = request.StateProvince,
+                    PostalCode = request.PostalCode,
+                    Country = request.Country,
+                    PassportNumber = request.PassportNumber,
+                    PassportCountry = request.PassportCountry,
+                    PassportExpiryDate = request.PassportExpiryDate,
+                    PassportPhotoURL = "",
+                    EmergencyContactName = request.EmergencyContactName,
+                    EmergencyContactPhone = request.EmergencyContactPhone,
+                    EmergencyRelationship = request.EmergencyRelationship,
+                    CreatedByUserID = "",
+                    RegistrationSource = "Self",
+                    IsActive = "A"
+                });
+            }
+            catch (SqlException ex)
             {
-                UserID = userId,
-                DateOfBirth = request.DateOfBirth,
-                Gender = request.Gender,
-                Nationality = request.Nationality,
-                AddressLine1 = request.AddressLine1,
-                AddressLine2 = request.AddressLine2,
-                City = request.City,
-                StateProvince = request.StateProvince,
-                PostalCode = request.PostalCode,
-                Country = request.Country,
-                PassportNumber = request.PassportNumber,
-                PassportCountry = request.PassportCountry,
-                PassportExpiryDate = request.PassportExpiryDate,
-                PassportPhotoURL = "",
-                EmergencyContactName = request.EmergencyContactName,
-                EmergencyContactPhone = request.EmergencyContactPhone,
-                EmergencyRelationship = request.EmergencyRelationship,
-                CreatedByUserID = "",
-                RegistrationSource = "Self",
-                IsActive = "A"
-            });
+                return StatusCode(500, new { message = $"Could not create your account: {ex.Message}" });
+            }
 
             var enrolledCourseIds = new List<string>();
             var enrollmentErrors = new List<string>();
@@ -318,8 +328,15 @@ namespace Web_Backend.Controllers.Api
             var slipUrl = "";
             if (request.PaymentMethod == "BankDeposit")
             {
-                var savedUrl = await uploader.SaveAsync(request.PaymentSlip, PaymentSlipUploadFolder);
-                slipUrl = savedUrl ?? "";
+                try
+                {
+                    var savedUrl = await uploader.SaveAsync(request.PaymentSlip, PaymentSlipUploadFolder);
+                    slipUrl = savedUrl ?? "";
+                }
+                catch (InvalidOperationException ex)
+                {
+                    return BadRequest(new { message = ex.Message });
+                }
             }
 
             var paymentId = await registrationRep.AddPayment(

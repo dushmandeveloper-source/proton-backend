@@ -72,12 +72,14 @@ builder.Services.AddTransient<ICourseRegistrationData, CourseRegistrationData>()
 builder.Services.AddTransient<ICourseCategoryData, CourseCategoryData>();
 builder.Services.AddTransient<ICourseData, CourseData>();
 builder.Services.AddTransient<ICourseScheduleData, CourseScheduleData>();
+builder.Services.AddTransient<IExamScheduleData, ExamScheduleData>();
 builder.Services.AddTransient<ICourseScheduleNoteData, CourseScheduleNoteData>();
 builder.Services.AddTransient<IHolidayEventData, HolidayEventData>();
 builder.Services.AddTransient<IExamData, ExamData>();
 builder.Services.AddTransient<IRolePermissionData, RolePermissionData>();
 builder.Services.AddTransient<IUserPermissionOverrideData, UserPermissionOverrideData>();
 builder.Services.AddTransient<ICourseScheduleRescheduleData, CourseScheduleRescheduleData>();
+builder.Services.AddTransient<IExamScheduleRescheduleData, ExamScheduleRescheduleData>();
 builder.Services.AddTransient<ILectureMaterialData, LectureMaterialData>();
 builder.Services.AddSingleton<IImageUploader, ImageUploader>();
 
