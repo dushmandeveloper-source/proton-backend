@@ -62,6 +62,7 @@
                         <th class="py-1.5 font-medium">Days</th>
                         <th class="py-1.5 font-medium">Time</th>
                         <th class="py-1.5 font-medium">Days off</th>
+                        <th class="py-1.5 font-medium">Meeting link</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -72,6 +73,18 @@
                             <td class="py-1.5 text-slate-500 dark:text-slate-400">@seg.DaysOfWeekLabel</td>
                             <td class="py-1.5 text-slate-500 dark:text-slate-400">@(string.IsNullOrEmpty(seg.TimeRangeText) ? "-" : seg.TimeRangeText)</td>
                             <td class="py-1.5 text-slate-500 dark:text-slate-400">@(seg.ExceptionCount > 0 ? $"{seg.ExceptionCount} day{(seg.ExceptionCount == 1 ? "" : "s")}" : "-")</td>
+                            <td class="py-1.5">
+                                @if (string.IsNullOrEmpty(seg.MeetingLink))
+                                {
+                                    <span class="text-slate-400 dark:text-slate-500">-</span>
+                                }
+                                else
+                                {
+                                    <a href="@seg.MeetingLink" target="_blank" rel="noopener" class="text-[#7c3aed] hover:underline inline-flex items-center gap-1">
+                                        <i data-lucide="video" class="w-3.5 h-3.5"></i> Join
+                                    </a>
+                                }
+                            </td>
                         </tr>
                     }
                 </tbody>

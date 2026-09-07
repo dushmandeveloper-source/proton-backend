@@ -75,14 +75,27 @@
                         {
                             @foreach (var seg in day.Segments)
                             {
-                                <div class="rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700 px-4 py-3">
-                                    <p class="text-sm font-semibold text-slate-800 dark:text-slate-100">@seg.CourseTitle</p>
-                                    <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                                        @seg.ScheduleName &middot; @seg.StartTime.ToString(@"hh\:mm") - @seg.EndTime.ToString(@"hh\:mm") &middot; @seg.Location
-                                    </p>
-                                    @if (!string.IsNullOrEmpty(seg.InstructorNames))
+                                // Join unlocks 15 min before StartTime and stays enabled
+                                // indefinitely after (classes don't reliably end on the
+                                // dot, so there's no auto-disable at EndTime).
+                                var joinAt = day.Date.Date.Add(seg.StartTime).AddMinutes(-15);
+                                <div class="rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700 px-4 py-3 flex items-start justify-between gap-3">
+                                    <div class="min-w-0">
+                                        <p class="text-sm font-semibold text-slate-800 dark:text-slate-100">@seg.CourseTitle</p>
+                                        <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                                            @seg.ScheduleName &middot; @seg.StartTime.ToString(@"hh\:mm") - @seg.EndTime.ToString(@"hh\:mm") &middot; @seg.Location
+                                        </p>
+                                        @if (!string.IsNullOrEmpty(seg.InstructorNames))
+                                        {
+                                            <p class="text-xs text-slate-400 dark:text-slate-500 mt-0.5">Instructor(s): @seg.InstructorNames</p>
+                                        }
+                                    </div>
+                                    @if (!string.IsNullOrEmpty(seg.MeetingLink))
                                     {
-                                        <p class="text-xs text-slate-400 dark:text-slate-500 mt-0.5">Instructor(s): @seg.InstructorNames</p>
+                                        <a href="@seg.MeetingLink" target="_blank" rel="noopener" data-join-link data-join-at="@joinAt.ToString("yyyy-MM-ddTHH:mm:ss")"
+                                           class="join-link px-3 py-1.5 rounded-lg font-medium text-xs bg-[#7c3aed] text-white hover:bg-[#6d28d9] transition-colors flex items-center gap-1 flex-shrink-0">
+                                            <i data-lucide="video" class="w-3.5 h-3.5"></i> <span class="join-label">Join</span>
+                                        </a>
                                     }
                                 </div>
                             }
@@ -92,6 +105,37 @@
             }
         </div>
     </div>
+    <script>
+        (function () {
+            // Gates each Join link until 15 min before its class start time
+            // (see joinAt computed server-side above). Disabled links show
+            // "Available at HH:mm" instead of navigating, and the whole set
+            // re-checks every 30s so a link flips live without a reload.
+            function formatTime(date) {
+                return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            }
+
+            function refreshJoinLinks() {
+                var now = new Date();
+                document.querySelectorAll('[data-join-link]').forEach(function (link) {
+                    var joinAt = new Date(link.dataset.joinAt);
+                    var label = link.querySelector('.join-label');
+                    if (now >= joinAt) {
+                        link.classList.remove('opacity-40', 'cursor-not-allowed', 'pointer-events-none');
+                        link.removeAttribute('aria-disabled');
+                        if (label) label.textContent = 'Join';
+                    } else {
+                        link.classList.add('opacity-40', 'cursor-not-allowed', 'pointer-events-none');
+                        link.setAttribute('aria-disabled', 'true');
+                        if (label) label.textContent = 'Available at ' + formatTime(joinAt);
+                    }
+                });
+            }
+
+            refreshJoinLinks();
+            setInterval(refreshJoinLinks, 30000);
+        })();
+    </script>
     }
 
     @* ---------- Enrolled Courses + stat tiles ---------- *@

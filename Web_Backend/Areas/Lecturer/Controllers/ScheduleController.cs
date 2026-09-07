@@ -84,7 +84,8 @@ namespace Web_Backend.Areas.LecturerPortal.Controllers
                         DaysOfWeek = ScheduleExpansion.CodeFor(r.ProposedNewDate.DayOfWeek),
                         StartTime = original.StartTime,
                         EndTime = original.EndTime,
-                        InstructorNames = original.InstructorNames
+                        InstructorNames = original.InstructorNames,
+                        MeetingLink = original.MeetingLink
                     }));
                 }
             }

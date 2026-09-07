@@ -117,5 +117,9 @@ namespace Web_Backend.Areas.Admin.Models
         // edit/view screens, never on the C# side, so no calendar (Student
         // or otherwise) actually skipped an excepted date before this fix.
         public string ExceptionDates { get; set; } = "";
+
+        // Optional Zoom/VooV/Teams (or any other) online meeting URL for
+        // this specific period — see edu.CourseScheduleSegment.MeetingLink.
+        public string MeetingLink { get; set; } = "";
     }
 }

@@ -109,6 +109,24 @@ namespace Web_Backend.Areas.Admin.Controllers
             return RedirectToAction("Index");
         }
 
+        // Quick single-period meeting-link edit from the calendar's day
+        // popup — narrower than the full Save form, so it doesn't require
+        // re-submitting every field of the batch just to fix a link.
+        [HttpPost, ValidateAntiForgeryToken]
+        public async Task<IActionResult> SetSegmentMeetingLink(string segmentId, string meetingLink)
+        {
+            Auth.CheckPermission(PermissionCode.CourseSchedules, 'E');
+            try
+            {
+                await rep.SetSegmentMeetingLink(segmentId, meetingLink ?? "");
+                return Json(new { success = true, meetingLink });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, error = ex.Message });
+            }
+        }
+
         [HttpPost, ValidateAntiForgeryToken]
         public async Task<IActionResult> Delete(string id)
         {

@@ -46,7 +46,8 @@
                     capacity = s.Capacity,
                     trainer = s.InstructorsLabel,
                     status = s.StatusLabel,
-                    isActive = s.IsActive == "A"
+                    isActive = s.IsActive == "A",
+                    meetingLink = seg.MeetingLink
                 });
             }
         }
@@ -211,7 +212,17 @@
                                         <span class="ml-2 px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase @(s.CourseType == "CSCA" ? "bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300" : "bg-sky-100 dark:bg-sky-950 text-sky-700 dark:text-sky-300")">@s.CourseType</span>
                                     </td>
                                     <td class="px-6 py-3 text-slate-500 dark:text-slate-400">@s.ScheduleName</td>
-                                    <td class="px-6 py-3 text-slate-500 dark:text-slate-400 text-xs max-w-xs">@s.SegmentsSummary</td>
+                                    <td class="px-6 py-3">
+                                        <button type="button" class="view-periods-btn px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors inline-flex items-center gap-1"
+                                                data-schedule-name="@(string.IsNullOrEmpty(s.ScheduleName) ? s.CourseTitle : s.ScheduleName)"
+                                                data-periods='@Html.Raw(System.Text.Json.JsonSerializer.Serialize(s.Segments.OrderBy(seg => seg.SortOrder).Select(seg => new {
+                                                    dateRange = seg.DateRangeText, days = seg.DaysOfWeekLabel, time = seg.TimeRangeText,
+                                                    daysOff = seg.ExceptionCount, meetingLink = seg.MeetingLink
+                                                })))'>
+                                            <i data-lucide="calendar-days" class="w-3.5 h-3.5"></i>
+                                            @s.Segments.Count period@(s.Segments.Count == 1 ? "" : "s")
+                                        </button>
+                                    </td>
                                     <td class="px-6 py-3 text-slate-500 dark:text-slate-400">@s.Location</td>
                                     <td class="px-6 py-3 text-slate-500 dark:text-slate-400">@(string.IsNullOrEmpty(s.InstructorsLabel) ? "-" : s.InstructorsLabel)</td>
                                     <td class="px-6 py-3 text-slate-500 dark:text-slate-400">@(s.Capacity?.ToString() ?? "-")</td>
@@ -236,7 +247,8 @@
                                                             segmentId = seg.SegmentID,
                                                             startDate = seg.StartDate.ToString("yyyy-MM-dd"), endDate = seg.EndDate.ToString("yyyy-MM-dd"),
                                                             daysOfWeek = seg.DaysOfWeek, startTime = seg.StartTime.HasValue ? seg.StartTime.Value.ToString("hh\\:mm") : "",
-                                                            endTime = seg.EndTime.HasValue ? seg.EndTime.Value.ToString("hh\\:mm") : "", exceptionDates = seg.ExceptionDates
+                                                            endTime = seg.EndTime.HasValue ? seg.EndTime.Value.ToString("hh\\:mm") : "", exceptionDates = seg.ExceptionDates,
+                                                            meetingLink = seg.MeetingLink
                                                         }),
                                                         instructorIDs = s.Instructors.Select(i => i.UserID)
                                                     }))'>
@@ -702,6 +714,10 @@
                                     <p class="period-end-time-label text-[11px] text-slate-400 dark:text-slate-500 mt-0.5"></p>
                                 </div>
                             </div>
+                            <div>
+                                <input type="url" class="period-meeting-link w-full px-2 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 text-sm"
+                                       placeholder="Meeting link (Zoom / VooV / Teams, optional)" />
+                            </div>
                             <button type="button" class="remove-period-btn text-xs text-red-500 hover:underline">Remove period</button>
                         </div>
                     </div>
@@ -738,6 +754,7 @@
                     });
                     startTimeInput.value = prefill.startTime || '';
                     endTimeInput.value = prefill.endTime || '';
+                    row.querySelector('.period-meeting-link').value = prefill.meetingLink || '';
                 }
                 startTimeLabel.textContent = formatAmPm(startTimeInput.value);
                 endTimeLabel.textContent = formatAmPm(endTimeInput.value);
@@ -794,7 +811,8 @@
                         startTime: row.querySelector('.period-start-time').value,
                         endTime: row.querySelector('.period-end-time').value,
                         sortOrder: i,
-                        exceptionDates: range.exceptionDates
+                        exceptionDates: range.exceptionDates,
+                        meetingLink: row.querySelector('.period-meeting-link').value.trim()
                     });
                 });
                 if (segments.some(s => !s.daysOfWeek)) {
@@ -1090,6 +1108,7 @@
                     dayAgenda.innerHTML = `<p class="text-sm text-slate-400 dark:text-slate-500 py-6 text-center">No batches or notes on this date.</p>`;
                 } else {
                     dayAgenda.innerHTML = eventCardsHtml(list) + noteCardsHtml(noteList);
+                    wireMeetingLinkButtons(dayAgenda);
                 }
                 if (window.lucide) lucide.createIcons();
 
@@ -1100,6 +1119,8 @@
             }
 
             // ---------- Shared event/note card renderers (used by day-detail drawer AND day-view agenda) ----------
+            const canEditMeetingLink = @Html.Raw(canAdd ? "true" : "false");
+
             function eventCardsHtml(list) {
                 return list.map(e => `
                     <div class="p-3 rounded-xl border border-slate-100 dark:border-slate-700 ${!e.isActive ? 'opacity-50' : ''}">
@@ -1113,6 +1134,20 @@
                             ${e.location ? `<div class="flex items-center gap-1"><i data-lucide="map-pin" class="w-3 h-3"></i> ${e.location}</div>` : ''}
                             ${e.capacity ? `<div class="flex items-center gap-1"><i data-lucide="users" class="w-3 h-3"></i> Capacity ${e.capacity}</div>` : ''}
                             ${e.trainer ? `<div class="flex items-center gap-1"><i data-lucide="user" class="w-3 h-3"></i> ${e.trainer}</div>` : ''}
+                        </div>
+                        <div class="mt-2 meeting-link-row" data-segment-id="${e.id}">
+                            <div class="meeting-link-display flex items-center gap-2">
+                                ${e.meetingLink
+                                    ? `<a href="${e.meetingLink}" target="_blank" rel="noopener" class="text-xs text-[#7c3aed] hover:underline inline-flex items-center gap-1"><i data-lucide="video" class="w-3 h-3"></i> Join meeting</a>`
+                                    : `<span class="text-xs text-slate-400 dark:text-slate-500">No meeting link</span>`}
+                                ${canEditMeetingLink ? `<button type="button" class="meeting-link-edit-btn text-xs text-slate-400 hover:text-[#7c3aed] dark:hover:text-purple-400 inline-flex items-center gap-1"><i data-lucide="pencil" class="w-3 h-3"></i> ${e.meetingLink ? 'Update' : 'Add'} link</button>` : ''}
+                            </div>
+                            ${canEditMeetingLink ? `
+                            <div class="meeting-link-form hidden flex items-center gap-2 mt-1">
+                                <input type="url" class="meeting-link-input flex-1 px-2 py-1 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 text-xs" placeholder="Meeting link" value="${e.meetingLink || ''}" />
+                                <button type="button" class="meeting-link-save-btn px-2 py-1 rounded-lg text-xs font-medium bg-[#7c3aed] text-white hover:bg-[#6d28d9]">Save</button>
+                                <button type="button" class="meeting-link-cancel-btn px-2 py-1 rounded-lg text-xs text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700">Cancel</button>
+                            </div>` : ''}
                         </div>
                     </div>
                 `).join('');
@@ -1179,6 +1214,7 @@
                       </div>`).join('')
                     : '';
                 dayEvents.innerHTML = holidayBanner + (opts.agendaMode ? '' : eventCardsHtml(list));
+                if (!opts.agendaMode) wireMeetingLinkButtons(dayEvents);
                 dayNotesBox.innerHTML = noteCardsHtml(noteList);
                 wireNoteRowButtons();
 
@@ -1192,6 +1228,65 @@
                 dayPanel.classList.remove('hidden');
                 if (window.lucide) lucide.createIcons();
                 if (!opts.skipScroll) dayPanel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+
+            function wireMeetingLinkButtons(container) {
+                container.querySelectorAll('.meeting-link-row').forEach(row => {
+                    const segmentId = row.dataset.segmentId;
+                    const display = row.querySelector('.meeting-link-display');
+                    const form = row.querySelector('.meeting-link-form');
+                    const editBtn = row.querySelector('.meeting-link-edit-btn');
+                    const saveBtn = row.querySelector('.meeting-link-save-btn');
+                    const cancelBtn = row.querySelector('.meeting-link-cancel-btn');
+                    const input = row.querySelector('.meeting-link-input');
+                    if (!editBtn) return;
+
+                    editBtn.addEventListener('click', () => {
+                        display.classList.add('hidden');
+                        form.classList.remove('hidden');
+                        input.focus();
+                    });
+                    cancelBtn.addEventListener('click', () => {
+                        form.classList.add('hidden');
+                        display.classList.remove('hidden');
+                    });
+                    saveBtn.addEventListener('click', async () => {
+                        const token = document.querySelector('input[name="__RequestVerificationToken"]').value;
+                        saveBtn.disabled = true;
+                        saveBtn.textContent = 'Saving...';
+                        try {
+                            const res = await fetch('@Url.Action("SetSegmentMeetingLink", "CourseSchedule")', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                                body: new URLSearchParams({ segmentId, meetingLink: input.value.trim(), __RequestVerificationToken: token })
+                            });
+                            const data = await res.json();
+                            if (!data.success) throw new Error(data.error || 'Save failed');
+                            showToast('Meeting link saved.', 'success');
+                            // Update in-memory data so re-renders (e.g. switching
+                            // months and back) reflect the change without a reload.
+                            (eventsByDate[Object.keys(eventsByDate).find(k => eventsByDate[k].some(e => e.id === segmentId))] || [])
+                                .filter(e => e.id === segmentId).forEach(e => { e.meetingLink = data.meetingLink; });
+                            display.innerHTML = (data.meetingLink
+                                ? `<a href="${data.meetingLink}" target="_blank" rel="noopener" class="text-xs text-[#7c3aed] hover:underline inline-flex items-center gap-1"><i data-lucide="video" class="w-3 h-3"></i> Join meeting</a>`
+                                : `<span class="text-xs text-slate-400 dark:text-slate-500">No meeting link</span>`)
+                                + `<button type="button" class="meeting-link-edit-btn text-xs text-slate-400 hover:text-[#7c3aed] dark:hover:text-purple-400 inline-flex items-center gap-1"><i data-lucide="pencil" class="w-3 h-3"></i> ${data.meetingLink ? 'Update' : 'Add'} link</button>`;
+                            display.querySelector('.meeting-link-edit-btn').addEventListener('click', () => {
+                                display.classList.add('hidden');
+                                form.classList.remove('hidden');
+                                input.focus();
+                            });
+                            form.classList.add('hidden');
+                            display.classList.remove('hidden');
+                            if (window.lucide) lucide.createIcons();
+                        } catch (err) {
+                            showToast(err.message || 'Could not save meeting link.', 'error');
+                        } finally {
+                            saveBtn.disabled = false;
+                            saveBtn.textContent = 'Save';
+                        }
+                    });
+                });
             }
 
             function wireNoteRowButtons() {
@@ -1285,6 +1380,54 @@
             });
 
             render();
+        })();
+    </script>
+
+    @* ---------- Periods popup (shared by the List table's "N periods" button) ---------- *@
+    <div id="periods-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40" role="dialog" aria-modal="true">
+        <div class="bg-white dark:bg-slate-900 rounded-[24px] shadow-xl border border-slate-100 dark:border-slate-700 w-full max-w-lg max-h-[80vh] flex flex-col">
+            <div class="p-5 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between gap-3">
+                <h3 id="periods-modal-title" class="font-semibold text-slate-800 dark:text-slate-100"></h3>
+                <button type="button" id="periods-modal-close" class="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+            <div id="periods-modal-body" class="p-5 space-y-3 overflow-y-auto"></div>
+        </div>
+    </div>
+    <script>
+        (function () {
+            const modal = document.getElementById('periods-modal');
+            const title = document.getElementById('periods-modal-title');
+            const body = document.getElementById('periods-modal-body');
+
+            function openModal(scheduleName, periods) {
+                title.textContent = scheduleName;
+                body.innerHTML = periods.length === 0
+                    ? '<p class="text-sm text-slate-400 dark:text-slate-500">No periods defined.</p>'
+                    : periods.map(p => `
+                        <div class="rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700 px-4 py-3">
+                            <p class="text-sm font-semibold text-slate-800 dark:text-slate-100">${p.dateRange}</p>
+                            <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">${p.days}${p.time ? ' · ' + p.time : ''}</p>
+                            ${p.daysOff > 0 ? `<p class="text-xs text-amber-600 dark:text-amber-300 mt-0.5">${p.daysOff} day${p.daysOff === 1 ? '' : 's'} off</p>` : ''}
+                            ${p.meetingLink ? `<a href="${p.meetingLink}" target="_blank" rel="noopener" class="text-xs text-[#7c3aed] hover:underline mt-1 inline-flex items-center gap-1"><i data-lucide="video" class="w-3 h-3"></i> Join meeting</a>` : ''}
+                        </div>`).join('');
+                modal.classList.remove('hidden');
+                if (window.lucide) lucide.createIcons();
+            }
+
+            function closeModal() { modal.classList.add('hidden'); }
+
+            document.querySelectorAll('.view-periods-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const periods = JSON.parse(btn.dataset.periods || '[]');
+                    openModal(btn.dataset.scheduleName || '', periods);
+                });
+            });
+
+            document.getElementById('periods-modal-close').addEventListener('click', closeModal);
+            modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
+            document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal(); });
         })();
     </script>
 }

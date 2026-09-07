@@ -3,6 +3,8 @@
     ViewData["Title"] = "Schedule";
 }
 
+<form id="af-token-form">@Html.AntiForgeryToken()</form>
+
 <div class="max-w-6xl mx-auto space-y-8 page-enter">
 
     <div class="flex items-center justify-between flex-wrap gap-4">
@@ -63,7 +65,26 @@
                     <div class="grid grid-cols-7 divide-x divide-slate-100 dark:divide-slate-700 border-b border-slate-100 dark:border-slate-700 last:border-b-0">
                         @foreach (var day in week.Days)
                         {
-                            <div class="min-h-[110px] p-2 flex flex-col gap-1.5 @(day.IsCurrentMonth ? "" : "opacity-50") @(day.Holidays.Count > 0 ? "bg-amber-50/60 dark:bg-amber-950/30" : day.IsToday ? "bg-indigo-50/60 dark:bg-indigo-950/40" : "")">
+                            var dayKey = day.Date.ToString("yyyy-MM-dd");
+                            var dayPayload = new
+                            {
+                                dateLabel = day.Date.ToString("dddd, MMMM d, yyyy"),
+                                holidays = day.Holidays.Select(h => new { title = h.Title, description = h.Description }),
+                                classes = day.Classes.Select(seg => new
+                                {
+                                    segmentId = seg.SegmentID,
+                                    scheduleId = seg.ScheduleID,
+                                    title = seg.CourseTitle,
+                                    scheduleName = seg.ScheduleName,
+                                    time = $"{seg.StartTime.ToString(@"hh\:mm")} - {seg.EndTime.ToString(@"hh\:mm")}",
+                                    location = seg.Location,
+                                    instructorNames = seg.InstructorNames,
+                                    meetingLink = seg.MeetingLink,
+                                    isMakeup = seg.CourseTitle.EndsWith("(Makeup Class)")
+                                })
+                            };
+                            <button type="button" class="cal-day-cell text-left min-h-[110px] p-2 flex flex-col gap-1.5 @(day.IsCurrentMonth ? "" : "opacity-50") @(day.Holidays.Count > 0 ? "bg-amber-50/60 dark:bg-amber-950/30" : day.IsToday ? "bg-indigo-50/60 dark:bg-indigo-950/40" : "") hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors"
+                                    data-day-key="@dayKey" data-day='@Html.Raw(System.Text.Json.JsonSerializer.Serialize(dayPayload))'>
                                 <div class="flex items-center justify-between">
                                     <span class="text-xs font-semibold inline-flex items-center justify-center w-6 h-6 rounded-full @(day.IsToday ? "bg-[#7c3aed] text-white" : day.IsCurrentMonth ? "text-slate-700 dark:text-slate-200" : "text-slate-300 dark:text-slate-600")">
                                         @day.Date.Day
@@ -83,16 +104,148 @@
                                     @foreach (var seg in day.Classes)
                                     {
                                         var isMakeup = seg.CourseTitle.EndsWith("(Makeup Class)");
-                                        <div class="text-[11px] truncate rounded-md px-1.5 py-0.5 @(isMakeup ? "bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300" : "bg-indigo-50 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300")" title="@seg.CourseTitle (@seg.StartTime.ToString(@"hh\:mm") - @seg.EndTime.ToString(@"hh\:mm"))">
-                                            @seg.StartTime.ToString(@"hh\:mm") @seg.CourseTitle
+                                        var chipCls = isMakeup ? "bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300" : "bg-indigo-50 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300";
+                                        var classTitle = $"{seg.StartTime.ToString(@"hh\:mm")} {seg.CourseTitle}";
+                                        var classTip = $"{seg.CourseTitle} ({seg.StartTime.ToString(@"hh\:mm")} - {seg.EndTime.ToString(@"hh\:mm")})";
+                                        <div class="text-[11px] truncate rounded-md px-1.5 py-0.5 @chipCls" title="@classTip">
+                                            @classTitle
                                         </div>
                                     }
                                 </div>
-                            </div>
+                            </button>
                         }
                     </div>
                 }
             </div>
         </div>
     </div>
+
+    @* ---------- Selected-day details panel ---------- *@
+    <div id="cal-day-panel" class="hidden bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 p-6">
+        <div class="flex items-center justify-between mb-4">
+            <h4 id="cal-day-title" class="font-semibold text-slate-800 dark:text-slate-100"></h4>
+            <button type="button" id="cal-day-close" class="p-1.5 rounded-lg text-slate-400 dark:text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700">
+                <i data-lucide="x" class="w-4 h-4"></i>
+            </button>
+        </div>
+        <div id="cal-day-events" class="space-y-2"></div>
+    </div>
 </div>
+
+<script>
+    (function () {
+        const dayPanel = document.getElementById('cal-day-panel');
+        const dayTitle = document.getElementById('cal-day-title');
+        const dayEvents = document.getElementById('cal-day-events');
+
+        function eventCardsHtml(list) {
+            if (list.length === 0) return '<p class="text-sm text-slate-400 dark:text-slate-500">No classes on this day.</p>';
+            return list.map(e => `
+                <div class="p-3 rounded-xl border border-slate-100 dark:border-slate-700 ${e.isMakeup ? 'bg-emerald-50/60 dark:bg-emerald-950/30' : ''}">
+                    <div class="flex items-start justify-between gap-3">
+                        <div class="min-w-0">
+                            <div class="flex items-center gap-2 mb-1">
+                                <span class="font-medium text-slate-800 dark:text-slate-100 text-sm">${e.title}</span>
+                                ${e.isMakeup ? '<span class="px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase bg-emerald-100 dark:bg-emerald-900 text-emerald-700 dark:text-emerald-300">Makeup</span>' : ''}
+                            </div>
+                            <div class="text-xs text-slate-500 dark:text-slate-400 space-y-0.5">
+                                ${e.scheduleName ? `<div>${e.scheduleName}</div>` : ''}
+                                ${e.time ? `<div class="flex items-center gap-1"><i data-lucide="clock" class="w-3 h-3"></i> ${e.time}</div>` : ''}
+                                ${e.location ? `<div class="flex items-center gap-1"><i data-lucide="map-pin" class="w-3 h-3"></i> ${e.location}</div>` : ''}
+                                ${e.instructorNames ? `<div class="flex items-center gap-1"><i data-lucide="user" class="w-3 h-3"></i> ${e.instructorNames}</div>` : ''}
+                            </div>
+                        </div>
+                        ${e.meetingLink ? `<a href="${e.meetingLink}" target="_blank" rel="noopener" class="px-3 py-1.5 rounded-lg font-medium text-xs bg-[#7c3aed] text-white hover:bg-[#6d28d9] transition-colors flex items-center gap-1 flex-shrink-0"><i data-lucide="video" class="w-3.5 h-3.5"></i> Join</a>` : ''}
+                    </div>
+                    <div class="mt-2 meeting-link-row" data-schedule-id="${e.scheduleId}" data-segment-id="${e.segmentId}">
+                        <div class="meeting-link-display">
+                            <button type="button" class="meeting-link-edit-btn text-xs text-slate-400 hover:text-[#7c3aed] dark:hover:text-purple-400 inline-flex items-center gap-1">
+                                <i data-lucide="pencil" class="w-3 h-3"></i> ${e.meetingLink ? 'Update' : 'Add'} link
+                            </button>
+                        </div>
+                        <div class="meeting-link-form hidden flex items-center gap-2 mt-1">
+                            <input type="url" class="meeting-link-input flex-1 px-2 py-1 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 text-xs" placeholder="Meeting link" value="${e.meetingLink || ''}" />
+                            <button type="button" class="meeting-link-save-btn px-2 py-1 rounded-lg text-xs font-medium bg-[#7c3aed] text-white hover:bg-[#6d28d9]">Save</button>
+                            <button type="button" class="meeting-link-cancel-btn px-2 py-1 rounded-lg text-xs text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700">Cancel</button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function wireMeetingLinkButtons(container) {
+            container.querySelectorAll('.meeting-link-row').forEach(row => {
+                const scheduleId = row.dataset.scheduleId;
+                const segmentId = row.dataset.segmentId;
+                const display = row.querySelector('.meeting-link-display');
+                const form = row.querySelector('.meeting-link-form');
+                const editBtn = row.querySelector('.meeting-link-edit-btn');
+                const saveBtn = row.querySelector('.meeting-link-save-btn');
+                const cancelBtn = row.querySelector('.meeting-link-cancel-btn');
+                const input = row.querySelector('.meeting-link-input');
+
+                editBtn.addEventListener('click', () => {
+                    display.classList.add('hidden');
+                    form.classList.remove('hidden');
+                    input.focus();
+                });
+                cancelBtn.addEventListener('click', () => {
+                    form.classList.add('hidden');
+                    display.classList.remove('hidden');
+                });
+                saveBtn.addEventListener('click', async () => {
+                    const token = document.querySelector('input[name="__RequestVerificationToken"]').value;
+                    saveBtn.disabled = true;
+                    saveBtn.textContent = 'Saving...';
+                    try {
+                        const res = await fetch('@Url.Action("SetSegmentMeetingLink", "Courses", new { area = "Lecturer" })', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                            body: new URLSearchParams({ scheduleId, segmentId, meetingLink: input.value.trim(), __RequestVerificationToken: token })
+                        });
+                        const data = await res.json();
+                        if (!data.success) throw new Error(data.error || 'Save failed');
+                        showToast('Meeting link saved.', 'success');
+                        display.innerHTML = `<button type="button" class="meeting-link-edit-btn text-xs text-slate-400 hover:text-[#7c3aed] dark:hover:text-purple-400 inline-flex items-center gap-1"><i data-lucide="pencil" class="w-3 h-3"></i> ${data.meetingLink ? 'Update' : 'Add'} link</button>`;
+                        display.querySelector('.meeting-link-edit-btn').addEventListener('click', () => {
+                            display.classList.add('hidden');
+                            form.classList.remove('hidden');
+                            input.focus();
+                        });
+                        form.classList.add('hidden');
+                        display.classList.remove('hidden');
+                        if (window.lucide) lucide.createIcons();
+                    } catch (err) {
+                        showToast(err.message || 'Could not save meeting link.', 'error');
+                    } finally {
+                        saveBtn.disabled = false;
+                        saveBtn.textContent = 'Save';
+                    }
+                });
+            });
+        }
+
+        function holidayBannerHtml(list) {
+            return list.map(h => `
+                <div class="p-3 rounded-xl border border-yellow-200 dark:border-yellow-800 bg-yellow-50 dark:bg-yellow-950/40 flex items-center gap-2 mb-2">
+                    <i data-lucide="star" class="w-4 h-4 text-yellow-600 dark:text-yellow-400 flex-shrink-0"></i>
+                    <span class="text-sm font-medium text-yellow-800 dark:text-yellow-300">Holiday: ${h.title}</span>
+                </div>
+            `).join('');
+        }
+
+        document.querySelectorAll('.cal-day-cell').forEach(cell => {
+            cell.addEventListener('click', () => {
+                const data = JSON.parse(cell.dataset.day || '{}');
+                dayTitle.textContent = data.dateLabel || '';
+                dayEvents.innerHTML = holidayBannerHtml(data.holidays || []) + eventCardsHtml(data.classes || []);
+                wireMeetingLinkButtons(dayEvents);
+                dayPanel.classList.remove('hidden');
+                if (window.lucide) lucide.createIcons();
+                dayPanel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            });
+        });
+
+        document.getElementById('cal-day-close').addEventListener('click', () => dayPanel.classList.add('hidden'));
+    })();
+</script>
