@@ -6,6 +6,9 @@
     var lecturerBatches = ViewBag.LecturerBatches as List<CourseSchedule> ?? new();
     var allBatches = ViewBag.AllBatches as List<CourseSchedule> ?? new();
     var pendingReschedules = ViewBag.PendingReschedules as List<CourseScheduleReschedule> ?? new();
+    bool canViewExamReschedules = ViewBag.PendingExamReschedules != null;
+    bool canEditExam = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.Exams, 'E');
+    var pendingExamReschedules = ViewBag.PendingExamReschedules as List<ExamScheduleReschedule> ?? new();
 }
 
 <div class="max-w-6xl mx-auto page-enter">
@@ -25,6 +28,16 @@
                 <span class="ml-1 inline-flex items-center justify-center w-5 h-5 rounded-full bg-amber-100 dark:bg-amber-900 text-amber-700 dark:text-amber-300 text-[11px] font-semibold">@pendingReschedules.Count</span>
             }
         </button>
+        @if (canViewExamReschedules)
+        {
+            <button type="button" class="tab-btn px-4 py-2.5 text-sm font-medium border-b-2 border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-100" data-tab="exam-pending">
+                Exam Reschedules
+                @if (pendingExamReschedules.Count > 0)
+                {
+                    <span class="ml-1 inline-flex items-center justify-center w-5 h-5 rounded-full bg-amber-100 dark:bg-amber-900 text-amber-700 dark:text-amber-300 text-[11px] font-semibold">@pendingExamReschedules.Count</span>
+                }
+            </button>
+        }
     </div>
 
     @* ---------- Tab: By Lecturer ---------- *@
@@ -168,6 +181,56 @@
             }
         </div>
     </div>
+
+    @if (canViewExamReschedules)
+    {
+        @* ---------- Tab: Exam Reschedules ---------- *@
+        <div class="tab-panel hidden" data-panel="exam-pending">
+            <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
+                @if (!pendingExamReschedules.Any())
+                {
+                    <div class="p-12 text-center"><p class="text-sm text-slate-400 dark:text-slate-500">No pending exam reschedule requests.</p></div>
+                }
+                else
+                {
+                    <div class="divide-y divide-slate-100 dark:divide-slate-700">
+                        @foreach (var r in pendingExamReschedules)
+                        {
+                            <div class="p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                                <div>
+                                    <p class="text-sm font-medium text-slate-800 dark:text-slate-100">@r.ExamTitle &middot; @r.ScheduleName</p>
+                                    <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Requested by @r.RequestedByName</p>
+                                    <p class="text-xs text-slate-400 dark:text-slate-500 mt-1">
+                                        @r.OriginalDate.ToString("MMM d, yyyy") &rarr; @r.ProposedNewDate.ToString("MMM d, yyyy")
+                                        @if (!string.IsNullOrEmpty(r.Remark)) { <text> &middot; "@r.Remark"</text> }
+                                    </p>
+                                </div>
+                                @if (canEditExam)
+                                {
+                                    <div class="flex items-center gap-2 flex-shrink-0">
+                                        <form method="post" asp-action="ApproveExam" asp-route-rescheduleId="@r.RescheduleID"
+                                              data-confirm="Approve this reschedule? The original date will be skipped and the new date added to the calendar." data-confirm-title="Approve reschedule" data-confirm-label="Approve">
+                                            @Html.AntiForgeryToken()
+                                            <button type="submit" class="px-3 py-1.5 rounded-lg font-medium text-xs bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900 transition-colors">
+                                                Approve
+                                            </button>
+                                        </form>
+                                        <form method="post" asp-action="RejectExam" asp-route-rescheduleId="@r.RescheduleID"
+                                              data-confirm="Reject this reschedule request?" data-confirm-title="Reject reschedule" data-confirm-label="Reject">
+                                            @Html.AntiForgeryToken()
+                                            <button type="submit" class="px-3 py-1.5 rounded-lg font-medium text-xs bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-900 transition-colors">
+                                                Reject
+                                            </button>
+                                        </form>
+                                    </div>
+                                }
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+        </div>
+    }
 </div>
 
 @* ---------- Periods popup (shared by the "N periods" button) ---------- *@

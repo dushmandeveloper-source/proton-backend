@@ -102,6 +102,11 @@ namespace Web_Backend.Areas.Admin.Models
         public string CourseID { get; set; } = "";
         public string CourseTitle { get; set; } = "";
         public string ScheduleName { get; set; } = "";
+
+        // Populated only when this segment came from an ExamSchedule linked
+        // to an edu.CourseSchedule batch (see ExamScheduleController's
+        // adapter mapping) — empty for ordinary course schedule segments.
+        public string BatchName { get; set; } = "";
         public string Location { get; set; } = "";
         public DateTime StartDate { get; set; }
         public DateTime EndDate { get; set; }
@@ -121,5 +126,10 @@ namespace Web_Backend.Areas.Admin.Models
         // Optional Zoom/VooV/Teams (or any other) online meeting URL for
         // this specific period — see edu.CourseScheduleSegment.MeetingLink.
         public string MeetingLink { get; set; } = "";
+
+        // Discriminator distinguishing an ordinary course-schedule segment
+        // ("Course") from an exam-schedule segment adapted into this same
+        // shape ("Exam") — see ExamScheduleInstructorSegment.Kind.
+        public string Kind { get; set; } = "Course";
     }
 }

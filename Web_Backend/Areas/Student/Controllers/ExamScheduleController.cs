@@ -6,19 +6,34 @@ using Web_Backend.Classes;
 
 namespace Web_Backend.Areas.StudentPortal.Controllers
 {
-    // Monthly calendar view of the student's class schedule — a wider-angle
-    // companion to Dashboard's "This Week's Classes" widget, built on the
-    // same ICourseScheduleData.GetSegmentsForStudent + ScheduleExpansion
-    // day-matching helper.
+    // Read-only monthly calendar of the student's exam sittings — mirrors
+    // Areas/Student/Controllers/ScheduleController.cs (the CourseSchedule
+    // equivalent), sourced from IExamScheduleData.GetSegmentsForStudent
+    // instead of ICourseScheduleData.GetSegmentsForStudent, plus an approved
+    // makeup-date overlay the same way Lecturer's ScheduleController.cs
+    // does it for courses (see plan sections 6/7).
+    //
+    // View-model choice: like Lecturer's ExamScheduleController, this
+    // adapter-maps each ExamScheduleInstructorSegment onto a
+    // StudentScheduleSegment (CourseTitle <- ExamTitle, CourseID <- ExamID)
+    // so it can reuse StudentCalendarViewModel/CalendarWeek/CalendarDay and
+    // Views/Schedule/Index.cshtml's markup style verbatim, rather than
+    // introducing a parallel Exam-specific calendar view-model triad.
+    //
+    // Known gap (per plan section 3): students only see exams linked to a
+    // course batch they're registered in (via GetSegmentsForStudent's join
+    // through CourseScheduleID); standalone exam sittings with no
+    // CourseScheduleID are not shown to students in this round, since no
+    // other exam-enrollment/registration table exists yet.
     [Area("Student")]
-    public class ScheduleController : Controller
+    public class ExamScheduleController : Controller
     {
         private readonly IStudentData studentRep;
-        private readonly ICourseScheduleData scheduleRep;
+        private readonly IExamScheduleData scheduleRep;
         private readonly IHolidayEventData holidayRep;
-        private readonly ICourseScheduleRescheduleData rescheduleRep;
+        private readonly IExamScheduleRescheduleData rescheduleRep;
 
-        public ScheduleController(IStudentData studentRep, ICourseScheduleData scheduleRep, IHolidayEventData holidayRep, ICourseScheduleRescheduleData rescheduleRep)
+        public ExamScheduleController(IStudentData studentRep, IExamScheduleData scheduleRep, IHolidayEventData holidayRep, IExamScheduleRescheduleData rescheduleRep)
         {
             this.studentRep = studentRep;
             this.scheduleRep = scheduleRep;
@@ -51,16 +66,13 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
             while (gridEnd.DayOfWeek != DayOfWeek.Sunday)
                 gridEnd = gridEnd.AddDays(1);
 
-            var segments = await scheduleRep.GetSegmentsForStudent(student.StudentID, gridStart, gridEnd);
+            var examSegments = await scheduleRep.GetSegmentsForStudent(student.StudentID, gridStart, gridEnd);
+            var segments = examSegments.Select(ToStudentScheduleSegment).ToList();
             var holidays = await holidayRep.GetByDateRange(gridStart, gridEnd);
 
-            // Approved makeup dates for the student's enrolled batches,
-            // overlaid as synthetic one-off "segments" on their
-            // ProposedNewDate — same approach as
-            // Areas/Lecturer/Controllers/ScheduleController.cs, so students
-            // see the actual moved date for a class instead of the stale
-            // original occurrence (which Approve() has already excepted out
-            // of the segment's recurring pattern).
+            // Approved exam reschedules, overlaid as synthetic one-off
+            // "segments" on their ProposedNewDate — mirrors the course
+            // reschedule overlay in Areas/Student/Controllers/ScheduleController.cs.
             var scheduleIds = segments.Select(s => s.ScheduleID).Distinct().ToList();
             var makeups = new List<(DateTime Date, StudentScheduleSegment Segment)>();
             foreach (var scheduleId in scheduleIds)
@@ -77,8 +89,9 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
                         SegmentID = original.SegmentID,
                         ScheduleID = original.ScheduleID,
                         CourseID = original.CourseID,
-                        CourseTitle = original.CourseTitle + " (Makeup Class)",
+                        CourseTitle = original.CourseTitle + " (Makeup Exam)",
                         ScheduleName = original.ScheduleName,
+                        BatchName = original.BatchName,
                         Location = original.Location,
                         StartDate = r.ProposedNewDate.Date,
                         EndDate = r.ProposedNewDate.Date,
@@ -133,6 +146,33 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
 
             ViewBag.CurrentUser = Auth.GetUser();
             return View(model);
+        }
+
+        // Adapter mapping: ExamScheduleInstructorSegment -> StudentScheduleSegment
+        // so the shared CalendarDay/CalendarWeek/StudentCalendarViewModel and
+        // Views/Schedule/Index.cshtml-style markup can be reused verbatim for
+        // exam data. CourseTitle carries ExamTitle, CourseID carries ExamID —
+        // same convention as Lecturer's ExamScheduleController.
+        private static StudentScheduleSegment ToStudentScheduleSegment(ExamScheduleInstructorSegment seg)
+        {
+            return new StudentScheduleSegment
+            {
+                SegmentID = seg.SegmentID,
+                ScheduleID = seg.ScheduleID,
+                CourseID = seg.ExamID,
+                CourseTitle = seg.ExamTitle,
+                ScheduleName = seg.ScheduleName,
+                BatchName = seg.BatchName,
+                Location = seg.Location,
+                StartDate = seg.StartDate,
+                EndDate = seg.EndDate,
+                DaysOfWeek = seg.DaysOfWeek,
+                StartTime = seg.StartTime ?? TimeSpan.Zero,
+                EndTime = seg.EndTime ?? TimeSpan.Zero,
+                InstructorNames = seg.InstructorNames,
+                ExceptionDates = seg.ExceptionDates,
+                MeetingLink = seg.MeetingLink
+            };
         }
     }
 }

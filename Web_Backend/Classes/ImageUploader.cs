@@ -17,7 +17,12 @@ namespace Web_Backend.Classes
 
     public class ImageUploader : IImageUploader
     {
-        private static readonly string[] AllowedExtensions = { ".jpg", ".jpeg", ".png", ".webp", ".gif", ".svg" };
+        // Includes .pdf alongside image formats: SaveAsync's default whitelist
+        // is also used for payment/deposit slip uploads (Admin StudentController
+        // and the public EnrollmentsApiController), and both registration UIs
+        // invite PDF slips (accept="image/*,.pdf") — without it, a PDF slip
+        // throws InvalidOperationException and surfaces as an unhandled 500.
+        private static readonly string[] AllowedExtensions = { ".jpg", ".jpeg", ".png", ".webp", ".gif", ".svg", ".pdf" };
         private const long MaxBytes = 5 * 1024 * 1024; // 5 MB
 
         private readonly IWebHostEnvironment env;

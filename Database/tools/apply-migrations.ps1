@@ -1,4 +1,4 @@
-#requires -Version 5.1
+﻿#requires -Version 5.1
 <#
 .SYNOPSIS
   Applies pending SQL migrations (Database/migrations/NNNN_*.sql) to a target
