@@ -116,6 +116,24 @@ namespace Web_Backend.Areas.Admin.Data
                 UserID = userId
             });
 
+        public Task UpdateSegmentMeetingLinks(string scheduleId, string userId, List<string> segmentIds, string meetingLink) =>
+            db.ExecuteNonQuery("edu.CourseScheduleSegment_UpdateMeetingLinks", new
+            {
+                APIKey = AppData.GetAPIKey(),
+                ScheduleID = scheduleId,
+                UserID = userId,
+                SegmentIDsJSON = JsonSerializer.Serialize(segmentIds),
+                MeetingLink = meetingLink
+            });
+
+        public Task SetSegmentMeetingLink(string segmentId, string meetingLink) =>
+            db.ExecuteNonQuery("edu.CourseScheduleSegment_SetMeetingLink", new
+            {
+                APIKey = AppData.GetAPIKey(),
+                SegmentID = segmentId,
+                MeetingLink = meetingLink
+            });
+
         public Task Delete(string id) =>
             db.ExecuteNonQuery("edu.CourseSchedule_Delete", new { APIKey = AppData.GetAPIKey(), ID = id });
 

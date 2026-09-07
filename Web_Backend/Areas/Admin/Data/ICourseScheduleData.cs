@@ -15,6 +15,15 @@ namespace Web_Backend.Areas.Admin.Data
         // throws if @UserID isn't actually assigned to @ScheduleID via
         // CourseScheduleInstructor).
         Task<List<StudentRosterEntry>> GetStudentRosterForInstructor(string scheduleId, string userId);
+        // Lets an assigned lecturer set/change the meeting link on one or
+        // more of their own batch's periods without the full Admin AddEdit.
+        // Throws (via edu.CourseScheduleSegment_UpdateMeetingLinks) if
+        // userId isn't actually assigned to scheduleId.
+        Task UpdateSegmentMeetingLinks(string scheduleId, string userId, List<string> segmentIds, string meetingLink);
+        // Admin-only: sets one segment's meeting link directly, without the
+        // "must be an assigned instructor" check UpdateSegmentMeetingLinks
+        // enforces — used from the Admin schedule calendar's day popup.
+        Task SetSegmentMeetingLink(string segmentId, string meetingLink);
         Task Delete(string id);
     }
 }

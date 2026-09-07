@@ -86,6 +86,13 @@ namespace Web_Backend.Areas.Admin.Models
         // unavailability, etc. Same CSV style as DaysOfWeek.
         public string ExceptionDates { get; set; } = "";
 
+        // Optional Zoom/VooV/Teams (or any other) online meeting URL for
+        // this period. Set by Admin (full batch edit) or by an assigned
+        // lecturer (CourseScheduleSegment_UpdateMeetingLinks, scoped to
+        // their own batches) — one link can be pasted once and applied to
+        // several selected periods, or set per-period.
+        public string MeetingLink { get; set; } = "";
+
         public string DateRangeText => $"{StartDate:dd MMM yyyy} - {EndDate:dd MMM yyyy}";
         public string DaysOfWeekLabel => string.Join(", ", DaysOfWeek.Split(',', StringSplitOptions.RemoveEmptyEntries));
         public string TimeRangeText => StartTime.HasValue && EndTime.HasValue
