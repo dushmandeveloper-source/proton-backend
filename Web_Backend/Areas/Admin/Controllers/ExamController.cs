@@ -71,7 +71,7 @@ namespace Web_Backend.Areas.Admin.Controllers
         }
 
         [HttpPost, ValidateAntiForgeryToken]
-        public async Task<IActionResult> Save(Exam form)
+        public async Task<IActionResult> Save([Bind(Prefix = "Exam")] Exam form)
         {
             ViewBag.CurrentUser = Auth.GetUser();
 
