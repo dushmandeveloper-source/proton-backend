@@ -177,6 +177,19 @@ namespace Web_Backend.Areas.Admin.Models
     {
         public Student Student { get; set; } = new();
         public CourseRegistrationStudentSummary? Summary { get; set; }
+
+        // What a permanent delete would take with it, so the confirm dialog
+        // can spell it out. Null when the viewer has no delete permission.
+        public StudentDeleteImpact? DeleteImpact { get; set; }
+    }
+
+    public class StudentDeleteImpact
+    {
+        public int RegistrationCount { get; set; }
+        public int PaymentCount { get; set; }
+        public int LoginAccountCount { get; set; }
+
+        public bool IsBlocked => RegistrationCount > 0;
     }
 
     // Backs the read-only Student Details page (Views/Student/View.cshtml):

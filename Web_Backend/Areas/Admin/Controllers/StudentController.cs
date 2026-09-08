@@ -88,6 +88,16 @@ namespace Web_Backend.Areas.Admin.Controllers
                 Summary = summaryByStudent.TryGetValue(s.StudentID, out var summary) ? summary : null
             }).ToList();
 
+            // Only worth the per-student round trip when the delete button is
+            // actually rendered — the counts exist solely to fill its dialog.
+            if (Auth.HasPermission(PermissionCode.Students, 'D'))
+            {
+                foreach (var row in rows)
+                {
+                    row.DeleteImpact = await rep.GetDeleteImpact(row.Student.StudentID);
+                }
+            }
+
             return View(rows);
         }
 
@@ -413,13 +423,45 @@ namespace Web_Backend.Areas.Admin.Controllers
         }
 
         [HttpPost, ValidateAntiForgeryToken]
-        public async Task<IActionResult> Delete(string id)
+        public async Task<IActionResult> Deactivate(string id)
         {
             Auth.CheckPermission(PermissionCode.Students, 'D');
             try
             {
-                await rep.Delete(id);
-                TempData["SuccessMessage"] = "Student deleted.";
+                await rep.Deactivate(id, Auth.GetUserId());
+                TempData["SuccessMessage"] = "Student deactivated.";
+            }
+            catch (Exception ex)
+            {
+                TempData["ErrorMessage"] = "Could not deactivate: " + ex.Message;
+            }
+            return RedirectToAction("Index");
+        }
+
+        [HttpPost, ValidateAntiForgeryToken]
+        public async Task<IActionResult> Activate(string id)
+        {
+            Auth.CheckPermission(PermissionCode.Students, 'E');
+            try
+            {
+                await rep.Activate(id, Auth.GetUserId());
+                TempData["SuccessMessage"] = "Student activated.";
+            }
+            catch (Exception ex)
+            {
+                TempData["ErrorMessage"] = "Could not activate: " + ex.Message;
+            }
+            return RedirectToAction("Index", new { showInactive = true });
+        }
+
+        [HttpPost, ValidateAntiForgeryToken]
+        public async Task<IActionResult> DeletePermanently(string id)
+        {
+            Auth.CheckPermission(PermissionCode.Students, 'D');
+            try
+            {
+                await rep.DeletePermanently(id, Auth.GetUserId());
+                TempData["SuccessMessage"] = "Student permanently deleted.";
             }
             catch (Exception ex)
             {

@@ -175,7 +175,8 @@
                                         <i data-lucide="chevron-down" class="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 dark:text-slate-500 pointer-events-none"></i>
                                     </div>
                                 </td>
-                                <td class="px-6 py-4 text-right whitespace-nowrap">
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div class="flex items-center justify-end gap-1 flex-nowrap">
                                     @if (canEditUM)
                                     {
                                         <a asp-action="Edit" asp-route-id="@user.UserID" title="Edit"
@@ -197,26 +198,66 @@
                                             </button>
                                         </form>
                                     }
-                                    @if (canDeleteUM)
+                                    @if (canEditUM && user.IsActive != "A")
                                     {
-                                        <form method="post" asp-action="Delete" asp-route-id="@user.UserID" class="inline"
-                                              data-confirm="Delete @user.FullName? This can be reversed later by an admin, but they won't be able to sign in until then." data-confirm-title="Delete user" data-confirm-label="Delete">
+                                        <form method="post" asp-action="Activate" asp-route-id="@user.UserID" class="inline">
                                             @Html.AntiForgeryToken()
-                                            <button type="submit" title="Delete" class="text-slate-400 dark:text-slate-500 hover:text-red-600 dark:hover:text-red-400 p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
-                                                <i data-lucide="trash-2" class="w-4 h-4"></i>
-                                            </button>
-                                        </form>
-                                        @* Permanent counterpart to the soft delete above. The
-                                           server refuses this for accounts carrying real history,
-                                           so the button is always offered rather than guessed at. *@
-                                        <form method="post" asp-action="HardDelete" asp-route-id="@user.UserID" class="inline"
-                                              data-confirm="Permanently delete @user.FullName? This erases the account, its login and its student profile for good — it cannot be undone. Accounts with course registrations, batch assignments or uploaded materials will be refused." data-confirm-title="Permanently delete user" data-confirm-label="Delete Forever">
-                                            @Html.AntiForgeryToken()
-                                            <button type="submit" title="Permanently delete" class="text-slate-400 dark:text-slate-500 hover:text-red-700 dark:hover:text-red-300 p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-950 transition-colors">
-                                                <i data-lucide="ban" class="w-4 h-4"></i>
+                                            <button type="submit" title="Activate" class="text-slate-400 dark:text-slate-500 hover:text-emerald-600 dark:hover:text-emerald-400 p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+                                                <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
                                             </button>
                                         </form>
                                     }
+                                    @if (canDeleteUM)
+                                    {
+                                        if (user.IsActive == "A")
+                                        {
+                                            <form method="post" asp-action="Delete" asp-route-id="@user.UserID" class="inline"
+                                                  data-confirm="This hides @user.FullName from the user list and stops them signing in, but keeps everything on their account. You can bring them back at any time."
+                                                  data-confirm-title="Deactivate user" data-confirm-label="Deactivate">
+                                                @Html.AntiForgeryToken()
+                                                <button type="submit" title="Deactivate" class="text-slate-400 dark:text-slate-500 hover:text-amber-600 dark:hover:text-amber-400 p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+                                                    <i data-lucide="eye-off" class="w-4 h-4"></i>
+                                                </button>
+                                            </form>
+                                        }
+
+                                        Model.DeleteImpacts.TryGetValue(user.UserID, out var userImpact);
+                                        var blockedReasons = new List<string>();
+                                        var alsoRemoved = new List<string>();
+                                        if (userImpact != null)
+                                        {
+                                            if (userImpact.RegistrationCount > 0) blockedReasons.Add($"{userImpact.RegistrationCount} course registration(s)");
+                                            if (userImpact.CourseBatchAssignmentCount > 0) blockedReasons.Add($"{userImpact.CourseBatchAssignmentCount} class batch(es) they teach");
+                                            if (userImpact.ExamBatchAssignmentCount > 0) blockedReasons.Add($"{userImpact.ExamBatchAssignmentCount} exam sitting(s) they supervise");
+                                            if (userImpact.CourseRescheduleCount + userImpact.ExamRescheduleCount > 0) blockedReasons.Add($"{userImpact.CourseRescheduleCount + userImpact.ExamRescheduleCount} reschedule request(s) they raised");
+                                            if (userImpact.LectureMaterialCount > 0) blockedReasons.Add($"{userImpact.LectureMaterialCount} piece(s) of lecture material they uploaded");
+
+                                            if (!userImpact.IsBlocked)
+                                            {
+                                                alsoRemoved.Add("Their login, so they can no longer sign in");
+                                                if (userImpact.PermissionOverrideCount > 0) alsoRemoved.Add($"{userImpact.PermissionOverrideCount} custom permission setting(s) for this person");
+                                                if (userImpact.HasStudentProfile) alsoRemoved.Add("Their student profile");
+                                            }
+                                        }
+                                        var userBlockedText = blockedReasons.Count > 0
+                                            ? $"{user.FullName} can't be deleted — this account is still attached to {string.Join(", ", blockedReasons)}. That history has to be kept, so deactivate the account instead."
+                                            : null;
+                                        var userConfirmText = userBlockedText != null
+                                            ? "Deleting will be refused while this account is still attached to that work."
+                                            : $"This permanently removes {user.FullName}'s account. This cannot be undone.";
+
+                                        <form method="post" asp-action="HardDelete" asp-route-id="@user.UserID" class="inline"
+                                              data-confirm="@userConfirmText" data-confirm-title="Delete @user.FullName permanently?" data-confirm-label="Delete Permanently"
+                                              data-confirm-blocked="@userBlockedText"
+                                              data-confirm-details-title="Will also be permanently deleted"
+                                              data-confirm-details="@(alsoRemoved.Count > 0 && userBlockedText == null ? System.Text.Json.JsonSerializer.Serialize(alsoRemoved) : "")">
+                                            @Html.AntiForgeryToken()
+                                            <button type="submit" title="Delete Permanently" class="text-red-500 dark:text-red-400 hover:text-white hover:bg-red-600 dark:hover:bg-red-600 p-1.5 rounded-lg transition-colors">
+                                                <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                            </button>
+                                        </form>
+                                    }
+                                    </div>
                                 </td>
                             </tr>
                         }

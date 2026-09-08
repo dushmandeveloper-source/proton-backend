@@ -16,5 +16,6 @@ namespace Web_Backend.Areas.Admin.Data
         // Permanent delete — removes the account and its auth/override/student
         // rows outright. Refuses (throws) when real history references it.
         Task HardDelete(string id, string logUserId);
+        Task<UserDeleteImpact?> GetDeleteImpact(string id);
     }
 }

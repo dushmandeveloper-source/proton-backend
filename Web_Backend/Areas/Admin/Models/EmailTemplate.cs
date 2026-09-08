@@ -23,4 +23,10 @@ namespace Web_Backend.Areas.Admin.Models
         public DateTime CreatedDate { get; set; }
         public DateTime? UpdatedDate { get; set; }
     }
+
+    public class EmailTemplateDeleteImpact
+    {
+        public string TemplateCode { get; set; } = "";
+        public bool IsSystemTemplate { get; set; }
+    }
 }

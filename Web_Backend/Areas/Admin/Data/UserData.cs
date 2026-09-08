@@ -67,5 +67,8 @@ namespace Web_Backend.Areas.Admin.Data
 
         public Task HardDelete(string id, string logUserId) =>
             db.ExecuteNonQuery("usr.Users_HardDelete", new { APIKey = AppData.GetAPIKey(), ID = id, LogUserID = logUserId });
+
+        public Task<UserDeleteImpact?> GetDeleteImpact(string id) =>
+            db.Get<UserDeleteImpact, object>("usr.Users_GetDeleteImpact", new { APIKey = AppData.GetAPIKey(), ID = id });
     }
 }

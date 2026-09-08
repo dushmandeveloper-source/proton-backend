@@ -66,6 +66,18 @@ namespace Web_Backend.Areas.Admin.Controllers
             ViewBag.CurrentUser = Auth.GetUser();
             var model = new UserManagementViewModel { ActiveTab = tab == "roles" ? "roles" : "users" };
             await PopulateLists(model, showInactive, KeyW, roleFilter);
+
+            // Only worth the per-user round trip when the permanent-delete
+            // button is actually rendered — the counts only fill its dialog.
+            if (Auth.HasPermission(PermissionCode.UserManagement, 'D'))
+            {
+                foreach (var user in model.Users)
+                {
+                    var impact = await userRep.GetDeleteImpact(user.UserID);
+                    if (impact != null) model.DeleteImpacts[user.UserID] = impact;
+                }
+            }
+
             return View(model);
         }
 
@@ -295,13 +307,36 @@ namespace Web_Backend.Areas.Admin.Controllers
             try
             {
                 await userRep.Delete(id);
-                TempData["SuccessMessage"] = "User deleted.";
+                TempData["SuccessMessage"] = "User deactivated.";
             }
             catch (Exception ex)
             {
-                TempData["ErrorMessage"] = "Could not delete user: " + ex.Message;
+                TempData["ErrorMessage"] = "Could not deactivate user: " + ex.Message;
             }
             return RedirectToAction("Index", new { tab = "users" });
+        }
+
+        [HttpPost, ValidateAntiForgeryToken]
+        public async Task<IActionResult> Activate(string id)
+        {
+            Auth.CheckPermission(PermissionCode.UserManagement, 'E');
+            try
+            {
+                var user = await userRep.Get(id);
+                if (user == null)
+                {
+                    TempData["ErrorMessage"] = "User not found.";
+                    return RedirectToAction("Index", new { tab = "users" });
+                }
+                user.IsActive = "A";
+                await userRep.AddEdit(user);
+                TempData["SuccessMessage"] = "User activated.";
+            }
+            catch (Exception ex)
+            {
+                TempData["ErrorMessage"] = "Could not activate user: " + ex.Message;
+            }
+            return RedirectToAction("Index", new { tab = "users", showInactive = true });
         }
 
         // Permanent counterpart to Delete above, which only deactivates. The

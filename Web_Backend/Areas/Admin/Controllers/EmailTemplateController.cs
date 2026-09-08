@@ -20,6 +20,20 @@ namespace Web_Backend.Areas.Admin.Controllers
             Auth.CheckPermission(PermissionCode.EmailTemplates, 'V');
             ViewBag.CurrentUser = Auth.GetUser();
             var templates = await rep.GetList(KeyW);
+
+            // Only worth the per-template round trip when the deactivate/delete
+            // buttons are actually rendered — the flags only drive that column.
+            var impacts = new Dictionary<string, EmailTemplateDeleteImpact>();
+            if (Auth.HasPermission(PermissionCode.EmailTemplates, 'D'))
+            {
+                foreach (var t in templates)
+                {
+                    var impact = await rep.GetDeleteImpact(t.TemplateID);
+                    if (impact != null) impacts[t.TemplateID] = impact;
+                }
+            }
+            ViewBag.DeleteImpacts = impacts;
+
             return View(templates);
         }
 
@@ -66,13 +80,45 @@ namespace Web_Backend.Areas.Admin.Controllers
         }
 
         [HttpPost, ValidateAntiForgeryToken]
-        public async Task<IActionResult> Delete(string id)
+        public async Task<IActionResult> Deactivate(string id)
         {
             Auth.CheckPermission(PermissionCode.EmailTemplates, 'D');
             try
             {
-                await rep.Delete(id);
-                TempData["SuccessMessage"] = "Template deleted.";
+                await rep.Deactivate(id, Auth.GetUserId());
+                TempData["SuccessMessage"] = "Template deactivated.";
+            }
+            catch (Exception ex)
+            {
+                TempData["ErrorMessage"] = "Could not deactivate template: " + ex.Message;
+            }
+            return RedirectToAction("Index");
+        }
+
+        [HttpPost, ValidateAntiForgeryToken]
+        public async Task<IActionResult> Activate(string id)
+        {
+            Auth.CheckPermission(PermissionCode.EmailTemplates, 'E');
+            try
+            {
+                await rep.Activate(id, Auth.GetUserId());
+                TempData["SuccessMessage"] = "Template activated.";
+            }
+            catch (Exception ex)
+            {
+                TempData["ErrorMessage"] = "Could not activate template: " + ex.Message;
+            }
+            return RedirectToAction("Index");
+        }
+
+        [HttpPost, ValidateAntiForgeryToken]
+        public async Task<IActionResult> DeletePermanently(string id)
+        {
+            Auth.CheckPermission(PermissionCode.EmailTemplates, 'D');
+            try
+            {
+                await rep.DeletePermanently(id, Auth.GetUserId());
+                TempData["SuccessMessage"] = "Template permanently deleted.";
             }
             catch (Exception ex)
             {
