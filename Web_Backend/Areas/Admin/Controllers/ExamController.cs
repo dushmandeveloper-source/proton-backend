@@ -96,9 +96,6 @@ namespace Web_Backend.Areas.Admin.Controllers
 
             try
             {
-                if (string.IsNullOrWhiteSpace(form.ExamTitle))
-                    ModelState.AddModelError(nameof(form.ExamTitle), "Exam title is required.");
-
                 target.ExamTitle = form.ExamTitle;
                 target.CourseID = form.CourseID;
                 // Subject is only meaningful when a course is chosen.

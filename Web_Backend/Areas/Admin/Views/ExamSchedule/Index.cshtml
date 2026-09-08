@@ -86,27 +86,43 @@
             <input type="hidden" name="SegmentJSON" id="segment-json-field" />
             <input type="hidden" name="InstructorUserIDsJSON" id="instructor-json-field" />
             <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
-                <select name="ExamID" required class="md:col-span-2 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm">
-                    <option value="">-- Select exam --</option>
-                    @foreach (var e in exams)
-                    {
-                        <option value="@e.ExamID">@e.ExamTitle</option>
-                    }
-                </select>
-                <input type="text" name="ScheduleName" placeholder="Sitting name (e.g. Jan 2026 Sitting)"
-                       class="md:col-span-2 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" />
-                <select name="CourseScheduleID" id="batch-select" class="md:col-span-2 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm">
-                    <option value="">-- Select batch (optional) --</option>
-                    @foreach (var b in batches)
-                    {
-                        <option value="@b.ScheduleID">@b.CourseTitle &mdash; @b.ScheduleName</option>
-                    }
-                </select>
-                <input type="number" name="Capacity" placeholder="Capacity"
-                       class="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" />
-                <input type="text" name="Location" placeholder="Location"
-                       class="md:col-span-2 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" />
+                <div class="md:col-span-2">
+                    <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Exam <span class="text-red-600">*</span></label>
+                    <select name="ExamID" required class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm">
+                        <option value="">-- Select exam --</option>
+                        @foreach (var e in exams)
+                        {
+                            <option value="@e.ExamID">@e.ExamTitle</option>
+                        }
+                    </select>
+                </div>
+                <div class="md:col-span-2">
+                    <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Sitting Name / Title <span class="text-slate-400">(optional, defaults to exam name)</span></label>
+                    <input type="text" name="ScheduleName" placeholder="e.g. Jan 2026 Sitting"
+                           class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" />
+                </div>
+                <div class="md:col-span-2">
+                    <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Batch (optional)</label>
+                    <select name="CourseScheduleID" id="batch-select" class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm">
+                        <option value="">-- Select batch (optional) --</option>
+                        @foreach (var b in batches)
+                        {
+                            <option value="@b.ScheduleID">@b.CourseTitle &mdash; @b.ScheduleName</option>
+                        }
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Capacity</label>
+                    <input type="number" name="Capacity" placeholder="Capacity"
+                           class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" />
+                </div>
+                <div class="md:col-span-2">
+                    <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Location</label>
+                    <input type="text" name="Location" placeholder="Location"
+                           class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" />
+                </div>
                 <div class="relative instructor-picker" data-name="InstructorUserIDsJSON">
+                    <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Instructors</label>
                     <input type="text" class="instructor-search px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm w-full" placeholder="Search instructors..." autocomplete="off" />
                     <div class="instructor-selected flex flex-wrap gap-1 mt-1"></div>
                     <div class="instructor-dropdown hidden absolute z-10 mt-1 w-full max-h-48 overflow-y-auto bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-xl shadow-lg">
@@ -119,12 +135,15 @@
                         }
                     </div>
                 </div>
-                <input type="text" name="Notes" placeholder="Notes (optional)"
-                       class="md:col-span-4 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" />
+                <div class="md:col-span-4">
+                    <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Notes (optional)</label>
+                    <input type="text" name="Notes" placeholder="Notes (optional)"
+                           class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" />
+                </div>
             </div>
 
             <div class="mb-2 flex items-center justify-between">
-                <h4 class="text-sm font-semibold text-slate-700 dark:text-slate-200">Periods</h4>
+                <h4 class="text-sm font-semibold text-slate-700 dark:text-slate-200">Periods <span class="text-red-600">*</span></h4>
                 <button type="button" id="add-period-btn" class="text-sm text-[#7c3aed] hover:underline">+ Add another period</button>
             </div>
             <div id="periods-container" class="space-y-3 mb-4"></div>
