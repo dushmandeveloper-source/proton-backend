@@ -36,6 +36,14 @@
         </div>
     }
 
+    @if (Model.IsContentRestricted)
+    {
+        <div class="rounded-[20px] border border-amber-100 dark:border-amber-900 bg-amber-50 dark:bg-amber-950 p-4 flex items-center gap-3">
+            <i data-lucide="clock" class="w-5 h-5 text-amber-600 dark:text-amber-300 flex-shrink-0"></i>
+            <p class="text-sm text-amber-700 dark:text-amber-300"><strong>Your account is still being verified.</strong> You can browse and join courses and make payments — course materials and joining links unlock once an administrator verifies your account.</p>
+        </div>
+    }
+
     @* A student with no enrolments has an empty dashboard — surface the next
        step up here as a banner rather than leaving them to find the empty
        "Enrolled Courses" card further down the page. *@
@@ -90,7 +98,7 @@
                                             <p class="text-xs text-slate-400 dark:text-slate-500 mt-0.5">Instructor(s): @seg.InstructorNames</p>
                                         }
                                     </div>
-                                    @if (!string.IsNullOrEmpty(seg.MeetingLink))
+                                    @if (!Model.IsContentRestricted && !string.IsNullOrEmpty(seg.MeetingLink))
                                     {
                                         <a href="@seg.MeetingLink" target="_blank" rel="noopener" data-join-link data-join-at="@joinAt.ToString("yyyy-MM-ddTHH:mm:ss")"
                                            class="join-link px-3 py-1.5 rounded-lg font-medium text-xs bg-[#7c3aed] text-white hover:bg-[#6d28d9] transition-colors flex items-center gap-1 flex-shrink-0">

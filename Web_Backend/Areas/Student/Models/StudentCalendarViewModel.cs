@@ -34,5 +34,9 @@ namespace Web_Backend.Areas.StudentPortal.Models
         public int PrevMonth { get; set; }
         public int NextYear { get; set; }
         public int NextMonth { get; set; }
+
+        // Schedule rows still render for a restricted student — only the
+        // join/meeting-link affordance is hidden, in the view.
+        public bool IsContentRestricted { get; set; }
     }
 }

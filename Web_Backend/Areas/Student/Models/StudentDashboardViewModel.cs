@@ -18,6 +18,7 @@ namespace Web_Backend.Areas.StudentPortal.Models
         public string StudentID { get; set; } = "";
         public string StudentName { get; set; } = "";
         public string PassportVerificationStatus { get; set; } = "Pending";
+        public bool IsContentRestricted { get; set; }
 
         public List<StudentScheduleDay> WeekSchedule { get; set; } = new();
 

@@ -107,6 +107,15 @@ namespace Web_Backend.Areas.Admin.Data
                 VerifiedByUserID = verifiedByUserId
             });
 
+        public Task<string> VerifyAccount(string studentId, string status, string verifiedByUserId) =>
+            db.Execute("mst.Student_VerifyAccount", new
+            {
+                APIKey = AppData.GetAPIKey(),
+                StudentID = studentId,
+                Status = status,
+                VerifiedByUserID = verifiedByUserId
+            });
+
         public Task Deactivate(string id, string logUserId) =>
             db.ExecuteNonQuery("mst.Student_Deactivate", new { APIKey = AppData.GetAPIKey(), ID = id, LogUserID = logUserId });
 

@@ -102,7 +102,18 @@
         </div>
 
         <div class="@CardCls space-y-4">
-            <h3 class="font-semibold text-slate-800 dark:text-slate-100">Passport</h3>
+            <div class="flex items-center justify-between gap-2">
+                <h3 class="font-semibold text-slate-800 dark:text-slate-100">Passport</h3>
+                @{
+                    var (passportBadgeCls, passportBadgeLabel) = Model_Student.PassportVerificationStatus switch
+                    {
+                        "Verified" => ("bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300", "Verified"),
+                        "Rejected" => ("bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-300", "Rejected"),
+                        _ => ("bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-300", "Pending")
+                    };
+                }
+                <span class="px-2 py-1 rounded-lg text-[11px] font-medium @passportBadgeCls">@passportBadgeLabel</span>
+            </div>
             <div class="flex items-start gap-4">
                 <div class="flex-1 grid grid-cols-1 gap-3 text-sm">
                     <div><p class="@LabelCls">Number</p><p class="text-slate-700 dark:text-slate-200 mt-1">@(string.IsNullOrEmpty(Model_Student.PassportNumber) ? "—" : Model_Student.PassportNumber)</p></div>
@@ -114,8 +125,71 @@
                     <img src="@Model_Student.PassportPhotoURL" alt="Passport photo" class="w-20 h-14 rounded-lg object-cover border border-slate-200 dark:border-slate-600 flex-shrink-0" />
                 }
             </div>
+            @if (canEditStudent && !string.IsNullOrWhiteSpace(Model_Student.PassportNumber) && Model_Student.PassportVerificationStatus != "Verified")
+            {
+                <div class="pt-2 border-t border-slate-100 dark:border-slate-700 flex items-center gap-2">
+                    <form method="post" asp-action="VerifyPassport"
+                          data-confirm="Mark this passport as verified for @Model_Student.FullName?" data-confirm-title="Verify passport" data-confirm-label="Verify">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="studentId" value="@Model_Student.StudentID" />
+                        <button type="submit" class="px-3 py-1.5 rounded-xl text-xs font-medium bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900 transition-colors flex items-center gap-1">
+                            <i data-lucide="check-circle" class="w-3.5 h-3.5"></i> Verify Passport
+                        </button>
+                    </form>
+                    <form method="post" asp-action="RejectPassport"
+                          data-confirm="Reject this passport submission for @Model_Student.FullName?" data-confirm-title="Reject passport" data-confirm-label="Reject">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="studentId" value="@Model_Student.StudentID" />
+                        <button type="submit" class="px-3 py-1.5 rounded-xl text-xs font-medium bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-900 transition-colors flex items-center gap-1">
+                            <i data-lucide="x-circle" class="w-3.5 h-3.5"></i> Reject Passport
+                        </button>
+                    </form>
+                </div>
+            }
         </div>
     </div>
+
+    @if (Model_Student.IsSelfRegistered)
+    {
+        <div class="@CardCls space-y-4 mb-6">
+            <div class="flex items-center justify-between gap-2">
+                <h3 class="font-semibold text-slate-800 dark:text-slate-100">Account Verification</h3>
+                @{
+                    var (accountBadgeCls, accountBadgeLabel) = Model_Student.AccountVerificationStatus switch
+                    {
+                        "Verified" => ("bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300", "Verified"),
+                        "Rejected" => ("bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-300", "Rejected"),
+                        _ => ("bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-300", "Pending")
+                    };
+                }
+                <span class="px-2 py-1 rounded-lg text-[11px] font-medium @accountBadgeCls">@accountBadgeLabel</span>
+            </div>
+            <p class="text-sm text-slate-500 dark:text-slate-400">
+                This student self-registered. Until their account is verified, course materials and joining links stay locked on their portal.
+            </p>
+            @if (canEditStudent && Model_Student.AccountVerificationStatus != "Verified")
+            {
+                <div class="pt-2 border-t border-slate-100 dark:border-slate-700 flex items-center gap-2">
+                    <form method="post" asp-action="VerifyAccount"
+                          data-confirm="Mark @Model_Student.FullName's account as verified?" data-confirm-title="Verify account" data-confirm-label="Verify">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="studentId" value="@Model_Student.StudentID" />
+                        <button type="submit" class="px-3 py-1.5 rounded-xl text-xs font-medium bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900 transition-colors flex items-center gap-1">
+                            <i data-lucide="check-circle" class="w-3.5 h-3.5"></i> Verify Account
+                        </button>
+                    </form>
+                    <form method="post" asp-action="RejectAccount"
+                          data-confirm="Reject @Model_Student.FullName's account?" data-confirm-title="Reject account" data-confirm-label="Reject">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="studentId" value="@Model_Student.StudentID" />
+                        <button type="submit" class="px-3 py-1.5 rounded-xl text-xs font-medium bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-900 transition-colors flex items-center gap-1">
+                            <i data-lucide="x-circle" class="w-3.5 h-3.5"></i> Reject Account
+                        </button>
+                    </form>
+                </div>
+            }
+        </div>
+    }
 
     <div class="@CardCls space-y-4 mb-6">
         <h3 class="font-semibold text-slate-800 dark:text-slate-100">Emergency Contact</h3>
