@@ -63,6 +63,9 @@ namespace Web_Backend.Areas.Admin.Controllers
                 {
                     var impact = await rep.GetDeleteImpact(course.CourseID);
                     if (impact != null) model.DeleteImpacts[course.CourseID] = impact;
+
+                    if (impact != null && impact.RegistrationCount > 0)
+                        model.DeletePaymentImpacts[course.CourseID] = await rep.GetDeletePaymentImpact(course.CourseID);
                 }
             }
 

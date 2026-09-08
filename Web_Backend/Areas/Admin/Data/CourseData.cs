@@ -95,6 +95,9 @@ namespace Web_Backend.Areas.Admin.Data
         public Task<CourseDeleteImpact?> GetDeleteImpact(string id) =>
             db.Get<CourseDeleteImpact, object>("edu.Course_GetDeleteImpact", new { APIKey = AppData.GetAPIKey(), ID = id });
 
+        public Task<List<CoursePaymentImpact>> GetDeletePaymentImpact(string id) =>
+            db.GetList<CoursePaymentImpact, object>("edu.Course_GetDeletePaymentImpact", new { APIKey = AppData.GetAPIKey(), ID = id });
+
         // ---------- Subjects (CSCA only) ----------
         public Task<List<CourseSubject>> GetSubjects(string courseId) =>
             db.GetList<CourseSubject, object>("edu.CourseSubject_List",

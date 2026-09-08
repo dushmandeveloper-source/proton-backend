@@ -30,5 +30,7 @@ namespace Web_Backend.Areas.Admin.Data
         // refuses when real history (reschedule requests, or an ExamSchedule
         // still linked to this batch) hangs off it.
         Task DeletePermanently(string id);
+        Task<CourseScheduleDeleteImpact?> GetDeleteImpact(string id);
+        Task<List<CoursePaymentImpact>> GetDeletePaymentImpact(string id);
     }
 }

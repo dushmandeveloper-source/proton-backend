@@ -184,10 +184,16 @@ namespace Web_Backend.Areas.Admin.Models
         // Keyed by CourseID — what a permanent delete would take with it,
         // so the confirm dialog can spell it out before the admin commits.
         public Dictionary<string, CourseDeleteImpact> DeleteImpacts { get; set; } = new();
+
+        // Keyed by CourseID — per-currency registration/payment breakdown,
+        // fetched alongside DeleteImpacts (see CoursePaymentImpact).
+        public Dictionary<string, List<CoursePaymentImpact>> DeletePaymentImpacts { get; set; } = new();
     }
 
     // Counts every row a permanent delete would touch, including inactive
     // ones — the cascade doesn't care about IsActive, so neither can this.
+    // Registrations no longer block a delete (see 0042/0043 migrations);
+    // the counts are shown so the confirm dialog can spell out what's lost.
     public class CourseDeleteImpact
     {
         public int SubjectCount { get; set; }
@@ -195,7 +201,15 @@ namespace Web_Backend.Areas.Admin.Models
         public int ExamCount { get; set; }
         public int RegistrationCount { get; set; }
         public int ExamSittingCount { get; set; }
+    }
 
-        public bool IsBlocked => RegistrationCount > 0;
+    // Per-currency registration/payment breakdown for a delete confirm
+    // dialog — a separate proc call from *_GetDeleteImpact because
+    // IDBAccess has no multi-result-set method (see 0043 migration).
+    public class CoursePaymentImpact
+    {
+        public string CurrencyCode { get; set; } = "";
+        public int RegistrationCount { get; set; }
+        public decimal TotalPaid { get; set; }
     }
 }

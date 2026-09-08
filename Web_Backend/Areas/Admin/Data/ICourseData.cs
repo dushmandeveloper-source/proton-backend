@@ -10,6 +10,7 @@ namespace Web_Backend.Areas.Admin.Data
         Task Deactivate(string id);
         Task DeletePermanently(string id);
         Task<CourseDeleteImpact?> GetDeleteImpact(string id);
+        Task<List<CoursePaymentImpact>> GetDeletePaymentImpact(string id);
 
         Task<List<CourseSubject>> GetSubjects(string courseId);
         Task<string> AddEditSubject(CourseSubject subject);
