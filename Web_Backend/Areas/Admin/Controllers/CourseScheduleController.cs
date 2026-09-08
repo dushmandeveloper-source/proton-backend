@@ -63,6 +63,24 @@ namespace Web_Backend.Areas.Admin.Controllers
             var holidays = await holidayRep.GetByDateRange(today.AddYears(-2), today.AddYears(2));
             ViewBag.Holidays = holidays;
 
+            // Only worth the per-schedule round trip when the delete button
+            // is actually rendered — same pattern as CourseController.Index.
+            var deleteImpacts = new Dictionary<string, CourseScheduleDeleteImpact>();
+            var deletePaymentImpacts = new Dictionary<string, List<CoursePaymentImpact>>();
+            if (Auth.HasPermission(PermissionCode.CourseSchedules, 'D'))
+            {
+                foreach (var schedule in list)
+                {
+                    var impact = await rep.GetDeleteImpact(schedule.ScheduleID);
+                    if (impact == null) continue;
+                    deleteImpacts[schedule.ScheduleID] = impact;
+                    if (impact.RegistrationCount > 0)
+                        deletePaymentImpacts[schedule.ScheduleID] = await rep.GetDeletePaymentImpact(schedule.ScheduleID);
+                }
+            }
+            ViewBag.DeleteImpacts = deleteImpacts;
+            ViewBag.DeletePaymentImpacts = deletePaymentImpacts;
+
             return View(list);
         }
 

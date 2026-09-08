@@ -140,6 +140,12 @@ namespace Web_Backend.Areas.Admin.Data
         public Task DeletePermanently(string id) =>
             db.ExecuteNonQuery("edu.CourseSchedule_DeletePermanently", new { APIKey = AppData.GetAPIKey(), ID = id });
 
+        public Task<CourseScheduleDeleteImpact?> GetDeleteImpact(string id) =>
+            db.Get<CourseScheduleDeleteImpact, object>("edu.CourseSchedule_GetDeleteImpact", new { APIKey = AppData.GetAPIKey(), ID = id });
+
+        public Task<List<CoursePaymentImpact>> GetDeletePaymentImpact(string id) =>
+            db.GetList<CoursePaymentImpact, object>("edu.CourseSchedule_GetDeletePaymentImpact", new { APIKey = AppData.GetAPIKey(), ID = id });
+
         // Shape returned directly by the stored procs — SegmentJSON/
         // InstructorsJSON are the raw JSON columns, deserialized into
         // Segments/Instructors by ToCourseSchedule above before handing back

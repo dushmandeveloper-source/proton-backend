@@ -110,4 +110,14 @@ namespace Web_Backend.Areas.Admin.Models
         public DateTime? ToDate { get; set; }
         public string IsActive { get; set; } = "";
     }
+
+    // Counts every row a permanent delete of one batch would touch. Unlike
+    // Course, two of these can still block the delete outright (reschedule
+    // requests, or a linked exam sitting) — see edu.CourseSchedule_DeletePermanently.
+    public class CourseScheduleDeleteImpact
+    {
+        public int RegistrationCount { get; set; }
+        public int ExamSittingCount { get; set; }
+        public int RescheduleCount { get; set; }
+    }
 }

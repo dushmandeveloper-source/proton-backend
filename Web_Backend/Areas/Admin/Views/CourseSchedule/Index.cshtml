@@ -8,6 +8,8 @@
     var instructors = ViewBag.Instructors as List<AppUser> ?? new List<AppUser>();
     var calendarNotes = ViewBag.CalendarNotes as List<CourseScheduleNote> ?? new List<CourseScheduleNote>();
     var holidays = ViewBag.Holidays as List<HolidayEvent> ?? new List<HolidayEvent>();
+    var deleteImpacts = ViewBag.DeleteImpacts as Dictionary<string, CourseScheduleDeleteImpact> ?? new Dictionary<string, CourseScheduleDeleteImpact>();
+    var deletePaymentImpacts = ViewBag.DeletePaymentImpacts as Dictionary<string, List<CoursePaymentImpact>> ?? new Dictionary<string, List<CoursePaymentImpact>>();
 
     bool canAdd = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.CourseSchedules, 'A');
     bool canDelete = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.CourseSchedules, 'D');
@@ -293,8 +295,41 @@
                                         }
                                         @if (canDelete)
                                         {
+                                            deleteImpacts.TryGetValue(s.ScheduleID, out var schedImpact);
+                                            deletePaymentImpacts.TryGetValue(s.ScheduleID, out var schedPayments);
+                                            var schedAlsoDeleted = new List<string>();
+                                            if (schedImpact != null && schedImpact.RegistrationCount > 0)
+                                            {
+                                                schedAlsoDeleted.Add($"{schedImpact.RegistrationCount} student registration(s)");
+                                                if (schedPayments != null)
+                                                {
+                                                    foreach (var p in schedPayments.Where(p => p.TotalPaid > 0))
+                                                        schedAlsoDeleted.Add($"Payments received: {p.CurrencyCode} {p.TotalPaid.ToString("N2")} ({p.RegistrationCount} registration(s))");
+                                                }
+                                            }
+                                            var schedTotalPaidText = schedPayments != null && schedPayments.Any(p => p.TotalPaid > 0)
+                                                ? string.Join(", ", schedPayments.Where(p => p.TotalPaid > 0).Select(p => $"{p.CurrencyCode} {p.TotalPaid.ToString("N2")}"))
+                                                : null;
+
+                                            // Still hard blocks server-side (edu.CourseSchedule_DeletePermanently):
+                                            // reschedule requests on record, or a linked exam sitting.
+                                            var schedBlockedText = schedImpact != null && schedImpact.RescheduleCount > 0
+                                                ? "This schedule has reschedule requests on record and cannot be permanently deleted. Deactivate it instead."
+                                                : (schedImpact != null && schedImpact.ExamSittingCount > 0
+                                                    ? "This schedule is linked to one or more exam sittings and cannot be permanently deleted. Unlink or remove those exam sittings first, or deactivate it instead."
+                                                    : null);
+
+                                            var schedConfirmText = schedImpact != null && schedImpact.RegistrationCount > 0
+                                                ? $"This will permanently delete this schedule and everything built on it, including {schedImpact.RegistrationCount} student registration(s)" +
+                                                  (schedTotalPaidText != null ? $" and the {schedTotalPaidText} in payments recorded against them" : "") +
+                                                  ". This cannot be undone."
+                                                : "This will permanently delete this course schedule and cannot be undone.";
+
                                             <form method="post" asp-action="DeletePermanently" asp-route-id="@s.ScheduleID" class="inline"
-                                                  data-confirm="This will permanently delete this course schedule and cannot be undone." data-confirm-title="Delete permanently" data-confirm-label="Delete Permanently">
+                                                  data-confirm="@schedConfirmText" data-confirm-title="Delete schedule permanently?" data-confirm-label="Delete Permanently"
+                                                  data-confirm-blocked="@schedBlockedText"
+                                                  data-confirm-details-title="Will also be permanently deleted"
+                                                  data-confirm-details="@(schedAlsoDeleted.Count > 0 ? System.Text.Json.JsonSerializer.Serialize(schedAlsoDeleted) : "")">
                                                 @Html.AntiForgeryToken()
                                                 <button type="submit" title="Delete Permanently" class="p-2 rounded-xl text-red-400 dark:text-red-500 hover:text-white hover:bg-red-600 dark:hover:bg-red-600 transition-colors">
                                                     <i data-lucide="trash-2" class="w-4 h-4"></i>
