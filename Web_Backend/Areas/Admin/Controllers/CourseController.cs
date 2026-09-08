@@ -12,8 +12,6 @@ namespace Web_Backend.Areas.Admin.Controllers
     // Each course then gets its own tabbed detail editor (Details, Content,
     // Pricing & Fees, Combo Offers, Subjects for CSCA courses only,
     // Schedules), where Category/Location are just dropdowns on Details.
-    // CSCA rows cannot be hard/soft deleted from here — see
-    // edu.Course_Deactivate / edu.Course_DeletePermanently — only edited.
     [Area("Admin")]
     public class CourseController : Controller
     {

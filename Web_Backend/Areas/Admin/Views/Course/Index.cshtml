@@ -145,13 +145,7 @@
                             }
                             @if (canDelete)
                             {
-                                @if (c.IsCSCA)
-                                {
-                                    <span title="CSCA courses cannot be deactivated — mark inactive from Edit instead." class="p-2 text-slate-300 dark:text-slate-600 cursor-not-allowed">
-                                        <i data-lucide="lock" class="w-4 h-4"></i>
-                                    </span>
-                                }
-                                else if (c.IsActive == "A")
+                                @if (c.IsActive == "A")
                                 {
                                     <form method="post" asp-action="Deactivate" asp-route-id="@c.CourseID"
                                           data-confirm="This will hide the course from lists but keep all its data safe. You can restore it later." data-confirm-title="Deactivate course" data-confirm-label="Deactivate">
@@ -161,16 +155,13 @@
                                         </button>
                                     </form>
                                 }
-                                @if (!c.IsCSCA)
-                                {
-                                    <form method="post" asp-action="DeletePermanently" asp-route-id="@c.CourseID"
-                                          data-confirm="This will permanently delete this course and cannot be undone." data-confirm-title="Delete course permanently" data-confirm-label="Delete Permanently">
-                                        @Html.AntiForgeryToken()
-                                        <button type="submit" title="Delete Permanently" class="p-2 rounded-xl text-red-500 dark:text-red-400 hover:text-white hover:bg-red-600 dark:hover:bg-red-600 transition-colors">
-                                            <i data-lucide="x-circle" class="w-4 h-4"></i>
-                                        </button>
-                                    </form>
-                                }
+                                <form method="post" asp-action="DeletePermanently" asp-route-id="@c.CourseID"
+                                      data-confirm="This will permanently delete this course and cannot be undone." data-confirm-title="Delete course permanently" data-confirm-label="Delete Permanently">
+                                    @Html.AntiForgeryToken()
+                                    <button type="submit" title="Delete Permanently" class="p-2 rounded-xl text-red-500 dark:text-red-400 hover:text-white hover:bg-red-600 dark:hover:bg-red-600 transition-colors">
+                                        <i data-lucide="x-circle" class="w-4 h-4"></i>
+                                    </button>
+                                </form>
                             }
                         </div>
                     </div>
