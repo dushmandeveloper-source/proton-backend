@@ -25,7 +25,7 @@
             }
             <div>
                 <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Profile Photo</label>
-                <input type="file" name="profileImage" accept="image/*"
+                <input type="file" name="profileImage" accept="image/*,.svg"
                        class="text-sm text-slate-600 dark:text-slate-300 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-medium file:bg-purple-50 dark:file:bg-purple-950 file:text-[#7c3aed] dark:file:text-purple-300" />
             </div>
         </div>
@@ -138,7 +138,7 @@
                     </div>
                     <div class="space-y-1">
                         <label class="text-sm font-medium text-slate-700 dark:text-slate-300">Passport Photo</label>
-                        <input type="file" name="passportPhoto" accept="image/*" disabled="@Model.PassportLocked" class="w-full rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 px-4 py-2 text-sm outline-none focus:border-[#7c3aed] focus:ring-1 focus:ring-[#7c3aed] file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-medium file:bg-purple-50 dark:file:bg-purple-950 file:text-[#7c3aed] dark:file:text-purple-300 disabled:bg-slate-50 disabled:dark:bg-slate-800/60 disabled:cursor-not-allowed" />
+                        <input type="file" name="passportPhoto" accept="image/*,.pdf" disabled="@Model.PassportLocked" class="w-full rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 px-4 py-2 text-sm outline-none focus:border-[#7c3aed] focus:ring-1 focus:ring-[#7c3aed] file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-medium file:bg-purple-50 dark:file:bg-purple-950 file:text-[#7c3aed] dark:file:text-purple-300 disabled:bg-slate-50 disabled:dark:bg-slate-800/60 disabled:cursor-not-allowed" />
                         @if (!string.IsNullOrEmpty(Model.PassportPhotoURL))
                         {
                             <button type="button" id="viewPassportPhotoBtn" data-photo-url="@Model.PassportPhotoURL"

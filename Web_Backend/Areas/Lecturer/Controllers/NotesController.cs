@@ -17,11 +17,11 @@ namespace Web_Backend.Areas.LecturerPortal.Controllers
         private const string UploadFolder = "LectureNotes";
 
         // Section F: .pdf .doc .docx .ppt .pptx .xls .xlsx .jpg .jpeg .png
-        // .webp .mp4 .mov .webm, 100 MB cap.
+        // .gif .svg .webp .mp4 .mov .webm, 100 MB cap.
         private static readonly string[] AllowedExtensions =
         {
             ".pdf", ".doc", ".docx", ".ppt", ".pptx", ".xls", ".xlsx",
-            ".jpg", ".jpeg", ".png", ".webp", ".mp4", ".mov", ".webm"
+            ".jpg", ".jpeg", ".png", ".gif", ".svg", ".webp", ".mp4", ".mov", ".webm"
         };
         private const long MaxBytes = 100 * 1024 * 1024;
 

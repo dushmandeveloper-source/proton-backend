@@ -104,7 +104,7 @@
                             @(s.FirstName.Length > 0 ? s.FirstName[0].ToString().ToUpper() : "?")
                         </div>
                     }
-                    <input type="file" name="profileImage" accept="image/*"
+                    <input type="file" name="profileImage" accept="image/*,.svg"
                            class="text-sm text-slate-600 dark:text-slate-300 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-medium file:bg-purple-50 dark:file:bg-purple-950 file:text-[#7c3aed] dark:file:text-purple-300" />
                 </div>
             </div>
@@ -236,7 +236,7 @@
                         {
                             <img src="@s.PassportPhotoURL" alt="" class="w-24 h-16 rounded-lg object-cover border border-slate-200 dark:border-slate-600" />
                         }
-                        <input type="file" name="passportPhoto" accept="image/*"
+                        <input type="file" name="passportPhoto" accept="image/*,.pdf"
                                class="block w-full text-sm text-slate-500 dark:text-slate-400 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-medium file:bg-purple-50 dark:file:bg-purple-950 file:text-[#7c3aed] dark:file:text-purple-300 hover:file:bg-purple-100" />
                     </div>
                 </div>
@@ -345,7 +345,7 @@
 
                     <div id="payment-slip-field" class="hidden space-y-1">
                         <label class="@LabelCls">Payment Slip</label>
-                        <input type="file" name="paymentSlip" accept="image/*"
+                        <input type="file" name="paymentSlip" accept="image/*,.pdf"
                                class="block w-full text-sm text-slate-500 dark:text-slate-400 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-medium file:bg-purple-50 dark:file:bg-purple-950 file:text-[#7c3aed] dark:file:text-purple-300 hover:file:bg-purple-100" />
                     </div>
 

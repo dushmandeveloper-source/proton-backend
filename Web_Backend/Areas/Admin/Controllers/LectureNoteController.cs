@@ -17,7 +17,7 @@ namespace Web_Backend.Areas.Admin.Controllers
         private static readonly string[] AllowedExtensions =
         {
             ".pdf", ".doc", ".docx", ".ppt", ".pptx", ".xls", ".xlsx",
-            ".jpg", ".jpeg", ".png", ".webp", ".mp4", ".mov", ".webm"
+            ".jpg", ".jpeg", ".png", ".gif", ".svg", ".webp", ".mp4", ".mov", ".webm"
         };
         private const long MaxBytes = 100 * 1024 * 1024;
 
