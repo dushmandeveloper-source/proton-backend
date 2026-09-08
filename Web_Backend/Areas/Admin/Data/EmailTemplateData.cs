@@ -37,5 +37,17 @@ namespace Web_Backend.Areas.Admin.Data
 
         public Task Delete(string id) =>
             db.ExecuteNonQuery("syst.EmailTemplate_Delete", new { APIKey = AppData.GetAPIKey(), ID = id });
+
+        public Task Deactivate(string id, string logUserId) =>
+            db.ExecuteNonQuery("syst.EmailTemplate_Deactivate", new { APIKey = AppData.GetAPIKey(), ID = id, LogUserID = logUserId });
+
+        public Task Activate(string id, string logUserId) =>
+            db.ExecuteNonQuery("syst.EmailTemplate_Activate", new { APIKey = AppData.GetAPIKey(), ID = id, LogUserID = logUserId });
+
+        public Task DeletePermanently(string id, string logUserId) =>
+            db.ExecuteNonQuery("syst.EmailTemplate_DeletePermanently", new { APIKey = AppData.GetAPIKey(), ID = id, LogUserID = logUserId });
+
+        public Task<EmailTemplateDeleteImpact?> GetDeleteImpact(string id) =>
+            db.Get<EmailTemplateDeleteImpact, object>("syst.EmailTemplate_GetDeleteImpact", new { APIKey = AppData.GetAPIKey(), ID = id });
     }
 }

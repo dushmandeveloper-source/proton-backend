@@ -79,7 +79,7 @@ namespace Web_Backend.Classes
                 return new SignInOutcome { Success = false, ErrorMessage = "This account is locked after too many failed attempts. Contact an administrator." };
 
             if (auth.AuthIsActive != "A" || auth.UserIsActive != "A")
-                return new SignInOutcome { Success = false, ErrorMessage = "This account is inactive." };
+                return new SignInOutcome { Success = false, ErrorMessage = "This account has been deactivated. Please contact the administration to have it reactivated." };
 
             if (!PasswordHasher.Verify(password, auth.PasswordHash, auth.PasswordSalt))
             {

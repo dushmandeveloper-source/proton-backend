@@ -12,6 +12,9 @@ namespace Web_Backend.Areas.Admin.Data
         Task<string> UpdateOwnProfile(string studentId, string userId, StudentProfileUpdateRequest request);
         Task<string> UpdatePassportInfo(string studentId, string userId, StudentPassportUpdateRequest request);
         Task<string> VerifyPassport(string studentId, string status, string verifiedByUserId);
-        Task Delete(string id);
+        Task Deactivate(string id, string logUserId);
+        Task Activate(string id, string logUserId);
+        Task DeletePermanently(string id, string logUserId);
+        Task<StudentDeleteImpact?> GetDeleteImpact(string id);
     }
 }

@@ -4,6 +4,7 @@
     bool canAddEmailTemplate = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.EmailTemplates, 'A');
     bool canEditEmailTemplate = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.EmailTemplates, 'E');
     bool canDeleteEmailTemplate = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.EmailTemplates, 'D');
+    var deleteImpacts = ViewBag.DeleteImpacts as Dictionary<string, EmailTemplateDeleteImpact> ?? new();
 }
 
 <div class="max-w-5xl mx-auto page-enter">
@@ -49,24 +50,61 @@
                                 }
                                 <span class="px-2.5 py-0.5 rounded-full text-xs font-medium @statusColor">@(t.IsActive == "A" ? "Active" : "Inactive")</span>
                             </td>
-                            <td class="px-6 py-4 text-right whitespace-nowrap">
-                                @if (canEditEmailTemplate)
-                                {
-                                    <a asp-action="Edit" asp-route-id="@t.TemplateID" title="Edit"
-                                       class="text-slate-400 dark:text-slate-500 hover:text-[#7c3aed] dark:hover:text-[#a78bfa] p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors inline-flex">
-                                        <i data-lucide="pencil" class="w-4 h-4"></i>
-                                    </a>
-                                }
-                                @if (canDeleteEmailTemplate)
-                                {
-                                    <form method="post" asp-action="Delete" asp-route-id="@t.TemplateID" class="inline"
-                                          data-confirm="Delete the '@t.TemplateName' template?" data-confirm-title="Delete template" data-confirm-label="Delete">
-                                        @Html.AntiForgeryToken()
-                                        <button type="submit" title="Delete" class="text-slate-400 dark:text-slate-500 hover:text-red-600 dark:hover:text-red-400 p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
-                                            <i data-lucide="trash-2" class="w-4 h-4"></i>
-                                        </button>
-                                    </form>
-                                }
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="flex items-center justify-end gap-1 flex-nowrap">
+                                    @if (canEditEmailTemplate)
+                                    {
+                                        <a asp-action="Edit" asp-route-id="@t.TemplateID" title="Edit"
+                                           class="text-slate-400 dark:text-slate-500 hover:text-[#7c3aed] dark:hover:text-[#a78bfa] p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors inline-flex">
+                                            <i data-lucide="pencil" class="w-4 h-4"></i>
+                                        </a>
+                                    }
+                                    @{
+                                        deleteImpacts.TryGetValue(t.TemplateID, out var impact);
+                                        var isSystemTemplate = impact?.IsSystemTemplate ?? false;
+                                    }
+                                    @if (isSystemTemplate)
+                                    {
+                                        <span title="The app sends mail through this template, so it can only be edited — not turned off or deleted."
+                                              class="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-medium bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 cursor-help">
+                                            <i data-lucide="lock" class="w-3.5 h-3.5"></i> In use by the app
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        if (canEditEmailTemplate && t.IsActive != "A")
+                                        {
+                                            <form method="post" asp-action="Activate" asp-route-id="@t.TemplateID" class="inline">
+                                                @Html.AntiForgeryToken()
+                                                <button type="submit" title="Activate" class="text-slate-400 dark:text-slate-500 hover:text-emerald-600 dark:hover:text-emerald-400 p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+                                                    <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
+                                                </button>
+                                            </form>
+                                        }
+                                        if (canDeleteEmailTemplate)
+                                        {
+                                            if (t.IsActive == "A")
+                                            {
+                                                <form method="post" asp-action="Deactivate" asp-route-id="@t.TemplateID" class="inline"
+                                                      data-confirm="This stops the '@t.TemplateName' template being used, but keeps its wording so you can turn it back on later."
+                                                      data-confirm-title="Deactivate template" data-confirm-label="Deactivate">
+                                                    @Html.AntiForgeryToken()
+                                                    <button type="submit" title="Deactivate" class="text-slate-400 dark:text-slate-500 hover:text-amber-600 dark:hover:text-amber-400 p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+                                                        <i data-lucide="eye-off" class="w-4 h-4"></i>
+                                                    </button>
+                                                </form>
+                                            }
+                                            <form method="post" asp-action="DeletePermanently" asp-route-id="@t.TemplateID" class="inline"
+                                                  data-confirm="This permanently removes the '@t.TemplateName' template and its wording. This cannot be undone."
+                                                  data-confirm-title="Delete '@t.TemplateName' permanently?" data-confirm-label="Delete Permanently">
+                                                @Html.AntiForgeryToken()
+                                                <button type="submit" title="Delete Permanently" class="text-red-500 dark:text-red-400 hover:text-white hover:bg-red-600 dark:hover:bg-red-600 p-1.5 rounded-lg transition-colors">
+                                                    <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                                </button>
+                                            </form>
+                                        }
+                                    }
+                                </div>
                             </td>
                         </tr>
                     }

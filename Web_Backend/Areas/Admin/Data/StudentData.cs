@@ -107,7 +107,16 @@ namespace Web_Backend.Areas.Admin.Data
                 VerifiedByUserID = verifiedByUserId
             });
 
-        public Task Delete(string id) =>
-            db.ExecuteNonQuery("mst.Student_Delete", new { APIKey = AppData.GetAPIKey(), ID = id });
+        public Task Deactivate(string id, string logUserId) =>
+            db.ExecuteNonQuery("mst.Student_Deactivate", new { APIKey = AppData.GetAPIKey(), ID = id, LogUserID = logUserId });
+
+        public Task Activate(string id, string logUserId) =>
+            db.ExecuteNonQuery("mst.Student_Activate", new { APIKey = AppData.GetAPIKey(), ID = id, LogUserID = logUserId });
+
+        public Task DeletePermanently(string id, string logUserId) =>
+            db.ExecuteNonQuery("mst.Student_DeletePermanently", new { APIKey = AppData.GetAPIKey(), ID = id, LogUserID = logUserId });
+
+        public Task<StudentDeleteImpact?> GetDeleteImpact(string id) =>
+            db.Get<StudentDeleteImpact, object>("mst.Student_GetDeleteImpact", new { APIKey = AppData.GetAPIKey(), ID = id });
     }
 }
