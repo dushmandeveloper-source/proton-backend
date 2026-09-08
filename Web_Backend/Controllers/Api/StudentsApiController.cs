@@ -44,6 +44,8 @@ namespace Web_Backend.Controllers.Api
                 return BadRequest(new { message = "First and last name are required." });
             if (string.IsNullOrWhiteSpace(request.Email))
                 return BadRequest(new { message = "Email is required." });
+            if (string.IsNullOrWhiteSpace(request.Phone))
+                return BadRequest(new { message = "Phone number is required." });
             if (string.IsNullOrWhiteSpace(request.Password) || request.Password.Length < 8)
                 return BadRequest(new { message = "Password must be at least 8 characters." });
 

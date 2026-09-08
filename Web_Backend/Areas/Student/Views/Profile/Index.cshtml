@@ -46,8 +46,8 @@
                     <input asp-for="Email" type="email" readonly class="w-full rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-800/60 text-slate-500 dark:text-slate-400 px-4 py-2.5 text-sm outline-none cursor-not-allowed" />
                 </div>
                 <div class="space-y-1">
-                    <label class="text-sm font-medium text-slate-700 dark:text-slate-300">Phone</label>
-                    <input asp-for="Phone" class="w-full rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 px-4 py-2.5 text-sm outline-none focus:border-[#7c3aed] focus:ring-1 focus:ring-[#7c3aed]" />
+                    <label class="text-sm font-medium text-slate-700 dark:text-slate-300">Phone <span class="text-red-500">*</span></label>
+                    <input asp-for="Phone" required class="w-full rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 px-4 py-2.5 text-sm outline-none focus:border-[#7c3aed] focus:ring-1 focus:ring-[#7c3aed]" />
                 </div>
                 <div class="space-y-1">
                     <label class="text-sm font-medium text-slate-700 dark:text-slate-300">Role</label>

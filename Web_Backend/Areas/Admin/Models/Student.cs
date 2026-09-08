@@ -106,6 +106,8 @@ namespace Web_Backend.Areas.Admin.Models
 
         [Required(ErrorMessage = "Email is required.")]
         public string Email { get; set; } = "";
+
+        [Required(ErrorMessage = "Phone number is required.")]
         public string Phone { get; set; } = "";
         public string ProfileImageUrl { get; set; } = "";
 
