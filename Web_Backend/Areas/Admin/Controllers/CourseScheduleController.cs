@@ -128,13 +128,29 @@ namespace Web_Backend.Areas.Admin.Controllers
         }
 
         [HttpPost, ValidateAntiForgeryToken]
-        public async Task<IActionResult> Delete(string id)
+        public async Task<IActionResult> Deactivate(string id)
         {
             Auth.CheckPermission(PermissionCode.CourseSchedules, 'D');
             try
             {
-                await rep.Delete(id);
-                TempData["SuccessMessage"] = "Schedule deleted.";
+                await rep.Deactivate(id);
+                TempData["SuccessMessage"] = "Schedule deactivated.";
+            }
+            catch (Exception ex)
+            {
+                TempData["ErrorMessage"] = "Could not deactivate: " + ex.Message;
+            }
+            return RedirectToAction("Index");
+        }
+
+        [HttpPost, ValidateAntiForgeryToken]
+        public async Task<IActionResult> DeletePermanently(string id)
+        {
+            Auth.CheckPermission(PermissionCode.CourseSchedules, 'D');
+            try
+            {
+                await rep.DeletePermanently(id);
+                TempData["SuccessMessage"] = "Schedule permanently deleted.";
             }
             catch (Exception ex)
             {

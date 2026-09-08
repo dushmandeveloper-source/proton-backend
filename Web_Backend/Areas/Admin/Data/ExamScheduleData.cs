@@ -115,8 +115,11 @@ namespace Web_Backend.Areas.Admin.Data
                 MeetingLink = meetingLink
             });
 
-        public Task Delete(string id) =>
-            db.ExecuteNonQuery("edu.ExamSchedule_Delete", new { APIKey = AppData.GetAPIKey(), ID = id });
+        public Task Deactivate(string id) =>
+            db.ExecuteNonQuery("edu.ExamSchedule_Deactivate", new { APIKey = AppData.GetAPIKey(), ID = id });
+
+        public Task DeletePermanently(string id) =>
+            db.ExecuteNonQuery("edu.ExamSchedule_DeletePermanently", new { APIKey = AppData.GetAPIKey(), ID = id });
 
         // Shape returned directly by the stored procs — SegmentJSON/
         // InstructorsJSON are the raw JSON columns, deserialized into

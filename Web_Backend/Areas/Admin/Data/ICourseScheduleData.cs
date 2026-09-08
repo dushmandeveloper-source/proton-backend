@@ -24,6 +24,11 @@ namespace Web_Backend.Areas.Admin.Data
         // "must be an assigned instructor" check UpdateSegmentMeetingLinks
         // enforces — used from the Admin schedule calendar's day popup.
         Task SetSegmentMeetingLink(string segmentId, string meetingLink);
-        Task Delete(string id);
+        Task Deactivate(string id);
+        // Genuine permanent delete (edu.CourseSchedule_DeletePermanently) —
+        // cascades its own pure child rows (segments/instructors/notes) but
+        // refuses when real history (reschedule requests, or an ExamSchedule
+        // still linked to this batch) hangs off it.
+        Task DeletePermanently(string id);
     }
 }

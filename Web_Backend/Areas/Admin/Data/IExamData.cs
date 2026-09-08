@@ -7,7 +7,8 @@ namespace Web_Backend.Areas.Admin.Data
         Task<List<Exam>> GetList(ExamSearchView search);
         Task<Exam?> Get(string id);
         Task<string> AddEdit(Exam exam);
-        Task Delete(string id);
+        Task Deactivate(string id);
+        Task DeletePermanently(string id);
 
         Task<List<ExamQuestion>> GetQuestions(string examId);
         Task<ExamQuestion?> GetQuestion(string id);

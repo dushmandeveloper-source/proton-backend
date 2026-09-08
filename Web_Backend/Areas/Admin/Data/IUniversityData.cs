@@ -7,7 +7,8 @@ namespace Web_Backend.Areas.Admin.Data
         Task<List<University>> GetList(UniversitySearchView search);
         Task<University?> Get(string id);
         Task<string> AddEdit(University university);
-        Task Delete(string id);
+        Task Deactivate(string id);
+        Task DeletePermanently(string id);
 
         Task<List<UniversityGalleryItem>> GetGallery(string universityId);
         Task<string> AddEditGallery(UniversityGalleryItem item);

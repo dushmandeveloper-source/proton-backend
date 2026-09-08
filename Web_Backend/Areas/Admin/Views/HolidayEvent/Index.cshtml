@@ -4,6 +4,7 @@
     bool canAdd = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.HolidayCalendar, 'A');
     bool canEdit = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.HolidayCalendar, 'E');
     bool canDelete = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.HolidayCalendar, 'D');
+    var showInactive = ViewBag.ShowInactive as bool? ?? false;
 }
 
 <div class="max-w-4xl mx-auto page-enter">
@@ -12,13 +13,20 @@
             <h2 class="text-3xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">Holiday &amp; Events Calendar</h2>
             <p class="text-slate-500 dark:text-slate-400 mt-2">Global dates marked on the Course Schedule calendar. Courses can still be scheduled on these dates with confirmation.</p>
         </div>
-        @if (canAdd)
-        {
-            <button type="button" onclick="openAddHolidayForm()"
-                    class="px-4 py-2 rounded-xl font-medium bg-[#7c3aed] text-white hover:bg-[#6d28d9] shadow-sm text-sm flex items-center gap-2 w-fit">
-                <i data-lucide="plus" class="w-4 h-4"></i> Add Holiday / Event
-            </button>
-        }
+        <div class="flex items-center gap-3">
+            <label class="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400 cursor-pointer select-none">
+                <input type="checkbox" onchange="location.href='@Url.Action("Index")?showInactive=' + this.checked" checked="@showInactive"
+                       class="rounded border-slate-300 dark:border-slate-600" />
+                Show inactive
+            </label>
+            @if (canAdd)
+            {
+                <button type="button" onclick="openAddHolidayForm()"
+                        class="px-4 py-2 rounded-xl font-medium bg-[#7c3aed] text-white hover:bg-[#6d28d9] shadow-sm text-sm flex items-center gap-2 w-fit">
+                    <i data-lucide="plus" class="w-4 h-4"></i> Add Holiday / Event
+                </button>
+            }
+        </div>
     </div>
 
     @if (canAdd || canEdit)
@@ -67,6 +75,10 @@
                             <tr class="border-b border-slate-50 dark:border-slate-800 last:border-0">
                                 <td class="px-6 py-3">
                                     <span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-yellow-100 dark:bg-yellow-950 text-yellow-800 dark:text-yellow-300">@h.HolidayDate.ToString("MMM d, yyyy")</span>
+                                    @if (h.IsActive != "A")
+                                    {
+                                        <span class="ml-2 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 uppercase">Inactive</span>
+                                    }
                                 </td>
                                 <td class="px-6 py-3 font-medium text-slate-800 dark:text-slate-100">@h.Title</td>
                                 <td class="px-6 py-3 text-slate-500 dark:text-slate-400">@(h.Description ?? "-")</td>
@@ -84,13 +96,32 @@
                                             <i data-lucide="pencil" class="w-4 h-4"></i>
                                         </button>
                                     }
+                                    @if (canEdit && h.IsActive != "A")
+                                    {
+                                        <form method="post" asp-action="Activate" asp-route-id="@h.HolidayID" class="inline">
+                                            @Html.AntiForgeryToken()
+                                            <button type="submit" title="Activate" class="p-2 rounded-xl text-slate-400 dark:text-slate-500 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+                                                <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
+                                            </button>
+                                        </form>
+                                    }
+                                    @if (canDelete && h.IsActive == "A")
+                                    {
+                                        <form method="post" asp-action="Deactivate" asp-route-id="@h.HolidayID" class="inline"
+                                              data-confirm="This will hide the holiday/event from lists but keep all its data safe. You can restore it later." data-confirm-title="Deactivate holiday/event" data-confirm-label="Deactivate">
+                                            @Html.AntiForgeryToken()
+                                            <button type="submit" title="Deactivate" class="p-2 rounded-xl text-slate-400 dark:text-slate-500 hover:text-amber-600 dark:hover:text-amber-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+                                                <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                            </button>
+                                        </form>
+                                    }
                                     @if (canDelete)
                                     {
-                                        <form method="post" asp-action="Delete" asp-route-id="@h.HolidayID" class="inline"
-                                              data-confirm="Delete this holiday/event?" data-confirm-title="Delete holiday/event" data-confirm-label="Delete">
+                                        <form method="post" asp-action="DeletePermanently" asp-route-id="@h.HolidayID" class="inline"
+                                              data-confirm="This will permanently delete this holiday/event and cannot be undone." data-confirm-title="Delete holiday/event permanently" data-confirm-label="Delete Permanently">
                                             @Html.AntiForgeryToken()
-                                            <button type="submit" title="Delete" class="p-2 rounded-xl text-slate-400 dark:text-slate-500 hover:text-red-600 dark:hover:text-red-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
-                                                <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                            <button type="submit" title="Delete Permanently" class="p-2 rounded-xl text-red-500 dark:text-red-400 hover:text-white hover:bg-red-600 dark:hover:bg-red-600 transition-colors">
+                                                <i data-lucide="x-circle" class="w-4 h-4"></i>
                                             </button>
                                         </form>
                                     }

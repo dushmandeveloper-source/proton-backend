@@ -123,13 +123,52 @@ namespace Web_Backend.Areas.Admin.Controllers
         }
 
         [HttpPost, ValidateAntiForgeryToken]
-        public async Task<IActionResult> Delete(string id)
+        public async Task<IActionResult> Deactivate(string id)
         {
             Auth.CheckPermission(PermissionCode.Exams, 'D');
             try
             {
-                await rep.Delete(id);
-                TempData["SuccessMessage"] = "Exam deleted.";
+                await rep.Deactivate(id);
+                TempData["SuccessMessage"] = "Exam deactivated.";
+            }
+            catch (Exception ex)
+            {
+                TempData["ErrorMessage"] = "Could not deactivate: " + ex.Message;
+            }
+            return RedirectToAction("Index");
+        }
+
+        [HttpPost, ValidateAntiForgeryToken]
+        public async Task<IActionResult> Activate(string id)
+        {
+            Auth.CheckPermission(PermissionCode.Exams, 'E');
+            try
+            {
+                var exam = await rep.Get(id);
+                if (exam == null)
+                {
+                    TempData["ErrorMessage"] = "Exam not found.";
+                    return RedirectToAction("Index");
+                }
+                exam.IsActive = "A";
+                await rep.AddEdit(exam);
+                TempData["SuccessMessage"] = "Exam activated.";
+            }
+            catch (Exception ex)
+            {
+                TempData["ErrorMessage"] = "Could not activate: " + ex.Message;
+            }
+            return RedirectToAction("Index", new { showInactive = true });
+        }
+
+        [HttpPost, ValidateAntiForgeryToken]
+        public async Task<IActionResult> DeletePermanently(string id)
+        {
+            Auth.CheckPermission(PermissionCode.Exams, 'D');
+            try
+            {
+                await rep.DeletePermanently(id);
+                TempData["SuccessMessage"] = "Exam permanently deleted.";
             }
             catch (Exception ex)
             {
