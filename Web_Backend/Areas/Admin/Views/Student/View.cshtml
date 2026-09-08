@@ -333,7 +333,7 @@
                                                                     </div>
                                                                     <div class="space-y-1 edit-payment-slip-field-@p.PaymentID @(p.PaymentMethod == "BankDeposit" ? "" : "hidden")">
                                                                         <label class="@LabelCls">New Slip (optional)</label>
-                                                                        <input type="file" name="paymentSlip" accept="image/*" class="block w-full text-xs text-slate-500 dark:text-slate-400" />
+                                                                        <input type="file" name="paymentSlip" accept="image/*,.pdf" class="block w-full text-xs text-slate-500 dark:text-slate-400" />
                                                                     </div>
                                                                 </div>
                                                                 <div class="space-y-1">
@@ -384,7 +384,7 @@
                                         </div>
                                         <div class="space-y-1 add-payment-slip-field-@reg.RegistrationID hidden">
                                             <label class="@LabelCls">Payment Slip</label>
-                                            <input type="file" name="paymentSlip" accept="image/*" class="block w-full text-xs text-slate-500 dark:text-slate-400" />
+                                            <input type="file" name="paymentSlip" accept="image/*,.pdf" class="block w-full text-xs text-slate-500 dark:text-slate-400" />
                                         </div>
                                     </div>
                                     <div class="space-y-1">
