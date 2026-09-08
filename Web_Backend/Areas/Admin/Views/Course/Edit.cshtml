@@ -79,8 +79,8 @@
             }
 
             <div>
-                <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Course Title</label>
-                <input asp-for="Course.CourseTitle" class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" />
+                <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Course Title <span class="text-red-500">*</span></label>
+                <input asp-for="Course.CourseTitle" required class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" />
                 <span asp-validation-for="Course.CourseTitle" class="text-xs text-red-600"></span>
             </div>
 

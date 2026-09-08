@@ -325,26 +325,26 @@
 
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div class="space-y-1">
-                                    <label class="text-sm font-medium text-slate-700 dark:text-slate-300">First Name</label>
-                                    <input name="FirstName" value="@fName" placeholder="e.g. Jane"
+                                    <label class="text-sm font-medium text-slate-700 dark:text-slate-300">First Name <span class="text-red-500">*</span></label>
+                                    <input name="FirstName" value="@fName" required placeholder="e.g. Jane"
                                            class="w-full rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 px-4 py-2.5 text-sm outline-none focus:border-[#7c3aed] focus:ring-1 focus:ring-[#7c3aed]" />
                                     <span class="text-xs text-red-500">@Html.ValidationMessage("FirstName")</span>
                                 </div>
                                 <div class="space-y-1">
-                                    <label class="text-sm font-medium text-slate-700 dark:text-slate-300">Last Name</label>
-                                    <input name="LastName" value="@lName" placeholder="e.g. Smith"
+                                    <label class="text-sm font-medium text-slate-700 dark:text-slate-300">Last Name <span class="text-red-500">*</span></label>
+                                    <input name="LastName" value="@lName" required placeholder="e.g. Smith"
                                            class="w-full rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 px-4 py-2.5 text-sm outline-none focus:border-[#7c3aed] focus:ring-1 focus:ring-[#7c3aed]" />
                                     <span class="text-xs text-red-500">@Html.ValidationMessage("LastName")</span>
                                 </div>
                             </div>
 
                             <div class="space-y-1">
-                                <label class="text-sm font-medium text-slate-700 dark:text-slate-300">Email Address</label>
+                                <label class="text-sm font-medium text-slate-700 dark:text-slate-300">Email Address <span class="text-red-500">*</span></label>
                                 <div class="relative">
                                     <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                                         <i data-lucide="mail" class="h-5 w-5 text-slate-400 dark:text-slate-500"></i>
                                     </div>
-                                    <input name="Email" type="email" value="@email" placeholder="jane.smith@example.com"
+                                    <input name="Email" type="email" value="@email" required placeholder="jane.smith@example.com"
                                            class="w-full rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 px-4 py-2.5 pl-10 text-sm outline-none focus:border-[#7c3aed] focus:ring-1 focus:ring-[#7c3aed]" />
                                 </div>
                                 <span class="text-xs text-red-500">@Html.ValidationMessage("Email")</span>
@@ -478,8 +478,8 @@
                             }
 
                             <div class="space-y-1">
-                                <label class="text-sm font-medium text-slate-700 dark:text-slate-300">Role Name</label>
-                                <input name="UserTypeName" value="@roleForm.UserTypeName" placeholder="e.g. Marketing"
+                                <label class="text-sm font-medium text-slate-700 dark:text-slate-300">Role Name <span class="text-red-500">*</span></label>
+                                <input name="UserTypeName" value="@roleForm.UserTypeName" required placeholder="e.g. Marketing"
                                        class="w-full rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 px-4 py-2.5 text-sm outline-none focus:border-[#7c3aed] focus:ring-1 focus:ring-[#7c3aed]" />
                                 <span class="text-xs text-red-500">@Html.ValidationMessage("UserTypeName")</span>
                             </div>
