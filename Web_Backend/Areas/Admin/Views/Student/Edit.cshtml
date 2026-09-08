@@ -132,8 +132,8 @@
                         }
                     </div>
                     <div class="space-y-1">
-                        <label class="@LabelCls">Phone</label>
-                        <input name="Phone" value="@s.Phone" class="@InputCls" />
+                        <label class="@LabelCls">Phone <span class="text-red-500">*</span></label>
+                        <input name="Phone" value="@s.Phone" required class="@InputCls" />
                     </div>
                     @if (Model.IsNew)
                     {
