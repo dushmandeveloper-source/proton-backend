@@ -117,7 +117,7 @@ namespace Web_Backend.Areas.Admin.Controllers
 
         [HttpPost, ValidateAntiForgeryToken]
         public async Task<IActionResult> Save(
-            Course form, IFormFile? imageFile, IFormFile? handbookFile, string tab = "details",
+            [Bind(Prefix = "Course")] Course form, IFormFile? imageFile, IFormFile? handbookFile, string tab = "details",
             string? PricingJSON = null, string? DescriptionJSON = null, string? PathwayJSON = null,
             string? ComboOfferJSON = null, string? TrainingPointJSON = null, string? OutcomeJSON = null,
             string? RequirementJSON = null, string? FeeChargeJSON = null)
