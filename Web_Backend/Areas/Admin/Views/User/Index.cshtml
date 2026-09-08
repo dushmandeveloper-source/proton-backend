@@ -35,6 +35,13 @@
     string? studentRoleId = Model.Roles.FirstOrDefault(r => r.UserTypeName.Equals("Student", StringComparison.OrdinalIgnoreCase))?.UserTypeID;
     var assignableRolesNoStudent = assignableRoles.Where(r => r.UserTypeID != studentRoleId).ToList();
 
+    // Instructors are managed on their own Lecturers screen with a fixed,
+    // built-in capability set — the per-module View/Add/Edit/Delete grid
+    // here doesn't apply to them (same reasoning as the Roles tab's
+    // isStudentOrInstructorRole branch, just applied to the per-user
+    // override grid instead of the role-defaults grid).
+    string? instructorRoleId = Model.Roles.FirstOrDefault(r => r.UserTypeName.Equals("Instructor", StringComparison.OrdinalIgnoreCase))?.UserTypeID;
+
     // UserManagement covers both Users and Roles tabs on this one page.
     bool canAddUM = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.UserManagement, 'A');
     bool canEditUM = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.UserManagement, 'E');
@@ -392,7 +399,10 @@
                                     <span class="text-xs text-red-500">@Html.ValidationMessage("Role")</span>
                                 </div>
 
-                                <div class="space-y-2">
+                                <p id="instructor-permissions-note" class="text-xs text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-xl px-4 py-3" hidden="@(instructorRoleId == null || role != instructorRoleId)">
+                                    This account is an Instructor — permissions don't apply here. Manage what instructors can do from the Lecturers section instead.
+                                </p>
+                                <div id="user-permissions-block" class="space-y-2" hidden="@(instructorRoleId != null && role == instructorRoleId)">
                                     <label class="text-sm font-medium text-slate-700 dark:text-slate-300">Permissions</label>
                                     <p class="text-xs text-slate-500 dark:text-slate-400">
                                         Shows what the selected role grants. Tick or untick any box to override it for this user only — leave a box as-is to keep inheriting from the role.
@@ -402,7 +412,7 @@
                                         var rolePermissionsByRole = ViewBag.RolePermissionsByRole as Dictionary<string, List<PermissionGridViewModel>> ?? new();
                                     }
                                     <div class="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-600">
-                                        <table class="w-full text-left border-collapse" id="user-permission-grid" data-role-defaults="@System.Text.Json.JsonSerializer.Serialize(rolePermissionsByRole)">
+                                        <table class="w-full text-left border-collapse" id="user-permission-grid" data-role-defaults="@System.Text.Json.JsonSerializer.Serialize(rolePermissionsByRole)" data-instructor-role-id="@instructorRoleId">
                                             <thead>
                                                 <tr class="bg-slate-50 dark:bg-slate-800 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                                                     <th class="px-4 py-3">Module</th>
@@ -682,8 +692,21 @@
                 });
             });
 
+            const instructorRoleId = table.dataset.instructorRoleId || '';
+            const permissionsBlock = document.getElementById('user-permissions-block');
+            const instructorNote = document.getElementById('instructor-permissions-note');
+
+            function toggleInstructorVisibility(roleId) {
+                const isInstructor = !!instructorRoleId && roleId === instructorRoleId;
+                if (permissionsBlock) permissionsBlock.hidden = isInstructor;
+                if (instructorNote) instructorNote.hidden = !isInstructor;
+            }
+
             document.querySelectorAll('input[name="Role"]').forEach(radio => {
-                radio.addEventListener('change', (e) => applyRoleDefaults(e.target.value));
+                radio.addEventListener('change', (e) => {
+                    applyRoleDefaults(e.target.value);
+                    toggleInstructorVisibility(e.target.value);
+                });
             });
 
             const checkedRole = document.querySelector('input[name="Role"]:checked');
