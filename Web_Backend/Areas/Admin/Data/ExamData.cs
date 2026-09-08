@@ -42,8 +42,11 @@ namespace Web_Backend.Areas.Admin.Data
                 e.IsActive
             });
 
-        public Task Delete(string id) =>
-            db.ExecuteNonQuery("edu.Exam_Delete", new { APIKey = AppData.GetAPIKey(), ID = id });
+        public Task Deactivate(string id) =>
+            db.ExecuteNonQuery("edu.Exam_Deactivate", new { APIKey = AppData.GetAPIKey(), ID = id });
+
+        public Task DeletePermanently(string id) =>
+            db.ExecuteNonQuery("edu.Exam_DeletePermanently", new { APIKey = AppData.GetAPIKey(), ID = id });
 
         // ---------- Questions ----------
         public Task<List<ExamQuestion>> GetQuestions(string examId) =>

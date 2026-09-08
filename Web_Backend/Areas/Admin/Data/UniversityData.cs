@@ -69,8 +69,11 @@ namespace Web_Backend.Areas.Admin.Data
                 u.IsActive
             });
 
-        public Task Delete(string id) =>
-            db.ExecuteNonQuery("edu.University_Delete", new { APIKey = AppData.GetAPIKey(), ID = id });
+        public Task Deactivate(string id) =>
+            db.ExecuteNonQuery("edu.University_Deactivate", new { APIKey = AppData.GetAPIKey(), ID = id });
+
+        public Task DeletePermanently(string id) =>
+            db.ExecuteNonQuery("edu.University_DeletePermanently", new { APIKey = AppData.GetAPIKey(), ID = id });
 
         // ---------- Gallery ----------
         public Task<List<UniversityGalleryItem>> GetGallery(string universityId) =>

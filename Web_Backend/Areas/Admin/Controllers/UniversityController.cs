@@ -200,17 +200,56 @@ namespace Web_Backend.Areas.Admin.Controllers
         }
 
         [HttpPost, ValidateAntiForgeryToken]
-        public async Task<IActionResult> Delete(string id)
+        public async Task<IActionResult> Deactivate(string id)
         {
             Auth.CheckPermission(PermissionCode.Universities, 'D');
             try
             {
-                await rep.Delete(id);
-                TempData["SuccessMessage"] = "University deleted.";
+                await rep.Deactivate(id);
+                TempData["SuccessMessage"] = "University deactivated.";
             }
             catch (Exception ex)
             {
-                TempData["ErrorMessage"] = "Could not delete: " + ex.Message;
+                TempData["ErrorMessage"] = "Could not deactivate: " + ex.Message;
+            }
+            return RedirectToAction("Index");
+        }
+
+        [HttpPost, ValidateAntiForgeryToken]
+        public async Task<IActionResult> Activate(string id)
+        {
+            Auth.CheckPermission(PermissionCode.Universities, 'E');
+            try
+            {
+                var university = await rep.Get(id);
+                if (university == null)
+                {
+                    TempData["ErrorMessage"] = "University not found.";
+                    return RedirectToAction("Index");
+                }
+                university.IsActive = "A";
+                await rep.AddEdit(university);
+                TempData["SuccessMessage"] = "University activated.";
+            }
+            catch (Exception ex)
+            {
+                TempData["ErrorMessage"] = "Could not activate: " + ex.Message;
+            }
+            return RedirectToAction("Index", new { showInactive = true });
+        }
+
+        [HttpPost, ValidateAntiForgeryToken]
+        public async Task<IActionResult> DeletePermanently(string id)
+        {
+            Auth.CheckPermission(PermissionCode.Universities, 'D');
+            try
+            {
+                await rep.DeletePermanently(id);
+                TempData["SuccessMessage"] = "University permanently deleted.";
+            }
+            catch (Exception ex)
+            {
+                TempData["ErrorMessage"] = "Could not permanently delete: " + ex.Message;
             }
             return RedirectToAction("Index");
         }

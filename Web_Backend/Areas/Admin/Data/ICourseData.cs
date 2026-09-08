@@ -7,7 +7,8 @@ namespace Web_Backend.Areas.Admin.Data
         Task<List<Course>> GetList(CourseSearchView search);
         Task<Course?> Get(string id);
         Task<string> AddEdit(Course course);
-        Task Delete(string id);
+        Task Deactivate(string id);
+        Task DeletePermanently(string id);
 
         Task<List<CourseSubject>> GetSubjects(string courseId);
         Task<string> AddEditSubject(CourseSubject subject);

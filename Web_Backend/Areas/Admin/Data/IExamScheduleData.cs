@@ -17,6 +17,7 @@ namespace Web_Backend.Areas.Admin.Data
         Task<List<ExamScheduleInstructorSegment>> GetSegmentsForStudent(string userId, DateTime fromDate, DateTime toDate);
         // Admin-only: sets one segment's meeting link directly.
         Task SetSegmentMeetingLink(string segmentId, string meetingLink);
-        Task Delete(string id);
+        Task Deactivate(string id);
+        Task DeletePermanently(string id);
     }
 }

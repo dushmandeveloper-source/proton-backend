@@ -86,8 +86,11 @@ namespace Web_Backend.Areas.Admin.Data
                 FeeChargeJSON = JsonSerializer.Serialize(c.FeeCharges, CamelCase)
             });
 
-        public Task Delete(string id) =>
-            db.ExecuteNonQuery("edu.Course_Delete", new { APIKey = AppData.GetAPIKey(), ID = id });
+        public Task Deactivate(string id) =>
+            db.ExecuteNonQuery("edu.Course_Deactivate", new { APIKey = AppData.GetAPIKey(), ID = id });
+
+        public Task DeletePermanently(string id) =>
+            db.ExecuteNonQuery("edu.Course_DeletePermanently", new { APIKey = AppData.GetAPIKey(), ID = id });
 
         // ---------- Subjects (CSCA only) ----------
         public Task<List<CourseSubject>> GetSubjects(string courseId) =>

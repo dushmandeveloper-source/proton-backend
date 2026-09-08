@@ -20,17 +20,18 @@ namespace Web_Backend.Areas.Admin.Controllers
             this.rep = rep;
         }
 
-        public async Task<IActionResult> Index()
+        public async Task<IActionResult> Index(bool showInactive = false)
         {
             Auth.CheckPermission(PermissionCode.HolidayCalendar, 'V');
             ViewBag.CurrentUser = Auth.GetUser();
+            ViewBag.ShowInactive = showInactive;
 
             // Same "load a wide static window, no server-side filtering"
             // approach as CourseScheduleNote — this list is short enough
             // (a handful of holidays/events per year) that client-side
             // display needs no paging.
             var today = DateTime.Today;
-            var list = await rep.GetByDateRange(today.AddYears(-2), today.AddYears(2));
+            var list = await rep.GetByDateRange(today.AddYears(-2), today.AddYears(2), showInactive);
             return View(list.OrderBy(h => h.HolidayDate).ToList());
         }
 
@@ -60,17 +61,56 @@ namespace Web_Backend.Areas.Admin.Controllers
         }
 
         [HttpPost, ValidateAntiForgeryToken]
-        public async Task<IActionResult> Delete(string id)
+        public async Task<IActionResult> Deactivate(string id)
         {
             Auth.CheckPermission(PermissionCode.HolidayCalendar, 'D');
             try
             {
-                await rep.Delete(id);
-                TempData["SuccessMessage"] = "Holiday/event deleted.";
+                await rep.Deactivate(id);
+                TempData["SuccessMessage"] = "Holiday/event deactivated.";
             }
             catch (Exception ex)
             {
-                TempData["ErrorMessage"] = "Could not delete: " + ex.Message;
+                TempData["ErrorMessage"] = "Could not deactivate: " + ex.Message;
+            }
+            return RedirectToAction("Index");
+        }
+
+        [HttpPost, ValidateAntiForgeryToken]
+        public async Task<IActionResult> Activate(string id)
+        {
+            Auth.CheckPermission(PermissionCode.HolidayCalendar, 'E');
+            try
+            {
+                var holiday = await rep.Get(id);
+                if (holiday == null)
+                {
+                    TempData["ErrorMessage"] = "Holiday/event not found.";
+                    return RedirectToAction("Index");
+                }
+                holiday.IsActive = "A";
+                await rep.AddEdit(holiday);
+                TempData["SuccessMessage"] = "Holiday/event activated.";
+            }
+            catch (Exception ex)
+            {
+                TempData["ErrorMessage"] = "Could not activate: " + ex.Message;
+            }
+            return RedirectToAction("Index", new { showInactive = true });
+        }
+
+        [HttpPost, ValidateAntiForgeryToken]
+        public async Task<IActionResult> DeletePermanently(string id)
+        {
+            Auth.CheckPermission(PermissionCode.HolidayCalendar, 'D');
+            try
+            {
+                await rep.DeletePermanently(id);
+                TempData["SuccessMessage"] = "Holiday/event permanently deleted.";
+            }
+            catch (Exception ex)
+            {
+                TempData["ErrorMessage"] = ex.Message;
             }
             return RedirectToAction("Index");
         }

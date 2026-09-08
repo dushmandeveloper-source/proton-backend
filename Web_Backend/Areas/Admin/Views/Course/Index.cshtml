@@ -47,7 +47,7 @@
                 <label class="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300 cursor-pointer">
                     <input type="checkbox" name="showInactive" value="true" checked="@showInactive"
                            class="rounded border-slate-300 dark:border-slate-600 text-[#7c3aed] focus:ring-[#7c3aed]" />
-                    Show deleted
+                    Show inactive
                 </label>
                 <button type="submit" class="w-full md:w-auto px-4 py-2 rounded-xl font-medium bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all text-sm">Filter</button>
             </form>
@@ -93,7 +93,7 @@
                             </span>
                             @if (c.IsActive != "A")
                             {
-                                <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 uppercase">Deleted</span>
+                                <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 uppercase">Inactive</span>
                             }
                         </div>
                     </div>
@@ -134,21 +134,40 @@
                                     Edit
                                 </a>
                             }
+                            @if (canEdit && c.IsActive != "A")
+                            {
+                                <form method="post" asp-action="Activate" asp-route-id="@c.CourseID">
+                                    @Html.AntiForgeryToken()
+                                    <button type="submit" title="Activate" class="p-2 rounded-xl text-slate-400 dark:text-slate-500 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+                                        <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
+                                    </button>
+                                </form>
+                            }
                             @if (canDelete)
                             {
                                 @if (c.IsCSCA)
                                 {
-                                    <span title="CSCA courses cannot be deleted — mark inactive from Edit instead." class="p-2 text-slate-300 dark:text-slate-600 cursor-not-allowed">
+                                    <span title="CSCA courses cannot be deactivated — mark inactive from Edit instead." class="p-2 text-slate-300 dark:text-slate-600 cursor-not-allowed">
                                         <i data-lucide="lock" class="w-4 h-4"></i>
                                     </span>
                                 }
-                                else
+                                else if (c.IsActive == "A")
                                 {
-                                    <form method="post" asp-action="Delete" asp-route-id="@c.CourseID"
-                                          data-confirm="Delete @c.CourseTitle?" data-confirm-title="Delete course" data-confirm-label="Delete">
+                                    <form method="post" asp-action="Deactivate" asp-route-id="@c.CourseID"
+                                          data-confirm="This will hide the course from lists but keep all its data safe. You can restore it later." data-confirm-title="Deactivate course" data-confirm-label="Deactivate">
                                         @Html.AntiForgeryToken()
-                                        <button type="submit" title="Delete" class="p-2 rounded-xl text-slate-400 dark:text-slate-500 hover:text-red-600 dark:hover:text-red-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+                                        <button type="submit" title="Deactivate" class="p-2 rounded-xl text-slate-400 dark:text-slate-500 hover:text-amber-600 dark:hover:text-amber-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
                                             <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                        </button>
+                                    </form>
+                                }
+                                @if (!c.IsCSCA)
+                                {
+                                    <form method="post" asp-action="DeletePermanently" asp-route-id="@c.CourseID"
+                                          data-confirm="This will permanently delete this course and cannot be undone." data-confirm-title="Delete course permanently" data-confirm-label="Delete Permanently">
+                                        @Html.AntiForgeryToken()
+                                        <button type="submit" title="Delete Permanently" class="p-2 rounded-xl text-red-500 dark:text-red-400 hover:text-white hover:bg-red-600 dark:hover:bg-red-600 transition-colors">
+                                            <i data-lucide="x-circle" class="w-4 h-4"></i>
                                         </button>
                                     </form>
                                 }

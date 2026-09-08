@@ -5,7 +5,7 @@ namespace Web_Backend.Areas.Admin.Models
     // Maps edu.Course. General courses and CSCA exam-prep share this one
     // table — CourseType picks which shape applies. CSCA rows additionally
     // carry CourseSubject children (see CourseSubject below) and are
-    // protected from delete by edu.Course_Delete. Field set and child
+    // protected from delete by edu.Course_Deactivate / edu.Course_DeletePermanently. Field set and child
     // collections mirror the LMS_System reference project's Course model.
     public class Course
     {

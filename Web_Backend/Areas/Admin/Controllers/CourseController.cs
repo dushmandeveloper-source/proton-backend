@@ -13,7 +13,7 @@ namespace Web_Backend.Areas.Admin.Controllers
     // Pricing & Fees, Combo Offers, Subjects for CSCA courses only,
     // Schedules), where Category/Location are just dropdowns on Details.
     // CSCA rows cannot be hard/soft deleted from here — see
-    // edu.Course_Delete — only deactivated.
+    // edu.Course_Deactivate / edu.Course_DeletePermanently — only edited.
     [Area("Admin")]
     public class CourseController : Controller
     {
@@ -202,13 +202,52 @@ namespace Web_Backend.Areas.Admin.Controllers
                 : System.Text.Json.JsonSerializer.Deserialize<List<T>>(json, new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? new List<T>();
 
         [HttpPost, ValidateAntiForgeryToken]
-        public async Task<IActionResult> Delete(string id)
+        public async Task<IActionResult> Deactivate(string id)
         {
             Auth.CheckPermission(PermissionCode.Courses, 'D');
             try
             {
-                await rep.Delete(id);
-                TempData["SuccessMessage"] = "Course deleted.";
+                await rep.Deactivate(id);
+                TempData["SuccessMessage"] = "Course deactivated.";
+            }
+            catch (Exception ex)
+            {
+                TempData["ErrorMessage"] = "Could not deactivate: " + ex.Message;
+            }
+            return RedirectToAction("Index");
+        }
+
+        [HttpPost, ValidateAntiForgeryToken]
+        public async Task<IActionResult> Activate(string id)
+        {
+            Auth.CheckPermission(PermissionCode.Courses, 'E');
+            try
+            {
+                var course = await rep.Get(id);
+                if (course == null)
+                {
+                    TempData["ErrorMessage"] = "Course not found.";
+                    return RedirectToAction("Index");
+                }
+                course.IsActive = "A";
+                await rep.AddEdit(course);
+                TempData["SuccessMessage"] = "Course activated.";
+            }
+            catch (Exception ex)
+            {
+                TempData["ErrorMessage"] = "Could not activate: " + ex.Message;
+            }
+            return RedirectToAction("Index", new { showInactive = true });
+        }
+
+        [HttpPost, ValidateAntiForgeryToken]
+        public async Task<IActionResult> DeletePermanently(string id)
+        {
+            Auth.CheckPermission(PermissionCode.Courses, 'D');
+            try
+            {
+                await rep.DeletePermanently(id);
+                TempData["SuccessMessage"] = "Course permanently deleted.";
             }
             catch (Exception ex)
             {
@@ -335,7 +374,7 @@ namespace Web_Backend.Areas.Admin.Controllers
         public async Task<IActionResult> DeleteSchedule(string courseId, string id)
         {
             Auth.CheckPermission(PermissionCode.CourseSchedules, 'D');
-            await scheduleRep.Delete(id);
+            await scheduleRep.Deactivate(id);
             TempData["SuccessMessage"] = "Schedule removed.";
             return RedirectToAction("Edit", new { id = courseId, tab = "schedules" });
         }
