@@ -105,8 +105,8 @@
                     <h3 class="font-semibold text-slate-800 dark:text-slate-100">Identity</h3>
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <div class="space-y-1">
-                            <label class="@LabelCls">University Name *</label>
-                            <input name="Name" value="@u.Name" placeholder="Tsinghua University" class="@InputCls" />
+                            <label class="@LabelCls">University Name <span class="text-red-500">*</span></label>
+                            <input name="Name" value="@u.Name" required placeholder="Tsinghua University" class="@InputCls" />
                             <span class="text-xs text-red-500">@Html.ValidationMessage("Name")</span>
                         </div>
                         <div class="space-y-1">
@@ -354,7 +354,7 @@
                     @Html.AntiForgeryToken()
                     <input type="hidden" name="universityId" value="@u.UniversityID" />
                     <div class="space-y-1 flex-1 min-w-[200px]">
-                        <label class="@LabelCls">Image</label>
+                        <label class="@LabelCls">Image <span class="text-red-500">*</span></label>
                         <input type="file" name="imageFile" accept="image/*,.svg" required class="block w-full text-sm text-slate-500 dark:text-slate-400 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-medium file:bg-purple-50 dark:file:bg-purple-950 file:text-[#7c3aed] dark:file:text-purple-300 hover:file:bg-purple-100" />
                     </div>
                     <div class="space-y-1 flex-1 min-w-[200px]">
@@ -418,7 +418,7 @@
                     <input type="hidden" name="FeatureID" value="" />
                     <input type="hidden" name="IsActive" value="A" />
                     <div class="space-y-1 flex-1 min-w-[180px]">
-                        <label class="@LabelCls">Title *</label>
+                        <label class="@LabelCls">Title <span class="text-red-500">*</span></label>
                         <input name="Title" required placeholder="World-class research labs" class="@InputCls" />
                     </div>
                     <div class="space-y-1 flex-[2] min-w-[220px]">
@@ -495,7 +495,7 @@
                     <input type="hidden" name="ProgramID" value="" />
                     <input type="hidden" name="IsActive" value="A" />
                     <div class="space-y-1 w-36">
-                        <label class="@LabelCls">Level *</label>
+                        <label class="@LabelCls">Level <span class="text-red-500">*</span></label>
                         <select name="ProgramLevel" class="@InputCls">
                             @foreach (var lvl in UniversityProgram.Levels)
                             {
@@ -504,7 +504,7 @@
                         </select>
                     </div>
                     <div class="space-y-1 flex-1 min-w-[200px]">
-                        <label class="@LabelCls">Program Name *</label>
+                        <label class="@LabelCls">Program Name <span class="text-red-500">*</span></label>
                         <input name="ProgramName" required placeholder="BSc Computer Science" class="@InputCls" />
                     </div>
                     <div class="space-y-1 w-32">
@@ -590,7 +590,7 @@
                     <input type="hidden" name="IntakeID" value="" />
                     <input type="hidden" name="IsActive" value="A" />
                     <div class="space-y-1 flex-1 min-w-[160px]">
-                        <label class="@LabelCls">Intake Name *</label>
+                        <label class="@LabelCls">Intake Name <span class="text-red-500">*</span></label>
                         <input name="IntakeName" required placeholder="Autumn 2026" class="@InputCls" />
                     </div>
                     <div class="space-y-1 w-36">
