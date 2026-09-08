@@ -54,6 +54,18 @@ namespace Web_Backend.Areas.Admin.Controllers
                 Categories = await categoryRep.GetList(new CourseCategorySearchView { IsActive = "" }),
                 Locations = await rep.GetLocations()
             };
+
+            // Only worth the per-course round trip when the delete button is
+            // actually rendered — the counts exist solely to fill its dialog.
+            if (Auth.HasPermission(PermissionCode.Courses, 'D'))
+            {
+                foreach (var course in model.Courses)
+                {
+                    var impact = await rep.GetDeleteImpact(course.CourseID);
+                    if (impact != null) model.DeleteImpacts[course.CourseID] = impact;
+                }
+            }
+
             return View(model);
         }
 

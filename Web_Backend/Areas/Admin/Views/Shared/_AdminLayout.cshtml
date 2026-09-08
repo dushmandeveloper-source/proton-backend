@@ -72,10 +72,20 @@
 <div id="toast-container" class="fixed top-4 right-4 z-[100] flex flex-col gap-2 items-end pointer-events-none"></div>
 
 <div id="confirm-modal" class="hidden fixed inset-0 z-[90] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-    <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-xl p-6 max-w-sm w-full">
+    <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-xl p-6 max-w-md w-full">
         <h3 id="confirm-modal-title" class="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-2">Are you sure?</h3>
-        <p id="confirm-modal-message" class="text-sm text-slate-500 dark:text-slate-400 mb-6"></p>
-        <div class="flex justify-end gap-3">
+        <p id="confirm-modal-message" class="text-sm text-slate-500 dark:text-slate-400 mb-4"></p>
+
+        @* Populated from data-confirm-blocked / data-confirm-details when present. *@
+        <div id="confirm-modal-blocked" class="hidden mb-4 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 px-4 py-3">
+            <p id="confirm-modal-blocked-text" class="text-sm text-amber-800 dark:text-amber-200"></p>
+        </div>
+        <div id="confirm-modal-details" class="hidden mb-4">
+            <p id="confirm-modal-details-title" class="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2"></p>
+            <ul id="confirm-modal-details-list" class="text-sm text-slate-600 dark:text-slate-300 space-y-1 list-disc list-inside"></ul>
+        </div>
+
+        <div class="flex justify-end gap-3 mt-6">
             <button type="button" id="confirm-modal-cancel" class="px-4 py-2 rounded-xl text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">Cancel</button>
             <button type="button" id="confirm-modal-confirm" class="px-4 py-2 rounded-xl text-sm font-medium bg-red-600 text-white hover:bg-red-700 transition-colors">Delete</button>
         </div>
@@ -436,6 +446,11 @@ else
         const msgEl = document.getElementById('confirm-modal-message');
         const cancelBtn = document.getElementById('confirm-modal-cancel');
         const confirmBtn = document.getElementById('confirm-modal-confirm');
+        const blockedEl = document.getElementById('confirm-modal-blocked');
+        const blockedTextEl = document.getElementById('confirm-modal-blocked-text');
+        const detailsEl = document.getElementById('confirm-modal-details');
+        const detailsTitleEl = document.getElementById('confirm-modal-details-title');
+        const detailsListEl = document.getElementById('confirm-modal-details-list');
         let pendingForm = null;
 
         function closeModal() {
@@ -451,6 +466,26 @@ else
                 titleEl.textContent = form.dataset.confirmTitle || 'Are you sure?';
                 msgEl.textContent = form.dataset.confirm;
                 confirmBtn.textContent = form.dataset.confirmLabel || 'Confirm';
+
+                const blocked = form.dataset.confirmBlocked;
+                blockedEl.classList.toggle('hidden', !blocked);
+                blockedTextEl.textContent = blocked || '';
+
+                // data-confirm-details is a JSON array of plain strings; each is
+                // set via textContent so admin-entered names can't inject markup.
+                let details = [];
+                try { details = JSON.parse(form.dataset.confirmDetails || '[]'); } catch { details = []; }
+                detailsListEl.replaceChildren();
+                detailsEl.classList.toggle('hidden', details.length === 0);
+                if (details.length > 0) {
+                    detailsTitleEl.textContent = form.dataset.confirmDetailsTitle || 'This will also be deleted';
+                    details.forEach(d => {
+                        const li = document.createElement('li');
+                        li.textContent = d;
+                        detailsListEl.appendChild(li);
+                    });
+                }
+
                 modal.classList.remove('hidden');
             }
         });

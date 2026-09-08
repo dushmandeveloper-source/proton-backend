@@ -92,6 +92,9 @@ namespace Web_Backend.Areas.Admin.Data
         public Task DeletePermanently(string id) =>
             db.ExecuteNonQuery("edu.Course_DeletePermanently", new { APIKey = AppData.GetAPIKey(), ID = id });
 
+        public Task<CourseDeleteImpact?> GetDeleteImpact(string id) =>
+            db.Get<CourseDeleteImpact, object>("edu.Course_GetDeleteImpact", new { APIKey = AppData.GetAPIKey(), ID = id });
+
         // ---------- Subjects (CSCA only) ----------
         public Task<List<CourseSubject>> GetSubjects(string courseId) =>
             db.GetList<CourseSubject, object>("edu.CourseSubject_List",
