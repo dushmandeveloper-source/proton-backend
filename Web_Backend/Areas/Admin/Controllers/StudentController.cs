@@ -470,6 +470,70 @@ namespace Web_Backend.Areas.Admin.Controllers
             return RedirectToAction("Index");
         }
 
+        [HttpPost, ValidateAntiForgeryToken]
+        public async Task<IActionResult> VerifyAccount(string studentId)
+        {
+            Auth.CheckPermission(PermissionCode.Students, 'E');
+            try
+            {
+                await rep.VerifyAccount(studentId, "Verified", Auth.GetUserId());
+                TempData["SuccessMessage"] = "Account verified.";
+            }
+            catch (Exception ex)
+            {
+                TempData["ErrorMessage"] = "Could not verify account: " + ex.Message;
+            }
+            return RedirectToAction("Details", new { id = studentId });
+        }
+
+        [HttpPost, ValidateAntiForgeryToken]
+        public async Task<IActionResult> RejectAccount(string studentId)
+        {
+            Auth.CheckPermission(PermissionCode.Students, 'E');
+            try
+            {
+                await rep.VerifyAccount(studentId, "Rejected", Auth.GetUserId());
+                TempData["SuccessMessage"] = "Account rejected.";
+            }
+            catch (Exception ex)
+            {
+                TempData["ErrorMessage"] = "Could not reject account: " + ex.Message;
+            }
+            return RedirectToAction("Details", new { id = studentId });
+        }
+
+        [HttpPost, ValidateAntiForgeryToken]
+        public async Task<IActionResult> VerifyPassport(string studentId)
+        {
+            Auth.CheckPermission(PermissionCode.Students, 'E');
+            try
+            {
+                await rep.VerifyPassport(studentId, "Verified", Auth.GetUserId());
+                TempData["SuccessMessage"] = "Passport verified.";
+            }
+            catch (Exception ex)
+            {
+                TempData["ErrorMessage"] = "Could not verify passport: " + ex.Message;
+            }
+            return RedirectToAction("Details", new { id = studentId });
+        }
+
+        [HttpPost, ValidateAntiForgeryToken]
+        public async Task<IActionResult> RejectPassport(string studentId)
+        {
+            Auth.CheckPermission(PermissionCode.Students, 'E');
+            try
+            {
+                await rep.VerifyPassport(studentId, "Rejected", Auth.GetUserId());
+                TempData["SuccessMessage"] = "Passport rejected.";
+            }
+            catch (Exception ex)
+            {
+                TempData["ErrorMessage"] = "Could not reject passport: " + ex.Message;
+            }
+            return RedirectToAction("Details", new { id = studentId });
+        }
+
         // Generates a fresh temp password for this student's login and emails
         // it via the same STUDENT_WELCOME_EMAIL template used at registration
         // time — covers both "admin didn't check Send Welcome Email at

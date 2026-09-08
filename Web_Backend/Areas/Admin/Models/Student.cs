@@ -38,6 +38,14 @@ namespace Web_Backend.Areas.Admin.Models
         public string? PassportVerifiedByUserID { get; set; }
         public DateTime? PassportVerifiedDate { get; set; }
 
+        // Account verification (0041_student_account_verification.sql): a
+        // self-registered student's account itself, separate from their
+        // passport — admin-created students are stamped Verified on
+        // creation and never go through this.
+        public string AccountVerificationStatus { get; set; } = "Pending";
+        public string? AccountVerifiedByUserID { get; set; }
+        public DateTime? AccountVerifiedDate { get; set; }
+
         // Emergency contact
         public string EmergencyContactName { get; set; } = "";
         public string EmergencyContactPhone { get; set; } = "";
@@ -65,6 +73,16 @@ namespace Web_Backend.Areas.Admin.Models
 
         public string StatusLabel => IsActive == "A" ? "Active" : "Inactive";
         public bool IsSelfRegistered => RegistrationSource == "Self";
+
+        // The student-portal content gate. Admin-created students are never
+        // gated. A self-registered student needs their account verified
+        // regardless of passport; if they also submitted a passport, that
+        // must be verified too — but a passport they never submitted
+        // doesn't count against them.
+        public bool IsContentRestricted =>
+            IsSelfRegistered &&
+            (AccountVerificationStatus != "Verified" ||
+             (!string.IsNullOrWhiteSpace(PassportNumber) && PassportVerificationStatus != "Verified"));
     }
 
     public class StudentSearchView

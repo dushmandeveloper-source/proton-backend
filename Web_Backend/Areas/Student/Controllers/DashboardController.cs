@@ -63,6 +63,7 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
                 StudentID = student.StudentID,
                 StudentName = student.FullName,
                 PassportVerificationStatus = student.PassportVerificationStatus,
+                IsContentRestricted = student.IsContentRestricted,
                 WeekSchedule = weekSchedule,
                 Summary = summary,
                 Registrations = registrations

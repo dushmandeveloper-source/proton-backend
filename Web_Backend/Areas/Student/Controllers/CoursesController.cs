@@ -70,6 +70,12 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
                 return RedirectToAction("Index");
             }
 
+            if (student.IsContentRestricted)
+            {
+                TempData["ErrorMessage"] = "Your account is still being verified. Course materials and joining links unlock once an administrator verifies your account.";
+                return RedirectToAction("Index");
+            }
+
             var course = await courseRep.Get(registration.CourseID);
             var payments = await registrationRep.GetPayments(registrationId);
 

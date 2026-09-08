@@ -141,7 +141,8 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
                 PrevYear = prevMonthDate.Year,
                 PrevMonth = prevMonthDate.Month,
                 NextYear = nextMonthDate.Year,
-                NextMonth = nextMonthDate.Month
+                NextMonth = nextMonthDate.Month,
+                IsContentRestricted = student.IsContentRestricted
             };
 
             ViewBag.CurrentUser = Auth.GetUser();
