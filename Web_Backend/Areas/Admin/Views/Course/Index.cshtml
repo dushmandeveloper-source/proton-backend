@@ -155,8 +155,29 @@
                                         </button>
                                     </form>
                                 }
+                                Model.DeleteImpacts.TryGetValue(c.CourseID, out var impact);
+                                var alsoDeleted = new List<string>();
+                                if (impact != null)
+                                {
+                                    if (impact.SubjectCount > 0) alsoDeleted.Add($"{impact.SubjectCount} subject(s)");
+                                    if (impact.ScheduleCount > 0) alsoDeleted.Add($"{impact.ScheduleCount} class schedule(s), with their sessions, notes and materials");
+                                    if (impact.ExamCount > 0) alsoDeleted.Add($"{impact.ExamCount} exam(s), with their questions and answers");
+                                    if (impact.ExamSittingCount > 0) alsoDeleted.Add($"{impact.ExamSittingCount} scheduled exam sitting(s)");
+                                }
+                                var blockedText = impact != null && impact.IsBlocked
+                                    ? $"This course can't be deleted: {impact.RegistrationCount} student(s) are registered on it. Their records and payment history must be kept, so deactivate the course instead, or remove those registrations first."
+                                    : null;
+                                var confirmText = blockedText != null
+                                    ? "Deleting will be refused while students are registered."
+                                    : (alsoDeleted.Count > 0
+                                        ? "Permanently deleting this course also removes everything built around it. This cannot be undone."
+                                        : "This will permanently delete this course. This cannot be undone.");
+
                                 <form method="post" asp-action="DeletePermanently" asp-route-id="@c.CourseID"
-                                      data-confirm="This will permanently delete this course and cannot be undone." data-confirm-title="Delete course permanently" data-confirm-label="Delete Permanently">
+                                      data-confirm="@confirmText" data-confirm-title="Delete '@c.CourseTitle' permanently?" data-confirm-label="Delete Permanently"
+                                      data-confirm-blocked="@blockedText"
+                                      data-confirm-details-title="Will also be permanently deleted"
+                                      data-confirm-details="@(alsoDeleted.Count > 0 && blockedText == null ? System.Text.Json.JsonSerializer.Serialize(alsoDeleted) : "")">
                                     @Html.AntiForgeryToken()
                                     <button type="submit" title="Delete Permanently" class="p-2 rounded-xl text-red-500 dark:text-red-400 hover:text-white hover:bg-red-600 dark:hover:bg-red-600 transition-colors">
                                         <i data-lucide="x-circle" class="w-4 h-4"></i>

@@ -180,5 +180,22 @@ namespace Web_Backend.Areas.Admin.Models
         public List<CourseCategory> Categories { get; set; } = new();
         public List<CourseLocation> Locations { get; set; } = new();
         public string ActiveTab { get; set; } = "courses";
+
+        // Keyed by CourseID — what a permanent delete would take with it,
+        // so the confirm dialog can spell it out before the admin commits.
+        public Dictionary<string, CourseDeleteImpact> DeleteImpacts { get; set; } = new();
+    }
+
+    // Counts every row a permanent delete would touch, including inactive
+    // ones — the cascade doesn't care about IsActive, so neither can this.
+    public class CourseDeleteImpact
+    {
+        public int SubjectCount { get; set; }
+        public int ScheduleCount { get; set; }
+        public int ExamCount { get; set; }
+        public int RegistrationCount { get; set; }
+        public int ExamSittingCount { get; set; }
+
+        public bool IsBlocked => RegistrationCount > 0;
     }
 }
