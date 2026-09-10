@@ -293,6 +293,10 @@ namespace Web_Backend.Controllers.Api
             {
                 return Conflict(new { message = "You are already registered for this course." });
             }
+            catch (SqlException ex) when (ex.Message.Contains("exceeds the course fee", StringComparison.OrdinalIgnoreCase))
+            {
+                return BadRequest(new { message = "Payment amount exceeds the course fee." });
+            }
         }
 
         // Optional follow-up used by the public registration page's payment
@@ -325,6 +329,22 @@ namespace Web_Backend.Controllers.Api
             if (string.IsNullOrWhiteSpace(request.PaymentMethod))
                 return BadRequest(new { message = "Payment method is required." });
 
+            if (request.Amount <= 0)
+                return BadRequest(new { message = "Payment amount must be greater than zero." });
+
+            // Guard against double payment / overpayment before touching the
+            // DB: a student who already fully paid (or whose declared amount
+            // would push the total past the course fee) gets a clear 400
+            // instead of silently recording a second payment. The stored
+            // procedure re-checks this too (source of truth, race-safe), but
+            // failing fast here avoids an unnecessary slip upload.
+            var existingPayments = await registrationRep.GetPayments(registrationId);
+            var alreadyPaid = existingPayments.Where(p => p.IsActive == "A").Sum(p => p.Amount);
+            if (registration.PaymentStatus == "Paid" || (registration.CourseFee > 0 && alreadyPaid >= registration.CourseFee))
+                return Conflict(new { message = "This registration is already fully paid." });
+            if (registration.CourseFee > 0 && (alreadyPaid + request.Amount) > registration.CourseFee)
+                return BadRequest(new { message = $"Payment amount exceeds the remaining balance of {registration.CourseFee - alreadyPaid} for this course." });
+
             var slipUrl = "";
             if (request.PaymentMethod == "BankDeposit")
             {
@@ -339,15 +359,26 @@ namespace Web_Backend.Controllers.Api
                 }
             }
 
-            var paymentId = await registrationRep.AddPayment(
-                registrationId,
-                request.Amount,
-                request.PaymentMethod,
-                slipUrl,
-                request.Notes ?? "",
-                Auth.GetUserId());
+            try
+            {
+                var paymentId = await registrationRep.AddPayment(
+                    registrationId,
+                    request.Amount,
+                    request.PaymentMethod,
+                    slipUrl,
+                    request.Notes ?? "",
+                    Auth.GetUserId());
 
-            return Ok(new { paymentId, slipUrl });
+                return Ok(new { paymentId, slipUrl });
+            }
+            catch (SqlException ex) when (ex.Message.Contains("already fully paid", StringComparison.OrdinalIgnoreCase))
+            {
+                return Conflict(new { message = "This registration is already fully paid." });
+            }
+            catch (SqlException ex) when (ex.Message.Contains("exceeds the remaining balance", StringComparison.OrdinalIgnoreCase))
+            {
+                return BadRequest(new { message = "Payment amount exceeds the remaining balance for this course." });
+            }
         }
 
         [HttpGet("my")]

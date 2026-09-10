@@ -81,8 +81,6 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
                 var student = await studentRep.GetByUserID(userId);
                 if (student != null)
                 {
-                    var newPassportPhoto = await uploader.SaveAsync(passportPhoto, "Students");
-
                     // Passport fields are locked once an admin has verified them
                     // (mst.Student.PassportVerificationStatus == "Verified") — the
                     // rest of the profile (name, address, emergency contact, etc.)
@@ -104,10 +102,10 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
                         StateProvince = form.StateProvince,
                         PostalCode = form.PostalCode,
                         Country = form.Country,
-                        PassportNumber = passportLocked ? student.PassportNumber : form.PassportNumber,
-                        PassportCountry = passportLocked ? student.PassportCountry : form.PassportCountry,
-                        PassportExpiryDate = passportLocked ? student.PassportExpiryDate : form.PassportExpiryDate,
-                        PassportPhotoURL = passportLocked ? student.PassportPhotoURL : (newPassportPhoto ?? ""),
+                        PassportNumber = student.PassportNumber,
+                        PassportCountry = student.PassportCountry,
+                        PassportExpiryDate = student.PassportExpiryDate,
+                        PassportPhotoURL = student.PassportPhotoURL,
                         EmergencyContactName = form.EmergencyContactName,
                         EmergencyContactPhone = form.EmergencyContactPhone,
                         EmergencyRelationship = form.EmergencyRelationship,
@@ -117,7 +115,42 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
                     });
 
                     if (passportLocked)
+                    {
                         TempData["ErrorMessage"] = "Passport is verified and cannot be edited.";
+                    }
+                    else
+                    {
+                        // Routed through mst.Student_UpdatePassportInfo (same sproc
+                        // StudentDashboardApiController uses) rather than folded into
+                        // the AddEdit call above: it's the one place that both keeps
+                        // the existing PassportPhotoURL when no new file is uploaded
+                        // and resets PassportVerificationStatus back to 'Pending' so a
+                        // resubmission after rejection is re-queued for admin review.
+                        var newPassportPhoto = await uploader.SaveAsync(passportPhoto, "Students");
+                        var effectivePhotoUrl = newPassportPhoto ?? student.PassportPhotoURL;
+
+                        if (!string.IsNullOrWhiteSpace(form.PassportNumber) && string.IsNullOrWhiteSpace(effectivePhotoUrl))
+                        {
+                            TempData["ErrorMessage"] = "A passport photo is required when a passport number is entered.";
+                        }
+                        else
+                        {
+                            try
+                            {
+                                await studentRep.UpdatePassportInfo(student.StudentID, userId, new StudentPassportUpdateRequest
+                                {
+                                    PassportNumber = form.PassportNumber,
+                                    PassportCountry = form.PassportCountry,
+                                    PassportExpiryDate = form.PassportExpiryDate,
+                                    PassportPhotoURL = newPassportPhoto ?? ""
+                                });
+                            }
+                            catch (Exception ex)
+                            {
+                                TempData["ErrorMessage"] = "Could not save passport details: " + ex.Message;
+                            }
+                        }
+                    }
                 }
 
                 // Refresh the session copy so the header reflects the new name immediately.

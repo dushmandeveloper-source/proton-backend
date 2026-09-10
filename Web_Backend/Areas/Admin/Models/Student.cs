@@ -199,6 +199,12 @@ namespace Web_Backend.Areas.Admin.Models
         // What a permanent delete would take with it, so the confirm dialog
         // can spell it out. Null when the viewer has no delete permission.
         public StudentDeleteImpact? DeleteImpact { get; set; }
+
+        // Per-currency registration count + amount paid that a permanent
+        // delete would erase — same shape/source as Course's DeletePaymentImpacts
+        // (edu.Course_GetDeletePaymentImpact). Empty when the student has no
+        // registrations, or the viewer has no delete permission.
+        public List<CoursePaymentImpact> DeletePaymentImpact { get; set; } = new();
     }
 
     public class StudentDeleteImpact
@@ -206,8 +212,6 @@ namespace Web_Backend.Areas.Admin.Models
         public int RegistrationCount { get; set; }
         public int PaymentCount { get; set; }
         public int LoginAccountCount { get; set; }
-
-        public bool IsBlocked => RegistrationCount > 0;
     }
 
     // Backs the read-only Student Details page (Views/Student/View.cshtml):
