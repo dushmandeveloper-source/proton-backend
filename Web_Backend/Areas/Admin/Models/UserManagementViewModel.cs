@@ -37,8 +37,13 @@ namespace Web_Backend.Areas.Admin.Models
         public int PermissionOverrideCount { get; set; }
         public bool HasStudentProfile { get; set; }
 
+        // RegistrationCount is deliberately excluded: usr.Users_HardDelete
+        // (0045) now cascades a linked student's course registrations and
+        // payment history instead of refusing, so that count alone no
+        // longer blocks the delete — it's listed as "will also be deleted"
+        // in the view instead.
         public bool IsBlocked =>
-            RegistrationCount > 0 || CourseBatchAssignmentCount > 0 || ExamBatchAssignmentCount > 0 ||
+            CourseBatchAssignmentCount > 0 || ExamBatchAssignmentCount > 0 ||
             CourseRescheduleCount > 0 || ExamRescheduleCount > 0 || LectureMaterialCount > 0;
     }
 }

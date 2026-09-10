@@ -127,5 +127,8 @@ namespace Web_Backend.Areas.Admin.Data
 
         public Task<StudentDeleteImpact?> GetDeleteImpact(string id) =>
             db.Get<StudentDeleteImpact, object>("mst.Student_GetDeleteImpact", new { APIKey = AppData.GetAPIKey(), ID = id });
+
+        public Task<List<CoursePaymentImpact>> GetDeletePaymentImpact(string id) =>
+            db.GetList<CoursePaymentImpact, object>("mst.Student_GetDeletePaymentImpact", new { APIKey = AppData.GetAPIKey(), ID = id });
     }
 }

@@ -1,0 +1,65 @@
+
+CREATE PROCEDURE [mst].[Student_DeletePermanently]
+(
+    @APIKey    VARCHAR(100),
+    @ID        VARCHAR(20),
+    @LogUserID VARCHAR(50) = '',
+    @RetValue  VARCHAR(50) = '' OUT
+)
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    BEGIN TRY
+        BEGIN TRANSACTION;
+
+        IF NOT EXISTS (SELECT 1 FROM syst.APIKey WHERE KeyValue = @APIKey AND ActiveStatus = 'A')
+        BEGIN
+            ;THROW 50000, 'Invalid API Key', 1;
+        END
+
+        IF NOT EXISTS (SELECT 1 FROM mst.Student WHERE StudentID = @ID)
+        BEGIN
+            ;THROW 50000, 'That student no longer exists.', 1;
+        END
+
+        DECLARE @UID VARCHAR(50) = (SELECT UserID FROM mst.Student WHERE StudentID = @ID);
+
+        IF @UID IS NOT NULL AND @LogUserID <> '' AND @UID = @LogUserID
+        BEGIN
+            ;THROW 50000, 'You cannot delete the account you are signed in with.', 1;
+        END
+
+        -- Enrolments carry the student's payment history; that record of who
+        -- paid what has to outlive any tidy-up of the student list.
+        DECLARE @RegCount INT = (SELECT COUNT(*) FROM mst.CourseRegistration WHERE StudentID = @ID);
+        IF @RegCount > 0
+        BEGIN
+            DECLARE @RegMsg VARCHAR(500) = 'This student can''t be deleted because they have ' + CAST(@RegCount AS VARCHAR(10)) +
+                ' course registration(s) and the payment history that goes with them. Deactivate the student instead.';
+            ;THROW 50000, @RegMsg, 1;
+        END
+
+        -- Clear the "who did this" pointers before the account goes.
+        UPDATE mst.Student SET PassportVerifiedByUserID = NULL WHERE PassportVerifiedByUserID = @UID;
+        UPDATE mst.Student SET CreatedByUserID = ''           WHERE CreatedByUserID = @UID;
+
+        DELETE FROM usr.PasswordResetToken
+         WHERE AuthID IN (SELECT AuthID FROM usr.UserAuth WHERE UserID = @UID);
+        DELETE FROM usr.UserPermissionOverride WHERE UserID = @UID;
+        DELETE FROM usr.UserAuth               WHERE UserID = @UID;
+
+        DELETE FROM mst.Student WHERE StudentID = @ID;
+        DELETE FROM usr.Users   WHERE UserID = @UID;
+
+        SET @RetValue = @ID;
+
+        COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION;
+        DECLARE @ERROR_MESSAGE VARCHAR(4000) = ERROR_MESSAGE();
+        RAISERROR('%s. Script: mst.Student_DeletePermanently', 16, 1, @ERROR_MESSAGE);
+    END CATCH
+END
+

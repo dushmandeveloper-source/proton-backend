@@ -226,7 +226,6 @@
                                         var alsoRemoved = new List<string>();
                                         if (userImpact != null)
                                         {
-                                            if (userImpact.RegistrationCount > 0) blockedReasons.Add($"{userImpact.RegistrationCount} course registration(s)");
                                             if (userImpact.CourseBatchAssignmentCount > 0) blockedReasons.Add($"{userImpact.CourseBatchAssignmentCount} class batch(es) they teach");
                                             if (userImpact.ExamBatchAssignmentCount > 0) blockedReasons.Add($"{userImpact.ExamBatchAssignmentCount} exam sitting(s) they supervise");
                                             if (userImpact.CourseRescheduleCount + userImpact.ExamRescheduleCount > 0) blockedReasons.Add($"{userImpact.CourseRescheduleCount + userImpact.ExamRescheduleCount} reschedule request(s) they raised");
@@ -237,6 +236,7 @@
                                                 alsoRemoved.Add("Their login, so they can no longer sign in");
                                                 if (userImpact.PermissionOverrideCount > 0) alsoRemoved.Add($"{userImpact.PermissionOverrideCount} custom permission setting(s) for this person");
                                                 if (userImpact.HasStudentProfile) alsoRemoved.Add("Their student profile");
+                                                if (userImpact.RegistrationCount > 0) alsoRemoved.Add($"{userImpact.RegistrationCount} course registration(s) and the payment history that goes with them");
                                             }
                                         }
                                         var userBlockedText = blockedReasons.Count > 0

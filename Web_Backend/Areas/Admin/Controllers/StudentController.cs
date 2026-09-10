@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.DependencyInjection;
 using System.Text.Json;
 using Web_Backend.Areas.Admin.Data;
 using Web_Backend.Areas.Admin.Models;
@@ -34,10 +35,13 @@ namespace Web_Backend.Areas.Admin.Controllers
         private readonly ICourseScheduleData scheduleRep;
         private readonly IEmailSender emailSender;
         private readonly IConfiguration configuration;
+        private readonly IServiceScopeFactory scopeFactory;
+        private readonly ILogger<StudentController> logger;
 
         public StudentController(
             IStudentData rep, IUserData userRep, IUserAuthData authRep, IUserTypeData userTypeRep, IImageUploader uploader,
-            ICourseRegistrationData registrationRep, ICourseData courseRep, ICourseScheduleData scheduleRep, IEmailSender emailSender, IConfiguration configuration)
+            ICourseRegistrationData registrationRep, ICourseData courseRep, ICourseScheduleData scheduleRep, IEmailSender emailSender, IConfiguration configuration,
+            IServiceScopeFactory scopeFactory, ILogger<StudentController> logger)
         {
             this.rep = rep;
             this.userRep = userRep;
@@ -49,6 +53,8 @@ namespace Web_Backend.Areas.Admin.Controllers
             this.scheduleRep = scheduleRep;
             this.emailSender = emailSender;
             this.configuration = configuration;
+            this.scopeFactory = scopeFactory;
+            this.logger = logger;
         }
 
         private async Task PopulateCourseList()
@@ -94,7 +100,11 @@ namespace Web_Backend.Areas.Admin.Controllers
             {
                 foreach (var row in rows)
                 {
-                    row.DeleteImpact = await rep.GetDeleteImpact(row.Student.StudentID);
+                    var impact = await rep.GetDeleteImpact(row.Student.StudentID);
+                    row.DeleteImpact = impact;
+
+                    if (impact != null && impact.RegistrationCount > 0)
+                        row.DeletePaymentImpact = await rep.GetDeletePaymentImpact(row.Student.StudentID);
                 }
             }
 
@@ -210,6 +220,11 @@ namespace Web_Backend.Areas.Admin.Controllers
                 // is fine: Save falls back to an auto-generated temp password.
                 if (!string.IsNullOrWhiteSpace(form.InitialPassword) && form.InitialPassword.Length < 8)
                     ModelState.AddModelError(nameof(form.InitialPassword), "Password must be at least 8 characters.");
+            }
+
+            if (!string.IsNullOrWhiteSpace(form.PassportNumber) && passportPhoto == null && string.IsNullOrWhiteSpace(storedStudent?.PassportPhotoURL))
+            {
+                ModelState.AddModelError(nameof(form.PassportPhotoURL), "A passport photo is required when a passport number is entered.");
             }
 
             if (!ModelState.IsValid)
@@ -381,6 +396,13 @@ namespace Web_Backend.Areas.Admin.Controllers
 
                 if (isNew && form.SendWelcomeEmail)
                 {
+                    // Sent on a background task rather than awaited here: the SMTP
+                    // round-trip (connect/authenticate/send) can take many seconds
+                    // on the hosting provider, and awaiting it in-request was
+                    // stretching this POST long enough to hit the server's HTTP/2
+                    // response timeout (ERR_HTTP2_PROTOCOL_ERROR) even though the
+                    // student record had already saved successfully. The DB write
+                    // above is what must be synchronous, not the notification email.
                     var loginUrl = PortalUrls.Student(configuration, Request);
                     var description =
                         $"Your Proton student account has been created.<br/><br/>" +
@@ -388,14 +410,22 @@ namespace Web_Backend.Areas.Admin.Controllers
                         $"Email: <strong>{form.Email}</strong><br/>" +
                         $"Temporary Password: <strong>{tempPassword}</strong><br/><br/>" +
                         "Please sign in and change your password as soon as possible.";
-                    try
+                    var studentName = $"{form.FirstName} {form.LastName}";
+                    var recipientEmail = form.Email;
+
+                    _ = Task.Run(async () =>
                     {
-                        await emailSender.SendTemplateEmailAsync(form.Email, $"{form.FirstName} {form.LastName}", "STUDENT_WELCOME_EMAIL", description, "Sign In to Student Portal", loginUrl, "");
-                    }
-                    catch (Exception ex)
-                    {
-                        enrollmentWarnings.Add("Could not send welcome email: " + ex.Message);
-                    }
+                        using var scope = scopeFactory.CreateScope();
+                        var scopedEmailSender = scope.ServiceProvider.GetRequiredService<IEmailSender>();
+                        try
+                        {
+                            await scopedEmailSender.SendTemplateEmailAsync(recipientEmail, studentName, "STUDENT_WELCOME_EMAIL", description, "Sign In to Student Portal", loginUrl, "");
+                        }
+                        catch (Exception ex)
+                        {
+                            logger.LogWarning(ex, "Could not send welcome email to {Email}.", recipientEmail);
+                        }
+                    });
                 }
 
                 var successMessage = isNew

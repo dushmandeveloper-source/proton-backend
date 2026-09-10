@@ -194,24 +194,32 @@
                                                 </form>
                                             }
                                             var impact = row.DeleteImpact;
+                                            var payments = row.DeletePaymentImpact;
                                             var alsoDeleted = new List<string>();
-                                            if (impact != null && !impact.IsBlocked)
+                                            if (impact != null)
                                             {
                                                 if (impact.LoginAccountCount > 0) alsoDeleted.Add("Their login account, so they can no longer sign in to the student portal");
                                                 alsoDeleted.Add("Their personal details, passport information and emergency contact");
+                                                if (impact.RegistrationCount > 0)
+                                                {
+                                                    alsoDeleted.Add($"{impact.RegistrationCount} course registration(s)");
+                                                    foreach (var p in payments.Where(p => p.TotalPaid > 0))
+                                                        alsoDeleted.Add($"Payments recorded: {p.CurrencyCode} {p.TotalPaid.ToString("N2")} ({p.RegistrationCount} registration(s))");
+                                                }
                                             }
-                                            var blockedText = impact != null && impact.IsBlocked
-                                                ? $"{s.FullName} can't be deleted: they have {impact.RegistrationCount} course registration(s) and the payment history that goes with them. That record has to be kept, so deactivate them instead."
+                                            var totalPaidText = payments.Any(p => p.TotalPaid > 0)
+                                                ? string.Join(", ", payments.Where(p => p.TotalPaid > 0).Select(p => $"{p.CurrencyCode} {p.TotalPaid.ToString("N2")}"))
                                                 : null;
-                                            var confirmText = blockedText != null
-                                                ? "Deleting will be refused while this student has course registrations."
+                                            var confirmText = impact != null && impact.RegistrationCount > 0
+                                                ? $"This permanently removes {s.FullName}, their {impact.RegistrationCount} course registration(s)" +
+                                                  (totalPaidText != null ? $" and the {totalPaidText} in payments recorded against them" : "") +
+                                                  ". This cannot be undone."
                                                 : $"This permanently removes {s.FullName} and everything on their record. This cannot be undone.";
 
                                             <form method="post" asp-action="DeletePermanently" asp-route-id="@s.StudentID" class="inline"
                                                   data-confirm="@confirmText" data-confirm-title="Delete @s.FullName permanently?" data-confirm-label="Delete Permanently"
-                                                  data-confirm-blocked="@blockedText"
                                                   data-confirm-details-title="Will also be permanently deleted"
-                                                  data-confirm-details="@(alsoDeleted.Count > 0 && blockedText == null ? System.Text.Json.JsonSerializer.Serialize(alsoDeleted) : "")">
+                                                  data-confirm-details="@(alsoDeleted.Count > 0 ? System.Text.Json.JsonSerializer.Serialize(alsoDeleted) : "")">
                                                 @Html.AntiForgeryToken()
                                                 <button type="submit" title="Delete Permanently" class="p-2 rounded-xl text-red-500 dark:text-red-400 hover:text-white hover:bg-red-600 dark:hover:bg-red-600 transition-colors">
                                                     <i data-lucide="trash-2" class="w-4 h-4"></i>

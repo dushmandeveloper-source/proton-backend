@@ -17,5 +17,6 @@ namespace Web_Backend.Areas.Admin.Data
         Task Activate(string id, string logUserId);
         Task DeletePermanently(string id, string logUserId);
         Task<StudentDeleteImpact?> GetDeleteImpact(string id);
+        Task<List<CoursePaymentImpact>> GetDeletePaymentImpact(string id);
     }
 }
