@@ -76,6 +76,7 @@ builder.Services.AddTransient<IExamScheduleData, ExamScheduleData>();
 builder.Services.AddTransient<ICourseScheduleNoteData, CourseScheduleNoteData>();
 builder.Services.AddTransient<IHolidayEventData, HolidayEventData>();
 builder.Services.AddTransient<IExamData, ExamData>();
+builder.Services.AddTransient<IExamAttemptData, ExamAttemptData>();
 builder.Services.AddTransient<IRolePermissionData, RolePermissionData>();
 builder.Services.AddTransient<IUserPermissionOverrideData, UserPermissionOverrideData>();
 builder.Services.AddTransient<ICourseScheduleRescheduleData, CourseScheduleRescheduleData>();
