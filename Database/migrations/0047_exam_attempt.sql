@@ -290,11 +290,16 @@ BEGIN
         SELECT @Total = SUM(MarksAwarded) FROM edu.ExamAttemptAnswer WHERE AttemptID = @AttemptID AND MarksAwarded IS NOT NULL
 
         -- Fully graded if no Written questions exist for this exam, or all Written answers already have MarksAwarded
+        -- Driven from ExamQuestion (not ExamAttemptAnswer) so an unanswered Written question still counts as ungraded
         DECLARE @UngradedWritten int
         SELECT @UngradedWritten = COUNT(*)
-        FROM edu.ExamAttemptAnswer aa
-        JOIN edu.ExamQuestion q ON q.QuestionID = aa.QuestionID
-        WHERE aa.AttemptID = @AttemptID AND q.QuestionType = 'Written' AND aa.MarksAwarded IS NULL
+        FROM edu.ExamQuestion q
+        JOIN edu.ExamAttempt att ON att.ExamID = q.ExamID
+        LEFT JOIN edu.ExamAttemptAnswer aa ON aa.AttemptID = att.AttemptID AND aa.QuestionID = q.QuestionID
+        WHERE att.AttemptID = @AttemptID
+          AND q.QuestionType = 'Written'
+          AND q.IsActive = 'A'
+          AND aa.MarksAwarded IS NULL
 
         UPDATE edu.ExamAttempt
         SET Status = @FinalStatus,
@@ -381,11 +386,16 @@ BEGIN
         SET MarksAwarded = @MarksAwarded
         WHERE AttemptID = @AttemptID AND QuestionID = @QuestionID
 
+        -- Driven from ExamQuestion (not ExamAttemptAnswer) so an unanswered Written question still counts as ungraded
         DECLARE @UngradedWritten int
         SELECT @UngradedWritten = COUNT(*)
-        FROM edu.ExamAttemptAnswer aa
-        JOIN edu.ExamQuestion q ON q.QuestionID = aa.QuestionID
-        WHERE aa.AttemptID = @AttemptID AND q.QuestionType = 'Written' AND aa.MarksAwarded IS NULL
+        FROM edu.ExamQuestion q
+        JOIN edu.ExamAttempt att ON att.ExamID = q.ExamID
+        LEFT JOIN edu.ExamAttemptAnswer aa ON aa.AttemptID = att.AttemptID AND aa.QuestionID = q.QuestionID
+        WHERE att.AttemptID = @AttemptID
+          AND q.QuestionType = 'Written'
+          AND q.IsActive = 'A'
+          AND aa.MarksAwarded IS NULL
 
         IF @UngradedWritten = 0
         BEGIN
