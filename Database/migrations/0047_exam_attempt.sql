@@ -333,10 +333,11 @@ BEGIN
         SELECT
             a.AttemptID, a.ExamID, a.StudentID, a.AttemptNumber, a.StartedDate, a.ExpiresDate,
             a.SubmittedDate, a.Status, a.TotalMarksAwarded, a.IsFullyGraded,
-            e.ExamTitle, s.FullName AS StudentName
+            e.ExamTitle, u.FullName AS StudentName
         FROM edu.ExamAttempt a
         JOIN edu.Exam e ON e.ExamID = a.ExamID
         JOIN mst.Student s ON s.StudentID = a.StudentID
+        JOIN usr.Users u ON u.UserID = s.UserID
         WHERE a.IsFullyGraded = 0 AND a.Status IN ('Submitted', 'Expired')
         ORDER BY a.SubmittedDate ASC
     END TRY
