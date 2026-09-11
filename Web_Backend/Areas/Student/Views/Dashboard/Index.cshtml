@@ -255,3 +255,32 @@
         </a>
     </div>
 </div>
+
+@{
+    var joinableExams = ViewBag.JoinableExams as List<Web_Backend.Areas.Admin.Models.ExamJoinRow>;
+}
+
+@if (joinableExams != null && joinableExams.Any())
+{
+    <div class="dashboard-exams">
+        <h3>Your Exams</h3>
+        <ul>
+            @foreach (var row in joinableExams)
+            {
+                <li>
+                    @row.ExamTitle
+                    — Window: @row.WindowStart?.ToString("g") to @row.WindowEnd?.ToString("g")
+                    — Attempts: @row.AttemptsUsed / @row.MaxAttempts
+                    @if (row.CanJoin)
+                    {
+                        <a href="/Student/ExamAttempt/Start?examId=@row.ExamID" class="btn btn-primary">Join</a>
+                    }
+                    else
+                    {
+                        <span class="text-muted">Not available</span>
+                    }
+                </li>
+            }
+        </ul>
+    </div>
+}

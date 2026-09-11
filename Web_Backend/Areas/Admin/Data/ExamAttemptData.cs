@@ -48,5 +48,8 @@ namespace Web_Backend.Areas.Admin.Data
                 QuestionID = questionId,
                 MarksAwarded = marksAwarded
             });
+
+        public Task<int> CountByExamAndStudent(string examId, string studentId) =>
+            db.GetCount<object>("edu.ExamAttempt_CountByExamAndStudent", new { APIKey = AppData.GetAPIKey(), ExamID = examId, StudentID = studentId });
     }
 }
