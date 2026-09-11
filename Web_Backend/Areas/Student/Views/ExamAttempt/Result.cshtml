@@ -1,0 +1,17 @@
+@using Web_Backend.Areas.Admin.Models
+@model ExamAttempt
+@{
+    ViewBag.Title = "Exam Submitted";
+}
+
+<h2>@Model.ExamTitle</h2>
+
+@if (Model.Status == "Submitted" || Model.Status == "Expired")
+{
+    <p>Your exam has been submitted and is pending review.</p>
+    <p>You will be notified once grading is complete.</p>
+}
+else
+{
+    <p>This attempt is still in progress.</p>
+}
