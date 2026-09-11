@@ -1,0 +1,86 @@
+@using Web_Backend.Areas.Admin.Models
+@{
+    ViewBag.Title = "Take Exam";
+    var attempt = (ExamAttempt)ViewBag.Attempt;
+    var answers = (List<ExamAttemptAnswer>)ViewBag.Answers;
+}
+
+<h2>@attempt.ExamTitle</h2>
+<div id="examTimer" data-expires="@attempt.ExpiresDate.ToString("o")" style="font-weight:bold;"></div>
+
+<form id="examForm" asp-action="Submit" asp-controller="ExamAttempt" method="post">
+    @Html.AntiForgeryToken()
+    <input type="hidden" name="attemptId" value="@attempt.AttemptID" />
+
+    @foreach (var ans in answers.OrderBy(a => a.SortOrder))
+    {
+        <div class="exam-question" data-question-id="@ans.QuestionID" data-attempt-id="@attempt.AttemptID">
+            <p>@ans.QuestionTextLatex</p>
+            @if (ans.IsMCQ)
+            {
+                <input type="text" class="mcq-option-input" placeholder="Enter OptionID"
+                       value="@ans.SelectedOptionID" data-question-id="@ans.QuestionID" />
+                <!-- Phase 1 note: full option-list rendering (radio buttons per edu.ExamQuestionOption)
+                     is a follow-up UI polish item; this minimal input wires the save flow end-to-end. -->
+            }
+            else
+            {
+                <textarea class="written-answer-input" rows="6" data-question-id="@ans.QuestionID">@ans.WrittenAnswerText</textarea>
+            }
+        </div>
+    }
+
+    <button type="submit">Submit Exam</button>
+</form>
+
+<script>
+(function () {
+    var timerEl = document.getElementById('examTimer');
+    var expires = new Date(timerEl.getAttribute('data-expires'));
+
+    function tick() {
+        var remainingMs = expires - new Date();
+        if (remainingMs <= 0) {
+            timerEl.textContent = 'Time expired — submitting...';
+            document.getElementById('examForm').submit();
+            return;
+        }
+        var totalSec = Math.floor(remainingMs / 1000);
+        var mm = Math.floor(totalSec / 60);
+        var ss = totalSec % 60;
+        timerEl.textContent = 'Time remaining: ' + mm + ':' + (ss < 10 ? '0' : '') + ss;
+        setTimeout(tick, 1000);
+    }
+    tick();
+
+    var token = document.querySelector('input[name="__RequestVerificationToken"]').value;
+
+    function saveAnswer(questionId, attemptId, selectedOptionId, writtenAnswerText) {
+        fetch('/Student/ExamAttempt/SaveAnswer', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'RequestVerificationToken': token },
+            body: new URLSearchParams({
+                attemptId: attemptId,
+                questionId: questionId,
+                selectedOptionId: selectedOptionId || '',
+                writtenAnswerText: writtenAnswerText || '',
+                __RequestVerificationToken: token
+            })
+        });
+    }
+
+    document.querySelectorAll('.mcq-option-input').forEach(function (el) {
+        el.addEventListener('change', function () {
+            var q = el.closest('.exam-question');
+            saveAnswer(q.getAttribute('data-question-id'), q.getAttribute('data-attempt-id'), el.value, null);
+        });
+    });
+
+    document.querySelectorAll('.written-answer-input').forEach(function (el) {
+        el.addEventListener('blur', function () {
+            var q = el.closest('.exam-question');
+            saveAnswer(q.getAttribute('data-question-id'), q.getAttribute('data-attempt-id'), null, el.value);
+        });
+    });
+})();
+</script>
