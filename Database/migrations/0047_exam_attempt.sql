@@ -283,7 +283,7 @@ BEGIN
         FROM edu.ExamAttemptAnswer aa
         JOIN edu.ExamQuestion q ON q.QuestionID = aa.QuestionID
         LEFT JOIN edu.ExamQuestionOption opt ON opt.OptionID = aa.SelectedOptionID
-        WHERE aa.AttemptID = @AttemptID AND q.QuestionType = 'MCQ'
+        WHERE aa.AttemptID = @AttemptID AND q.QuestionType = 'MCQ' AND q.IsActive = 'A'
 
         -- Sum whatever marks are known so far (partial until Written rows graded)
         DECLARE @Total decimal(8,2)
