@@ -51,4 +51,16 @@ namespace Web_Backend.Areas.Admin.Models
         public bool IsMCQ => QuestionType == "MCQ";
         public bool IsGraded => MarksAwarded.HasValue;
     }
+
+    public class ExamJoinRow
+    {
+        public string ExamID { get; set; } = "";
+        public string ExamTitle { get; set; } = "";
+        public System.DateTime? WindowStart { get; set; }
+        public System.DateTime? WindowEnd { get; set; }
+        public bool IsWithinWindow { get; set; }
+        public int AttemptsUsed { get; set; }
+        public int MaxAttempts { get; set; }
+        public bool CanJoin => IsWithinWindow && AttemptsUsed < MaxAttempts;
+    }
 }

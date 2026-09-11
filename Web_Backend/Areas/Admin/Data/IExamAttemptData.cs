@@ -13,5 +13,6 @@ namespace Web_Backend.Areas.Admin.Data
         Task Submit(string attemptId);
         Task<List<ExamAttempt>> ListPendingGrading();
         Task GradeWritten(string attemptId, string questionId, decimal marksAwarded);
+        Task<int> CountByExamAndStudent(string examId, string studentId);
     }
 }

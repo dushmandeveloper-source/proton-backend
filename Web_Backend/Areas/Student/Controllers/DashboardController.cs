@@ -17,12 +17,18 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
         private readonly IStudentData studentRep;
         private readonly ICourseScheduleData scheduleRep;
         private readonly ICourseRegistrationData registrationRep;
+        private readonly IExamScheduleData examScheduleRep;
+        private readonly IExamAttemptData attemptRep;
+        private readonly IExamData examRep;
 
-        public DashboardController(IStudentData studentRep, ICourseScheduleData scheduleRep, ICourseRegistrationData registrationRep)
+        public DashboardController(IStudentData studentRep, ICourseScheduleData scheduleRep, ICourseRegistrationData registrationRep, IExamScheduleData examScheduleRep, IExamAttemptData attemptRep, IExamData examRep)
         {
             this.studentRep = studentRep;
             this.scheduleRep = scheduleRep;
             this.registrationRep = registrationRep;
+            this.examScheduleRep = examScheduleRep;
+            this.attemptRep = attemptRep;
+            this.examRep = examRep;
         }
 
         [HttpGet]
@@ -68,6 +74,40 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
                 Summary = summary,
                 Registrations = registrations
             };
+
+            var now = System.DateTime.Now;
+            var segments = await examScheduleRep.GetSegmentsForStudent(student.StudentID, now.Date.AddDays(-1), now.Date.AddDays(30));
+
+            var joinRows = new List<Web_Backend.Areas.Admin.Models.ExamJoinRow>();
+            var seenExamIds = new HashSet<string>();
+
+            foreach (var seg in segments)
+            {
+                if (!seenExamIds.Add(seg.ExamID))
+                    continue; // one row per exam even if it has multiple schedule segments
+
+                var windowStart = seg.StartDate.Date + (seg.StartTime ?? System.TimeSpan.Zero);
+                var windowEnd = seg.EndDate.Date + (seg.EndTime ?? new System.TimeSpan(23, 59, 59));
+                var withinWindow = now >= windowStart && now <= windowEnd;
+
+                var exam = await examRep.Get(seg.ExamID);
+                if (exam == null) continue;
+
+                var attemptsUsed = await attemptRep.CountByExamAndStudent(seg.ExamID, student.StudentID);
+
+                joinRows.Add(new Web_Backend.Areas.Admin.Models.ExamJoinRow
+                {
+                    ExamID = seg.ExamID,
+                    ExamTitle = seg.ExamTitle,
+                    WindowStart = windowStart,
+                    WindowEnd = windowEnd,
+                    IsWithinWindow = withinWindow,
+                    AttemptsUsed = attemptsUsed,
+                    MaxAttempts = exam.MaxAttempts
+                });
+            }
+
+            ViewBag.JoinableExams = joinRows;
 
             ViewBag.CurrentUser = Auth.GetUser();
             return View(model);
