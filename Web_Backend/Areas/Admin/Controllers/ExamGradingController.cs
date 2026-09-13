@@ -33,6 +33,11 @@ namespace Web_Backend.Areas.Admin.Controllers
             return View(pending);
         }
 
+        // Read-only: Written-answer grading itself now belongs to the
+        // Lecturer area (Lecturer/ExamReview/Grade + SaveGrade) so the
+        // lecturer who set the exam marks it, not the school admin. Admin
+        // keeps this page purely for oversight/visibility -- no SaveGrade
+        // action exists here anymore.
         [HttpGet]
         public async Task<IActionResult> Grade(string attemptId)
         {
@@ -47,25 +52,6 @@ namespace Web_Backend.Areas.Admin.Controllers
             ViewBag.Attempt = attempt;
             ViewBag.Answers = answers;
             return View();
-        }
-
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> SaveGrade(string attemptId, string questionId, decimal marksAwarded)
-        {
-            Auth.CheckPermission(PermissionCode.Exams, 'E');
-
-            try
-            {
-                await attemptRep.GradeWritten(attemptId, questionId, marksAwarded);
-                TempData["SuccessMessage"] = "Grade saved.";
-            }
-            catch (System.Exception ex)
-            {
-                TempData["ErrorMessage"] = "Could not save grade: " + ex.Message;
-            }
-
-            return RedirectToAction("Grade", new { attemptId });
         }
 
         // ---------- Phase 3: admin review queue (2nd stage of the approval gate) ----------

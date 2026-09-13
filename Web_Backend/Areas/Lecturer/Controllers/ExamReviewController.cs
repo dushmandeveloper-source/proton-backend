@@ -37,26 +37,57 @@ namespace Web_Backend.Areas.LecturerPortal.Controllers
             return View(pending);
         }
 
-        // Read-only view of a single attempt's submitted answers, so a
-        // lecturer can actually see what the student wrote before approving
-        // -- reuses the same ExamAttempt_Get / ExamAttemptAnswer_List reads
-        // the Admin-area grading queue already uses (no new proc needed).
-        // No Save/Grade action here: marks are already finalized by the time
-        // an attempt reaches this queue (IsFullyGraded=1 is a precondition
-        // of ExamAttempt_ListTeacherReviewQueue itself).
+        // Written-answer grading queue -- moved here from the Admin area so
+        // the lecturer who set/taught the exam grades essay/short-answer
+        // questions, not the school admin. Admin's ExamGrading/Index is now
+        // read-only oversight only (no SaveGrade action there anymore).
         [HttpGet]
-        public async Task<IActionResult> ViewAnswers(string attemptId)
+        public async Task<IActionResult> GradingQueue()
+        {
+            Auth.CheckUser();
+            ViewBag.CurrentUser = Auth.GetUser();
+            var pending = await attemptRep.ListPendingGrading();
+            return View(pending);
+        }
+
+        // Shows every question/answer for one attempt; Written questions get
+        // an inline Save Grade form (MCQ marks are already auto-scored and
+        // shown read-only). Also reused as the read-only "View Answers" link
+        // from the teacher-approval queue below, since IsFullyGraded=1 by
+        // the time an attempt reaches that queue -- the same view just has
+        // nothing left to grade at that point.
+        [HttpGet]
+        public async Task<IActionResult> Grade(string attemptId)
         {
             Auth.CheckUser();
             var attempt = await attemptRep.Get(attemptId);
             if (attempt == null)
-                return RedirectToAction("Index");
+                return RedirectToAction("GradingQueue");
 
             var answers = await attemptRep.ListAnswers(attemptId);
 
             ViewBag.CurrentUser = Auth.GetUser();
             ViewBag.Attempt = attempt;
             return View(answers);
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> SaveGrade(string attemptId, string questionId, decimal marksAwarded)
+        {
+            Auth.CheckUser();
+
+            try
+            {
+                await attemptRep.GradeWritten(attemptId, questionId, marksAwarded);
+                TempData["SuccessMessage"] = "Grade saved.";
+            }
+            catch (Exception ex)
+            {
+                TempData["ErrorMessage"] = "Could not save grade: " + ex.Message;
+            }
+
+            return RedirectToAction("Grade", new { attemptId });
         }
 
         // Bulk approve: accepts one or more attempt IDs from checkbox-array
