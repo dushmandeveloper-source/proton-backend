@@ -9,6 +9,22 @@
 
 <div class="max-w-3xl mx-auto space-y-6 page-enter">
 
+    @* Screen-share's native picker reliably knocks the browser out of
+       fullscreen on most browsers, and a fresh requestFullscreen() call
+       can't be made automatically afterward (it requires an actual click,
+       not just any code running) -- this banner asks the student to
+       re-enter fullscreen themselves, and hides itself as soon as they do. *@
+    <div id="reenterFullscreenPrompt" class="hidden sticky top-0 z-40 rounded-[20px] border-2 border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950 p-4 flex items-center justify-between gap-3">
+        <div class="flex items-center gap-3">
+            <i data-lucide="maximize" class="w-5 h-5 text-amber-600 dark:text-amber-300 flex-shrink-0"></i>
+            <p class="text-sm text-amber-700 dark:text-amber-300">You're not in fullscreen. Please return to fullscreen to continue your exam.</p>
+        </div>
+        <button type="button" id="reenterFullscreenBtn"
+                class="px-4 py-2 rounded-xl font-medium text-xs bg-amber-500 text-slate-900 hover:bg-amber-600 transition-colors flex-shrink-0">
+            Enter Fullscreen
+        </button>
+    </div>
+
     <div id="streamLossModal" class="hidden fixed inset-0 z-50 bg-slate-950/90 flex items-center justify-center p-6">
         <div class="max-w-md w-full bg-white dark:bg-slate-900 rounded-[24px] shadow-lg p-6 space-y-4 text-center">
             <div class="mx-auto w-12 h-12 rounded-full bg-red-50 dark:bg-red-950 flex items-center justify-center">
@@ -270,6 +286,8 @@
     var dockScreenLiveBadge = document.getElementById('dockScreenLiveBadge');
     var permissionIntroModal = document.getElementById('permissionIntroModal');
     var continueToPermissionsBtn = document.getElementById('continueToPermissionsBtn');
+    var reenterFullscreenPrompt = document.getElementById('reenterFullscreenPrompt');
+    var reenterFullscreenBtn = document.getElementById('reenterFullscreenBtn');
     var graceTimeoutId = null;
     var graceIntervalId = null;
     var GRACE_WINDOW_SECONDS = 30;
@@ -417,10 +435,12 @@
                 ? el.requestFullscreen()
                 : (el.webkitRequestFullscreen ? el.webkitRequestFullscreen() : null);
             if (request && typeof request.catch === 'function') {
-                request.catch(function () { /* best-effort; ignore rejection */ });
+                request.catch(function (err) { console.warn('Fullscreen request rejected:', err); });
+            } else if (!request) {
+                console.warn('Fullscreen API not available in this browser.');
             }
         } catch (err) {
-            // best-effort; ignore
+            console.warn('Fullscreen request threw synchronously:', err);
         }
 
         permissionIntroModal.classList.add('hidden');
@@ -430,7 +450,50 @@
             // prompts themselves can steal window focus, and that must never
             // be mistaken for a student-caused WindowBlur/TabSwitch.
             violationDetectionArmed = true;
+
+            // getDisplayMedia()'s native screen-share picker reliably knocks
+            // the browser OUT of fullscreen on most browsers (the picker UI
+            // takes priority over an existing fullscreen element) -- so the
+            // request made above, before this async flow started, is very
+            // often silently undone by the time we get here. A fresh
+            // requestFullscreen() call from this .finally() callback is NOT
+            // inside a user gesture anymore and browsers will reject it, so
+            // instead we surface a one-click prompt asking the student to
+            // re-enter fullscreen themselves.
+            if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+                reenterFullscreenPrompt.classList.remove('hidden');
+            }
         });
+    });
+
+    reenterFullscreenBtn.addEventListener('click', function () {
+        try {
+            var el = document.documentElement;
+            var request = el.requestFullscreen
+                ? el.requestFullscreen()
+                : (el.webkitRequestFullscreen ? el.webkitRequestFullscreen() : null);
+            if (request && typeof request.then === 'function') {
+                request.then(function () { reenterFullscreenPrompt.classList.add('hidden'); })
+                    .catch(function (err) { console.warn('Fullscreen request rejected:', err); });
+            } else if (request === null) {
+                console.warn('Fullscreen API not available in this browser.');
+            } else {
+                reenterFullscreenPrompt.classList.add('hidden');
+            }
+        } catch (err) {
+            console.warn('Fullscreen request threw synchronously:', err);
+        }
+    });
+
+    document.addEventListener('fullscreenchange', function () {
+        if (document.fullscreenElement) {
+            reenterFullscreenPrompt.classList.add('hidden');
+        } else if (violationDetectionArmed) {
+            // Only nag once the permission flow has fully settled -- during
+            // acquireStreams() itself the .finally() callback above already
+            // handles the initial post-picker fullscreen check.
+            reenterFullscreenPrompt.classList.remove('hidden');
+        }
     });
 
     function saveAnswer(questionId, attemptId, selectedOptionId, writtenAnswerText) {
