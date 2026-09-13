@@ -1,0 +1,45 @@
+@using Web_Backend.Areas.Admin.Models
+@model List<ExamAttemptAnswer>
+@{
+    ViewData["Title"] = "View Submitted Answers";
+    var attempt = (ExamAttempt)ViewBag.Attempt;
+}
+
+<div class="max-w-4xl mx-auto page-enter">
+    <div class="mb-6">
+        <a asp-action="Index" asp-controller="ExamReview" asp-area="Lecturer" class="text-sm text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-100 inline-flex items-center gap-1 mb-3">
+            <i data-lucide="arrow-left" class="w-4 h-4"></i> Back to review queue
+        </a>
+        <h2 class="text-3xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">@attempt.ExamTitle</h2>
+        <p class="text-slate-500 dark:text-slate-400 mt-2">
+            @attempt.StudentName &middot; Status: @attempt.Status &middot;
+            Total: @attempt.TotalMarksAwarded / @attempt.TotalMarks
+        </p>
+    </div>
+
+    <div class="space-y-4">
+        @foreach (var ans in Model.OrderBy(a => a.SortOrder))
+        {
+            <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 p-5">
+                <div class="flex items-start justify-between gap-4 mb-2">
+                    <p class="text-slate-800 dark:text-slate-100 font-medium">@ans.QuestionTextLatex</p>
+                    <span class="text-xs text-slate-400 dark:text-slate-500 whitespace-nowrap">@ans.Marks marks</span>
+                </div>
+
+                @if (ans.IsMCQ)
+                {
+                    <p class="text-sm text-slate-600 dark:text-slate-300">
+                        Selected Option: @(ans.SelectedOptionID ?? "-") &middot;
+                        Correct: @(ans.IsCorrect == true ? "Yes" : ans.IsCorrect == false ? "No" : "-") &middot;
+                        Marks: @ans.MarksAwarded
+                    </p>
+                }
+                else
+                {
+                    <p class="text-sm text-slate-600 dark:text-slate-300 mb-2 whitespace-pre-wrap">@(string.IsNullOrEmpty(ans.WrittenAnswerText) ? "(no answer submitted)" : ans.WrittenAnswerText)</p>
+                    <p class="text-xs text-slate-400 dark:text-slate-500">Marks awarded: @(ans.MarksAwarded?.ToString() ?? "-")</p>
+                }
+            </div>
+        }
+    </div>
+</div>

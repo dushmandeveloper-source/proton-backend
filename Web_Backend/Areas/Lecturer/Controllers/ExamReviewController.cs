@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Web_Backend.Areas.Admin.Data;
+using Web_Backend.Areas.Admin.Models;
 using Web_Backend.Classes;
 
 namespace Web_Backend.Areas.LecturerPortal.Controllers
@@ -34,6 +35,28 @@ namespace Web_Backend.Areas.LecturerPortal.Controllers
             ViewBag.CurrentUser = Auth.GetUser();
             var pending = await attemptRep.ListTeacherReviewQueue();
             return View(pending);
+        }
+
+        // Read-only view of a single attempt's submitted answers, so a
+        // lecturer can actually see what the student wrote before approving
+        // -- reuses the same ExamAttempt_Get / ExamAttemptAnswer_List reads
+        // the Admin-area grading queue already uses (no new proc needed).
+        // No Save/Grade action here: marks are already finalized by the time
+        // an attempt reaches this queue (IsFullyGraded=1 is a precondition
+        // of ExamAttempt_ListTeacherReviewQueue itself).
+        [HttpGet]
+        public async Task<IActionResult> ViewAnswers(string attemptId)
+        {
+            Auth.CheckUser();
+            var attempt = await attemptRep.Get(attemptId);
+            if (attempt == null)
+                return RedirectToAction("Index");
+
+            var answers = await attemptRep.ListAnswers(attemptId);
+
+            ViewBag.CurrentUser = Auth.GetUser();
+            ViewBag.Attempt = attempt;
+            return View(answers);
         }
 
         // Bulk approve: accepts one or more attempt IDs from checkbox-array
