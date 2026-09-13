@@ -37,7 +37,7 @@
     <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
         <div class="p-6 border-b border-slate-100 dark:border-slate-700 flex items-center gap-3">
             <div class="bg-indigo-50 dark:bg-indigo-950 p-2 rounded-lg"><i data-lucide="calendar-days" class="w-5 h-5 text-indigo-600 dark:text-indigo-300"></i></div>
-            <h3 class="font-semibold text-lg text-slate-800 dark:text-slate-100">This Week's Classes</h3>
+            <h3 class="font-semibold text-lg text-slate-800 dark:text-slate-100">This Week</h3>
         </div>
         <div class="divide-y divide-slate-100 dark:divide-slate-700">
             @foreach (var day in Model.WeekSchedule)
@@ -50,7 +50,7 @@
                     <div class="flex-1 space-y-2">
                         @if (day.Segments.Count == 0)
                         {
-                            <p class="text-sm text-slate-400 dark:text-slate-500">No classes</p>
+                            <p class="text-sm text-slate-400 dark:text-slate-500">Nothing scheduled</p>
                         }
                         else
                         {
@@ -62,10 +62,16 @@
                                 // rule as the student dashboard's Join button.
                                 var joinAt = day.Date.Date.Add(seg.StartTime).AddMinutes(-15);
                                 var isToday = day.Date.Date == DateTime.Today;
-                                <div class="rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700 px-4 py-3">
+                                var isExam = seg.Kind == "Exam";
+                                <div class="rounded-xl border px-4 py-3 @(isExam ? "bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-800" : "bg-slate-50 dark:bg-slate-800/60 border-slate-100 dark:border-slate-700")">
                                     <div class="flex items-start justify-between gap-3">
                                         <div class="min-w-0">
-                                            <p class="text-sm font-semibold text-slate-800 dark:text-slate-100">@seg.CourseTitle</p>
+                                            <div class="flex items-center gap-2">
+                                                <span class="inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wide @(isExam ? "bg-amber-100 dark:bg-amber-900 text-amber-700 dark:text-amber-300" : "bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-300")">
+                                                    @(isExam ? "Exam" : "Course")
+                                                </span>
+                                                <p class="text-sm font-semibold text-slate-800 dark:text-slate-100">@seg.CourseTitle</p>
+                                            </div>
                                             <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                                                 @seg.ScheduleName &middot; @seg.StartTime.ToString(@"hh\:mm") - @seg.EndTime.ToString(@"hh\:mm") &middot; @seg.Location
                                             </p>
@@ -88,18 +94,21 @@
                                             }
                                         }
                                     </div>
-                                    <div class="mt-2 meeting-link-row" data-schedule-id="@seg.ScheduleID" data-segment-id="@seg.SegmentID">
-                                        <div class="meeting-link-display">
-                                            <button type="button" class="meeting-link-edit-btn text-xs text-slate-400 hover:text-[#7c3aed] dark:hover:text-purple-400 inline-flex items-center gap-1">
-                                                <i data-lucide="pencil" class="w-3 h-3"></i> @(string.IsNullOrEmpty(seg.MeetingLink) ? "Add" : "Update") link
-                                            </button>
+                                    @if (!isExam)
+                                    {
+                                        <div class="mt-2 meeting-link-row" data-schedule-id="@seg.ScheduleID" data-segment-id="@seg.SegmentID">
+                                            <div class="meeting-link-display">
+                                                <button type="button" class="meeting-link-edit-btn text-xs text-slate-400 hover:text-[#7c3aed] dark:hover:text-purple-400 inline-flex items-center gap-1">
+                                                    <i data-lucide="pencil" class="w-3 h-3"></i> @(string.IsNullOrEmpty(seg.MeetingLink) ? "Add" : "Update") link
+                                                </button>
+                                            </div>
+                                            <div class="meeting-link-form hidden flex items-center gap-2 mt-1">
+                                                <input type="url" class="meeting-link-input flex-1 px-2 py-1 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 text-xs" placeholder="Meeting link" value="@seg.MeetingLink" />
+                                                <button type="button" class="meeting-link-save-btn px-2 py-1 rounded-lg text-xs font-medium bg-[#7c3aed] text-white hover:bg-[#6d28d9]">Save</button>
+                                                <button type="button" class="meeting-link-cancel-btn px-2 py-1 rounded-lg text-xs text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700">Cancel</button>
+                                            </div>
                                         </div>
-                                        <div class="meeting-link-form hidden flex items-center gap-2 mt-1">
-                                            <input type="url" class="meeting-link-input flex-1 px-2 py-1 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 text-xs" placeholder="Meeting link" value="@seg.MeetingLink" />
-                                            <button type="button" class="meeting-link-save-btn px-2 py-1 rounded-lg text-xs font-medium bg-[#7c3aed] text-white hover:bg-[#6d28d9]">Save</button>
-                                            <button type="button" class="meeting-link-cancel-btn px-2 py-1 rounded-lg text-xs text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700">Cancel</button>
-                                        </div>
-                                    </div>
+                                    }
                                 </div>
                             }
                         }
