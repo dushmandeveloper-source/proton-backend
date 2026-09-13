@@ -67,6 +67,7 @@
                             var dayPayload = new
                             {
                                 dateLabel = day.Date.ToString("dddd, MMMM d, yyyy"),
+                                isToday = day.Date.Date == DateTime.Today,
                                 holidays = day.Holidays.Select(h => new { title = h.Title, description = h.Description }),
                                 classes = day.Classes.Select(seg => new
                                 {
@@ -76,6 +77,8 @@
                                     scheduleName = seg.ScheduleName,
                                     batchName = seg.BatchName,
                                     time = $"{seg.StartTime.ToString(@"hh\:mm")} - {seg.EndTime.ToString(@"hh\:mm")}",
+                                    startTime = seg.StartTime.ToString(@"hh\:mm\:ss"),
+                                    endTime = seg.EndTime.ToString(@"hh\:mm\:ss"),
                                     location = seg.Location,
                                     instructorNames = seg.InstructorNames,
                                     meetingLink = seg.MeetingLink,
@@ -137,9 +140,22 @@
         const dayTitle = document.getElementById('cal-day-title');
         const dayEvents = document.getElementById('cal-day-events');
 
-        function eventCardsHtml(list) {
+        function eventCardsHtml(list, isToday) {
             if (list.length === 0) return '<p class="text-sm text-slate-400 dark:text-slate-500">No exams on this day.</p>';
-            return list.map(e => `
+            var now = new Date();
+            return list.map(e => {
+                var withinWindow = false;
+                if (isToday && e.startTime && e.endTime) {
+                    var todayStr = now.toISOString().slice(0, 10);
+                    var start = new Date(todayStr + 'T' + e.startTime);
+                    var end = new Date(todayStr + 'T' + e.endTime);
+                    withinWindow = now >= start && now <= end;
+                }
+                var canWatch = isToday && withinWindow;
+                var watchBtn = canWatch
+                    ? `<button type="button" class="px-3 py-1.5 rounded-lg font-medium text-xs bg-amber-500 text-slate-900 hover:bg-amber-600 transition-colors flex items-center gap-1" title="Live monitoring is not available yet"><i data-lucide="eye" class="w-3.5 h-3.5"></i> Watch Exam</button>`
+                    : `<span class="px-3 py-1.5 rounded-lg font-medium text-xs bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 cursor-not-allowed flex items-center gap-1" title="${!isToday ? 'Only available on the scheduled day' : 'Only available during the exam window'}"><i data-lucide="eye" class="w-3.5 h-3.5"></i> Watch Exam</span>`;
+                return `
                 <div class="p-3 rounded-xl border border-slate-100 dark:border-slate-700 ${e.isMakeup ? 'bg-fuchsia-50/60 dark:bg-fuchsia-950/30' : ''}">
                     <div class="flex items-start justify-between gap-3">
                         <div class="min-w-0">
@@ -156,15 +172,14 @@
                             </div>
                         </div>
                         <div class="flex flex-col items-end gap-2 flex-shrink-0">
-                            <button type="button" class="px-3 py-1.5 rounded-lg font-medium text-xs bg-amber-500 text-slate-900 hover:bg-amber-600 transition-colors flex items-center gap-1" title="Live monitoring is not available yet">
-                                <i data-lucide="eye" class="w-3.5 h-3.5"></i> Watch Exam
-                            </button>
+                            ${watchBtn}
                             ${e.meetingLink ? `<a href="${e.meetingLink}" target="_blank" rel="noopener" class="px-3 py-1.5 rounded-lg font-medium text-xs bg-[#7c3aed] text-white hover:bg-[#6d28d9] transition-colors flex items-center gap-1"><i data-lucide="video" class="w-3.5 h-3.5"></i> Join</a>` : ''}
                         </div>
                     </div>
                     ${!e.isMakeup ? `<div class="mt-2"><a href="@Url.Action("Create", "ExamReschedule", new { area = "Lecturer" })?scheduleId=${encodeURIComponent(e.scheduleId)}&segmentId=${encodeURIComponent(e.segmentId)}" class="text-xs text-slate-400 hover:text-[#7c3aed] dark:hover:text-purple-400 inline-flex items-center gap-1"><i data-lucide="calendar-clock" class="w-3 h-3"></i> Request date change</a></div>` : ''}
                 </div>
-            `).join('');
+            `;
+            }).join('');
         }
 
         function holidayBannerHtml(list) {
@@ -180,7 +195,7 @@
             cell.addEventListener('click', () => {
                 const data = JSON.parse(cell.dataset.day || '{}');
                 dayTitle.textContent = data.dateLabel || '';
-                dayEvents.innerHTML = holidayBannerHtml(data.holidays || []) + eventCardsHtml(data.classes || []);
+                dayEvents.innerHTML = holidayBannerHtml(data.holidays || []) + eventCardsHtml(data.classes || [], !!data.isToday);
                 dayPanel.classList.remove('hidden');
                 if (window.lucide) lucide.createIcons();
                 dayPanel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
