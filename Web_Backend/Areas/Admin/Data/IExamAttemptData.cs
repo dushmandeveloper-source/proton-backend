@@ -21,5 +21,10 @@ namespace Web_Backend.Areas.Admin.Data
         // never re-queries the attempt separately, it trusts these two values.
         Task<(int StrikeCount, string Status)> ReportViolation(string attemptId, string violationType);
         Task<List<ExamAttemptViolation>> ListViolations(string attemptId);
+
+        Task<List<ExamAttempt>> ListTeacherReviewQueue();
+        Task TeacherApprove(string attemptId, string reviewedByUserId);
+        Task<List<ExamAttempt>> ListAdminReviewQueue();
+        Task<ExamAttempt?> AdminApprove(string attemptId, string reviewedByUserId);
     }
 }
