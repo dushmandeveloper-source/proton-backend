@@ -214,6 +214,13 @@ BEGIN
         BEGIN
             SELECT @StrikeCount = COUNT(*) FROM edu.ExamAttemptViolation WHERE AttemptID = @AttemptID AND CountsAsStrike = 1
             SET @Status = @CurrentStatus
+            -- Also emitted as a result set (not just OUT params): IDBAccess
+            -- has no generic multi-named-OUT-param call helper, only
+            -- Execute<T> (single @RetValue OUT) and Get<T,U> (SELECT result
+            -- set) -- so the C# layer calls this proc via db.Get<T,U> and
+            -- needs a SELECT to read back. OUT params are kept too since sqlcmd
+            -- callers/tests (see Task 1's report) already rely on them.
+            SELECT @StrikeCount AS StrikeCount, @Status AS Status
             RETURN
         END
 
@@ -256,6 +263,10 @@ BEGIN
         END
 
         COMMIT TRANSACTION
+
+        -- See comment above: also returned as a SELECT result set so the
+        -- C# repository can read StrikeCount/Status back via db.Get<T,U>.
+        SELECT @StrikeCount AS StrikeCount, @Status AS Status
     END TRY
     BEGIN CATCH
         DECLARE @ERROR_MESSAGE VARCHAR(4000) = ERROR_MESSAGE();

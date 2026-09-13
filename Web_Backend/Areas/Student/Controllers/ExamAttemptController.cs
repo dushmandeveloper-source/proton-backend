@@ -132,6 +132,35 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
             }
         }
 
+        // Phase 3: the single write path every client-side violation
+        // listener in Take.cshtml calls. The SERVER inserts the row and
+        // computes the running strike count -- the client never keeps its
+        // own count as truth, it only reacts to what this endpoint returns.
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ReportViolation(string attemptId, string violationType)
+        {
+            Auth.CheckUser();
+            var userId = Auth.GetUserId();
+            var student = await studentRep.GetByUserID(userId);
+            if (student == null)
+                return Json(new { success = false, message = "Not authenticated" });
+
+            var attempt = await attemptRep.Get(attemptId);
+            if (attempt == null || attempt.StudentID != student.StudentID)
+                return Json(new { success = false, message = "Attempt not found" });
+
+            try
+            {
+                var (strikeCount, status) = await attemptRep.ReportViolation(attemptId, violationType);
+                return Json(new { success = true, strikeCount, status });
+            }
+            catch (System.Exception ex)
+            {
+                return Json(new { success = false, message = ex.Message });
+            }
+        }
+
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Submit(string attemptId, bool isForced = false)

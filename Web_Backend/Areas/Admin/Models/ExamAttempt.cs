@@ -52,6 +52,16 @@ namespace Web_Backend.Areas.Admin.Models
         public bool IsGraded => MarksAwarded.HasValue;
     }
 
+    public class ExamAttemptViolation
+    {
+        public string ViolationID { get; set; } = "";
+        public string AttemptID { get; set; } = "";
+        public string ViolationType { get; set; } = ""; // TabSwitch | WindowBlur | FullscreenExit | CopyPaste | RightClick
+        public bool CountsAsStrike { get; set; }
+        public int? StrikeNumber { get; set; }
+        public DateTime OccurredDate { get; set; }
+    }
+
     public class ExamJoinRow
     {
         public string ExamID { get; set; } = "";

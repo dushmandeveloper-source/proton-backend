@@ -51,5 +51,32 @@ namespace Web_Backend.Areas.Admin.Data
 
         public Task<int> CountByExamAndStudent(string examId, string studentId) =>
             db.GetCount<object>("edu.ExamAttempt_CountByExamAndStudent", new { APIKey = AppData.GetAPIKey(), ExamID = examId, StudentID = studentId });
+
+        // edu.ExamAttemptViolation_Report declares @StrikeCount/@Status as OUT
+        // params (see the migration), but IDBAccess has no generic helper for
+        // reading back multiple named OUT params -- only Execute<T> (a single
+        // @RetValue OUT) and Get<T,U> (a SELECT result set). So the proc was
+        // extended to ALSO emit `SELECT @StrikeCount AS StrikeCount, @Status
+        // AS Status` as its final statement, and this calls it the same way
+        // Get() above calls edu.ExamAttempt_Get.
+        public async Task<(int StrikeCount, string Status)> ReportViolation(string attemptId, string violationType)
+        {
+            var result = await db.Get<ViolationReportResult, object>("edu.ExamAttemptViolation_Report", new
+            {
+                APIKey = AppData.GetAPIKey(),
+                AttemptID = attemptId,
+                ViolationType = violationType
+            });
+            return (result?.StrikeCount ?? 0, result?.Status ?? "InProgress");
+        }
+
+        public Task<List<ExamAttemptViolation>> ListViolations(string attemptId) =>
+            db.GetList<ExamAttemptViolation, object>("edu.ExamAttemptViolation_ListByAttempt", new { APIKey = AppData.GetAPIKey(), AttemptID = attemptId });
+
+        private class ViolationReportResult
+        {
+            public int StrikeCount { get; set; }
+            public string Status { get; set; } = "";
+        }
     }
 }
