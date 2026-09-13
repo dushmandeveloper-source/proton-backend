@@ -34,8 +34,8 @@ namespace Web_Backend.Areas.Admin.Data
         public Task<List<ExamAttemptAnswer>> ListAnswers(string attemptId) =>
             db.GetList<ExamAttemptAnswer, object>("edu.ExamAttemptAnswer_List", new { APIKey = AppData.GetAPIKey(), AttemptID = attemptId });
 
-        public Task Submit(string attemptId) =>
-            db.ExecuteNonQuery("edu.ExamAttempt_Submit", new { APIKey = AppData.GetAPIKey(), AttemptID = attemptId });
+        public Task Submit(string attemptId, bool isForced = false) =>
+            db.ExecuteNonQuery("edu.ExamAttempt_Submit", new { APIKey = AppData.GetAPIKey(), AttemptID = attemptId, IsForced = isForced });
 
         public Task<List<ExamAttempt>> ListPendingGrading() =>
             db.GetList<ExamAttempt, object>("edu.ExamAttempt_ListPendingGrading", new { APIKey = AppData.GetAPIKey() });
