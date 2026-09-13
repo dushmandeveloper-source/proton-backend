@@ -280,9 +280,31 @@ BEGIN
             ;THROW 50000, 'Attempt already finalized', 1;
         END
 
-        BEGIN TRANSACTION
-
         DECLARE @FinalStatus varchar(20) = CASE WHEN GETDATE() > @ExpiresDate THEN 'Expired' ELSE 'Submitted' END
+
+        -- Require every active question to have an answer row before a
+        -- willing, on-time submit is accepted -- but never for an
+        -- already-expired attempt, which must still be scored on whatever
+        -- was saved (this mirrors the client-side Submit-button gating in
+        -- Take.cshtml, but is the actual enforcement boundary: a request
+        -- forged straight at this proc, bypassing the browser UI entirely,
+        -- is rejected here regardless of what any client-side check did).
+        IF @FinalStatus = 'Submitted' AND EXISTS (
+            SELECT 1
+            FROM edu.ExamQuestion q
+            LEFT JOIN edu.ExamAttemptAnswer aa ON aa.AttemptID = @AttemptID AND aa.QuestionID = q.QuestionID
+            WHERE q.ExamID = @ExamID AND q.IsActive = 'A'
+              AND (
+                    aa.QuestionID IS NULL
+                 OR (q.QuestionType = 'MCQ' AND (aa.SelectedOptionID IS NULL OR aa.SelectedOptionID = ''))
+                 OR (q.QuestionType = 'Written' AND (aa.WrittenAnswerText IS NULL OR aa.WrittenAnswerText = ''))
+              )
+        )
+        BEGIN
+            ;THROW 50000, 'Answer every question before submitting', 1;
+        END
+
+        BEGIN TRANSACTION
 
         -- Auto-score MCQ answers
         UPDATE aa
