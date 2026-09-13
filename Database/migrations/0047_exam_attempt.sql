@@ -223,13 +223,20 @@ BEGIN
             ;THROW 50000, 'Invalid API Key', 1;
         END
 
+        -- Driven from edu.ExamQuestion (every active question belonging to
+        -- this attempt's exam), LEFT JOINed to edu.ExamAttemptAnswer so a
+        -- question the student hasn't answered yet still appears (with NULL
+        -- answer fields) instead of being invisible until something is saved
+        -- for it -- a fresh attempt has zero ExamAttemptAnswer rows, so an
+        -- INNER JOIN from that table alone would show no questions at all.
         SELECT
-            aa.AttemptID, aa.QuestionID, aa.SelectedOptionID, aa.WrittenAnswerText,
+            att.AttemptID, q.QuestionID, aa.SelectedOptionID, aa.WrittenAnswerText,
             aa.IsCorrect, aa.MarksAwarded, aa.AnsweredDate,
             q.QuestionType, q.QuestionTextLatex, q.ImageURL, q.AudioURL, q.VideoURL, q.Marks, q.SortOrder
-        FROM edu.ExamAttemptAnswer aa
-        JOIN edu.ExamQuestion q ON q.QuestionID = aa.QuestionID
-        WHERE aa.AttemptID = @AttemptID
+        FROM edu.ExamAttempt att
+        JOIN edu.ExamQuestion q ON q.ExamID = att.ExamID AND q.IsActive = 'A'
+        LEFT JOIN edu.ExamAttemptAnswer aa ON aa.AttemptID = att.AttemptID AND aa.QuestionID = q.QuestionID
+        WHERE att.AttemptID = @AttemptID
         ORDER BY q.SortOrder
     END TRY
     BEGIN CATCH
