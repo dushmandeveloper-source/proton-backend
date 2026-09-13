@@ -22,6 +22,10 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
             this.examRep = examRep;
         }
 
+        // Rules + email-confirmation gate, shown BEFORE edu.ExamAttempt_Start
+        // is ever called -- the timer/attempt only begins once the student
+        // confirms on this page, not the moment they click "Join Exam" on
+        // the dashboard.
         [HttpGet]
         public async Task<IActionResult> Start(string examId)
         {
@@ -30,6 +34,31 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
             var student = await studentRep.GetByUserID(userId);
             if (student == null)
                 return RedirectToAction("Index", "Dashboard", new { area = "Admin" });
+
+            var exam = await examRep.Get(examId);
+            if (exam == null)
+                return RedirectToAction("Index", "Dashboard");
+
+            ViewBag.CurrentUser = Auth.GetUser();
+            ViewBag.Exam = exam;
+            return View();
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ConfirmStart(string examId, string confirmEmail)
+        {
+            Auth.CheckUser();
+            var user = Auth.GetUser();
+            var student = await studentRep.GetByUserID(Auth.GetUserId());
+            if (student == null)
+                return RedirectToAction("Index", "Dashboard", new { area = "Admin" });
+
+            if (user == null || !string.Equals(confirmEmail?.Trim(), user.Email, System.StringComparison.OrdinalIgnoreCase))
+            {
+                TempData["ErrorMessage"] = "The email you entered doesn't match your account email.";
+                return RedirectToAction("Start", new { examId });
+            }
 
             string attemptId;
             try

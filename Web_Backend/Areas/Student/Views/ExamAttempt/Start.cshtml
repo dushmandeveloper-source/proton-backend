@@ -1,0 +1,84 @@
+@using Web_Backend.Areas.Admin.Models
+@{
+    ViewBag.Title = "Exam Rules";
+    var exam = (Exam)ViewBag.Exam;
+    var currentUser = ViewBag.CurrentUser as SessionUser;
+}
+
+<div class="max-w-2xl mx-auto space-y-6 page-enter">
+
+    <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 p-6">
+        <h1 class="text-xl font-bold text-slate-800 dark:text-slate-100">@exam.ExamTitle</h1>
+        <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">
+            Duration: @(exam.DurationMinutes?.ToString() ?? "60") minutes &middot; Total marks: @exam.TotalMarks.ToString("0.##") &middot; Attempts allowed: @exam.MaxAttempts
+        </p>
+    </div>
+
+    @if (TempData["ErrorMessage"] != null)
+    {
+        <div class="rounded-[20px] border border-red-100 dark:border-red-900 bg-red-50 dark:bg-red-950 p-4 flex items-center gap-3">
+            <i data-lucide="circle-x" class="w-5 h-5 text-red-600 dark:text-red-300 flex-shrink-0"></i>
+            <p class="text-sm text-red-700 dark:text-red-300">@TempData["ErrorMessage"]</p>
+        </div>
+    }
+
+    <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
+        <div class="p-6 border-b border-slate-100 dark:border-slate-700 flex items-center gap-3">
+            <div class="bg-amber-50 dark:bg-amber-950 p-2 rounded-lg"><i data-lucide="shield-alert" class="w-5 h-5 text-amber-600 dark:text-amber-300"></i></div>
+            <h2 class="font-semibold text-lg text-slate-800 dark:text-slate-100">Examination Rules</h2>
+        </div>
+        <ol class="p-6 space-y-3 list-decimal list-inside text-sm text-slate-700 dark:text-slate-200">
+            <li>You must complete the exam yourself, without help from any other person.</li>
+            <li>Do not use a calculator, phone, tablet, or any other electronic device unless the exam explicitly permits it.</li>
+            <li>Do not use textbooks, notes, or any reference material unless the exam explicitly permits it.</li>
+            <li>Do not use AI tools, chatbots, or online search engines to answer questions.</li>
+            <li>Do not copy, photograph, share, or discuss exam questions with anyone, during or after the exam.</li>
+            <li>Once started, the timer cannot be paused. Make sure you have enough time before you begin.</li>
+            <li>You must submit before time runs out; the exam auto-submits with whatever is saved once time expires.</li>
+            <li>Every question must be answered before you can submit voluntarily (you may skip and return to a question, but not leave it blank at the end).</li>
+            <li>Do not close the browser tab or navigate away during the exam — your progress may be lost if you do.</li>
+            <li>Do not attempt to open a new tab or window to search for answers.</li>
+            <li>Ensure you have a stable internet connection before starting; disconnections are not grounds for a time extension.</li>
+            <li>You are allowed a maximum of @exam.MaxAttempts attempt(s) at this exam — use them carefully.</li>
+            <li>Any suspected violation of these rules may result in your attempt being flagged for administrator review.</li>
+            <li>Marks are not shown immediately after submission — results are released only after grading is complete.</li>
+            <li>By entering the exam, you confirm you understand and agree to follow all of the rules above.</li>
+        </ol>
+    </div>
+
+    <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 p-6">
+        <form asp-action="ConfirmStart" asp-controller="ExamAttempt" method="post" class="space-y-4">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="examId" value="@exam.ExamID" />
+
+            <div>
+                <label for="confirmEmail" class="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-1.5">
+                    Confirm your account email to continue
+                </label>
+                <input type="email" id="confirmEmail" name="confirmEmail" required
+                       class="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 px-4 py-2.5 text-sm text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-300 dark:focus:ring-indigo-700"
+                       placeholder="@(currentUser?.Email ?? "your email")" autocomplete="email" />
+            </div>
+
+            <label class="flex items-start gap-3 cursor-pointer">
+                <input type="checkbox" id="agreeCheck" required class="mt-1 w-4 h-4 accent-[#7c3aed]" />
+                <span class="text-sm text-slate-600 dark:text-slate-300">I have read and agree to follow all the examination rules listed above.</span>
+            </label>
+
+            <button type="submit" id="enterExamBtn" disabled
+                    class="w-full px-6 py-3 rounded-xl font-medium text-sm bg-[#7c3aed] text-white hover:bg-[#6d28d9] shadow-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed">
+                Enter Exam
+            </button>
+        </form>
+    </div>
+</div>
+
+<script>
+(function () {
+    var agree = document.getElementById('agreeCheck');
+    var enterBtn = document.getElementById('enterExamBtn');
+    agree.addEventListener('change', function () {
+        enterBtn.disabled = !agree.checked;
+    });
+})();
+</script>
