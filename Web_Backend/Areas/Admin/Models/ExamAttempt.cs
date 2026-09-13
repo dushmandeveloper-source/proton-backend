@@ -11,7 +11,7 @@ namespace Web_Backend.Areas.Admin.Models
         public DateTime StartedDate { get; set; }
         public DateTime ExpiresDate { get; set; }
         public DateTime? SubmittedDate { get; set; }
-        public string Status { get; set; } = "InProgress"; // InProgress | Submitted | Expired
+        public string Status { get; set; } = "InProgress"; // InProgress | Submitted | Expired | Terminated
         public decimal? TotalMarksAwarded { get; set; }
         public bool IsFullyGraded { get; set; }
         public DateTime CreatedDate { get; set; }
