@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
+using System.Linq;
 using Web_Backend.Areas.Admin.Data;
+using Web_Backend.Areas.Admin.Models;
 using Web_Backend.Areas.StudentPortal;
 using Web_Backend.Areas.StudentPortal.Models;
 using Web_Backend.Classes;
@@ -49,12 +51,24 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
             var summary = await registrationRep.GetSummaryForStudent(student.StudentID);
             var registrations = await registrationRep.GetByStudent(student.StudentID);
 
+            // Merge exam sittings into the same weekly view as course classes —
+            // adapted the same way Lecturer's ExamScheduleController already
+            // does it (ExamScheduleInstructorSegment -> StudentScheduleSegment,
+            // Kind = "Exam"), so one combined, time-sorted list renders instead
+            // of a separate "Your Exams" card buried lower on the page.
+            var now = DateTime.Now;
+            var examSegments = await examScheduleRep.GetSegmentsForStudent(student.StudentID, weekStart, weekEnd);
+            var adaptedExamSegments = examSegments.Select(ToStudentScheduleSegment).ToList();
+            var combinedSchedule = schedule.Concat(adaptedExamSegments).ToList();
+
             var weekSchedule = new List<StudentScheduleDay>();
             for (var i = 0; i < ScheduleExpansion.WeekDays.Length; i++)
             {
                 var (day, code, label) = ScheduleExpansion.WeekDays[i];
                 var date = weekStart.AddDays(i);
-                var segmentsForDay = ScheduleExpansion.ForDay(schedule, date, code);
+                var segmentsForDay = ScheduleExpansion.ForDay(combinedSchedule, date, code)
+                    .OrderBy(s => s.StartTime)
+                    .ToList();
 
                 weekSchedule.Add(new StudentScheduleDay
                 {
@@ -75,19 +89,20 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
                 Registrations = registrations
             };
 
-            var now = System.DateTime.Now;
-            var segments = await examScheduleRep.GetSegmentsForStudent(student.StudentID, now.Date.AddDays(-1), now.Date.AddDays(30));
-
-            var joinRows = new List<Web_Backend.Areas.Admin.Models.ExamJoinRow>();
+            // Exam Join gating (availability window + MaxAttempts), looked up by
+            // ExamID (carried in the adapted segment's CourseID) when the view
+            // renders each exam row — same window over which exam segments were
+            // fetched above is reused here rather than querying twice.
+            var joinRows = new Dictionary<string, Web_Backend.Areas.Admin.Models.ExamJoinRow>();
             var seenExamIds = new HashSet<string>();
 
-            foreach (var seg in segments)
+            foreach (var seg in examSegments)
             {
                 if (!seenExamIds.Add(seg.ExamID))
                     continue; // one row per exam even if it has multiple schedule segments
 
-                var windowStart = seg.StartDate.Date + (seg.StartTime ?? System.TimeSpan.Zero);
-                var windowEnd = seg.EndDate.Date + (seg.EndTime ?? new System.TimeSpan(23, 59, 59));
+                var windowStart = seg.StartDate.Date + (seg.StartTime ?? TimeSpan.Zero);
+                var windowEnd = seg.EndDate.Date + (seg.EndTime ?? new TimeSpan(23, 59, 59));
                 var withinWindow = now >= windowStart && now <= windowEnd;
 
                 var exam = await examRep.Get(seg.ExamID);
@@ -95,7 +110,7 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
 
                 var attemptsUsed = await attemptRep.CountByExamAndStudent(seg.ExamID, student.StudentID);
 
-                joinRows.Add(new Web_Backend.Areas.Admin.Models.ExamJoinRow
+                joinRows[seg.ExamID] = new Web_Backend.Areas.Admin.Models.ExamJoinRow
                 {
                     ExamID = seg.ExamID,
                     ExamTitle = seg.ExamTitle,
@@ -104,13 +119,40 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
                     IsWithinWindow = withinWindow,
                     AttemptsUsed = attemptsUsed,
                     MaxAttempts = exam.MaxAttempts
-                });
+                };
             }
 
-            ViewBag.JoinableExams = joinRows;
+            ViewBag.ExamJoinRows = joinRows;
 
             ViewBag.CurrentUser = Auth.GetUser();
             return View(model);
+        }
+
+        // Adapter mapping: ExamScheduleInstructorSegment -> StudentScheduleSegment,
+        // same shape/convention as Lecturer's ExamScheduleController — lets the
+        // combined weekly list reuse StudentScheduleDay/Segment and the shared
+        // view markup, distinguished at render time by Kind == "Exam".
+        private static StudentScheduleSegment ToStudentScheduleSegment(ExamScheduleInstructorSegment seg)
+        {
+            return new StudentScheduleSegment
+            {
+                SegmentID = seg.SegmentID,
+                ScheduleID = seg.ScheduleID,
+                CourseID = seg.ExamID,
+                CourseTitle = seg.ExamTitle,
+                ScheduleName = seg.ScheduleName,
+                BatchName = seg.BatchName,
+                Location = seg.Location,
+                StartDate = seg.StartDate,
+                EndDate = seg.EndDate,
+                DaysOfWeek = seg.DaysOfWeek,
+                StartTime = seg.StartTime ?? System.TimeSpan.Zero,
+                EndTime = seg.EndTime ?? System.TimeSpan.Zero,
+                InstructorNames = seg.InstructorNames,
+                ExceptionDates = seg.ExceptionDates,
+                MeetingLink = seg.MeetingLink,
+                Kind = "Exam"
+            };
         }
     }
 }
