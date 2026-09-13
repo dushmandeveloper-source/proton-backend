@@ -117,6 +117,38 @@ namespace Web_Backend.Areas.Admin.Controllers
             return RedirectToAction("AdminReview");
         }
 
+        // Single-attempt reject with a required remark. Sends the attempt
+        // back into the TEACHER's queue (TeacherReviewStatus reset to
+        // 'Pending' by edu.ExamAttempt_AdminReject) rather than back into
+        // grading, since an admin rejection is about the approval decision
+        // itself, not necessarily the marks -- the teacher sees the remark
+        // and re-approves (or re-grades first if the remark calls for it).
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> AdminReject(string attemptId, string remark)
+        {
+            Auth.CheckPermission(PermissionCode.Exams, 'E');
+            var user = Auth.GetUser();
+
+            if (string.IsNullOrWhiteSpace(remark))
+            {
+                TempData["ErrorMessage"] = "A remark is required to reject an attempt.";
+                return RedirectToAction("AdminReview");
+            }
+
+            try
+            {
+                await attemptRep.AdminReject(attemptId, user!.Id, remark);
+                TempData["SuccessMessage"] = "Attempt rejected and sent back to the teacher for re-approval.";
+            }
+            catch (System.Exception ex)
+            {
+                TempData["ErrorMessage"] = "Could not reject: " + ex.Message;
+            }
+
+            return RedirectToAction("AdminReview");
+        }
+
         // ---------- Exam Results History: every attempt, any status, for admin oversight ----------
 
         [HttpGet]

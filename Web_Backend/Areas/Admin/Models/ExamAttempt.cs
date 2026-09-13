@@ -26,15 +26,22 @@ namespace Web_Backend.Areas.Admin.Models
         public string StudentName { get; set; } = "";
         public string StudentEmail { get; set; } = "";
 
-        public string TeacherReviewStatus { get; set; } = "Pending"; // Pending | Approved
+        public string TeacherReviewStatus { get; set; } = "Pending"; // Pending | Approved | Rejected
         public string? TeacherReviewedBy { get; set; }
         public string? TeacherReviewedByName { get; set; }
         public DateTime? TeacherReviewedDate { get; set; }
-        public string AdminReviewStatus { get; set; } = "Pending"; // Pending | Approved
+        public string? TeacherReviewRemark { get; set; }
+        public string AdminReviewStatus { get; set; } = "Pending"; // Pending | Approved | Rejected
         public string? AdminReviewedBy { get; set; }
         public string? AdminReviewedByName { get; set; }
         public DateTime? AdminReviewedDate { get; set; }
+        public string? AdminReviewRemark { get; set; }
         public DateTime? ResultReleasedDate { get; set; }
+
+        // Total strike-counted violations for this attempt (Task: strike
+        // visibility on history screens) -- 0 for every attempt that never
+        // triggered a violation report.
+        public int StrikeCount { get; set; }
 
         // Pass/Fail is never persisted -- always computed from TotalMarksAwarded
         // vs. the exam's own passing criteria, so there is exactly one source

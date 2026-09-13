@@ -90,6 +90,15 @@ namespace Web_Backend.Areas.Admin.Data
                 ReviewedByUserID = reviewedByUserId
             });
 
+        public Task TeacherReject(string attemptId, string reviewedByUserId, string remark) =>
+            db.ExecuteNonQuery("edu.ExamAttempt_TeacherReject", new
+            {
+                APIKey = AppData.GetAPIKey(),
+                AttemptID = attemptId,
+                ReviewedByUserID = reviewedByUserId,
+                Remark = remark
+            });
+
         public Task<List<ExamAttempt>> ListAdminReviewQueue() =>
             db.GetList<ExamAttempt, object>("edu.ExamAttempt_ListAdminReviewQueue", new { APIKey = AppData.GetAPIKey() });
 
@@ -99,6 +108,15 @@ namespace Web_Backend.Areas.Admin.Data
                 APIKey = AppData.GetAPIKey(),
                 AttemptID = attemptId,
                 ReviewedByUserID = reviewedByUserId
+            });
+
+        public Task AdminReject(string attemptId, string reviewedByUserId, string remark) =>
+            db.ExecuteNonQuery("edu.ExamAttempt_AdminReject", new
+            {
+                APIKey = AppData.GetAPIKey(),
+                AttemptID = attemptId,
+                ReviewedByUserID = reviewedByUserId,
+                Remark = remark
             });
 
         public Task<List<ExamAttempt>> ListForStudent(string studentId) =>

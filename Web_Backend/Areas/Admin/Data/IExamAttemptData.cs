@@ -24,8 +24,10 @@ namespace Web_Backend.Areas.Admin.Data
 
         Task<List<ExamAttempt>> ListTeacherReviewQueue();
         Task TeacherApprove(string attemptId, string reviewedByUserId);
+        Task TeacherReject(string attemptId, string reviewedByUserId, string remark);
         Task<List<ExamAttempt>> ListAdminReviewQueue();
         Task<ExamAttempt?> AdminApprove(string attemptId, string reviewedByUserId);
+        Task AdminReject(string attemptId, string reviewedByUserId, string remark);
 
         // Phase 3 Task 7 (Part 2): every attempt belonging to a student, any
         // Status/release state, most-recent-first -- backs the student-facing
