@@ -254,7 +254,8 @@ CREATE PROCEDURE [edu].[ExamAttempt_Submit]
 (
     @APIKey varchar(100),
     @AttemptID varchar(20),
-    @IsForced bit = 0
+    @IsForced bit = 0,
+    @Terminate bit = 0
 )
 AS
 BEGIN
@@ -281,7 +282,14 @@ BEGIN
             ;THROW 50000, 'Attempt already finalized', 1;
         END
 
-        DECLARE @FinalStatus varchar(20) = CASE WHEN GETDATE() > @ExpiresDate THEN 'Expired' ELSE 'Submitted' END
+        -- Terminated attempts skip the expired-vs-submitted distinction
+        -- entirely -- termination is a distinct, stricter outcome regardless
+        -- of whether time had also run out.
+        DECLARE @FinalStatus varchar(20) = CASE
+            WHEN @Terminate = 1 THEN 'Terminated'
+            WHEN GETDATE() > @ExpiresDate THEN 'Expired'
+            ELSE 'Submitted'
+        END
 
         -- Require every active question to have an answer row before a
         -- willing, on-time submit is accepted -- but never for an
@@ -294,8 +302,10 @@ BEGIN
         -- auto-submit path when the student's camera/screen-share was lost
         -- and never restored within the grace window; that student no
         -- longer has working proctoring, so trapping them behind "answer
-        -- everything first" defeats the point of ending the attempt.
-        IF @IsForced = 0 AND @FinalStatus = 'Submitted' AND EXISTS (
+        -- everything first" defeats the point of ending the attempt. Also
+        -- skipped when @Terminate = 1 (Phase 3's strike-3 auto-finalize) for
+        -- the same reason.
+        IF @IsForced = 0 AND @Terminate = 0 AND @FinalStatus = 'Submitted' AND EXISTS (
             SELECT 1
             FROM edu.ExamQuestion q
             LEFT JOIN edu.ExamAttemptAnswer aa ON aa.AttemptID = @AttemptID AND aa.QuestionID = q.QuestionID
