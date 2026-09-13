@@ -1,0 +1,85 @@
+@using Web_Backend.Areas.Admin.Models
+@model List<ExamAttempt>
+@{
+    ViewBag.Title = "My Results";
+
+    // Status badge classification -- Pending (not yet released) vs
+    // Pass/Fail (released), computed solely from Model item's own
+    // ResultReleasedDate/Passed (the same computed property used by
+    // Result.cshtml and the release email -- single source of truth).
+    // NEVER render TotalMarksAwarded / TotalMarks / PassingMarks /
+    // PassingPercentage anywhere in this view, even though they exist on
+    // each item -- see plan Task 7.
+    string BadgeClasses(ExamAttempt a)
+    {
+        if (!a.ResultReleasedDate.HasValue)
+            return "bg-amber-50 dark:bg-amber-950 text-amber-600 dark:text-amber-300";
+        return a.Passed == true
+            ? "bg-emerald-50 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-300"
+            : "bg-red-50 dark:bg-red-950 text-red-600 dark:text-red-300";
+    }
+
+    string BadgeIcon(ExamAttempt a)
+    {
+        if (!a.ResultReleasedDate.HasValue) return "clock";
+        return a.Passed == true ? "check-circle" : "circle-x";
+    }
+
+    string BadgeLabel(ExamAttempt a)
+    {
+        if (!a.ResultReleasedDate.HasValue) return "Pending review";
+        return a.Passed == true ? "Pass" : "Fail";
+    }
+}
+
+<div class="page-enter">
+    <div class="mb-6">
+        <h1 class="text-xl font-bold text-slate-800 dark:text-slate-100">My Results</h1>
+        <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">All your exam attempts and their review status.</p>
+    </div>
+
+    <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
+        @if (!Model.Any())
+        {
+            <div class="p-10 text-center">
+                <div class="w-14 h-14 rounded-full bg-slate-50 dark:bg-slate-800 flex items-center justify-center mx-auto mb-4">
+                    <i data-lucide="clipboard-list" class="w-7 h-7 text-slate-400 dark:text-slate-500"></i>
+                </div>
+                <p class="text-sm text-slate-500 dark:text-slate-400">You haven't taken any exams yet.</p>
+            </div>
+        }
+        else
+        {
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead>
+                        <tr class="border-b border-slate-100 dark:border-slate-700 text-left">
+                            <th class="px-6 py-4 font-semibold text-slate-500 dark:text-slate-400">Exam</th>
+                            <th class="px-6 py-4 font-semibold text-slate-500 dark:text-slate-400">Submitted</th>
+                            <th class="px-6 py-4 font-semibold text-slate-500 dark:text-slate-400">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var attempt in Model)
+                        {
+                            <tr class="border-b border-slate-50 dark:border-slate-800 last:border-0 hover:bg-slate-50/50 dark:hover:bg-slate-800/40 transition-colors">
+                                <td class="px-6 py-4">
+                                    <span class="font-medium text-slate-800 dark:text-slate-100">@attempt.ExamTitle</span>
+                                </td>
+                                <td class="px-6 py-4 text-slate-500 dark:text-slate-400">
+                                    @(attempt.SubmittedDate.HasValue ? attempt.SubmittedDate.Value.ToString("g") : "Not submitted")
+                                </td>
+                                <td class="px-6 py-4">
+                                    <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold @BadgeClasses(attempt)">
+                                        <i data-lucide="@BadgeIcon(attempt)" class="w-3.5 h-3.5"></i>
+                                        @BadgeLabel(attempt)
+                                    </span>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+</div>

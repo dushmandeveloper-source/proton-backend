@@ -100,5 +100,8 @@ namespace Web_Backend.Areas.Admin.Data
                 AttemptID = attemptId,
                 ReviewedByUserID = reviewedByUserId
             });
+
+        public Task<List<ExamAttempt>> ListForStudent(string studentId) =>
+            db.GetList<ExamAttempt, object>("edu.ExamAttempt_ListForStudent", new { APIKey = AppData.GetAPIKey(), StudentID = studentId });
     }
 }
