@@ -374,6 +374,27 @@
     });
 
     continueToPermissionsBtn.addEventListener('click', function () {
+        // Fullscreen must be requested synchronously inside this click's own
+        // handler, before any await -- browsers reject a fullscreen request
+        // made from inside a promise callback or timeout, since it's no
+        // longer considered "inside" the user gesture that triggered it.
+        // Best-effort only: if requestFullscreen() throws synchronously
+        // (unsupported browser) or its promise rejects (blocked by policy),
+        // the student still proceeds into the exam -- fullscreen is a
+        // proctoring aid here, not a hard gate that can strand a legitimate
+        // student who simply can't grant it.
+        try {
+            var el = document.documentElement;
+            var request = el.requestFullscreen
+                ? el.requestFullscreen()
+                : (el.webkitRequestFullscreen ? el.webkitRequestFullscreen() : null);
+            if (request && typeof request.catch === 'function') {
+                request.catch(function () { /* best-effort; ignore rejection */ });
+            }
+        } catch (err) {
+            // best-effort; ignore
+        }
+
         permissionIntroModal.classList.add('hidden');
         acquireStreams();
     });
