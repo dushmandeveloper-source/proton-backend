@@ -1,16 +1,26 @@
 @using Web_Backend.Areas.Admin.Models
 @model List<ExamAttemptAnswer>
 @{
-    ViewData["Title"] = "View Submitted Answers";
+    ViewData["Title"] = "Grade Exam Attempt";
     var attempt = (ExamAttempt)ViewBag.Attempt;
     var ordered = Model.OrderBy(a => a.SortOrder).ToList();
 }
 
 <div class="max-w-4xl mx-auto page-enter space-y-6">
-    <a asp-action="Index" asp-controller="ExamReview" asp-area="Lecturer"
-       class="text-sm text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-100 inline-flex items-center gap-1">
-        <i data-lucide="arrow-left" class="w-4 h-4"></i> Back to review queue
-    </a>
+    @if (attempt.IsFullyGraded)
+    {
+        <a asp-action="Index" asp-controller="ExamReview" asp-area="Lecturer"
+           class="text-sm text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-100 inline-flex items-center gap-1">
+            <i data-lucide="arrow-left" class="w-4 h-4"></i> Back to review queue
+        </a>
+    }
+    else
+    {
+        <a asp-action="GradingQueue" asp-controller="ExamReview" asp-area="Lecturer"
+           class="text-sm text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-100 inline-flex items-center gap-1">
+            <i data-lucide="arrow-left" class="w-4 h-4"></i> Back to grading queue
+        </a>
+    }
 
     <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 p-6">
         <div class="flex items-start justify-between gap-4 flex-wrap">
@@ -62,7 +72,19 @@
                         <div class="rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 p-4">
                             <p class="text-sm text-slate-700 dark:text-slate-200 whitespace-pre-wrap leading-relaxed">@(string.IsNullOrEmpty(ans.WrittenAnswerText) ? "(no answer submitted)" : ans.WrittenAnswerText)</p>
                         </div>
-                        <p class="text-sm font-medium text-slate-600 dark:text-slate-300">Marks awarded: <span class="text-[#7c3aed] dark:text-[#a78bfa]">@(ans.MarksAwarded?.ToString() ?? "-")</span> / @ans.Marks</p>
+                        <form asp-action="SaveGrade" asp-controller="ExamReview" asp-area="Lecturer" method="post" class="flex items-center gap-2">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="attemptId" value="@attempt.AttemptID" />
+                            <input type="hidden" name="questionId" value="@ans.QuestionID" />
+                            <label class="text-xs text-slate-500 dark:text-slate-400">Marks</label>
+                            <input type="number" step="0.01" name="marksAwarded" value="@ans.MarksAwarded" max="@ans.Marks" min="0"
+                                   class="w-24 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" />
+                            <span class="text-xs text-slate-400 dark:text-slate-500">/ @ans.Marks</span>
+                            <button type="submit"
+                                    class="px-3 py-1.5 rounded-xl font-medium bg-[#7c3aed] text-white hover:bg-[#6d28d9] shadow-sm text-xs">
+                                Save Grade
+                            </button>
+                        </form>
                     </div>
                 }
             </div>
