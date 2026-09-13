@@ -31,5 +31,11 @@ namespace Web_Backend.Areas.Admin.Data
         // Status/release state, most-recent-first -- backs the student-facing
         // "My Results" page.
         Task<List<ExamAttempt>> ListForStudent(string studentId);
+
+        // Admin-facing "Exam Results History": every attempt across every
+        // student, any Status/TeacherReviewStatus/AdminReviewStatus, most-
+        // recent-first -- distinct from ListTeacherReviewQueue/
+        // ListAdminReviewQueue, which only ever show actionable (pending) rows.
+        Task<List<ExamAttempt>> ListAllForAdmin();
     }
 }

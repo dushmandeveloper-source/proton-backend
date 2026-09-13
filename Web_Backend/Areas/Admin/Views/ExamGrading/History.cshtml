@@ -1,0 +1,95 @@
+@using Web_Backend.Areas.Admin.Models
+@model List<ExamAttempt>
+@{
+    ViewData["Title"] = "Exam Results History";
+}
+
+<div class="max-w-7xl mx-auto page-enter">
+    <div class="mb-6">
+        <h2 class="text-3xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">Exam Results History</h2>
+        <p class="text-slate-500 dark:text-slate-400 mt-2">Every exam attempt across every student, regardless of status or review stage.</p>
+    </div>
+
+    <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
+        @if (!Model.Any())
+        {
+            <div class="p-12 text-center">
+                <p class="text-sm text-slate-400 dark:text-slate-500">No exam attempts yet.</p>
+            </div>
+        }
+        else
+        {
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead>
+                        <tr class="border-b border-slate-100 dark:border-slate-700 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide">
+                            <th class="px-6 py-3">Exam</th>
+                            <th class="px-6 py-3">Student</th>
+                            <th class="px-6 py-3">Started</th>
+                            <th class="px-6 py-3">Status</th>
+                            <th class="px-6 py-3">Marks</th>
+                            <th class="px-6 py-3">Verdict</th>
+                            <th class="px-6 py-3">Teacher</th>
+                            <th class="px-6 py-3">Admin</th>
+                            <th class="px-6 py-3">Released</th>
+                            <th class="px-6 py-3"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var a in Model)
+                        {
+                            <tr class="border-b border-slate-50 dark:border-slate-800 last:border-0 hover:bg-slate-50/60 dark:hover:bg-slate-800/40">
+                                <td class="px-6 py-3 text-slate-800 dark:text-slate-100 font-medium whitespace-nowrap">@a.ExamTitle</td>
+                                <td class="px-6 py-3 text-slate-600 dark:text-slate-300 whitespace-nowrap">@a.StudentName</td>
+                                <td class="px-6 py-3 text-slate-600 dark:text-slate-300 whitespace-nowrap">@a.StartedDate.ToString("g")</td>
+                                <td class="px-6 py-3 text-slate-600 dark:text-slate-300 whitespace-nowrap">@a.Status</td>
+                                <td class="px-6 py-3 text-slate-600 dark:text-slate-300 whitespace-nowrap">@a.TotalMarksAwarded / @a.TotalMarks</td>
+                                <td class="px-6 py-3 whitespace-nowrap">
+                                    @if (!a.ResultReleasedDate.HasValue)
+                                    {
+                                        <span class="text-xs text-slate-400 dark:text-slate-500">Not released</span>
+                                    }
+                                    else if (a.Passed == true)
+                                    {
+                                        <span class="inline-flex items-center gap-1 text-xs font-medium text-emerald-600 dark:text-emerald-300"><i data-lucide="check-circle" class="w-3.5 h-3.5"></i> Pass</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="inline-flex items-center gap-1 text-xs font-medium text-red-600 dark:text-red-300"><i data-lucide="circle-x" class="w-3.5 h-3.5"></i> Fail</span>
+                                    }
+                                </td>
+                                <td class="px-6 py-3 text-slate-600 dark:text-slate-300 whitespace-nowrap">
+                                    @if (a.TeacherReviewStatus == "Approved")
+                                    {
+                                        <span class="text-emerald-600 dark:text-emerald-300">@(a.TeacherReviewedByName ?? "Approved")</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-slate-400 dark:text-slate-500">Pending</span>
+                                    }
+                                </td>
+                                <td class="px-6 py-3 text-slate-600 dark:text-slate-300 whitespace-nowrap">
+                                    @if (a.AdminReviewStatus == "Approved")
+                                    {
+                                        <span class="text-emerald-600 dark:text-emerald-300">@(a.AdminReviewedByName ?? "Approved")</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-slate-400 dark:text-slate-500">Pending</span>
+                                    }
+                                </td>
+                                <td class="px-6 py-3 text-slate-600 dark:text-slate-300 whitespace-nowrap">@(a.ResultReleasedDate?.ToString("g") ?? "-")</td>
+                                <td class="px-6 py-3 text-right whitespace-nowrap">
+                                    <a asp-action="Grade" asp-route-attemptId="@a.AttemptID"
+                                       class="px-3 py-1.5 rounded-xl font-medium border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50 text-xs">
+                                        View
+                                    </a>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+</div>

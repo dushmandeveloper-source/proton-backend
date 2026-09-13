@@ -158,13 +158,15 @@ BEGIN
         SELECT
             a.AttemptID, a.ExamID, a.StudentID, a.AttemptNumber, a.StartedDate, a.ExpiresDate,
             a.SubmittedDate, a.Status, a.TotalMarksAwarded, a.IsFullyGraded,
-            a.TeacherReviewStatus, a.TeacherReviewedDate, a.AdminReviewStatus, a.ResultReleasedDate,
+            a.TeacherReviewStatus, a.TeacherReviewedBy, a.TeacherReviewedDate, a.AdminReviewStatus, a.ResultReleasedDate,
             e.ExamTitle, e.TotalMarks, e.PassingMarks, e.PassingPercentage,
-            u.FullName AS StudentName
+            u.FullName AS StudentName,
+            tu.FullName AS TeacherReviewedByName
         FROM edu.ExamAttempt a
         JOIN edu.Exam e ON e.ExamID = a.ExamID
         JOIN mst.Student s ON s.StudentID = a.StudentID
         JOIN usr.Users u ON u.UserID = s.UserID
+        LEFT JOIN usr.Users tu ON tu.UserID = a.TeacherReviewedBy
         WHERE a.TeacherReviewStatus = 'Approved'
           AND a.AdminReviewStatus = 'Pending'
         ORDER BY a.TeacherReviewedDate ASC

@@ -117,6 +117,17 @@ namespace Web_Backend.Areas.Admin.Controllers
             return RedirectToAction("AdminReview");
         }
 
+        // ---------- Exam Results History: every attempt, any status, for admin oversight ----------
+
+        [HttpGet]
+        public async Task<IActionResult> History()
+        {
+            Auth.CheckPermission(PermissionCode.Exams, 'V');
+            ViewBag.CurrentUser = Auth.GetUser();
+            var all = await attemptRep.ListAllForAdmin();
+            return View(all);
+        }
+
         // ---------- Phase 3: violation trail for a terminated/flagged attempt ----------
 
         [HttpGet]

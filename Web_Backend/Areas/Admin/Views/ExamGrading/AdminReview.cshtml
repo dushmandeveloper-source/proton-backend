@@ -36,7 +36,7 @@
                 <div class="p-4 flex items-center justify-between gap-4">
                     <div>
                         <p class="font-medium text-slate-800 dark:text-slate-100">@attempt.ExamTitle</p>
-                        <p class="text-xs text-slate-500 dark:text-slate-400">@attempt.StudentName &middot; Status: @attempt.Status &middot; Teacher-approved: @(attempt.TeacherReviewedDate?.ToString("g") ?? "-")</p>
+                        <p class="text-xs text-slate-500 dark:text-slate-400">@attempt.StudentName &middot; Status: @attempt.Status &middot; Teacher-approved by @(attempt.TeacherReviewedByName ?? "-") on @(attempt.TeacherReviewedDate?.ToString("g") ?? "-")</p>
                     </div>
                     <div class="flex items-center gap-2">
                         <a asp-action="Grade" asp-controller="ExamGrading" asp-area="Admin" asp-route-attemptId="@attempt.AttemptID"

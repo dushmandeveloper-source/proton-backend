@@ -216,6 +216,11 @@ else
                             <i data-lucide="clipboard-check" class="w-5 h-5 @(activeController == "ExamGrading" && ViewContext.RouteData.Values["action"]?.ToString() == "AdminReview" ? "text-[#5a43f1] dark:text-[#a78bfa]" : "text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300")"></i>
                             <span>Exam Results Review</span>
                         </a>
+                        <a asp-area="Admin" asp-controller="ExamGrading" asp-action="History"
+                           class="w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-200 group @(activeController == "ExamGrading" && ViewContext.RouteData.Values["action"]?.ToString() == "History" ? "bg-slate-50/80 dark:bg-slate-700/60 text-slate-900 dark:text-slate-100 font-semibold" : "text-slate-500 dark:text-slate-400 hover:bg-slate-50/50 dark:hover:bg-slate-700/40 hover:text-slate-900 dark:hover:text-slate-100")">
+                            <i data-lucide="history" class="w-5 h-5 @(activeController == "ExamGrading" && ViewContext.RouteData.Values["action"]?.ToString() == "History" ? "text-[#5a43f1] dark:text-[#a78bfa]" : "text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300")"></i>
+                            <span>Exam Results History</span>
+                        </a>
                     }
                 </div>
 

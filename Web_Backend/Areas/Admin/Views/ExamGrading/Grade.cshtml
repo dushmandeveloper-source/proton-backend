@@ -3,12 +3,26 @@
     ViewData["Title"] = "View Exam Attempt";
     var attempt = (ExamAttempt)ViewBag.Attempt;
     var ordered = ((List<ExamAttemptAnswer>)ViewBag.Answers).OrderBy(a => a.SortOrder).ToList();
+    var canApprove = attempt.TeacherReviewStatus == "Approved" && attempt.AdminReviewStatus != "Approved";
 }
 
 <div class="max-w-4xl mx-auto page-enter space-y-6">
     <a asp-action="Index" class="text-sm text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-100 inline-flex items-center gap-1">
         <i data-lucide="arrow-left" class="w-4 h-4"></i> Back to grading queue
     </a>
+
+    @if (TempData["SuccessMessage"] != null)
+    {
+        <div class="rounded-xl border border-emerald-100 dark:border-emerald-900 bg-emerald-50 dark:bg-emerald-950 p-4 text-sm text-emerald-700 dark:text-emerald-300">
+            @TempData["SuccessMessage"]
+        </div>
+    }
+    @if (TempData["ErrorMessage"] != null)
+    {
+        <div class="rounded-xl border border-red-100 dark:border-red-900 bg-red-50 dark:bg-red-950 p-4 text-sm text-red-700 dark:text-red-300">
+            @TempData["ErrorMessage"]
+        </div>
+    }
 
     <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 p-6">
         <div class="flex items-start justify-between gap-4 flex-wrap">
@@ -20,12 +34,45 @@
                     </span>
                 </div>
                 <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">@attempt.StudentName</p>
+                <p class="text-xs text-slate-400 dark:text-slate-500 mt-2">
+                    Teacher review: <span class="font-medium">@attempt.TeacherReviewStatus</span>
+                    @if (attempt.TeacherReviewedByName != null)
+                    {
+                        @:(by @attempt.TeacherReviewedByName)
+                    }
+                    &middot;
+                    Admin review: <span class="font-medium">@attempt.AdminReviewStatus</span>
+                    @if (attempt.AdminReviewedByName != null)
+                    {
+                        @:(by @attempt.AdminReviewedByName)
+                    }
+                </p>
             </div>
             <div class="text-right">
                 <p class="text-2xl font-bold text-[#7c3aed] dark:text-[#a78bfa]">@attempt.TotalMarksAwarded / @attempt.TotalMarks</p>
                 <p class="text-xs text-slate-400 dark:text-slate-500 mt-1">
                     Status: @attempt.Status &middot; Fully Graded: @(attempt.IsFullyGraded ? "Yes" : "No")
                 </p>
+                @if (canApprove)
+                {
+                    <form asp-action="AdminApprove" asp-controller="ExamGrading" asp-area="Admin" method="post" class="mt-3">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="attemptId" value="@attempt.AttemptID" />
+                        <button type="submit" class="px-4 py-2 rounded-xl font-medium text-sm bg-[#7c3aed] text-white hover:bg-[#6d28d9] shadow-sm transition-all">
+                            Approve &amp; Release
+                        </button>
+                    </form>
+                }
+                else if (attempt.AdminReviewStatus == "Approved")
+                {
+                    <span class="inline-flex items-center gap-1.5 text-sm font-medium text-emerald-600 dark:text-emerald-300 mt-3">
+                        <i data-lucide="check-circle" class="w-4 h-4"></i> Released
+                    </span>
+                }
+                else
+                {
+                    <p class="text-xs text-slate-400 dark:text-slate-500 mt-3">Awaiting teacher approval first</p>
+                }
             </div>
         </div>
     </div>
