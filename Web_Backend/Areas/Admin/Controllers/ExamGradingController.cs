@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Mvc;
+using System.Linq;
 using System.Threading.Tasks;
 using Web_Backend.Areas.Admin.Data;
+using Web_Backend.Areas.Admin.Models;
 using Web_Backend.Classes;
 
 namespace Web_Backend.Areas.Admin.Controllers
@@ -17,11 +19,13 @@ namespace Web_Backend.Areas.Admin.Controllers
     {
         private readonly IExamAttemptData attemptRep;
         private readonly IEmailSender emailSender;
+        private readonly IStudentData studentRep;
 
-        public ExamGradingController(IExamAttemptData attemptRep, IEmailSender emailSender)
+        public ExamGradingController(IExamAttemptData attemptRep, IEmailSender emailSender, IStudentData studentRep)
         {
             this.attemptRep = attemptRep;
             this.emailSender = emailSender;
+            this.studentRep = studentRep;
         }
 
         [HttpGet]
@@ -149,15 +153,39 @@ namespace Web_Backend.Areas.Admin.Controllers
             return RedirectToAction("AdminReview");
         }
 
-        // ---------- Exam Results History: every attempt, any status, for admin oversight ----------
+        // ---------- Exam Results History: pick a student, then see their full exam history ----------
+        // Mirrors the Lecturer area's History (student picker) ->
+        // StudentHistory (that student's attempts) drill-down, except Admin
+        // sees every student in the system (no batch/roster ownership
+        // restriction -- an admin isn't scoped to any particular lecturer's
+        // batches), reusing the same student list the existing Admin/Student
+        // management page already lists via IStudentData.GetList.
 
         [HttpGet]
         public async Task<IActionResult> History()
         {
             Auth.CheckPermission(PermissionCode.Exams, 'V');
             ViewBag.CurrentUser = Auth.GetUser();
-            var all = await attemptRep.ListAllForAdmin();
-            return View(all);
+            var students = await studentRep.GetList(new StudentSearchView());
+            return View(students.OrderBy(s => s.FullName).ToList());
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> StudentHistory(string studentId)
+        {
+            Auth.CheckPermission(PermissionCode.Exams, 'V');
+            var student = await studentRep.Get(studentId);
+            if (student == null)
+            {
+                TempData["ErrorMessage"] = "Student not found.";
+                return RedirectToAction("History");
+            }
+
+            var history = await attemptRep.ListForStudent(studentId);
+
+            ViewBag.CurrentUser = Auth.GetUser();
+            ViewBag.Student = student;
+            return View(history);
         }
 
         // ---------- Phase 3: violation trail for a terminated/flagged attempt ----------
