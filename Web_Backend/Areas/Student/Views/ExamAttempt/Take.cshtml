@@ -3,35 +3,101 @@
     ViewBag.Title = "Take Exam";
     var attempt = (ExamAttempt)ViewBag.Attempt;
     var answers = (List<ExamAttemptAnswer>)ViewBag.Answers;
+    var optionsByQuestion = ViewBag.OptionsByQuestion as Dictionary<string, List<ExamQuestionOption>>;
+    var ordered = answers.OrderBy(a => a.SortOrder).ToList();
 }
 
-<h2>@attempt.ExamTitle</h2>
-<div id="examTimer" data-expires="@attempt.ExpiresDate.ToString("o")" style="font-weight:bold;"></div>
+<div class="max-w-3xl mx-auto space-y-6 page-enter">
 
-<form id="examForm" asp-action="Submit" asp-controller="ExamAttempt" method="post">
-    @Html.AntiForgeryToken()
-    <input type="hidden" name="attemptId" value="@attempt.AttemptID" />
+    <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 p-6 flex items-center justify-between gap-4 sticky top-4 z-10">
+        <div>
+            <h1 class="text-xl font-bold text-slate-800 dark:text-slate-100">@attempt.ExamTitle</h1>
+            <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Answers save automatically as you go &middot; you can skip and come back before submitting</p>
+        </div>
+        <div id="examTimer" class="px-4 py-2 rounded-xl bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-300 font-bold text-sm flex-shrink-0"
+             data-expires="@attempt.ExpiresDate.ToString("o")"></div>
+    </div>
 
-    @foreach (var ans in answers.OrderBy(a => a.SortOrder))
-    {
-        <div class="exam-question" data-question-id="@ans.QuestionID" data-attempt-id="@attempt.AttemptID">
-            <p>@ans.QuestionTextLatex</p>
-            @if (ans.IsMCQ)
+    @* ---------- Question palette: jump to any question, shows answered/unanswered ---------- *@
+    <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 p-5">
+        <div class="flex flex-wrap gap-2">
+            @for (var i = 0; i < ordered.Count; i++)
             {
-                <input type="text" class="mcq-option-input" placeholder="Enter OptionID"
-                       value="@ans.SelectedOptionID" data-question-id="@ans.QuestionID" />
-                <!-- Phase 1 note: full option-list rendering (radio buttons per edu.ExamQuestionOption)
-                     is a follow-up UI polish item; this minimal input wires the save flow end-to-end. -->
-            }
-            else
-            {
-                <textarea class="written-answer-input" rows="6" data-question-id="@ans.QuestionID">@ans.WrittenAnswerText</textarea>
+                var ans = ordered[i];
+                var isAnswered = ans.IsMCQ ? !string.IsNullOrEmpty(ans.SelectedOptionID) : !string.IsNullOrEmpty(ans.WrittenAnswerText);
+                <button type="button" class="palette-btn w-9 h-9 rounded-lg text-xs font-semibold border transition-colors @(isAnswered ? "bg-emerald-50 dark:bg-emerald-950 border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300" : "bg-slate-50 dark:bg-slate-800/60 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400")"
+                        data-index="@i" data-question-id="@ans.QuestionID">
+                    @(i + 1)
+                </button>
             }
         </div>
-    }
+        <div class="flex items-center gap-4 mt-3 text-xs text-slate-400 dark:text-slate-500">
+            <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-emerald-50 dark:bg-emerald-950 border border-emerald-200 dark:border-emerald-800"></span> Answered</span>
+            <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700"></span> Skipped / not answered</span>
+        </div>
+    </div>
 
-    <button type="submit">Submit Exam</button>
-</form>
+    <form id="examForm" asp-action="Submit" asp-controller="ExamAttempt" method="post">
+        @Html.AntiForgeryToken()
+        <input type="hidden" name="attemptId" value="@attempt.AttemptID" />
+
+        @for (var i = 0; i < ordered.Count; i++)
+        {
+            var ans = ordered[i];
+            <div class="exam-question-page @(i == 0 ? "" : "hidden")" data-index="@i">
+                <div class="exam-question bg-white dark:bg-slate-900/60 rounded-[20px] shadow-sm border border-slate-100 dark:border-slate-700 p-6"
+                     data-question-id="@ans.QuestionID" data-attempt-id="@attempt.AttemptID">
+                    <div class="flex items-center justify-between mb-3">
+                        <div class="flex items-center gap-2">
+                            <span class="inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wide @(ans.IsMCQ ? "bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-300" : "bg-amber-50 dark:bg-amber-950 text-amber-600 dark:text-amber-300")">
+                                @(ans.IsMCQ ? "MCQ" : "Written")
+                            </span>
+                            <span class="text-xs text-slate-400 dark:text-slate-500">@ans.Marks.ToString("0.##") marks</span>
+                        </div>
+                        <span class="text-xs font-medium text-slate-400 dark:text-slate-500">Question @(i + 1) of @ordered.Count</span>
+                    </div>
+                    <p class="text-sm font-medium text-slate-800 dark:text-slate-100 mb-4">@ans.QuestionTextLatex</p>
+
+                    @if (ans.IsMCQ)
+                    {
+                        var options = optionsByQuestion != null && optionsByQuestion.TryGetValue(ans.QuestionID, out var opts) ? opts : new List<ExamQuestionOption>();
+                        <div class="space-y-2">
+                            @foreach (var opt in options.OrderBy(o => o.SortOrder))
+                            {
+                                <label class="flex items-center gap-3 px-4 py-3 rounded-xl border border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 cursor-pointer hover:border-indigo-200 dark:hover:border-indigo-700 transition-colors">
+                                    <input type="radio" name="mcq-@ans.QuestionID" value="@opt.OptionID" class="mcq-option-input w-4 h-4 accent-indigo-600"
+                                           data-question-id="@ans.QuestionID" @(opt.OptionID == ans.SelectedOptionID ? "checked" : "") />
+                                    <span class="text-sm text-slate-700 dark:text-slate-200">@opt.OptionTextLatex</span>
+                                </label>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <textarea class="written-answer-input w-full rounded-xl border border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 px-4 py-3 text-sm text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-amber-300 dark:focus:ring-amber-700"
+                                  rows="6" data-question-id="@ans.QuestionID" placeholder="Type your answer here...">@ans.WrittenAnswerText</textarea>
+                    }
+                </div>
+            </div>
+        }
+
+        <div class="flex items-center justify-between pt-4">
+            <button type="button" id="backBtn" class="px-5 py-2.5 rounded-xl font-medium text-sm bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+                Back
+            </button>
+
+            <div class="flex items-center gap-3">
+                <p id="submitBlockedMsg" class="text-xs text-amber-600 dark:text-amber-400 hidden">Answer every question before submitting.</p>
+                <button type="button" id="nextBtn" class="px-5 py-2.5 rounded-xl font-medium text-sm bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
+                    Next
+                </button>
+                <button type="submit" id="submitBtn" class="px-6 py-3 rounded-xl font-medium text-sm bg-[#7c3aed] text-white hover:bg-[#6d28d9] shadow-sm transition-all hidden disabled:opacity-40 disabled:cursor-not-allowed">
+                    Submit Exam
+                </button>
+            </div>
+        </div>
+    </form>
+</div>
 
 <script>
 (function () {
@@ -69,18 +135,100 @@
         });
     }
 
+    // ---------- One-question-at-a-time navigation ----------
+    var pages = Array.prototype.slice.call(document.querySelectorAll('.exam-question-page'));
+    var paletteButtons = Array.prototype.slice.call(document.querySelectorAll('.palette-btn'));
+    var backBtn = document.getElementById('backBtn');
+    var nextBtn = document.getElementById('nextBtn');
+    var submitBtn = document.getElementById('submitBtn');
+    var submitBlockedMsg = document.getElementById('submitBlockedMsg');
+    var current = 0;
+
+    // Tracks answered state per question index client-side, purely for
+    // enabling/disabling the Submit button and coloring the palette. This is
+    // a UX convenience only -- the server is still the real authority on
+    // whether an attempt has answers (edu.ExamAttemptAnswer rows), and
+    // ExamAttempt_Submit itself never required every question be answered
+    // (a student who runs out of time can still submit whatever was saved).
+    // Blocking the button client-side is a soft guardrail against
+    // accidentally submitting with a forgotten question, not a security
+    // boundary -- see server-side note in the Submit action.
+    var answeredState = pages.map(function (page) {
+        var mcqChecked = page.querySelector('.mcq-option-input:checked');
+        var writtenEl = page.querySelector('.written-answer-input');
+        if (mcqChecked) return true;
+        if (writtenEl) return writtenEl.value.trim().length > 0;
+        return false;
+    });
+
+    function updatePalette() {
+        paletteButtons.forEach(function (btn, i) {
+            btn.classList.toggle('bg-emerald-50', answeredState[i]);
+            btn.classList.toggle('dark:bg-emerald-950', answeredState[i]);
+            btn.classList.toggle('border-emerald-200', answeredState[i]);
+            btn.classList.toggle('dark:border-emerald-800', answeredState[i]);
+            btn.classList.toggle('text-emerald-700', answeredState[i]);
+            btn.classList.toggle('dark:text-emerald-300', answeredState[i]);
+            btn.classList.toggle('bg-slate-50', !answeredState[i]);
+            btn.classList.toggle('dark:bg-slate-800/60', !answeredState[i]);
+            btn.classList.toggle('border-slate-200', !answeredState[i]);
+            btn.classList.toggle('dark:border-slate-700', !answeredState[i]);
+            btn.classList.toggle('text-slate-500', !answeredState[i]);
+            btn.classList.toggle('dark:text-slate-400', !answeredState[i]);
+            btn.classList.toggle('ring-2', i === current);
+            btn.classList.toggle('ring-indigo-400', i === current);
+        });
+    }
+
+    function updateSubmitGate() {
+        var allAnswered = answeredState.every(function (a) { return a; });
+        submitBtn.disabled = !allAnswered;
+        submitBlockedMsg.classList.toggle('hidden', allAnswered);
+    }
+
+    function showPage(index) {
+        pages.forEach(function (page, i) { page.classList.toggle('hidden', i !== index); });
+        current = index;
+        backBtn.disabled = index === 0;
+        var isLast = index === pages.length - 1;
+        nextBtn.classList.toggle('hidden', isLast);
+        submitBtn.classList.toggle('hidden', !isLast);
+        updatePalette();
+        updateSubmitGate();
+    }
+
+    backBtn.addEventListener('click', function () { if (current > 0) showPage(current - 1); });
+    nextBtn.addEventListener('click', function () { if (current < pages.length - 1) showPage(current + 1); });
+    paletteButtons.forEach(function (btn) {
+        btn.addEventListener('click', function () { showPage(parseInt(btn.getAttribute('data-index'), 10)); });
+    });
+
+    document.getElementById('examForm').addEventListener('submit', function (e) {
+        if (submitBtn.disabled) e.preventDefault();
+    });
+
     document.querySelectorAll('.mcq-option-input').forEach(function (el) {
         el.addEventListener('change', function () {
             var q = el.closest('.exam-question');
+            var page = el.closest('.exam-question-page');
             saveAnswer(q.getAttribute('data-question-id'), q.getAttribute('data-attempt-id'), el.value, null);
+            answeredState[parseInt(page.getAttribute('data-index'), 10)] = true;
+            updatePalette();
+            updateSubmitGate();
         });
     });
 
     document.querySelectorAll('.written-answer-input').forEach(function (el) {
         el.addEventListener('blur', function () {
             var q = el.closest('.exam-question');
+            var page = el.closest('.exam-question-page');
             saveAnswer(q.getAttribute('data-question-id'), q.getAttribute('data-attempt-id'), null, el.value);
+            answeredState[parseInt(page.getAttribute('data-index'), 10)] = el.value.trim().length > 0;
+            updatePalette();
+            updateSubmitGate();
         });
     });
+
+    showPage(0);
 })();
 </script>

@@ -1,6 +1,9 @@
 using Microsoft.AspNetCore.Mvc;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using Web_Backend.Areas.Admin.Data;
+using Web_Backend.Areas.Admin.Models;
 using Web_Backend.Classes;
 
 namespace Web_Backend.Areas.StudentPortal.Controllers
@@ -10,11 +13,13 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
     {
         private readonly IStudentData studentRep;
         private readonly IExamAttemptData attemptRep;
+        private readonly IExamData examRep;
 
-        public ExamAttemptController(IStudentData studentRep, IExamAttemptData attemptRep)
+        public ExamAttemptController(IStudentData studentRep, IExamAttemptData attemptRep, IExamData examRep)
         {
             this.studentRep = studentRep;
             this.attemptRep = attemptRep;
+            this.examRep = examRep;
         }
 
         [HttpGet]
@@ -58,9 +63,18 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
 
             var answers = await attemptRep.ListAnswers(attemptId);
 
+            // MCQ options aren't part of ExamAttemptAnswer_List's own result
+            // (that proc returns question/answer state, not the option catalog)
+            // -- fetched here, one call per MCQ question, so Take.cshtml can
+            // render real selectable choices instead of a raw OptionID input.
+            var optionsByQuestion = new Dictionary<string, List<ExamQuestionOption>>();
+            foreach (var ans in answers.Where(a => a.IsMCQ))
+                optionsByQuestion[ans.QuestionID] = await examRep.GetOptions(ans.QuestionID);
+
             ViewBag.CurrentUser = Auth.GetUser();
             ViewBag.Attempt = attempt;
             ViewBag.Answers = answers;
+            ViewBag.OptionsByQuestion = optionsByQuestion;
             return View();
         }
 
