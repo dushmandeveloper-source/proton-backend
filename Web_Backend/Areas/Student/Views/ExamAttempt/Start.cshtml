@@ -46,6 +46,46 @@
         </ol>
     </div>
 
+    <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
+        <div class="p-6 border-b border-slate-100 dark:border-slate-700 flex items-center gap-3">
+            <div class="bg-indigo-50 dark:bg-indigo-950 p-2 rounded-lg"><i data-lucide="video" class="w-5 h-5 text-indigo-600 dark:text-indigo-300"></i></div>
+            <div>
+                <h2 class="font-semibold text-lg text-slate-800 dark:text-slate-100">Camera &amp; Screen Check</h2>
+                <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Required before you can enter this exam.</p>
+            </div>
+        </div>
+        <div class="p-6 space-y-4">
+            <p class="text-xs text-slate-500 dark:text-slate-400">
+                This exam requires your camera and your full screen to be shared for the duration of the attempt.
+                Nothing is recorded, saved, or sent anywhere &mdash; the previews below are local to this browser tab only.
+                This check requires a secure connection and works on desktop Chrome, Edge, or Firefox; it does not work
+                reliably on mobile Safari.
+            </p>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div class="space-y-2">
+                    <p class="text-xs font-medium text-slate-600 dark:text-slate-300">Camera</p>
+                    <video id="cameraPreview" class="w-full aspect-video rounded-xl bg-slate-900 object-cover" autoplay playsinline muted></video>
+                    <p id="cameraStatus" class="text-xs text-slate-400 dark:text-slate-500">Not started</p>
+                </div>
+                <div class="space-y-2">
+                    <p class="text-xs font-medium text-slate-600 dark:text-slate-300">Screen share</p>
+                    <video id="screenPreview" class="w-full aspect-video rounded-xl bg-slate-900 object-cover" autoplay playsinline muted></video>
+                    <p id="screenStatus" class="text-xs text-slate-400 dark:text-slate-500">Not started</p>
+                </div>
+            </div>
+
+            <div id="preflightError" class="hidden rounded-xl border border-red-100 dark:border-red-900 bg-red-50 dark:bg-red-950 p-3">
+                <p class="text-xs text-red-700 dark:text-red-300"></p>
+            </div>
+
+            <button type="button" id="startPreflightBtn"
+                    class="w-full px-6 py-3 rounded-xl font-medium text-sm bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm transition-all">
+                Start Camera &amp; Screen Check
+            </button>
+        </div>
+    </div>
+
     <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 p-6">
         <form asp-action="ConfirmStart" asp-controller="ExamAttempt" method="post" class="space-y-4">
             @Html.AntiForgeryToken()
@@ -69,6 +109,9 @@
                     class="w-full px-6 py-3 rounded-xl font-medium text-sm bg-[#7c3aed] text-white hover:bg-[#6d28d9] shadow-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed">
                 Enter Exam
             </button>
+            <p id="enterExamHint" class="text-xs text-slate-400 dark:text-slate-500 text-center">
+                Complete the camera &amp; screen check above, and agree to the rules, to continue.
+            </p>
         </form>
     </div>
 </div>
@@ -77,8 +120,75 @@
 (function () {
     var agree = document.getElementById('agreeCheck');
     var enterBtn = document.getElementById('enterExamBtn');
-    agree.addEventListener('change', function () {
-        enterBtn.disabled = !agree.checked;
-    });
+    var startPreflightBtn = document.getElementById('startPreflightBtn');
+    var cameraPreview = document.getElementById('cameraPreview');
+    var screenPreview = document.getElementById('screenPreview');
+    var cameraStatus = document.getElementById('cameraStatus');
+    var screenStatus = document.getElementById('screenStatus');
+    var preflightError = document.getElementById('preflightError');
+
+    var cameraStream = null;
+    var screenStream = null;
+
+    function showPreflightError(message) {
+        preflightError.classList.remove('hidden');
+        preflightError.querySelector('p').textContent = message;
+    }
+
+    function clearPreflightError() {
+        preflightError.classList.add('hidden');
+        preflightError.querySelector('p').textContent = '';
+    }
+
+    function canEnterExam() {
+        return !!agree.checked && cameraStream !== null && screenStream !== null;
+    }
+
+    function updateEnterButton() {
+        enterBtn.disabled = !canEnterExam();
+    }
+
+    agree.addEventListener('change', updateEnterButton);
+
+    async function runPreflight() {
+        clearPreflightError();
+        startPreflightBtn.disabled = true;
+        startPreflightBtn.textContent = 'Requesting access...';
+
+        // Camera first.
+        try {
+            cameraStream = await navigator.mediaDevices.getUserMedia({ video: true });
+            cameraPreview.srcObject = cameraStream;
+            cameraStatus.textContent = 'Camera connected';
+            cameraStatus.classList.add('text-emerald-600', 'dark:text-emerald-400');
+        } catch (err) {
+            cameraStream = null;
+            showPreflightError('Camera access was denied or is unavailable. You must allow camera access to take this exam. Click the button below to try again.');
+            startPreflightBtn.disabled = false;
+            startPreflightBtn.textContent = 'Retry Camera & Screen Check';
+            updateEnterButton();
+            return;
+        }
+
+        // Then screen share.
+        try {
+            screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+            screenPreview.srcObject = screenStream;
+            screenStatus.textContent = 'Screen share connected';
+            screenStatus.classList.add('text-emerald-600', 'dark:text-emerald-400');
+        } catch (err) {
+            screenStream = null;
+            showPreflightError('Screen share was denied or cancelled. You must share your screen to take this exam. Click the button below to try again.');
+            startPreflightBtn.disabled = false;
+            startPreflightBtn.textContent = 'Retry Camera & Screen Check';
+            updateEnterButton();
+            return;
+        }
+
+        startPreflightBtn.textContent = 'Camera & Screen Check Complete';
+        updateEnterButton();
+    }
+
+    startPreflightBtn.addEventListener('click', runPreflight);
 })();
 </script>
