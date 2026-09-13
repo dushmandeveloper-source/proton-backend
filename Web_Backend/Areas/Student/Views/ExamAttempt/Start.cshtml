@@ -27,17 +27,31 @@
             <div class="bg-amber-50 dark:bg-amber-950 p-2 rounded-lg"><i data-lucide="shield-alert" class="w-5 h-5 text-amber-600 dark:text-amber-300"></i></div>
             <h2 class="font-semibold text-lg text-slate-800 dark:text-slate-100">Examination Rules</h2>
         </div>
+        <div class="p-6 pb-0 space-y-3">
+            <div class="rounded-2xl border-2 border-red-300 dark:border-red-700 bg-red-50 dark:bg-red-950/60 p-4">
+                <div class="flex items-center gap-2 mb-2">
+                    <i data-lucide="siren" class="w-5 h-5 text-red-600 dark:text-red-400"></i>
+                    <p class="text-sm font-bold uppercase tracking-wide text-red-700 dark:text-red-300">Automatically Monitored &mdash; 3 Strikes Ends The Exam</p>
+                </div>
+                <ul class="space-y-2 text-sm font-semibold text-red-700 dark:text-red-300">
+                    <li class="flex items-start gap-2"><i data-lucide="ban" class="w-4 h-4 mt-0.5 flex-shrink-0"></i> Do not copy text or right-click during the exam.</li>
+                    <li class="flex items-start gap-2"><i data-lucide="ban" class="w-4 h-4 mt-0.5 flex-shrink-0"></i> Do not switch tabs, minimize the browser, or click away to another application.</li>
+                    <li class="flex items-start gap-2"><i data-lucide="ban" class="w-4 h-4 mt-0.5 flex-shrink-0"></i> Do not exit fullscreen or open a new tab or window.</li>
+                </ul>
+                <p class="text-xs font-medium text-red-600 dark:text-red-400 mt-3">
+                    Each of these is detected the instant it happens. You get 2 warnings &mdash; the 3rd immediately and permanently ends your exam.
+                </p>
+            </div>
+        </div>
         <ol class="p-6 space-y-3 list-decimal list-inside text-sm text-slate-700 dark:text-slate-200">
             <li>You must complete the exam yourself, without help from any other person.</li>
             <li>Do not use a calculator, phone, tablet, or any other electronic device unless the exam explicitly permits it.</li>
             <li>Do not use textbooks, notes, or any reference material unless the exam explicitly permits it.</li>
             <li>Do not use AI tools, chatbots, or online search engines to answer questions.</li>
-            <li>Do not copy, photograph, share, or discuss exam questions with anyone, during or after the exam.</li>
+            <li>Do not photograph, share, or discuss exam questions with anyone, during or after the exam.</li>
             <li>Once started, the timer cannot be paused. Make sure you have enough time before you begin.</li>
             <li>You must submit before time runs out; the exam auto-submits with whatever is saved once time expires.</li>
             <li>Every question must be answered before you can submit voluntarily (you may skip and return to a question, but not leave it blank at the end).</li>
-            <li>Do not close the browser tab or navigate away during the exam — your progress may be lost if you do.</li>
-            <li>Do not attempt to open a new tab or window to search for answers.</li>
             <li>Ensure you have a stable internet connection before starting; disconnections are not grounds for a time extension.</li>
             <li>You are allowed a maximum of @exam.MaxAttempts attempt(s) at this exam — use them carefully.</li>
             <li>Any suspected violation of these rules may result in your attempt being flagged for administrator review.</li>
