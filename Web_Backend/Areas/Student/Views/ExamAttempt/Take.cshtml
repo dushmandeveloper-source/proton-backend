@@ -573,13 +573,28 @@
     // within the same tick, which would otherwise cost two strikes for what
     // the student experiences as one action.
     var lastViolationReportAt = 0;
-    var VIOLATION_DEBOUNCE_MS = 500;
+    var VIOLATION_DEBOUNCE_MS = 2000;
+
+    // A per-type cooldown on top of the above: window.blur (and, on some
+    // browsers, visibilitychange) can fire repeatedly in quick succession
+    // during a SINGLE physical tab-switch or alt-tab -- e.g. once when the
+    // browser chrome itself steals focus, again when the OS task-switcher
+    // paints, again when focus actually lands on the other app -- observed
+    // in practice as 3 separate WindowBlur reports 5-14 seconds apart from
+    // one alt-tab, incorrectly burning all 3 strikes in one action. Each
+    // violation type gets its own cooldown window so one flappy blur burst
+    // reports (and can only ever count) once.
+    var VIOLATION_TYPE_COOLDOWN_MS = 8000;
+    var lastReportByType = {};
 
     function reportViolation(violationType) {
         if (!violationDetectionArmed) return;
         var now = Date.now();
         if (now - lastViolationReportAt < VIOLATION_DEBOUNCE_MS) return;
+        var lastForType = lastReportByType[violationType] || 0;
+        if (now - lastForType < VIOLATION_TYPE_COOLDOWN_MS) return;
         lastViolationReportAt = now;
+        lastReportByType[violationType] = now;
 
         fetch('/Student/ExamAttempt/ReportViolation', {
             method: 'POST',
