@@ -1,4 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
+using System.Collections.Generic;
+using System.Linq;
 using Web_Backend.Areas.Admin.Data;
 using Web_Backend.Areas.Admin.Models;
 using Web_Backend.Areas.StudentPortal.Models;
@@ -32,13 +34,17 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
         private readonly IExamScheduleData scheduleRep;
         private readonly IHolidayEventData holidayRep;
         private readonly IExamScheduleRescheduleData rescheduleRep;
+        private readonly IExamAttemptData attemptRep;
+        private readonly IExamData examRep;
 
-        public ExamScheduleController(IStudentData studentRep, IExamScheduleData scheduleRep, IHolidayEventData holidayRep, IExamScheduleRescheduleData rescheduleRep)
+        public ExamScheduleController(IStudentData studentRep, IExamScheduleData scheduleRep, IHolidayEventData holidayRep, IExamScheduleRescheduleData rescheduleRep, IExamAttemptData attemptRep, IExamData examRep)
         {
             this.studentRep = studentRep;
             this.scheduleRep = scheduleRep;
             this.holidayRep = holidayRep;
             this.rescheduleRep = rescheduleRep;
+            this.attemptRep = attemptRep;
+            this.examRep = examRep;
         }
 
         [HttpGet]
@@ -145,6 +151,41 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
                 IsContentRestricted = student.IsContentRestricted
             };
 
+            // Exam Join gating (availability window + MaxAttempts), same
+            // computation as DashboardController's "This Week" list — so the
+            // calendar's day-detail popup can offer the same "Join Exam"
+            // action instead of only ever showing the external meeting-link
+            // Join button.
+            var now = DateTime.Now;
+            var joinRows = new Dictionary<string, ExamJoinRow>();
+            var seenExamIds = new HashSet<string>();
+            foreach (var seg in examSegments)
+            {
+                if (!seenExamIds.Add(seg.ExamID))
+                    continue;
+
+                var windowStart = seg.StartDate.Date + (seg.StartTime ?? TimeSpan.Zero);
+                var windowEnd = seg.EndDate.Date + (seg.EndTime ?? new TimeSpan(23, 59, 59));
+                var withinWindow = now >= windowStart && now <= windowEnd;
+
+                var exam = await examRep.Get(seg.ExamID);
+                if (exam == null) continue;
+
+                var attemptsUsed = await attemptRep.CountByExamAndStudent(seg.ExamID, student.StudentID);
+
+                joinRows[seg.ExamID] = new ExamJoinRow
+                {
+                    ExamID = seg.ExamID,
+                    ExamTitle = seg.ExamTitle,
+                    WindowStart = windowStart,
+                    WindowEnd = windowEnd,
+                    IsWithinWindow = withinWindow,
+                    AttemptsUsed = attemptsUsed,
+                    MaxAttempts = exam.MaxAttempts
+                };
+            }
+
+            ViewBag.ExamJoinRows = joinRows;
             ViewBag.CurrentUser = Auth.GetUser();
             return View(model);
         }
