@@ -64,14 +64,36 @@
 
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div class="space-y-2">
-                    <p class="text-xs font-medium text-slate-600 dark:text-slate-300">Camera</p>
-                    <video id="cameraPreview" class="w-full aspect-video rounded-xl bg-slate-900 object-cover" autoplay playsinline muted></video>
-                    <p id="cameraStatus" class="text-xs text-slate-400 dark:text-slate-500">Not started</p>
+                    <div class="flex items-center justify-between">
+                        <p class="text-sm font-semibold text-slate-700 dark:text-slate-200">Your Camera</p>
+                        <span id="cameraLiveBadge" class="hidden inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wide bg-red-50 dark:bg-red-950 text-red-600 dark:text-red-300">
+                            <span class="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse"></span> Live
+                        </span>
+                    </div>
+                    <div class="relative rounded-2xl overflow-hidden bg-slate-900 border-2 border-slate-200 dark:border-slate-700">
+                        <video id="cameraPreview" class="w-full h-56 sm:h-64 object-cover" autoplay playsinline muted></video>
+                        <div id="cameraPlaceholder" class="absolute inset-0 flex items-center justify-center text-slate-500 text-xs">
+                            <i data-lucide="camera-off" class="w-6 h-6"></i>
+                        </div>
+                    </div>
+                    <p class="text-xs text-slate-500 dark:text-slate-400">This is what the exam will see of you for the whole attempt.</p>
+                    <p id="cameraStatus" class="text-xs font-medium text-slate-400 dark:text-slate-500">Not started</p>
                 </div>
                 <div class="space-y-2">
-                    <p class="text-xs font-medium text-slate-600 dark:text-slate-300">Screen share</p>
-                    <video id="screenPreview" class="w-full aspect-video rounded-xl bg-slate-900 object-cover" autoplay playsinline muted></video>
-                    <p id="screenStatus" class="text-xs text-slate-400 dark:text-slate-500">Not started</p>
+                    <div class="flex items-center justify-between">
+                        <p class="text-sm font-semibold text-slate-700 dark:text-slate-200">Your Screen</p>
+                        <span id="screenLiveBadge" class="hidden inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wide bg-red-50 dark:bg-red-950 text-red-600 dark:text-red-300">
+                            <span class="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse"></span> Live
+                        </span>
+                    </div>
+                    <div class="relative rounded-2xl overflow-hidden bg-slate-900 border-2 border-slate-200 dark:border-slate-700">
+                        <video id="screenPreview" class="w-full h-56 sm:h-64 object-cover" autoplay playsinline muted></video>
+                        <div id="screenPlaceholder" class="absolute inset-0 flex items-center justify-center text-slate-500 text-xs">
+                            <i data-lucide="monitor-off" class="w-6 h-6"></i>
+                        </div>
+                    </div>
+                    <p class="text-xs text-slate-500 dark:text-slate-400">Confirm this shows your <strong>entire screen</strong>, not a single window or tab.</p>
+                    <p id="screenStatus" class="text-xs font-medium text-slate-400 dark:text-slate-500">Not started</p>
                 </div>
             </div>
 
@@ -125,6 +147,10 @@
     var screenPreview = document.getElementById('screenPreview');
     var cameraStatus = document.getElementById('cameraStatus');
     var screenStatus = document.getElementById('screenStatus');
+    var cameraPlaceholder = document.getElementById('cameraPlaceholder');
+    var screenPlaceholder = document.getElementById('screenPlaceholder');
+    var cameraLiveBadge = document.getElementById('cameraLiveBadge');
+    var screenLiveBadge = document.getElementById('screenLiveBadge');
     var preflightError = document.getElementById('preflightError');
 
     var cameraStream = null;
@@ -159,7 +185,9 @@
         try {
             cameraStream = await navigator.mediaDevices.getUserMedia({ video: true });
             cameraPreview.srcObject = cameraStream;
-            cameraStatus.textContent = 'Camera connected';
+            cameraPlaceholder.classList.add('hidden');
+            cameraLiveBadge.classList.remove('hidden');
+            cameraStatus.textContent = 'Camera connected — this is your live feed';
             cameraStatus.classList.add('text-emerald-600', 'dark:text-emerald-400');
         } catch (err) {
             cameraStream = null;
@@ -174,7 +202,9 @@
         try {
             screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
             screenPreview.srcObject = screenStream;
-            screenStatus.textContent = 'Screen share connected';
+            screenPlaceholder.classList.add('hidden');
+            screenLiveBadge.classList.remove('hidden');
+            screenStatus.textContent = 'Screen share connected — this is what you are sharing';
             screenStatus.classList.add('text-emerald-600', 'dark:text-emerald-400');
         } catch (err) {
             screenStream = null;
