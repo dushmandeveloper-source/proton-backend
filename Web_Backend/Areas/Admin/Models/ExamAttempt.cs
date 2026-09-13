@@ -25,6 +25,32 @@ namespace Web_Backend.Areas.Admin.Models
         public decimal? PassingPercentage { get; set; }
         public string StudentName { get; set; } = "";
 
+        public string TeacherReviewStatus { get; set; } = "Pending"; // Pending | Approved
+        public string? TeacherReviewedBy { get; set; }
+        public DateTime? TeacherReviewedDate { get; set; }
+        public string AdminReviewStatus { get; set; } = "Pending"; // Pending | Approved
+        public string? AdminReviewedBy { get; set; }
+        public DateTime? AdminReviewedDate { get; set; }
+        public DateTime? ResultReleasedDate { get; set; }
+
+        // Pass/Fail is never persisted -- always computed from TotalMarksAwarded
+        // vs. the exam's own passing criteria, so there is exactly one source
+        // of truth shared by the release email (Task 6) and the student
+        // dashboard/result page (Task 7). PassingPercentage takes priority
+        // when set (percentage-based exams); falls back to PassingMarks.
+        public bool? Passed
+        {
+            get
+            {
+                if (!TotalMarksAwarded.HasValue) return null;
+                if (PassingPercentage.HasValue && TotalMarks > 0)
+                    return (TotalMarksAwarded.Value / TotalMarks * 100m) >= PassingPercentage.Value;
+                if (PassingMarks.HasValue)
+                    return TotalMarksAwarded.Value >= PassingMarks.Value;
+                return null;
+            }
+        }
+
         public bool IsInProgress => Status == "InProgress";
         public int SecondsRemaining => Math.Max(0, (int)(ExpiresDate - DateTime.UtcNow).TotalSeconds);
     }

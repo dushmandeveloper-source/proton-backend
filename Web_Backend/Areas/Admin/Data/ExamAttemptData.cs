@@ -78,5 +78,27 @@ namespace Web_Backend.Areas.Admin.Data
             public int StrikeCount { get; set; }
             public string Status { get; set; } = "";
         }
+
+        public Task<List<ExamAttempt>> ListTeacherReviewQueue() =>
+            db.GetList<ExamAttempt, object>("edu.ExamAttempt_ListTeacherReviewQueue", new { APIKey = AppData.GetAPIKey() });
+
+        public Task TeacherApprove(string attemptId, string reviewedByUserId) =>
+            db.ExecuteNonQuery("edu.ExamAttempt_TeacherApprove", new
+            {
+                APIKey = AppData.GetAPIKey(),
+                AttemptID = attemptId,
+                ReviewedByUserID = reviewedByUserId
+            });
+
+        public Task<List<ExamAttempt>> ListAdminReviewQueue() =>
+            db.GetList<ExamAttempt, object>("edu.ExamAttempt_ListAdminReviewQueue", new { APIKey = AppData.GetAPIKey() });
+
+        public Task<ExamAttempt?> AdminApprove(string attemptId, string reviewedByUserId) =>
+            db.Get<ExamAttempt, object>("edu.ExamAttempt_AdminApprove", new
+            {
+                APIKey = AppData.GetAPIKey(),
+                AttemptID = attemptId,
+                ReviewedByUserID = reviewedByUserId
+            });
     }
 }
