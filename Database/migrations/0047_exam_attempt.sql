@@ -48,7 +48,8 @@ CREATE PROCEDURE [edu].[ExamAttempt_Start]
 (
     @APIKey varchar(100),
     @ExamID varchar(20),
-    @StudentID varchar(20)
+    @StudentID varchar(20),
+    @RetValue varchar(50) = '' OUT
 )
 AS
 BEGIN
@@ -93,9 +94,9 @@ BEGIN
 
         EXEC syst.NumberFormat_Set 'edu.ExamAttempt'
 
-        COMMIT TRANSACTION
+        SET @RetValue = @PrimaryKey
 
-        SELECT @PrimaryKey AS RetValue
+        COMMIT TRANSACTION
     END TRY
     BEGIN CATCH
         DECLARE @ERROR_MESSAGE VARCHAR(4000) = ERROR_MESSAGE();
