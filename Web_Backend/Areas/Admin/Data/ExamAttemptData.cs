@@ -103,5 +103,8 @@ namespace Web_Backend.Areas.Admin.Data
 
         public Task<List<ExamAttempt>> ListForStudent(string studentId) =>
             db.GetList<ExamAttempt, object>("edu.ExamAttempt_ListForStudent", new { APIKey = AppData.GetAPIKey(), StudentID = studentId });
+
+        public Task<List<ExamAttempt>> ListAllForAdmin() =>
+            db.GetList<ExamAttempt, object>("edu.ExamAttempt_ListAllForAdmin", new { APIKey = AppData.GetAPIKey() });
     }
 }

@@ -28,9 +28,11 @@ namespace Web_Backend.Areas.Admin.Models
 
         public string TeacherReviewStatus { get; set; } = "Pending"; // Pending | Approved
         public string? TeacherReviewedBy { get; set; }
+        public string? TeacherReviewedByName { get; set; }
         public DateTime? TeacherReviewedDate { get; set; }
         public string AdminReviewStatus { get; set; } = "Pending"; // Pending | Approved
         public string? AdminReviewedBy { get; set; }
+        public string? AdminReviewedByName { get; set; }
         public DateTime? AdminReviewedDate { get; set; }
         public DateTime? ResultReleasedDate { get; set; }
 

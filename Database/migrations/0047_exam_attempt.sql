@@ -126,9 +126,15 @@ BEGIN
         SELECT
             a.AttemptID, a.ExamID, a.StudentID, a.AttemptNumber, a.StartedDate, a.ExpiresDate,
             a.SubmittedDate, a.Status, a.TotalMarksAwarded, a.IsFullyGraded, a.CreatedDate, a.UpdatedDate,
-            e.ExamTitle, e.DurationMinutes, e.TotalMarks, e.PassingMarks, e.PassingPercentage
+            e.ExamTitle, e.DurationMinutes, e.TotalMarks, e.PassingMarks, e.PassingPercentage,
+            a.TeacherReviewStatus, a.TeacherReviewedBy, a.TeacherReviewedDate,
+            a.AdminReviewStatus, a.AdminReviewedBy, a.AdminReviewedDate, a.ResultReleasedDate,
+            tu.FullName AS TeacherReviewedByName,
+            au.FullName AS AdminReviewedByName
         FROM edu.ExamAttempt a
         JOIN edu.Exam e ON e.ExamID = a.ExamID
+        LEFT JOIN usr.Users tu ON tu.UserID = a.TeacherReviewedBy
+        LEFT JOIN usr.Users au ON au.UserID = a.AdminReviewedBy
         WHERE a.AttemptID = @ID
     END TRY
     BEGIN CATCH
