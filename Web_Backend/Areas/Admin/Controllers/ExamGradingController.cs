@@ -6,17 +6,22 @@ using Web_Backend.Classes;
 namespace Web_Backend.Areas.Admin.Controllers
 {
     // Admin-side grading queue for submitted exam attempts with ungraded
-    // Written answers. Reuses PermissionCode.Exams (not a new permission
-    // code) — grading is an operational extension of exam management
-    // already governed by that grid entry (see ExamScheduleController).
+    // Written answers, PLUS (Phase 3) the second-stage admin review queue
+    // of the teacher-then-admin approval gate, and the violation trail for
+    // terminated/flagged attempts. Reuses PermissionCode.Exams (not a new
+    // permission code) for all of the above -- grading/review/violation
+    // oversight are all operational extensions of exam management already
+    // governed by that grid entry.
     [Area("Admin")]
     public class ExamGradingController : Controller
     {
         private readonly IExamAttemptData attemptRep;
+        private readonly IEmailSender emailSender;
 
-        public ExamGradingController(IExamAttemptData attemptRep)
+        public ExamGradingController(IExamAttemptData attemptRep, IEmailSender emailSender)
         {
             this.attemptRep = attemptRep;
+            this.emailSender = emailSender;
         }
 
         [HttpGet]
@@ -61,6 +66,78 @@ namespace Web_Backend.Areas.Admin.Controllers
             }
 
             return RedirectToAction("Grade", new { attemptId });
+        }
+
+        // ---------- Phase 3: admin review queue (2nd stage of the approval gate) ----------
+
+        [HttpGet]
+        public async Task<IActionResult> AdminReview()
+        {
+            Auth.CheckPermission(PermissionCode.Exams, 'V');
+            ViewBag.CurrentUser = Auth.GetUser();
+            var pending = await attemptRep.ListAdminReviewQueue();
+            return View(pending);
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> AdminApprove(string attemptId)
+        {
+            Auth.CheckPermission(PermissionCode.Exams, 'E');
+            var user = Auth.GetUser();
+
+            try
+            {
+                // edu.ExamAttempt_AdminApprove enforces server-side that
+                // TeacherReviewStatus must already be 'Approved' -- this
+                // action never bypasses that ordering even if reached
+                // directly (e.g. a forged POST), since the enforcement
+                // boundary lives in the stored procedure, not in this
+                // controller.
+                var released = await attemptRep.AdminApprove(attemptId, user!.Id);
+
+                if (released != null)
+                {
+                    // Pass/Fail only -- released.Passed is computed from
+                    // TotalMarksAwarded vs. PassingMarks/PassingPercentage
+                    // and NEVER exposes the numeric mark itself in the
+                    // email body below.
+                    var verdict = released.Passed == true ? "Pass" : "Fail";
+                    var description = $"Your result for \"{released.ExamTitle}\" has been released. Result: {verdict}. " +
+                                      "Log in to your student dashboard for more details.";
+
+                    await emailSender.SendTemplateEmailAsync(
+                        toEmail: released.StudentEmail,
+                        toName: released.StudentName,
+                        templateCode: "RESULT_RELEASED",
+                        description: description);
+                }
+
+                TempData["SuccessMessage"] = "Approved and released. The student has been notified.";
+            }
+            catch (System.Exception ex)
+            {
+                TempData["ErrorMessage"] = "Could not approve: " + ex.Message;
+            }
+
+            return RedirectToAction("AdminReview");
+        }
+
+        // ---------- Phase 3: violation trail for a terminated/flagged attempt ----------
+
+        [HttpGet]
+        public async Task<IActionResult> ViolationTrail(string attemptId)
+        {
+            Auth.CheckPermission(PermissionCode.Exams, 'V');
+            var attempt = await attemptRep.Get(attemptId);
+            if (attempt == null)
+                return RedirectToAction("Index");
+
+            var violations = await attemptRep.ListViolations(attemptId);
+
+            ViewBag.CurrentUser = Auth.GetUser();
+            ViewBag.Attempt = attempt;
+            return View(violations);
         }
     }
 }

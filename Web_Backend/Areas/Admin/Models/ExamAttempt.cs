@@ -24,6 +24,7 @@ namespace Web_Backend.Areas.Admin.Models
         public decimal? PassingMarks { get; set; }
         public decimal? PassingPercentage { get; set; }
         public string StudentName { get; set; } = "";
+        public string StudentEmail { get; set; } = "";
 
         public string TeacherReviewStatus { get; set; } = "Pending"; // Pending | Approved
         public string? TeacherReviewedBy { get; set; }
