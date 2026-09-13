@@ -41,6 +41,7 @@
                             <th class="px-6 py-3">Submitted</th>
                             <th class="px-6 py-3">Status</th>
                             <th class="px-6 py-3">Partial Marks</th>
+                            <th class="px-6 py-3">Strikes</th>
                             <th class="px-6 py-3"></th>
                         </tr>
                     </thead>
@@ -48,11 +49,31 @@
                         @foreach (var a in Model)
                         {
                             <tr class="border-b border-slate-50 dark:border-slate-800 last:border-0 hover:bg-slate-50/60 dark:hover:bg-slate-800/40">
-                                <td class="px-6 py-3 text-slate-800 dark:text-slate-100 font-medium">@a.ExamTitle</td>
+                                <td class="px-6 py-3 text-slate-800 dark:text-slate-100 font-medium">
+                                    @a.ExamTitle
+                                    @if (!string.IsNullOrEmpty(a.TeacherReviewRemark))
+                                    {
+                                        <p class="text-xs font-normal text-amber-600 dark:text-amber-300 mt-0.5">
+                                            <i data-lucide="alert-triangle" class="w-3 h-3 inline"></i> Previously rejected: "@a.TeacherReviewRemark"
+                                        </p>
+                                    }
+                                </td>
                                 <td class="px-6 py-3 text-slate-600 dark:text-slate-300">@a.StudentName</td>
                                 <td class="px-6 py-3 text-slate-600 dark:text-slate-300">@(a.SubmittedDate?.ToString("g") ?? "-")</td>
                                 <td class="px-6 py-3 text-slate-600 dark:text-slate-300">@a.Status</td>
                                 <td class="px-6 py-3 text-slate-600 dark:text-slate-300">@a.TotalMarksAwarded / @a.TotalMarks</td>
+                                <td class="px-6 py-3">
+                                    @if (a.StrikeCount > 0)
+                                    {
+                                        <span class="inline-flex items-center gap-1 text-xs font-medium text-red-600 dark:text-red-300 bg-red-50 dark:bg-red-950 rounded-full px-2 py-0.5">
+                                            <i data-lucide="alert-octagon" class="w-3 h-3"></i> @a.StrikeCount
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-xs text-slate-300 dark:text-slate-600">-</span>
+                                    }
+                                </td>
                                 <td class="px-6 py-3 text-right">
                                     <a asp-action="Grade" asp-controller="ExamReview" asp-area="Lecturer" asp-route-attemptId="@a.AttemptID"
                                        class="px-3 py-1.5 rounded-xl font-medium bg-[#7c3aed] text-white hover:bg-[#6d28d9] shadow-sm text-xs">

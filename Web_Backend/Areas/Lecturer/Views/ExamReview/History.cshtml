@@ -1,0 +1,60 @@
+@using Web_Backend.Areas.Admin.Models
+@model List<StudentRosterEntry>
+@{
+    ViewData["Title"] = "Exam History";
+}
+
+<div class="max-w-4xl mx-auto page-enter space-y-4">
+    <div>
+        <h1 class="text-xl font-bold text-slate-800 dark:text-slate-100">Exam History</h1>
+        <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">Pick a student to see their full exam attempt history.</p>
+    </div>
+
+    <input type="text" id="studentFilter" placeholder="Search by name or email..."
+           class="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" />
+
+    @if (!Model.Any())
+    {
+        <p class="text-sm text-slate-400 dark:text-slate-500">No students found across your batches.</p>
+    }
+    else
+    {
+        <div class="bg-white dark:bg-slate-900/60 rounded-[20px] shadow-sm border border-slate-100 dark:border-slate-700 divide-y divide-slate-100 dark:divide-slate-800" id="studentList">
+            @foreach (var student in Model)
+            {
+                <a asp-action="StudentHistory" asp-controller="ExamReview" asp-area="Lecturer" asp-route-studentId="@student.StudentID"
+                   class="student-row p-4 flex items-center gap-4 hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition-colors"
+                   data-search="@($"{student.StudentName} {student.StudentEmail}".ToLower())">
+                    @if (!string.IsNullOrEmpty(student.ProfileImageUrl))
+                    {
+                        <img src="@student.ProfileImageUrl" alt="" class="w-10 h-10 rounded-full object-cover flex-shrink-0" />
+                    }
+                    else
+                    {
+                        <div class="w-10 h-10 rounded-full bg-purple-50 dark:bg-purple-950 flex items-center justify-center text-[#7c3aed] dark:text-purple-300 font-semibold text-sm flex-shrink-0">
+                            @(student.StudentName.Length > 0 ? student.StudentName[0].ToString().ToUpper() : "?")
+                        </div>
+                    }
+                    <div class="min-w-0 flex-1">
+                        <p class="text-sm font-medium text-slate-800 dark:text-slate-100 truncate">@student.StudentName</p>
+                        <p class="text-xs text-slate-400 dark:text-slate-500 truncate">@student.StudentEmail</p>
+                    </div>
+                    <i data-lucide="chevron-right" class="w-4 h-4 text-slate-300 dark:text-slate-600 flex-shrink-0"></i>
+                </a>
+            }
+        </div>
+    }
+</div>
+
+<script>
+    (function () {
+        var filterInput = document.getElementById('studentFilter');
+        if (!filterInput) return;
+        filterInput.addEventListener('input', function () {
+            var q = filterInput.value.trim().toLowerCase();
+            document.querySelectorAll('.student-row').forEach(function (row) {
+                row.style.display = row.dataset.search.indexOf(q) === -1 ? 'none' : '';
+            });
+        });
+    })();
+</script>

@@ -145,6 +145,65 @@ namespace Web_Backend.Areas.LecturerPortal.Controllers
             return RedirectToAction("Index");
         }
 
+        // Single-attempt reject with a required remark -- deliberately not
+        // part of the bulk Approve action above, since a rejection needs a
+        // reason typed for that specific attempt, unlike a plain approval.
+        // Sends the attempt back into GradingQueue (IsFullyGraded reset to 0
+        // by the proc) so the lecturer re-grades Written answers taking the
+        // remark into account, then re-approves through the normal flow.
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Reject(string attemptId, string remark)
+        {
+            Auth.CheckUser();
+            var user = Auth.GetUser();
+
+            if (string.IsNullOrWhiteSpace(remark))
+            {
+                TempData["ErrorMessage"] = "A remark is required to reject an attempt.";
+                return RedirectToAction("Index");
+            }
+
+            try
+            {
+                await attemptRep.TeacherReject(attemptId, user!.Id, remark);
+                TempData["SuccessMessage"] = "Attempt rejected and sent back for re-grading.";
+            }
+            catch (Exception ex)
+            {
+                TempData["ErrorMessage"] = "Could not reject: " + ex.Message;
+            }
+
+            return RedirectToAction("Index");
+        }
+
+        // Top-level "Exam History" entry point (sidebar), separate from the
+        // per-batch drill-down on Courses/Details -- lists every student
+        // across all of this lecturer's batches so they don't have to know
+        // which batch a student is in first.
+        [HttpGet]
+        public async Task<IActionResult> History()
+        {
+            Auth.CheckUser();
+            var userId = Auth.GetUserId();
+
+            var batches = await scheduleRep.GetListForInstructor(userId);
+            var students = new List<StudentRosterEntry>();
+            var seen = new HashSet<string>();
+            foreach (var batch in batches)
+            {
+                var roster = await scheduleRep.GetStudentRosterForInstructor(batch.ScheduleID, userId);
+                foreach (var s in roster)
+                {
+                    if (seen.Add(s.StudentID))
+                        students.Add(s);
+                }
+            }
+
+            ViewBag.CurrentUser = Auth.GetUser();
+            return View(students.OrderBy(s => s.StudentName).ToList());
+        }
+
         // "My Batches" -> pick a batch -> pick a student -> that student's
         // full exam history (reuses ListForStudent, which already backs the
         // student-facing "My Results" page -- same query, different viewer).
@@ -179,6 +238,27 @@ namespace Web_Backend.Areas.LecturerPortal.Controllers
             ViewBag.CurrentUser = Auth.GetUser();
             ViewBag.Student = student;
             return View(history);
+        }
+
+        // Read-only violation trail for one attempt -- lecturer-area
+        // equivalent of Admin/ExamGrading/ViolationTrail, reusing the same
+        // ListViolations repo call. No extra ownership check here beyond
+        // Auth.CheckUser(), matching every other Lecturer-area detail view
+        // in this controller (Grade, etc.) -- an attemptId isn't guessable
+        // enumeration surface any worse than the existing Grade action.
+        [HttpGet]
+        public async Task<IActionResult> ViolationTrail(string attemptId)
+        {
+            Auth.CheckUser();
+            var attempt = await attemptRep.Get(attemptId);
+            if (attempt == null)
+                return RedirectToAction("Index");
+
+            var violations = await attemptRep.ListViolations(attemptId);
+
+            ViewBag.CurrentUser = Auth.GetUser();
+            ViewBag.Attempt = attempt;
+            return View(violations);
         }
     }
 }
