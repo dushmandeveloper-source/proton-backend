@@ -1,60 +1,64 @@
 @using Web_Backend.Areas.Admin.Models
 @model ExamAttempt
 @{
-    // Status is one of: InProgress | Submitted | Expired | Terminated (the
-    // last added for Phase 3's 3-strike violation policy -- ExamAttempt_Submit
-    // is called with @Terminate=1 by the strike-counting proc itself, so a
-    // Terminated attempt reaching this page was genuinely ended server-side,
-    // not "still in progress" the way true InProgress is).
-    var isSubmitted = Model.Status == "Submitted" || Model.Status == "Expired";
     var isTerminated = Model.Status == "Terminated";
-    ViewBag.Title = isSubmitted ? "Exam Submitted" : isTerminated ? "Exam Ended" : "Exam In Progress";
+    var isFinalized = Model.Status == "Submitted" || Model.Status == "Expired" || isTerminated;
+    var isReleased = Model.ResultReleasedDate.HasValue;
+    ViewBag.Title = isReleased ? "Exam Result" : (isFinalized ? "Exam Submitted" : "Exam In Progress");
 }
 
 <div class="max-w-2xl mx-auto page-enter">
     <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 p-8 text-center">
-        @if (isSubmitted)
+        @if (isReleased)
         {
-            <div class="w-14 h-14 rounded-full bg-emerald-50 dark:bg-emerald-950 flex items-center justify-center mx-auto mb-4">
-                <i data-lucide="check-circle" class="w-7 h-7 text-emerald-600 dark:text-emerald-300"></i>
+            var passed = Model.Passed == true;
+            <div class="w-14 h-14 rounded-full @(passed ? "bg-emerald-50 dark:bg-emerald-950" : "bg-red-50 dark:bg-red-950") flex items-center justify-center mx-auto mb-4">
+                <i data-lucide="@(passed ? "check-circle" : "circle-x")" class="w-7 h-7 @(passed ? "text-emerald-600 dark:text-emerald-300" : "text-red-600 dark:text-red-300")"></i>
             </div>
+            <h1 class="text-2xl font-bold text-slate-800 dark:text-slate-100 mb-2">@Model.ExamTitle</h1>
+            @* Pass/Fail only -- Model.TotalMarksAwarded / Model.PassingMarks /
+               Model.PassingPercentage are never rendered anywhere on this
+               page, even though they exist on Model. The word below is the
+               ONLY verdict information shown, by design -- see plan Task 7. *@
+            <p class="text-lg font-semibold @(passed ? "text-emerald-600 dark:text-emerald-300" : "text-red-600 dark:text-red-300")">
+                @(passed ? "Pass" : "Fail")
+            </p>
+            <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">Result released @Model.ResultReleasedDate?.ToString("g")</p>
+
+            <a asp-area="Student" asp-controller="Dashboard" asp-action="Index"
+               class="inline-flex items-center gap-2 mt-6 px-5 py-2.5 rounded-xl font-medium text-sm bg-[#7c3aed] text-white hover:bg-[#6d28d9] shadow-sm transition-all">
+                Back to Dashboard
+            </a>
         }
-        else if (isTerminated)
+        else if (isFinalized)
         {
-            <div class="w-14 h-14 rounded-full bg-red-50 dark:bg-red-950 flex items-center justify-center mx-auto mb-4">
-                <i data-lucide="shield-alert" class="w-7 h-7 text-red-600 dark:text-red-300"></i>
+            <div class="w-14 h-14 rounded-full @(isTerminated ? "bg-red-50 dark:bg-red-950" : "bg-amber-50 dark:bg-amber-950") flex items-center justify-center mx-auto mb-4">
+                <i data-lucide="@(isTerminated ? "shield-alert" : "clock")" class="w-7 h-7 @(isTerminated ? "text-red-600 dark:text-red-300" : "text-amber-600 dark:text-amber-300")"></i>
             </div>
+            <h1 class="text-2xl font-bold text-slate-800 dark:text-slate-100 mb-2">@Model.ExamTitle</h1>
+
+            @if (isTerminated)
+            {
+                <p class="text-sm text-slate-600 dark:text-slate-300">This exam was ended early after repeated rule violations.</p>
+                <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">Your answers up to that point are pending review.</p>
+            }
+            else
+            {
+                <p class="text-sm text-slate-600 dark:text-slate-300">Your exam has been submitted and is pending review.</p>
+                <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">You will be notified once grading is complete.</p>
+            }
+
+            <a asp-area="Student" asp-controller="Dashboard" asp-action="Index"
+               class="inline-flex items-center gap-2 mt-6 px-5 py-2.5 rounded-xl font-medium text-sm bg-[#7c3aed] text-white hover:bg-[#6d28d9] shadow-sm transition-all">
+                Back to Dashboard
+            </a>
         }
         else
         {
             <div class="w-14 h-14 rounded-full bg-amber-50 dark:bg-amber-950 flex items-center justify-center mx-auto mb-4">
                 <i data-lucide="clock" class="w-7 h-7 text-amber-600 dark:text-amber-300"></i>
             </div>
-        }
-        <h1 class="text-2xl font-bold text-slate-800 dark:text-slate-100 mb-2">@Model.ExamTitle</h1>
-
-        @if (isSubmitted)
-        {
-            <p class="text-sm text-slate-600 dark:text-slate-300">Your exam has been submitted and is pending review.</p>
-            <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">You will be notified once grading is complete.</p>
-
-            <a asp-area="Student" asp-controller="Dashboard" asp-action="Index"
-               class="inline-flex items-center gap-2 mt-6 px-5 py-2.5 rounded-xl font-medium text-sm bg-[#7c3aed] text-white hover:bg-[#6d28d9] shadow-sm transition-all">
-                Back to Dashboard
-            </a>
-        }
-        else if (isTerminated)
-        {
-            <p class="text-sm text-slate-600 dark:text-slate-300">This exam attempt was ended after repeated rule violations.</p>
-            <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">Your answers up to that point have been recorded. Contact your instructor if you believe this was in error.</p>
-
-            <a asp-area="Student" asp-controller="Dashboard" asp-action="Index"
-               class="inline-flex items-center gap-2 mt-6 px-5 py-2.5 rounded-xl font-medium text-sm bg-[#7c3aed] text-white hover:bg-[#6d28d9] shadow-sm transition-all">
-                Back to Dashboard
-            </a>
-        }
-        else
-        {
+            <h1 class="text-2xl font-bold text-slate-800 dark:text-slate-100 mb-2">@Model.ExamTitle</h1>
             <p class="text-sm text-slate-600 dark:text-slate-300">This attempt is still in progress &mdash; it was not submitted.</p>
             <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">Return to the exam to continue answering and try submitting again.</p>
 
