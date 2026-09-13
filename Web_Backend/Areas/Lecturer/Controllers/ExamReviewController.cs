@@ -22,10 +22,12 @@ namespace Web_Backend.Areas.LecturerPortal.Controllers
     public class ExamReviewController : Controller
     {
         private readonly IExamAttemptData attemptRep;
+        private readonly ICourseScheduleData scheduleRep;
 
-        public ExamReviewController(IExamAttemptData attemptRep)
+        public ExamReviewController(IExamAttemptData attemptRep, ICourseScheduleData scheduleRep)
         {
             this.attemptRep = attemptRep;
+            this.scheduleRep = scheduleRep;
         }
 
         [HttpGet]
@@ -141,6 +143,42 @@ namespace Web_Backend.Areas.LecturerPortal.Controllers
             }
 
             return RedirectToAction("Index");
+        }
+
+        // "My Batches" -> pick a batch -> pick a student -> that student's
+        // full exam history (reuses ListForStudent, which already backs the
+        // student-facing "My Results" page -- same query, different viewer).
+        // Ownership check: the requested studentId must actually appear on
+        // the roster of one of THIS lecturer's own batches, otherwise a
+        // lecturer could view an arbitrary student's exam history just by
+        // changing the query string. Mirrors CoursesController.Details's own
+        // "batches assigned to this lecturer only" check.
+        [HttpGet]
+        public async Task<IActionResult> StudentHistory(string studentId)
+        {
+            Auth.CheckUser();
+            var userId = Auth.GetUserId();
+
+            var batches = await scheduleRep.GetListForInstructor(userId);
+            StudentRosterEntry? student = null;
+            foreach (var batch in batches)
+            {
+                var roster = await scheduleRep.GetStudentRosterForInstructor(batch.ScheduleID, userId);
+                student = roster.FirstOrDefault(r => r.StudentID == studentId);
+                if (student != null) break;
+            }
+
+            if (student == null)
+            {
+                TempData["ErrorMessage"] = "Student not found, or not enrolled in any of your batches.";
+                return RedirectToAction("Index", "Courses");
+            }
+
+            var history = await attemptRep.ListForStudent(studentId);
+
+            ViewBag.CurrentUser = Auth.GetUser();
+            ViewBag.Student = student;
+            return View(history);
         }
     }
 }

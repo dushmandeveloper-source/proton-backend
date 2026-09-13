@@ -70,7 +70,7 @@
                                 @(student.StudentName.Length > 0 ? student.StudentName[0].ToString().ToUpper() : "?")
                             </div>
                         }
-                        <div class="min-w-0">
+                        <div class="min-w-0 flex-1">
                             <p class="text-sm font-medium text-slate-800 dark:text-slate-100 truncate">@student.StudentName</p>
                             <p class="text-xs text-slate-400 dark:text-slate-500 truncate">
                                 @student.StudentEmail
@@ -80,6 +80,10 @@
                                 }
                             </p>
                         </div>
+                        <a asp-action="StudentHistory" asp-controller="ExamReview" asp-area="Lecturer" asp-route-studentId="@student.StudentID"
+                           class="flex-shrink-0 px-3 py-1.5 rounded-lg font-medium text-xs bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+                            Exam History
+                        </a>
                     </div>
                 }
             </div>
