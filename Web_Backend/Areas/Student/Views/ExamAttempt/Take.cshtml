@@ -424,7 +424,13 @@
         }
 
         permissionIntroModal.classList.add('hidden');
-        acquireStreams();
+        acquireStreams().finally(function () {
+            // Arm violation detection once the permission flow has settled
+            // (success or failure) -- the getUserMedia/getDisplayMedia
+            // prompts themselves can steal window focus, and that must never
+            // be mistaken for a student-caused WindowBlur/TabSwitch.
+            violationDetectionArmed = true;
+        });
     });
 
     function saveAnswer(questionId, attemptId, selectedOptionId, writtenAnswerText) {
@@ -555,7 +561,26 @@
         RightClick: 'you attempted to right-click'
     };
 
+    // Listeners are attached immediately (below), but stay disarmed until the
+    // camera/screen-share permission flow has actually finished -- the OS-
+    // level getUserMedia/getDisplayMedia prompts can themselves steal window
+    // focus, which would otherwise fire `blur`/`visibilitychange` from the
+    // exam's own required setup, not from anything the student did wrong.
+    var violationDetectionArmed = false;
+
+    // Debounces near-simultaneous reports from a single physical action --
+    // an alt-tab away, for instance, fires both `blur` and `visibilitychange`
+    // within the same tick, which would otherwise cost two strikes for what
+    // the student experiences as one action.
+    var lastViolationReportAt = 0;
+    var VIOLATION_DEBOUNCE_MS = 500;
+
     function reportViolation(violationType) {
+        if (!violationDetectionArmed) return;
+        var now = Date.now();
+        if (now - lastViolationReportAt < VIOLATION_DEBOUNCE_MS) return;
+        lastViolationReportAt = now;
+
         fetch('/Student/ExamAttempt/ReportViolation', {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'RequestVerificationToken': token },
