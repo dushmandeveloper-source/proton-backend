@@ -1,29 +1,45 @@
 @using Web_Backend.Areas.Admin.Models
 @model ExamAttempt
 @{
-    ViewBag.Title = "Exam Submitted";
+    var isSubmitted = Model.Status == "Submitted" || Model.Status == "Expired";
+    ViewBag.Title = isSubmitted ? "Exam Submitted" : "Exam In Progress";
 }
 
 <div class="max-w-2xl mx-auto page-enter">
     <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 p-8 text-center">
-        <div class="w-14 h-14 rounded-full bg-emerald-50 dark:bg-emerald-950 flex items-center justify-center mx-auto mb-4">
-            <i data-lucide="check-circle" class="w-7 h-7 text-emerald-600 dark:text-emerald-300"></i>
-        </div>
-        <h1 class="text-2xl font-bold text-slate-800 dark:text-slate-100 mb-2">@Model.ExamTitle</h1>
-
-        @if (Model.Status == "Submitted" || Model.Status == "Expired")
+        @if (isSubmitted)
         {
-            <p class="text-sm text-slate-600 dark:text-slate-300">Your exam has been submitted and is pending review.</p>
-            <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">You will be notified once grading is complete.</p>
+            <div class="w-14 h-14 rounded-full bg-emerald-50 dark:bg-emerald-950 flex items-center justify-center mx-auto mb-4">
+                <i data-lucide="check-circle" class="w-7 h-7 text-emerald-600 dark:text-emerald-300"></i>
+            </div>
         }
         else
         {
-            <p class="text-sm text-slate-600 dark:text-slate-300">This attempt is still in progress.</p>
+            <div class="w-14 h-14 rounded-full bg-amber-50 dark:bg-amber-950 flex items-center justify-center mx-auto mb-4">
+                <i data-lucide="clock" class="w-7 h-7 text-amber-600 dark:text-amber-300"></i>
+            </div>
         }
+        <h1 class="text-2xl font-bold text-slate-800 dark:text-slate-100 mb-2">@Model.ExamTitle</h1>
 
-        <a asp-area="Student" asp-controller="Dashboard" asp-action="Index"
-           class="inline-flex items-center gap-2 mt-6 px-5 py-2.5 rounded-xl font-medium text-sm bg-[#7c3aed] text-white hover:bg-[#6d28d9] shadow-sm transition-all">
-            Back to Dashboard
-        </a>
+        @if (isSubmitted)
+        {
+            <p class="text-sm text-slate-600 dark:text-slate-300">Your exam has been submitted and is pending review.</p>
+            <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">You will be notified once grading is complete.</p>
+
+            <a asp-area="Student" asp-controller="Dashboard" asp-action="Index"
+               class="inline-flex items-center gap-2 mt-6 px-5 py-2.5 rounded-xl font-medium text-sm bg-[#7c3aed] text-white hover:bg-[#6d28d9] shadow-sm transition-all">
+                Back to Dashboard
+            </a>
+        }
+        else
+        {
+            <p class="text-sm text-slate-600 dark:text-slate-300">This attempt is still in progress &mdash; it was not submitted.</p>
+            <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">Return to the exam to continue answering and try submitting again.</p>
+
+            <a asp-area="Student" asp-controller="ExamAttempt" asp-action="Take" asp-route-attemptId="@Model.AttemptID"
+               class="inline-flex items-center gap-2 mt-6 px-5 py-2.5 rounded-xl font-medium text-sm bg-[#7c3aed] text-white hover:bg-[#6d28d9] shadow-sm transition-all">
+                Return to Exam
+            </a>
+        }
     </div>
 </div>

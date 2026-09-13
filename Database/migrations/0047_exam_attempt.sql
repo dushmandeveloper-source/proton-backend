@@ -253,7 +253,8 @@ GO
 CREATE PROCEDURE [edu].[ExamAttempt_Submit]
 (
     @APIKey varchar(100),
-    @AttemptID varchar(20)
+    @AttemptID varchar(20),
+    @IsForced bit = 0
 )
 AS
 BEGIN
@@ -289,7 +290,12 @@ BEGIN
         -- Take.cshtml, but is the actual enforcement boundary: a request
         -- forged straight at this proc, bypassing the browser UI entirely,
         -- is rejected here regardless of what any client-side check did).
-        IF @FinalStatus = 'Submitted' AND EXISTS (
+        -- Also skipped when @IsForced = 1 -- this is the exam UI's own
+        -- auto-submit path when the student's camera/screen-share was lost
+        -- and never restored within the grace window; that student no
+        -- longer has working proctoring, so trapping them behind "answer
+        -- everything first" defeats the point of ending the attempt.
+        IF @IsForced = 0 AND @FinalStatus = 'Submitted' AND EXISTS (
             SELECT 1
             FROM edu.ExamQuestion q
             LEFT JOIN edu.ExamAttemptAnswer aa ON aa.AttemptID = @AttemptID AND aa.QuestionID = q.QuestionID

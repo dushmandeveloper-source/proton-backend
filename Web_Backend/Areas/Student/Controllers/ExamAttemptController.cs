@@ -134,7 +134,7 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Submit(string attemptId)
+        public async Task<IActionResult> Submit(string attemptId, bool isForced = false)
         {
             Auth.CheckUser();
             var userId = Auth.GetUserId();
@@ -148,11 +148,19 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
 
             try
             {
-                await attemptRep.Submit(attemptId);
+                // isForced=true is the exam UI's own auto-submit when camera/
+                // screen-share was lost and never restored within the grace
+                // window -- it skips the "answer every question" completeness
+                // check server-side (see edu.ExamAttempt_Submit's @IsForced),
+                // since that student no longer has working proctoring and
+                // trapping them behind an unmet completeness rule defeats the
+                // point of ending the attempt.
+                await attemptRep.Submit(attemptId, isForced);
             }
             catch (System.Exception ex)
             {
                 TempData["ErrorMessage"] = "Could not submit: " + ex.Message;
+                return RedirectToAction("Take", new { attemptId });
             }
 
             return RedirectToAction("Result", new { attemptId });

@@ -77,6 +77,14 @@
         </div>
     </div>
 
+    @if (TempData["ErrorMessage"] != null)
+    {
+        <div class="rounded-[20px] border border-red-100 dark:border-red-900 bg-red-50 dark:bg-red-950 p-4 flex items-center gap-3">
+            <i data-lucide="circle-x" class="w-5 h-5 text-red-600 dark:text-red-300 flex-shrink-0"></i>
+            <p class="text-sm text-red-700 dark:text-red-300">@TempData["ErrorMessage"]</p>
+        </div>
+    }
+
     <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 p-6 flex items-center justify-between gap-4 sticky top-4 z-10">
         <div>
             <h1 class="text-xl font-bold text-slate-800 dark:text-slate-100">@attempt.ExamTitle</h1>
@@ -172,11 +180,28 @@
     var timerEl = document.getElementById('examTimer');
     var expires = new Date(timerEl.getAttribute('data-expires'));
 
+    // Submits #examForm with isForced=true -- used by both the timer-expiry
+    // auto-submit below and the camera/screen-loss grace-window auto-submit
+    // (see beginGraceWindow) -- neither is the student clicking "Submit
+    // Exam" themselves, so neither should be blocked by the "answer every
+    // question" completeness check (the Submit proc's IsForced parameter
+    // skips it). The student's own manual submit button is a plain,
+    // unmodified form submit and still enforces completeness as before.
+    function forceSubmitExam() {
+        var form = document.getElementById('examForm');
+        var hidden = document.createElement('input');
+        hidden.type = 'hidden';
+        hidden.name = 'isForced';
+        hidden.value = 'true';
+        form.appendChild(hidden);
+        form.submit();
+    }
+
     function tick() {
         var remainingMs = expires - new Date();
         if (remainingMs <= 0) {
             timerEl.textContent = 'Time expired — submitting...';
-            document.getElementById('examForm').submit();
+            forceSubmitExam();
             return;
         }
         var totalSec = Math.floor(remainingMs / 1000);
@@ -232,7 +257,7 @@
             }
         }, 1000);
         graceTimeoutId = setTimeout(function () {
-            document.getElementById('examForm').submit();
+            forceSubmitExam();
         }, GRACE_WINDOW_SECONDS * 1000);
     }
 
