@@ -155,7 +155,12 @@
                                 ${e.instructorNames ? `<div class="flex items-center gap-1"><i data-lucide="user" class="w-3 h-3"></i> ${e.instructorNames}</div>` : ''}
                             </div>
                         </div>
-                        ${e.meetingLink ? `<a href="${e.meetingLink}" target="_blank" rel="noopener" class="px-3 py-1.5 rounded-lg font-medium text-xs bg-[#7c3aed] text-white hover:bg-[#6d28d9] transition-colors flex items-center gap-1 flex-shrink-0"><i data-lucide="video" class="w-3.5 h-3.5"></i> Join</a>` : ''}
+                        <div class="flex flex-col items-end gap-2 flex-shrink-0">
+                            <button type="button" class="px-3 py-1.5 rounded-lg font-medium text-xs bg-amber-500 text-slate-900 hover:bg-amber-600 transition-colors flex items-center gap-1" title="Live monitoring is not available yet">
+                                <i data-lucide="eye" class="w-3.5 h-3.5"></i> Watch Exam
+                            </button>
+                            ${e.meetingLink ? `<a href="${e.meetingLink}" target="_blank" rel="noopener" class="px-3 py-1.5 rounded-lg font-medium text-xs bg-[#7c3aed] text-white hover:bg-[#6d28d9] transition-colors flex items-center gap-1"><i data-lucide="video" class="w-3.5 h-3.5"></i> Join</a>` : ''}
+                        </div>
                     </div>
                     ${!e.isMakeup ? `<div class="mt-2"><a href="@Url.Action("Create", "ExamReschedule", new { area = "Lecturer" })?scheduleId=${encodeURIComponent(e.scheduleId)}&segmentId=${encodeURIComponent(e.segmentId)}" class="text-xs text-slate-400 hover:text-[#7c3aed] dark:hover:text-purple-400 inline-flex items-center gap-1"><i data-lucide="calendar-clock" class="w-3 h-3"></i> Request date change</a></div>` : ''}
                 </div>
