@@ -389,7 +389,7 @@ BEGIN
         JOIN edu.Exam e ON e.ExamID = a.ExamID
         JOIN mst.Student s ON s.StudentID = a.StudentID
         JOIN usr.Users u ON u.UserID = s.UserID
-        WHERE a.IsFullyGraded = 0 AND a.Status IN ('Submitted', 'Expired')
+        WHERE a.IsFullyGraded = 0 AND a.Status IN ('Submitted', 'Expired', 'Terminated')
         ORDER BY a.SubmittedDate ASC
     END TRY
     BEGIN CATCH

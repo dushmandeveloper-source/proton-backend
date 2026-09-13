@@ -1,8 +1,14 @@
 @using Web_Backend.Areas.Admin.Models
 @model ExamAttempt
 @{
+    // Status is one of: InProgress | Submitted | Expired | Terminated (the
+    // last added for Phase 3's 3-strike violation policy -- ExamAttempt_Submit
+    // is called with @Terminate=1 by the strike-counting proc itself, so a
+    // Terminated attempt reaching this page was genuinely ended server-side,
+    // not "still in progress" the way true InProgress is).
     var isSubmitted = Model.Status == "Submitted" || Model.Status == "Expired";
-    ViewBag.Title = isSubmitted ? "Exam Submitted" : "Exam In Progress";
+    var isTerminated = Model.Status == "Terminated";
+    ViewBag.Title = isSubmitted ? "Exam Submitted" : isTerminated ? "Exam Ended" : "Exam In Progress";
 }
 
 <div class="max-w-2xl mx-auto page-enter">
@@ -11,6 +17,12 @@
         {
             <div class="w-14 h-14 rounded-full bg-emerald-50 dark:bg-emerald-950 flex items-center justify-center mx-auto mb-4">
                 <i data-lucide="check-circle" class="w-7 h-7 text-emerald-600 dark:text-emerald-300"></i>
+            </div>
+        }
+        else if (isTerminated)
+        {
+            <div class="w-14 h-14 rounded-full bg-red-50 dark:bg-red-950 flex items-center justify-center mx-auto mb-4">
+                <i data-lucide="shield-alert" class="w-7 h-7 text-red-600 dark:text-red-300"></i>
             </div>
         }
         else
@@ -25,6 +37,16 @@
         {
             <p class="text-sm text-slate-600 dark:text-slate-300">Your exam has been submitted and is pending review.</p>
             <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">You will be notified once grading is complete.</p>
+
+            <a asp-area="Student" asp-controller="Dashboard" asp-action="Index"
+               class="inline-flex items-center gap-2 mt-6 px-5 py-2.5 rounded-xl font-medium text-sm bg-[#7c3aed] text-white hover:bg-[#6d28d9] shadow-sm transition-all">
+                Back to Dashboard
+            </a>
+        }
+        else if (isTerminated)
+        {
+            <p class="text-sm text-slate-600 dark:text-slate-300">This exam attempt was ended after repeated rule violations.</p>
+            <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">Your answers up to that point have been recorded. Contact your instructor if you believe this was in error.</p>
 
             <a asp-area="Student" asp-controller="Dashboard" asp-action="Index"
                class="inline-flex items-center gap-2 mt-6 px-5 py-2.5 rounded-xl font-medium text-sm bg-[#7c3aed] text-white hover:bg-[#6d28d9] shadow-sm transition-all">
