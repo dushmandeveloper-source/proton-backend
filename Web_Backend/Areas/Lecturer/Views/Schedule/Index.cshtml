@@ -69,6 +69,7 @@
                             var dayPayload = new
                             {
                                 dateLabel = day.Date.ToString("dddd, MMMM d, yyyy"),
+                                isToday = day.Date.Date == DateTime.Today,
                                 holidays = day.Holidays.Select(h => new { title = h.Title, description = h.Description }),
                                 classes = day.Classes.Select(seg => new
                                 {
@@ -77,6 +78,7 @@
                                     title = seg.CourseTitle,
                                     scheduleName = seg.ScheduleName,
                                     time = $"{seg.StartTime.ToString(@"hh\:mm")} - {seg.EndTime.ToString(@"hh\:mm")}",
+                                    startTime = seg.StartTime.ToString(@"hh\:mm\:ss"),
                                     location = seg.Location,
                                     instructorNames = seg.InstructorNames,
                                     meetingLink = seg.MeetingLink,
@@ -138,9 +140,20 @@
         const dayTitle = document.getElementById('cal-day-title');
         const dayEvents = document.getElementById('cal-day-events');
 
-        function eventCardsHtml(list) {
+        function eventCardsHtml(list, isToday) {
             if (list.length === 0) return '<p class="text-sm text-slate-400 dark:text-slate-500">No classes on this day.</p>';
-            return list.map(e => `
+            var now = new Date();
+            return list.map(e => {
+                var canJoin = false;
+                if (isToday && e.startTime) {
+                    var joinAt = new Date(now.toISOString().slice(0, 10) + 'T' + e.startTime);
+                    joinAt.setMinutes(joinAt.getMinutes() - 15);
+                    canJoin = now >= joinAt;
+                }
+                var joinBtn = !e.meetingLink ? '' : canJoin
+                    ? `<a href="${e.meetingLink}" target="_blank" rel="noopener" class="px-3 py-1.5 rounded-lg font-medium text-xs bg-[#7c3aed] text-white hover:bg-[#6d28d9] transition-colors flex items-center gap-1 flex-shrink-0"><i data-lucide="video" class="w-3.5 h-3.5"></i> Join</a>`
+                    : `<span class="px-3 py-1.5 rounded-lg font-medium text-xs bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 cursor-not-allowed flex-shrink-0" title="${!isToday ? 'Only available on the scheduled day' : 'Available 15 minutes before start'}">Join</span>`;
+                return `
                 <div class="p-3 rounded-xl border border-slate-100 dark:border-slate-700 ${e.isMakeup ? 'bg-emerald-50/60 dark:bg-emerald-950/30' : ''}">
                     <div class="flex items-start justify-between gap-3">
                         <div class="min-w-0">
@@ -155,7 +168,7 @@
                                 ${e.instructorNames ? `<div class="flex items-center gap-1"><i data-lucide="user" class="w-3 h-3"></i> ${e.instructorNames}</div>` : ''}
                             </div>
                         </div>
-                        ${e.meetingLink ? `<a href="${e.meetingLink}" target="_blank" rel="noopener" class="px-3 py-1.5 rounded-lg font-medium text-xs bg-[#7c3aed] text-white hover:bg-[#6d28d9] transition-colors flex items-center gap-1 flex-shrink-0"><i data-lucide="video" class="w-3.5 h-3.5"></i> Join</a>` : ''}
+                        ${joinBtn}
                     </div>
                     <div class="mt-2 meeting-link-row" data-schedule-id="${e.scheduleId}" data-segment-id="${e.segmentId}">
                         <div class="meeting-link-display">
@@ -170,7 +183,8 @@
                         </div>
                     </div>
                 </div>
-            `).join('');
+            `;
+            }).join('');
         }
 
         function wireMeetingLinkButtons(container) {
@@ -238,7 +252,7 @@
             cell.addEventListener('click', () => {
                 const data = JSON.parse(cell.dataset.day || '{}');
                 dayTitle.textContent = data.dateLabel || '';
-                dayEvents.innerHTML = holidayBannerHtml(data.holidays || []) + eventCardsHtml(data.classes || []);
+                dayEvents.innerHTML = holidayBannerHtml(data.holidays || []) + eventCardsHtml(data.classes || [], !!data.isToday);
                 wireMeetingLinkButtons(dayEvents);
                 dayPanel.classList.remove('hidden');
                 if (window.lucide) lucide.createIcons();
