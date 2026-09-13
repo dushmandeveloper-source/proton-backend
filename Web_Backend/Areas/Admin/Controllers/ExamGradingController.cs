@@ -96,6 +96,7 @@ namespace Web_Backend.Areas.Admin.Controllers
                 // controller.
                 var released = await attemptRep.AdminApprove(attemptId, user!.Id);
 
+                var emailSent = false;
                 if (released != null)
                 {
                     // Pass/Fail only -- released.Passed is computed from
@@ -106,14 +107,21 @@ namespace Web_Backend.Areas.Admin.Controllers
                     var description = $"Your result for \"{released.ExamTitle}\" has been released. Result: {verdict}. " +
                                       "Log in to your student dashboard for more details.";
 
-                    await emailSender.SendTemplateEmailAsync(
+                    emailSent = await emailSender.SendTemplateEmailAsync(
                         toEmail: released.StudentEmail,
                         toName: released.StudentName,
                         templateCode: "RESULT_RELEASED",
                         description: description);
                 }
 
-                TempData["SuccessMessage"] = "Approved and released. The student has been notified.";
+                // The approval itself already succeeded and is not rolled back
+                // if the email fails to send (SendTemplateEmailAsync never
+                // throws -- it returns false and logs internally), so the
+                // message must reflect the email outcome accurately rather
+                // than always claiming the student was notified.
+                TempData["SuccessMessage"] = emailSent
+                    ? "Approved and released. The student has been notified."
+                    : "Approved and released, but the notification email could not be sent. Check Email Settings and notify the student manually if needed.";
             }
             catch (System.Exception ex)
             {
