@@ -9,6 +9,46 @@
 
 <div class="max-w-3xl mx-auto space-y-6 page-enter">
 
+    <div id="streamLossModal" class="hidden fixed inset-0 z-50 bg-slate-950/90 flex items-center justify-center p-6">
+        <div class="max-w-md w-full bg-white dark:bg-slate-900 rounded-[24px] shadow-lg p-6 space-y-4 text-center">
+            <div class="mx-auto w-12 h-12 rounded-full bg-red-50 dark:bg-red-950 flex items-center justify-center">
+                <i data-lucide="video-off" class="w-6 h-6 text-red-600 dark:text-red-300"></i>
+            </div>
+            <h2 class="font-semibold text-lg text-slate-800 dark:text-slate-100">Camera or Screen Share Stopped</h2>
+            <p id="streamLossMessage" class="text-sm text-slate-600 dark:text-slate-300"></p>
+            <p class="text-xs text-amber-600 dark:text-amber-400">
+                Your exam timer keeps running while this is shown. Restore access below before time runs out.
+            </p>
+            <p id="streamLossCountdown" class="text-sm font-semibold text-slate-800 dark:text-slate-100"></p>
+            <button type="button" id="restoreStreamBtn"
+                    class="w-full px-6 py-3 rounded-xl font-medium text-sm bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm transition-all">
+                Restore Camera &amp; Screen Share
+            </button>
+        </div>
+    </div>
+
+    @* ---------- Small always-visible camera/screen preview dock, bottom-right ---------- *@
+    <div id="monitorDock" class="fixed bottom-4 right-4 z-40 flex gap-2">
+        <div class="space-y-1">
+            <div class="relative rounded-xl overflow-hidden bg-slate-900 border-2 border-slate-200 dark:border-slate-700 shadow-lg w-[130px] h-[98px]">
+                <video id="dockCameraPreview" class="w-full h-full object-cover" autoplay playsinline muted></video>
+                <span id="dockCameraLiveBadge" class="hidden absolute top-1 right-1 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-semibold uppercase tracking-wide bg-red-50/90 dark:bg-red-950/90 text-red-600 dark:text-red-300">
+                    <span class="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse"></span> Live
+                </span>
+            </div>
+            <p class="text-center text-[10px] font-medium text-slate-500 dark:text-slate-400">Camera</p>
+        </div>
+        <div class="space-y-1">
+            <div class="relative rounded-xl overflow-hidden bg-slate-900 border-2 border-slate-200 dark:border-slate-700 shadow-lg w-[130px] h-[98px]">
+                <video id="dockScreenPreview" class="w-full h-full object-cover" autoplay playsinline muted></video>
+                <span id="dockScreenLiveBadge" class="hidden absolute top-1 right-1 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-semibold uppercase tracking-wide bg-red-50/90 dark:bg-red-950/90 text-red-600 dark:text-red-300">
+                    <span class="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse"></span> Live
+                </span>
+            </div>
+            <p class="text-center text-[10px] font-medium text-slate-500 dark:text-slate-400">Screen</p>
+        </div>
+    </div>
+
     <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 p-6 flex items-center justify-between gap-4 sticky top-4 z-10">
         <div>
             <h1 class="text-xl font-bold text-slate-800 dark:text-slate-100">@attempt.ExamTitle</h1>
@@ -120,6 +160,165 @@
     tick();
 
     var token = document.querySelector('input[name="__RequestVerificationToken"]').value;
+
+    // ---------- Camera & screen-share re-acquisition + hard-block on stream loss ----------
+    // Streams from Start.cshtml cannot survive the page navigation to this
+    // page (a MediaStream is tied to the document that requested it), so we
+    // re-request both here. The browser remembers the camera permission
+    // grant from Start.cshtml for this origin, so getUserMedia resolves
+    // silently (no second prompt); getDisplayMedia always re-shows its
+    // picker by design (no browser allows silently re-granting screen
+    // capture), so the student sees exactly one extra picker on this page.
+    //
+    // Unlike the original brief, the previews here stay small and visibly
+    // rendered in a bottom-right dock (#monitorDock) for the whole exam
+    // attempt, rather than being acquired invisibly in the background --
+    // this is a deliberate product requirement, not an oversight. This
+    // block never reads or touches attempt.ExpiresDate / examTimer / tick()
+    // above; the grace window below is a separate, independent countdown
+    // purely for camera/screen restoration and has no effect on exam time.
+    var cameraStream = null;
+    var screenStream = null;
+    var streamLossModal = document.getElementById('streamLossModal');
+    var streamLossMessage = document.getElementById('streamLossMessage');
+    var streamLossCountdown = document.getElementById('streamLossCountdown');
+    var restoreStreamBtn = document.getElementById('restoreStreamBtn');
+    var dockCameraPreview = document.getElementById('dockCameraPreview');
+    var dockScreenPreview = document.getElementById('dockScreenPreview');
+    var dockCameraLiveBadge = document.getElementById('dockCameraLiveBadge');
+    var dockScreenLiveBadge = document.getElementById('dockScreenLiveBadge');
+    var graceTimeoutId = null;
+    var graceIntervalId = null;
+    var GRACE_WINDOW_SECONDS = 30;
+
+    function beginGraceWindow() {
+        if (graceTimeoutId !== null) return; // already counting down
+        var remaining = GRACE_WINDOW_SECONDS;
+        streamLossCountdown.textContent = 'Auto-submitting in ' + remaining + 's if not restored...';
+        graceIntervalId = setInterval(function () {
+            remaining -= 1;
+            if (remaining > 0) {
+                streamLossCountdown.textContent = 'Auto-submitting in ' + remaining + 's if not restored...';
+            }
+        }, 1000);
+        graceTimeoutId = setTimeout(function () {
+            document.getElementById('examForm').submit();
+        }, GRACE_WINDOW_SECONDS * 1000);
+    }
+
+    function clearGraceWindow() {
+        if (graceTimeoutId !== null) {
+            clearTimeout(graceTimeoutId);
+            graceTimeoutId = null;
+        }
+        if (graceIntervalId !== null) {
+            clearInterval(graceIntervalId);
+            graceIntervalId = null;
+        }
+        streamLossCountdown.textContent = '';
+    }
+
+    function showStreamLossModal(reason) {
+        streamLossMessage.textContent = reason;
+        streamLossModal.classList.remove('hidden');
+        submitBtn.disabled = true;
+        nextBtn.disabled = true;
+        backBtn.disabled = true;
+    }
+
+    function hideStreamLossModal() {
+        streamLossModal.classList.add('hidden');
+        nextBtn.disabled = false;
+        backBtn.disabled = current === 0;
+        updateSubmitGate();
+    }
+
+    function attachEndedHandler(track, label) {
+        track.addEventListener('ended', function () {
+            showStreamLossModal('Your ' + label + ' stopped or was stopped. This must be restored to continue the exam.');
+            beginGraceWindow();
+        });
+    }
+
+    async function acquireStreams() {
+        try {
+            cameraStream = await navigator.mediaDevices.getUserMedia({ video: true });
+            dockCameraPreview.srcObject = cameraStream;
+            dockCameraLiveBadge.classList.remove('hidden');
+            attachEndedHandler(cameraStream.getVideoTracks()[0], 'camera');
+        } catch (err) {
+            showStreamLossModal('Camera access is required and could not be re-established. Click below to grant camera access again.');
+            beginGraceWindow();
+        }
+
+        try {
+            screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+            var screenTrack = screenStream.getVideoTracks()[0];
+            if (screenTrack.getSettings().displaySurface !== 'monitor') {
+                screenTrack.stop();
+                screenStream = null;
+                showStreamLossModal('You must share your ENTIRE SCREEN (not a window or tab). Click below to share your entire screen.');
+                beginGraceWindow();
+                return;
+            }
+            dockScreenPreview.srcObject = screenStream;
+            dockScreenLiveBadge.classList.remove('hidden');
+            attachEndedHandler(screenTrack, 'screen share');
+        } catch (err) {
+            showStreamLossModal('Screen share is required and could not be re-established. Click below to grant screen share access again.');
+            beginGraceWindow();
+        }
+    }
+
+    restoreStreamBtn.addEventListener('click', async function () {
+        restoreStreamBtn.disabled = true;
+        restoreStreamBtn.textContent = 'Restoring...';
+
+        var cameraOk = cameraStream !== null && cameraStream.getVideoTracks()[0].readyState === 'live';
+        var screenOk = screenStream !== null && screenStream.getVideoTracks()[0].readyState === 'live';
+
+        if (!cameraOk) {
+            try {
+                cameraStream = await navigator.mediaDevices.getUserMedia({ video: true });
+                dockCameraPreview.srcObject = cameraStream;
+                dockCameraLiveBadge.classList.remove('hidden');
+                attachEndedHandler(cameraStream.getVideoTracks()[0], 'camera');
+                cameraOk = true;
+            } catch (err) {
+                cameraOk = false;
+            }
+        }
+
+        if (!screenOk) {
+            try {
+                screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+                var screenTrack = screenStream.getVideoTracks()[0];
+                if (screenTrack.getSettings().displaySurface !== 'monitor') {
+                    screenTrack.stop();
+                    screenOk = false;
+                } else {
+                    dockScreenPreview.srcObject = screenStream;
+                    dockScreenLiveBadge.classList.remove('hidden');
+                    attachEndedHandler(screenTrack, 'screen share');
+                    screenOk = true;
+                }
+            } catch (err) {
+                screenOk = false;
+            }
+        }
+
+        restoreStreamBtn.disabled = false;
+        restoreStreamBtn.textContent = 'Restore Camera & Screen Share';
+
+        if (cameraOk && screenOk) {
+            clearGraceWindow();
+            hideStreamLossModal();
+        } else {
+            streamLossMessage.textContent = 'Camera and screen share must both be active. Please try again.';
+        }
+    });
+
+    acquireStreams();
 
     function saveAnswer(questionId, attemptId, selectedOptionId, writtenAnswerText) {
         fetch('/Student/ExamAttempt/SaveAnswer', {
