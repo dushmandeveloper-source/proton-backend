@@ -87,9 +87,9 @@
                                             {
                                                 @if (canWatchExam)
                                                 {
-                                                    <button type="button" class="px-3 py-1.5 rounded-lg font-medium text-xs bg-amber-500 text-slate-900 hover:bg-amber-600 transition-colors flex items-center gap-1" title="Live monitoring is not available yet">
+                                                    <a asp-area="Lecturer" asp-controller="ExamWatch" asp-action="Index" class="px-3 py-1.5 rounded-lg font-medium text-xs bg-amber-500 text-slate-900 hover:bg-amber-600 transition-colors flex items-center gap-1">
                                                         <i data-lucide="eye" class="w-3.5 h-3.5"></i> Watch Exam
-                                                    </button>
+                                                    </a>
                                                 }
                                                 else
                                                 {
