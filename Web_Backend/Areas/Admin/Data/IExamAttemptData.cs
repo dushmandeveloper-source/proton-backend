@@ -39,5 +39,10 @@ namespace Web_Backend.Areas.Admin.Data
         // recent-first -- distinct from ListTeacherReviewQueue/
         // ListAdminReviewQueue, which only ever show actionable (pending) rows.
         Task<List<ExamAttempt>> ListAllForAdmin();
+
+        // Phase 4: currently InProgress attempts for exams this lecturer is
+        // assigned to (via edu.ExamScheduleInstructor) -- backs the live
+        // viewing grid.
+        Task<List<ExamAttempt>> ListInProgressForInstructor(string userId);
     }
 }

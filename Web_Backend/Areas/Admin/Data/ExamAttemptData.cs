@@ -124,5 +124,8 @@ namespace Web_Backend.Areas.Admin.Data
 
         public Task<List<ExamAttempt>> ListAllForAdmin() =>
             db.GetList<ExamAttempt, object>("edu.ExamAttempt_ListAllForAdmin", new { APIKey = AppData.GetAPIKey() });
+
+        public Task<List<ExamAttempt>> ListInProgressForInstructor(string userId) =>
+            db.GetList<ExamAttempt, object>("edu.ExamAttempt_ListInProgressForInstructor", new { APIKey = AppData.GetAPIKey(), UserID = userId });
     }
 }

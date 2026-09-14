@@ -1,0 +1,199 @@
+@using Web_Backend.Areas.Admin.Models
+@model List<ExamAttempt>
+@{
+    ViewData["Title"] = "Live Exam Viewing";
+}
+
+<div class="max-w-7xl mx-auto page-enter space-y-4">
+    <div class="flex items-center justify-between flex-wrap gap-3">
+        <div>
+            <h1 class="text-xl font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+                <i data-lucide="monitor" class="w-5 h-5 text-slate-400 dark:text-slate-500"></i>
+                Live Exam Viewing
+            </h1>
+            <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">
+                Students currently taking an exam you're assigned to. A tile only shows video if the
+                student opted in to live viewing.
+            </p>
+        </div>
+        <span id="liveCount" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold uppercase tracking-wide bg-slate-900 text-emerald-400">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+            @Model.Count in progress
+        </span>
+    </div>
+
+    @if (!Model.Any())
+    {
+        <div class="rounded-[24px] border-2 border-dashed border-slate-200 dark:border-slate-700 p-16 text-center">
+            <i data-lucide="video-off" class="w-10 h-10 text-slate-300 dark:text-slate-600 mx-auto mb-3"></i>
+            <p class="text-sm text-slate-400 dark:text-slate-500">No exams currently in progress.</p>
+        </div>
+    }
+    else
+    {
+        <div id="watchGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            @foreach (var a in Model)
+            {
+                <div class="watch-tile group relative rounded-2xl overflow-hidden bg-slate-950 border border-slate-800 shadow-lg shadow-black/30 cursor-pointer transition-all hover:ring-2 hover:ring-[#7c3aed] hover:-translate-y-0.5"
+                     data-attempt-id="@a.AttemptID" data-student-name="@a.StudentName" data-exam-title="@a.ExamTitle">
+                    <div class="relative aspect-video bg-slate-900 flex items-center justify-center">
+                        <video class="tile-video w-full h-full object-cover hidden" autoplay playsinline muted></video>
+                        <div class="tile-placeholder flex flex-col items-center gap-2 text-slate-600">
+                            <i data-lucide="user-round" class="w-8 h-8"></i>
+                            <span class="text-[10px] uppercase tracking-wider">No feed</span>
+                        </div>
+
+                        <span class="absolute top-2 left-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wide bg-black/60 backdrop-blur-sm text-emerald-400">
+                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> Live
+                        </span>
+
+                        @if (a.StrikeCount > 0)
+                        {
+                            <span class="absolute top-2 right-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-red-600/90 backdrop-blur-sm text-white">
+                                <i data-lucide="alert-octagon" class="w-3 h-3"></i> @a.StrikeCount
+                            </span>
+                        }
+
+                        <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-center pb-3">
+                            <span class="text-white text-xs font-medium flex items-center gap-1.5">
+                                <i data-lucide="maximize-2" class="w-3.5 h-3.5"></i> Click to focus
+                            </span>
+                        </div>
+                    </div>
+                    <div class="px-3 py-2.5 bg-slate-900">
+                        <p class="text-sm font-semibold text-slate-100 truncate">@a.StudentName</p>
+                        <p class="text-xs text-slate-400 truncate">@a.ExamTitle</p>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@* ---------- Focused/expanded view: a single large panel, CCTV-monitor style ---------- *@
+<div id="focusOverlay" class="hidden fixed inset-0 z-50 bg-black/90 backdrop-blur-sm flex items-center justify-center p-4 md:p-10">
+    <div class="w-full max-w-5xl">
+        <div class="flex items-center justify-between mb-3">
+            <div>
+                <p id="focusStudentName" class="text-white font-semibold"></p>
+                <p id="focusExamTitle" class="text-slate-400 text-xs"></p>
+            </div>
+            <button type="button" id="focusCloseBtn" class="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+        </div>
+        <div class="relative aspect-video bg-slate-950 rounded-2xl overflow-hidden border border-slate-800 shadow-2xl">
+            <video id="focusVideo" class="w-full h-full object-contain hidden" autoplay playsinline></video>
+            <div id="focusPlaceholder" class="absolute inset-0 flex flex-col items-center justify-center gap-3 text-slate-600">
+                <i data-lucide="loader-circle" class="w-8 h-8 animate-spin"></i>
+                <span class="text-sm">Connecting…</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    (function () {
+        var hubConnection = new signalR.HubConnectionBuilder().withUrl('/hubs/exam-watch').withAutomaticReconnect().build();
+        var peerConnection = null;
+        var currentAttemptId = null;
+        var currentTileEl = null;
+
+        var focusOverlay = document.getElementById('focusOverlay');
+        var focusVideo = document.getElementById('focusVideo');
+        var focusPlaceholder = document.getElementById('focusPlaceholder');
+        var focusStudentName = document.getElementById('focusStudentName');
+        var focusExamTitle = document.getElementById('focusExamTitle');
+        var focusCloseBtn = document.getElementById('focusCloseBtn');
+
+        hubConnection.on('SignalReceived', async function (attemptId, fromConnectionId, payload) {
+            if (attemptId !== currentAttemptId || !peerConnection) return;
+            if (payload.type === 'offer') {
+                await peerConnection.setRemoteDescription({ type: 'offer', sdp: payload.sdp });
+                var answer = await peerConnection.createAnswer();
+                await peerConnection.setLocalDescription(answer);
+                await hubConnection.invoke('SendSignal', attemptId, fromConnectionId, { type: 'answer', sdp: answer.sdp });
+            } else if (payload.type === 'ice-candidate' && payload.candidate) {
+                await peerConnection.addIceCandidate(payload.candidate);
+            }
+        });
+
+        function resetFocusVideo() {
+            focusVideo.srcObject = null;
+            focusVideo.classList.add('hidden');
+            focusPlaceholder.classList.remove('hidden');
+        }
+
+        function updateTileFeed(attemptId, stream) {
+            var tile = document.querySelector('.watch-tile[data-attempt-id="' + attemptId + '"]');
+            if (!tile) return;
+            var video = tile.querySelector('.tile-video');
+            var placeholder = tile.querySelector('.tile-placeholder');
+            video.srcObject = stream;
+            video.classList.remove('hidden');
+            placeholder.classList.add('hidden');
+        }
+
+        async function watch(tile) {
+            var attemptId = tile.dataset.attemptId;
+
+            if (peerConnection) {
+                if (currentAttemptId) await hubConnection.invoke('StopWatching', currentAttemptId);
+                peerConnection.close();
+                peerConnection = null;
+            }
+
+            currentAttemptId = attemptId;
+            currentTileEl = tile;
+            resetFocusVideo();
+            focusStudentName.textContent = tile.dataset.studentName;
+            focusExamTitle.textContent = tile.dataset.examTitle;
+            focusOverlay.classList.remove('hidden');
+
+            peerConnection = new RTCPeerConnection();
+            peerConnection.onicecandidate = function (e) {
+                if (e.candidate) {
+                    hubConnection.invoke('SendSignal', attemptId, hubConnection.connectionId, { type: 'ice-candidate', candidate: e.candidate });
+                }
+            };
+            peerConnection.ontrack = function (e) {
+                focusVideo.srcObject = e.streams[0];
+                focusVideo.classList.remove('hidden');
+                focusPlaceholder.classList.add('hidden');
+                updateTileFeed(attemptId, e.streams[0]);
+            };
+
+            try {
+                await hubConnection.invoke('RequestWatch', attemptId);
+            } catch (err) {
+                focusPlaceholder.innerHTML = '<i data-lucide="circle-x" class="w-8 h-8 text-red-400"></i><span class="text-sm text-red-300">' + (err.message || 'Could not connect') + '</span>';
+                if (window.lucide) lucide.createIcons();
+            }
+        }
+
+        async function stopWatching() {
+            if (peerConnection && currentAttemptId) {
+                await hubConnection.invoke('StopWatching', currentAttemptId);
+                peerConnection.close();
+                peerConnection = null;
+            }
+            currentAttemptId = null;
+            currentTileEl = null;
+            focusOverlay.classList.add('hidden');
+        }
+
+        document.querySelectorAll('.watch-tile').forEach(function (tile) {
+            tile.addEventListener('click', function () { watch(tile); });
+        });
+
+        focusCloseBtn.addEventListener('click', stopWatching);
+        focusOverlay.addEventListener('click', function (e) {
+            if (e.target === focusOverlay) stopWatching();
+        });
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape' && !focusOverlay.classList.contains('hidden')) stopWatching();
+        });
+
+        hubConnection.start();
+    })();
+</script>
