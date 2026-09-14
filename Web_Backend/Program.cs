@@ -83,6 +83,7 @@ builder.Services.AddTransient<ICourseScheduleRescheduleData, CourseScheduleResch
 builder.Services.AddTransient<IExamScheduleRescheduleData, ExamScheduleRescheduleData>();
 builder.Services.AddTransient<ILectureMaterialData, LectureMaterialData>();
 builder.Services.AddSingleton<IImageUploader, ImageUploader>();
+builder.Services.AddSignalR();
 
 var app = builder.Build();
 
@@ -115,6 +116,8 @@ app.MapControllerRoute(
 app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Home}/{action=Index}/{id?}");
+
+app.MapHub<Web_Backend.Hubs.ExamWatchHub>("/hubs/exam-watch");
 
 await SeedContactEmailTemplatesAsync(app.Services);
 
