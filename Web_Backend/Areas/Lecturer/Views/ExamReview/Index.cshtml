@@ -1,15 +1,20 @@
 @* backend/Web_Backend/Areas/Lecturer/Views/ExamReview/Index.cshtml *@
 @using Web_Backend.Areas.Admin.Models
-@model List<ExamAttempt>
+@model (List<ExamAttempt> Grading, List<ExamAttempt> Review)
 @{
-    ViewBag.Title = "Exam Review Queue";
+    ViewBag.Title = "Exam Grading & Review";
+    var initialTab = ViewBag.InitialTab as string ?? "grading";
+    var grading = Model.Grading;
+    var review = Model.Review;
 }
 
-<div class="max-w-4xl mx-auto page-enter space-y-4">
-    <h1 class="text-xl font-bold text-slate-800 dark:text-slate-100">Exam Review Queue</h1>
-    <p class="text-sm text-slate-500 dark:text-slate-400">
-        Fully-graded exam attempts awaiting your approval before they move to admin review.
-    </p>
+<div class="max-w-6xl mx-auto page-enter space-y-4">
+    <div>
+        <h1 class="text-xl font-bold text-slate-800 dark:text-slate-100">Exam Grading &amp; Review</h1>
+        <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">
+            Grade Written answers, then approve fully-graded attempts so they move to admin review.
+        </p>
+    </div>
 
     @if (TempData["SuccessMessage"] != null)
     {
@@ -24,94 +29,202 @@
         </div>
     }
 
-    @if (!Model.Any())
-    {
-        <p class="text-sm text-slate-400 dark:text-slate-500">Nothing pending review.</p>
-    }
-    else
-    {
-        <form asp-action="Approve" asp-controller="ExamReview" asp-area="Lecturer" method="post" id="bulkApproveForm">
-            @Html.AntiForgeryToken()
-            <div class="flex items-center justify-between mb-2">
-                <label class="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
-                    <input type="checkbox" id="selectAll" />
-                    Select All
-                </label>
-                <button type="submit" class="px-4 py-2 rounded-xl font-medium text-sm bg-[#7c3aed] text-white hover:bg-[#6d28d9] shadow-sm transition-all">
-                    Approve Selected
-                </button>
-            </div>
-            <div class="bg-white dark:bg-slate-900/60 rounded-[20px] shadow-sm border border-slate-100 dark:border-slate-700 divide-y divide-slate-100 dark:divide-slate-800">
-                @foreach (var attempt in Model)
-                {
-                    <div class="p-4 flex items-center justify-between gap-4">
-                        <div class="flex items-center gap-3 min-w-0">
-                            <input type="checkbox" name="attemptIds" value="@attempt.AttemptID" class="row-checkbox" />
-                            <div class="min-w-0">
-                                <p class="font-medium text-slate-800 dark:text-slate-100">@attempt.ExamTitle</p>
-                                <p class="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-2 flex-wrap">
-                                    <span>@attempt.StudentName &middot; Status: @attempt.Status &middot; Submitted: @(attempt.SubmittedDate?.ToString("g") ?? "-")</span>
-                                    @if (attempt.StrikeCount > 0)
-                                    {
-                                        <span class="inline-flex items-center gap-1 text-xs font-medium text-red-600 dark:text-red-300 bg-red-50 dark:bg-red-950 rounded-full px-2 py-0.5">
-                                            <i data-lucide="alert-octagon" class="w-3 h-3"></i> @attempt.StrikeCount strike@(attempt.StrikeCount == 1 ? "" : "s")
-                                        </span>
-                                    }
-                                </p>
-                                @if (!string.IsNullOrEmpty(attempt.AdminReviewRemark))
-                                {
-                                    <p class="text-xs text-amber-600 dark:text-amber-300 mt-1">
-                                        <i data-lucide="alert-triangle" class="w-3 h-3 inline"></i> Sent back by admin: "@attempt.AdminReviewRemark"
+    <div class="flex items-center gap-2 border-b border-slate-100 dark:border-slate-700">
+        <button type="button" id="tab-btn-grading" class="tab-btn px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors">
+            Grading
+            @if (grading.Any())
+            {
+                <span class="ml-1.5 inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1 rounded-full text-xs bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">@grading.Count</span>
+            }
+        </button>
+        <button type="button" id="tab-btn-review" class="tab-btn px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors">
+            Review
+            @if (review.Any())
+            {
+                <span class="ml-1.5 inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1 rounded-full text-xs bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">@review.Count</span>
+            }
+        </button>
+    </div>
+
+    @* ---------- Grading tab ---------- *@
+    <div id="tab-panel-grading" class="tab-panel">
+        <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
+            @if (!grading.Any())
+            {
+                <div class="p-12 text-center">
+                    <p class="text-sm text-slate-400 dark:text-slate-500">Nothing pending — all submitted attempts are fully graded.</p>
+                </div>
+            }
+            else
+            {
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead>
+                            <tr class="border-b border-slate-100 dark:border-slate-700 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide">
+                                <th class="px-6 py-3">Exam</th>
+                                <th class="px-6 py-3">Student</th>
+                                <th class="px-6 py-3">Submitted</th>
+                                <th class="px-6 py-3">Status</th>
+                                <th class="px-6 py-3">Partial Marks</th>
+                                <th class="px-6 py-3">Strikes</th>
+                                <th class="px-6 py-3"></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var a in grading)
+                            {
+                                <tr class="border-b border-slate-50 dark:border-slate-800 last:border-0 hover:bg-slate-50/60 dark:hover:bg-slate-800/40">
+                                    <td class="px-6 py-3 text-slate-800 dark:text-slate-100 font-medium">
+                                        @a.ExamTitle
+                                        @if (!string.IsNullOrEmpty(a.TeacherReviewRemark))
+                                        {
+                                            <p class="text-xs font-normal text-amber-600 dark:text-amber-300 mt-0.5">
+                                                <i data-lucide="alert-triangle" class="w-3 h-3 inline"></i> Previously rejected: "@a.TeacherReviewRemark"
+                                            </p>
+                                        }
+                                    </td>
+                                    <td class="px-6 py-3 text-slate-600 dark:text-slate-300">@a.StudentName</td>
+                                    <td class="px-6 py-3 text-slate-600 dark:text-slate-300">@(a.SubmittedDate?.ToString("g") ?? "-")</td>
+                                    <td class="px-6 py-3 text-slate-600 dark:text-slate-300">@a.Status</td>
+                                    <td class="px-6 py-3 text-slate-600 dark:text-slate-300">@a.TotalMarksAwarded / @a.TotalMarks</td>
+                                    <td class="px-6 py-3">
+                                        @if (a.StrikeCount > 0)
+                                        {
+                                            <span class="inline-flex items-center gap-1 text-xs font-medium text-red-600 dark:text-red-300 bg-red-50 dark:bg-red-950 rounded-full px-2 py-0.5">
+                                                <i data-lucide="alert-octagon" class="w-3 h-3"></i> @a.StrikeCount
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-xs text-slate-300 dark:text-slate-600">-</span>
+                                        }
+                                    </td>
+                                    <td class="px-6 py-3 text-right">
+                                        <a asp-action="Grade" asp-controller="ExamReview" asp-area="Lecturer" asp-route-attemptId="@a.AttemptID"
+                                           class="px-3 py-1.5 rounded-xl font-medium bg-[#7c3aed] text-white hover:bg-[#6d28d9] shadow-sm text-xs">
+                                            Grade
+                                        </a>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </div>
+
+    @* ---------- Review tab ---------- *@
+    <div id="tab-panel-review" class="tab-panel">
+        @if (!review.Any())
+        {
+            <p class="text-sm text-slate-400 dark:text-slate-500">Nothing pending review.</p>
+        }
+        else
+        {
+            <form asp-action="Approve" asp-controller="ExamReview" asp-area="Lecturer" method="post" id="bulkApproveForm">
+                @Html.AntiForgeryToken()
+                <div class="flex items-center justify-between mb-2">
+                    <label class="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
+                        <input type="checkbox" id="selectAll" />
+                        Select All
+                    </label>
+                    <button type="submit" class="px-4 py-2 rounded-xl font-medium text-sm bg-[#7c3aed] text-white hover:bg-[#6d28d9] shadow-sm transition-all">
+                        Approve Selected
+                    </button>
+                </div>
+                <div class="bg-white dark:bg-slate-900/60 rounded-[20px] shadow-sm border border-slate-100 dark:border-slate-700 divide-y divide-slate-100 dark:divide-slate-800">
+                    @foreach (var attempt in review)
+                    {
+                        <div class="p-4 flex items-center justify-between gap-4">
+                            <div class="flex items-center gap-3 min-w-0">
+                                <input type="checkbox" name="attemptIds" value="@attempt.AttemptID" class="row-checkbox" />
+                                <div class="min-w-0">
+                                    <p class="font-medium text-slate-800 dark:text-slate-100">@attempt.ExamTitle</p>
+                                    <p class="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-2 flex-wrap">
+                                        <span>@attempt.StudentName &middot; Status: @attempt.Status &middot; Submitted: @(attempt.SubmittedDate?.ToString("g") ?? "-")</span>
+                                        @if (attempt.StrikeCount > 0)
+                                        {
+                                            <span class="inline-flex items-center gap-1 text-xs font-medium text-red-600 dark:text-red-300 bg-red-50 dark:bg-red-950 rounded-full px-2 py-0.5">
+                                                <i data-lucide="alert-octagon" class="w-3 h-3"></i> @attempt.StrikeCount strike@(attempt.StrikeCount == 1 ? "" : "s")
+                                            </span>
+                                        }
                                     </p>
-                                }
+                                    @if (!string.IsNullOrEmpty(attempt.AdminReviewRemark))
+                                    {
+                                        <p class="text-xs text-amber-600 dark:text-amber-300 mt-1">
+                                            <i data-lucide="alert-triangle" class="w-3 h-3 inline"></i> Sent back by admin: "@attempt.AdminReviewRemark"
+                                        </p>
+                                    }
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-2 flex-shrink-0">
+                                <a asp-action="Grade" asp-controller="ExamReview" asp-area="Lecturer" asp-route-attemptId="@attempt.AttemptID"
+                                   class="px-3 py-1.5 rounded-xl font-medium text-xs border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-all whitespace-nowrap">
+                                    View Answers
+                                </a>
+                                <button type="button"
+                                        class="reject-btn px-3 py-1.5 rounded-xl font-medium text-xs border border-red-200 dark:border-red-900 text-red-600 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-950/40 transition-all whitespace-nowrap"
+                                        data-attempt-id="@attempt.AttemptID">
+                                    Reject
+                                </button>
                             </div>
                         </div>
-                        <div class="flex items-center gap-2 flex-shrink-0">
-                            <a asp-action="Grade" asp-controller="ExamReview" asp-area="Lecturer" asp-route-attemptId="@attempt.AttemptID"
-                               class="px-3 py-1.5 rounded-xl font-medium text-xs border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-all whitespace-nowrap">
-                                View Answers
-                            </a>
-                            <button type="button"
-                                    class="reject-btn px-3 py-1.5 rounded-xl font-medium text-xs border border-red-200 dark:border-red-900 text-red-600 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-950/40 transition-all whitespace-nowrap"
-                                    data-attempt-id="@attempt.AttemptID">
-                                Reject
-                            </button>
-                        </div>
-                    </div>
-                }
-            </div>
-        </form>
+                    }
+                </div>
+            </form>
 
-        <form asp-action="Reject" asp-controller="ExamReview" asp-area="Lecturer" method="post" id="rejectForm">
-            @Html.AntiForgeryToken()
-            <input type="hidden" name="attemptId" id="rejectAttemptId" />
-            <input type="hidden" name="remark" id="rejectRemark" />
-        </form>
-    }
+            <form asp-action="Reject" asp-controller="ExamReview" asp-area="Lecturer" method="post" id="rejectForm">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="attemptId" id="rejectAttemptId" />
+                <input type="hidden" name="remark" id="rejectRemark" />
+            </form>
+        }
+    </div>
 </div>
 
-@if (Model.Any())
-{
-    <script>
-        document.getElementById('selectAll').addEventListener('change', function (e) {
-            document.querySelectorAll('.row-checkbox').forEach(function (cb) {
-                cb.checked = e.target.checked;
-            });
-        });
+<script>
+    (function () {
+        var tabs = {
+            grading: { btn: document.getElementById('tab-btn-grading'), panel: document.getElementById('tab-panel-grading') },
+            review: { btn: document.getElementById('tab-btn-review'), panel: document.getElementById('tab-panel-review') }
+        };
+        var activeClasses = ['border-[#7c3aed]', 'text-[#7c3aed]', 'dark:text-[#a78bfa]', 'dark:border-[#a78bfa]'];
+        var inactiveClasses = ['border-transparent', 'text-slate-500', 'dark:text-slate-400'];
 
-        document.querySelectorAll('.reject-btn').forEach(function (btn) {
-            btn.addEventListener('click', function () {
-                var remark = window.prompt('Reason for rejecting this attempt (required):');
-                if (remark === null) return;
-                remark = remark.trim();
-                if (!remark) {
-                    window.alert('A remark is required to reject an attempt.');
-                    return;
-                }
-                document.getElementById('rejectAttemptId').value = btn.dataset.attemptId;
-                document.getElementById('rejectRemark').value = remark;
-                document.getElementById('rejectForm').submit();
+        function showTab(name) {
+            Object.keys(tabs).forEach(function (key) {
+                var isActive = key === name;
+                tabs[key].panel.hidden = !isActive;
+                tabs[key].btn.classList.remove.apply(tabs[key].btn.classList, activeClasses.concat(inactiveClasses));
+                tabs[key].btn.classList.add.apply(tabs[key].btn.classList, isActive ? activeClasses : inactiveClasses);
             });
+        }
+
+        tabs.grading.btn.addEventListener('click', function () { showTab('grading'); });
+        tabs.review.btn.addEventListener('click', function () { showTab('review'); });
+
+        showTab('@initialTab' === 'review' ? 'review' : 'grading');
+    })();
+
+    document.getElementById('selectAll')?.addEventListener('change', function (e) {
+        document.querySelectorAll('.row-checkbox').forEach(function (cb) {
+            cb.checked = e.target.checked;
         });
-    </script>
-}
+    });
+
+    document.querySelectorAll('.reject-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            var remark = window.prompt('Reason for rejecting this attempt (required):');
+            if (remark === null) return;
+            remark = remark.trim();
+            if (!remark) {
+                window.alert('A remark is required to reject an attempt.');
+                return;
+            }
+            document.getElementById('rejectAttemptId').value = btn.dataset.attemptId;
+            document.getElementById('rejectRemark').value = remark;
+            document.getElementById('rejectForm').submit();
+        });
+    });
+</script>

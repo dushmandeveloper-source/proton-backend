@@ -30,27 +30,29 @@ namespace Web_Backend.Areas.LecturerPortal.Controllers
             this.scheduleRep = scheduleRep;
         }
 
+        // Combined "Exam Grading + Results Review" screen -- one page, two
+        // client-side tabs (no separate nav entries/reloads needed since
+        // both lists are small and already loaded on every visit). Grading
+        // = Written-answer marking (moved here from the Admin area so the
+        // lecturer who set/taught the exam grades it, not the school
+        // admin). Review = the teacher-approval step of the two-stage
+        // grading gate. `tab` query string picks which one shows first
+        // (defaults to "grading") so old GradingQueue/Index links/bookmarks
+        // still land on the right tab.
         [HttpGet]
-        public async Task<IActionResult> Index()
+        public async Task<IActionResult> Index(string tab = "grading")
         {
             Auth.CheckUser();
             ViewBag.CurrentUser = Auth.GetUser();
-            var pending = await attemptRep.ListTeacherReviewQueue();
-            return View(pending);
+            ViewBag.InitialTab = tab == "review" ? "review" : "grading";
+            var grading = await attemptRep.ListPendingGrading();
+            var review = await attemptRep.ListTeacherReviewQueue();
+            return View((grading, review));
         }
 
-        // Written-answer grading queue -- moved here from the Admin area so
-        // the lecturer who set/taught the exam grades essay/short-answer
-        // questions, not the school admin. Admin's ExamGrading/Index is now
-        // read-only oversight only (no SaveGrade action there anymore).
+        // Back-compat alias for the old separate GradingQueue page/links.
         [HttpGet]
-        public async Task<IActionResult> GradingQueue()
-        {
-            Auth.CheckUser();
-            ViewBag.CurrentUser = Auth.GetUser();
-            var pending = await attemptRep.ListPendingGrading();
-            return View(pending);
-        }
+        public IActionResult GradingQueue() => RedirectToAction("Index", new { tab = "grading" });
 
         // Shows every question/answer for one attempt; Written questions get
         // an inline Save Grade form (MCQ marks are already auto-scored and
@@ -111,7 +113,7 @@ namespace Web_Backend.Areas.LecturerPortal.Controllers
             if (attemptIds == null || !attemptIds.Any())
             {
                 TempData["ErrorMessage"] = "No attempts selected.";
-                return RedirectToAction("Index");
+                return RedirectToAction("Index", new { tab = "review" });
             }
 
             int successCount = 0;
@@ -142,7 +144,7 @@ namespace Web_Backend.Areas.LecturerPortal.Controllers
                 TempData["SuccessMessage"] = summary.ToString();
             }
 
-            return RedirectToAction("Index");
+            return RedirectToAction("Index", new { tab = "review" });
         }
 
         // Single-attempt reject with a required remark -- deliberately not
@@ -161,7 +163,7 @@ namespace Web_Backend.Areas.LecturerPortal.Controllers
             if (string.IsNullOrWhiteSpace(remark))
             {
                 TempData["ErrorMessage"] = "A remark is required to reject an attempt.";
-                return RedirectToAction("Index");
+                return RedirectToAction("Index", new { tab = "review" });
             }
 
             try
@@ -174,7 +176,7 @@ namespace Web_Backend.Areas.LecturerPortal.Controllers
                 TempData["ErrorMessage"] = "Could not reject: " + ex.Message;
             }
 
-            return RedirectToAction("Index");
+            return RedirectToAction("Index", new { tab = "review" });
         }
 
         // Top-level "Exam History" entry point (sidebar), separate from the

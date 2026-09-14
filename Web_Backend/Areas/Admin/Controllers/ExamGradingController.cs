@@ -28,13 +28,21 @@ namespace Web_Backend.Areas.Admin.Controllers
             this.studentRep = studentRep;
         }
 
+        // Combined "Exam Grading + Review" screen -- one page, two client-
+        // side tabs. Grading = read-only oversight of Written-answer marking
+        // (the lecturer actually grades, see Lecturer/ExamReview). Review =
+        // the admin-approval step of the two-stage grading gate. `tab` picks
+        // which one shows first (defaults to "grading") so old Index/
+        // AdminReview links/bookmarks still land on the right tab.
         [HttpGet]
-        public async Task<IActionResult> Index()
+        public async Task<IActionResult> Index(string tab = "grading")
         {
             Auth.CheckPermission(PermissionCode.Exams, 'V');
             ViewBag.CurrentUser = Auth.GetUser();
-            var pending = await attemptRep.ListPendingGrading();
-            return View(pending);
+            ViewBag.InitialTab = tab == "review" ? "review" : "grading";
+            var grading = await attemptRep.ListPendingGrading();
+            var review = await attemptRep.ListAdminReviewQueue();
+            return View((grading, review));
         }
 
         // Read-only: Written-answer grading itself now belongs to the
@@ -60,14 +68,9 @@ namespace Web_Backend.Areas.Admin.Controllers
 
         // ---------- Phase 3: admin review queue (2nd stage of the approval gate) ----------
 
+        // Back-compat alias for the old separate AdminReview page/links.
         [HttpGet]
-        public async Task<IActionResult> AdminReview()
-        {
-            Auth.CheckPermission(PermissionCode.Exams, 'V');
-            ViewBag.CurrentUser = Auth.GetUser();
-            var pending = await attemptRep.ListAdminReviewQueue();
-            return View(pending);
-        }
+        public IActionResult AdminReview() => RedirectToAction("Index", new { tab = "review" });
 
         [HttpPost]
         [ValidateAntiForgeryToken]
@@ -118,7 +121,7 @@ namespace Web_Backend.Areas.Admin.Controllers
                 TempData["ErrorMessage"] = "Could not approve: " + ex.Message;
             }
 
-            return RedirectToAction("AdminReview");
+            return RedirectToAction("Index", new { tab = "review" });
         }
 
         // Single-attempt reject with a required remark. Sends the attempt
@@ -137,7 +140,7 @@ namespace Web_Backend.Areas.Admin.Controllers
             if (string.IsNullOrWhiteSpace(remark))
             {
                 TempData["ErrorMessage"] = "A remark is required to reject an attempt.";
-                return RedirectToAction("AdminReview");
+                return RedirectToAction("Index", new { tab = "review" });
             }
 
             try
@@ -150,7 +153,7 @@ namespace Web_Backend.Areas.Admin.Controllers
                 TempData["ErrorMessage"] = "Could not reject: " + ex.Message;
             }
 
-            return RedirectToAction("AdminReview");
+            return RedirectToAction("Index", new { tab = "review" });
         }
 
         // ---------- Exam Results History: pick a student, then see their full exam history ----------

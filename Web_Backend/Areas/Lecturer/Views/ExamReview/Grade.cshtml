@@ -9,16 +9,16 @@
 <div class="max-w-4xl mx-auto page-enter space-y-6">
     @if (attempt.IsFullyGraded)
     {
-        <a asp-action="Index" asp-controller="ExamReview" asp-area="Lecturer"
+        <a asp-action="Index" asp-controller="ExamReview" asp-area="Lecturer" asp-route-tab="review"
            class="text-sm text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-100 inline-flex items-center gap-1">
-            <i data-lucide="arrow-left" class="w-4 h-4"></i> Back to review queue
+            <i data-lucide="arrow-left" class="w-4 h-4"></i> Back to Exam Grading &amp; Review
         </a>
     }
     else
     {
-        <a asp-action="GradingQueue" asp-controller="ExamReview" asp-area="Lecturer"
+        <a asp-action="Index" asp-controller="ExamReview" asp-area="Lecturer" asp-route-tab="grading"
            class="text-sm text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-100 inline-flex items-center gap-1">
-            <i data-lucide="arrow-left" class="w-4 h-4"></i> Back to grading queue
+            <i data-lucide="arrow-left" class="w-4 h-4"></i> Back to Exam Grading &amp; Review
         </a>
     }
 
