@@ -70,15 +70,13 @@
     }
 </div>
 
-@* ---------- Focused/expanded view: Teams-style call layout -- large
-   screen-share as the main view, small camera picture-in-picture tile in
-   the corner (mirrors a normal video-call "presenter" layout, since the
-   student sends both a camera stream and a screen-share stream as two
-   separate WebRTC tracks/streams). ---------- *@
+@* ---------- Focused/expanded view: screen-share large on the left, a
+   proper full-size camera panel on the right (not a small corner PiP) --
+   side by side, both clearly visible at once. ---------- *@
 <div id="focusOverlay" class="hidden fixed inset-0 z-50 bg-black flex flex-col">
-    <div class="flex items-center justify-between px-6 py-4 bg-slate-950/90 backdrop-blur-sm border-b border-slate-800 flex-shrink-0">
-        <div class="flex items-center gap-3">
-            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold uppercase tracking-wide bg-red-600/90 text-white">
+    <div class="flex items-center justify-between px-6 py-3 bg-slate-950/90 backdrop-blur-sm border-b border-slate-800 flex-shrink-0 gap-4">
+        <div class="flex items-center gap-3 flex-shrink-0">
+            <span id="focusLiveBadge" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold uppercase tracking-wide bg-red-600/90 text-white">
                 <span class="w-1.5 h-1.5 rounded-full bg-white animate-pulse"></span> Live
             </span>
             <div>
@@ -86,25 +84,51 @@
                 <p id="focusExamTitle" class="text-slate-400 text-xs"></p>
             </div>
         </div>
-        <button type="button" id="focusCloseBtn" class="p-2.5 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors">
+
+        @* Always-available student switcher -- lets the lecturer shift to
+           any other in-progress student at any time, without first closing
+           the focused view. *@
+        <div id="focusSwitcher" class="flex items-center gap-2 overflow-x-auto flex-1 justify-center">
+            @foreach (var a in Model)
+            {
+                <button type="button" class="switcher-btn flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium bg-white/10 text-slate-200 hover:bg-white/20 transition-colors whitespace-nowrap"
+                        data-attempt-id="@a.AttemptID" data-student-name="@a.StudentName" data-exam-title="@a.ExamTitle">
+                    @a.StudentName
+                </button>
+            }
+        </div>
+
+        <button type="button" id="focusCloseBtn" class="p-2.5 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors flex-shrink-0">
             <i data-lucide="x" class="w-5 h-5"></i>
         </button>
     </div>
 
-    <div class="relative flex-1 min-h-0 bg-slate-950 flex items-center justify-center">
-        <video id="focusScreenVideo" class="w-full h-full object-contain hidden" autoplay playsinline></video>
-        <div id="focusPlaceholder" class="absolute inset-0 flex flex-col items-center justify-center gap-3 text-slate-600">
-            <i data-lucide="loader-circle" class="w-10 h-10 animate-spin"></i>
-            <span class="text-sm">Connecting…</span>
+    <div class="relative flex-1 min-h-0 flex flex-col md:flex-row gap-px bg-slate-800">
+        <div class="relative flex-[2] min-h-0 bg-slate-950 flex items-center justify-center">
+            <video id="focusScreenVideo" class="w-full h-full object-contain hidden" autoplay playsinline></video>
+            <div id="focusScreenPlaceholder" class="flex flex-col items-center gap-2 text-slate-600">
+                <i data-lucide="monitor" class="w-8 h-8"></i>
+                <span class="text-xs uppercase tracking-wider">No screen feed</span>
+            </div>
+            <span class="absolute top-3 left-3 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wide bg-black/60 backdrop-blur-sm text-slate-200">
+                <i data-lucide="monitor" class="w-3 h-3"></i> Screen
+            </span>
         </div>
 
-        @* Camera picture-in-picture, bottom-right -- shown once a camera
-           track arrives, positioned over the main screen-share view. *@
-        <div id="focusCameraTile" class="hidden absolute bottom-6 right-6 w-56 aspect-video rounded-xl overflow-hidden border-2 border-slate-700 shadow-2xl bg-slate-900">
-            <video id="focusCameraVideo" class="w-full h-full object-cover" autoplay playsinline></video>
-            <span class="absolute bottom-1.5 left-1.5 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-semibold uppercase tracking-wide bg-black/60 text-white">
-                <i data-lucide="camera" class="w-2.5 h-2.5"></i> Camera
+        <div class="relative flex-1 min-h-0 bg-slate-950 flex items-center justify-center">
+            <video id="focusCameraVideo" class="w-full h-full object-cover hidden" autoplay playsinline></video>
+            <div id="focusCameraPlaceholder" class="flex flex-col items-center gap-2 text-slate-600">
+                <i data-lucide="camera" class="w-8 h-8"></i>
+                <span class="text-xs uppercase tracking-wider">No camera feed</span>
+            </div>
+            <span class="absolute top-3 left-3 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wide bg-black/60 backdrop-blur-sm text-slate-200">
+                <i data-lucide="camera" class="w-3 h-3"></i> Camera
             </span>
+        </div>
+
+        <div id="focusPlaceholder" class="hidden absolute inset-0 bg-slate-950 flex flex-col items-center justify-center gap-3 text-slate-600">
+            <i data-lucide="loader-circle" class="w-10 h-10 animate-spin"></i>
+            <span class="text-sm">Connecting…</span>
         </div>
     </div>
 </div>
@@ -114,12 +138,12 @@
         var hubConnection = new signalR.HubConnectionBuilder().withUrl('/hubs/exam-watch').withAutomaticReconnect().build();
         var peerConnection = null;
         var currentAttemptId = null;
-        var currentTileEl = null;
 
         var focusOverlay = document.getElementById('focusOverlay');
         var focusScreenVideo = document.getElementById('focusScreenVideo');
-        var focusCameraTile = document.getElementById('focusCameraTile');
+        var focusScreenPlaceholder = document.getElementById('focusScreenPlaceholder');
         var focusCameraVideo = document.getElementById('focusCameraVideo');
+        var focusCameraPlaceholder = document.getElementById('focusCameraPlaceholder');
         var focusPlaceholder = document.getElementById('focusPlaceholder');
         var focusStudentName = document.getElementById('focusStudentName');
         var focusExamTitle = document.getElementById('focusExamTitle');
@@ -140,8 +164,10 @@
         function resetFocusVideo() {
             focusScreenVideo.srcObject = null;
             focusScreenVideo.classList.add('hidden');
+            focusScreenPlaceholder.classList.remove('hidden');
             focusCameraVideo.srcObject = null;
-            focusCameraTile.classList.add('hidden');
+            focusCameraVideo.classList.add('hidden');
+            focusCameraPlaceholder.classList.remove('hidden');
             focusPlaceholder.classList.remove('hidden');
         }
 
@@ -170,8 +196,23 @@
             placeholder.classList.add('hidden');
         }
 
-        async function watch(tile) {
-            var attemptId = tile.dataset.attemptId;
+function setActiveSwitcherButton(attemptId) {
+            document.querySelectorAll('.switcher-btn').forEach(function (btn) {
+                var isActive = btn.dataset.attemptId === attemptId;
+                btn.classList.toggle('bg-white/20', isActive);
+                btn.classList.toggle('bg-white/10', !isActive);
+                btn.classList.toggle('font-semibold', isActive);
+            });
+        }
+
+        // Accepts a plain {attemptId, studentName, examTitle} descriptor
+        // rather than requiring a specific DOM element, so both a grid
+        // tile's click and the always-visible in-focus switcher (which the
+        // lecturer can use to shift to any other student at any time,
+        // without first closing the current view) can call this the same way.
+        async function watch(descriptor) {
+            var attemptId = descriptor.attemptId;
+            if (attemptId === currentAttemptId) return; // already watching this one
 
             if (peerConnection) {
                 if (currentAttemptId) await hubConnection.invoke('StopWatching', currentAttemptId);
@@ -180,11 +221,11 @@
             }
 
             currentAttemptId = attemptId;
-            currentTileEl = tile;
             resetFocusVideo();
-            focusStudentName.textContent = tile.dataset.studentName;
-            focusExamTitle.textContent = tile.dataset.examTitle;
+            focusStudentName.textContent = descriptor.studentName;
+            focusExamTitle.textContent = descriptor.examTitle;
             focusOverlay.classList.remove('hidden');
+            setActiveSwitcherButton(attemptId);
 
             peerConnection = new RTCPeerConnection();
             peerConnection.onicecandidate = function (e) {
@@ -199,9 +240,11 @@
                 if (isScreenShareStream(stream)) {
                     focusScreenVideo.srcObject = stream;
                     focusScreenVideo.classList.remove('hidden');
+                    focusScreenPlaceholder.classList.add('hidden');
                 } else {
                     focusCameraVideo.srcObject = stream;
-                    focusCameraTile.classList.remove('hidden');
+                    focusCameraVideo.classList.remove('hidden');
+                    focusCameraPlaceholder.classList.add('hidden');
                 }
 
                 updateTileFeed(attemptId, stream);
@@ -222,18 +265,38 @@
                 peerConnection = null;
             }
             currentAttemptId = null;
-            currentTileEl = null;
             focusOverlay.classList.add('hidden');
         }
 
+        // Fires when the student's own connection drops (exam submitted,
+        // auto-submitted, terminated, or the tab was simply closed) --
+        // only ever affects the lecturer's view if THIS is the attempt
+        // currently focused; every other student's tile/feed is completely
+        // unaffected, matching the one-watcher-per-attempt design.
+        hubConnection.on('ExamEnded', function (attemptId) {
+            if (attemptId !== currentAttemptId) return;
+            peerConnection = null; // student side already tore its connection down, nothing to StopWatching
+            currentAttemptId = null;
+            focusOverlay.classList.add('hidden');
+
+            var tile = document.querySelector('.watch-tile[data-attempt-id="' + attemptId + '"]');
+            if (tile) tile.remove();
+            var switcherBtn = document.querySelector('.switcher-btn[data-attempt-id="' + attemptId + '"]');
+            if (switcherBtn) switcherBtn.remove();
+        });
+
+        function tileDescriptor(el) {
+            return { attemptId: el.dataset.attemptId, studentName: el.dataset.studentName, examTitle: el.dataset.examTitle };
+        }
+
         document.querySelectorAll('.watch-tile').forEach(function (tile) {
-            tile.addEventListener('click', function () { watch(tile); });
+            tile.addEventListener('click', function () { watch(tileDescriptor(tile)); });
+        });
+        document.querySelectorAll('.switcher-btn').forEach(function (btn) {
+            btn.addEventListener('click', function () { watch(tileDescriptor(btn)); });
         });
 
         focusCloseBtn.addEventListener('click', stopWatching);
-        focusOverlay.addEventListener('click', function (e) {
-            if (e.target === focusOverlay) stopWatching();
-        });
         document.addEventListener('keydown', function (e) {
             if (e.key === 'Escape' && !focusOverlay.classList.contains('hidden')) stopWatching();
         });

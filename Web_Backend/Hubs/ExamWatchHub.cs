@@ -115,13 +115,27 @@ namespace Web_Backend.Hubs
             return Task.CompletedTask;
         }
 
-        public override Task OnDisconnectedAsync(Exception? exception)
+        // Fires whenever a student's connection drops -- most commonly
+        // because their exam page navigated away after Submit (normal
+        // completion, auto-submit on stream loss, or 3rd-strike
+        // termination), but also on a plain tab close/refresh. Whatever the
+        // cause, if a lecturer was watching this attempt, tell their screen
+        // the feed has ended so it closes the focus view immediately
+        // instead of showing a frozen/dead video. Never touches
+        // edu.ExamAttempt in any way -- purely a signal to the lecturer's UI.
+        public override async Task OnDisconnectedAsync(Exception? exception)
         {
             foreach (var kv in _studentConnectionByAttempt.Where(kv => kv.Value == Context.ConnectionId).ToList())
+            {
                 _studentConnectionByAttempt.TryRemove(kv.Key, out _);
+                if (_watcherByAttempt.TryRemove(kv.Key, out var watcherConnectionId))
+                {
+                    await Clients.Client(watcherConnectionId).SendAsync("ExamEnded", kv.Key);
+                }
+            }
             foreach (var kv in _watcherByAttempt.Where(kv => kv.Value == Context.ConnectionId).ToList())
                 _watcherByAttempt.TryRemove(kv.Key, out _);
-            return base.OnDisconnectedAsync(exception);
+            await base.OnDisconnectedAsync(exception);
         }
     }
 }
