@@ -111,12 +111,19 @@ namespace Web_Backend.Areas.Admin.Models
         // True when the student has a finalized attempt for this exam that
         // hasn't finished the two-stage approval gate yet (submitted, but
         // TeacherReviewStatus and/or AdminReviewStatus still not Approved,
-        // and no ResultReleasedDate) -- there is no point letting them start
-        // another attempt while one is still awaiting grading/approval, so
-        // the dashboard shows "Pending Review" instead of "Join" for this
-        // exam regardless of MaxAttempts/window.
+        // and no ResultReleasedDate). This does NOT by itself block joining
+        // again -- MaxAttempts already governs that, and an exam allowing
+        // several attempts (e.g. practice sittings) should still let a
+        // student join a different day/sitting while an earlier attempt is
+        // still being graded. It only changes what the dashboard/calendar
+        // show INSTEAD of a disabled "Join Exam" once attempts really are
+        // exhausted (CanJoin false): "Pending Review" reads better than a
+        // generic "Maximum attempts reached" when that's specifically why.
         public bool HasPendingReview { get; set; }
 
-        public bool CanJoin => !HasPendingReview && IsWithinWindow && AttemptsUsed < MaxAttempts;
+        public bool CanJoin => IsWithinWindow && AttemptsUsed < MaxAttempts;
+
+        // Only meaningful when CanJoin is false -- see HasPendingReview.
+        public bool ShowPendingReviewInstead => !CanJoin && HasPendingReview;
     }
 }
