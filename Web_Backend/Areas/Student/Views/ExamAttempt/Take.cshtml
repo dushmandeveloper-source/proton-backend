@@ -133,27 +133,25 @@
         </div>
     </div>
 
-    @* ---------- Always-visible camera/screen preview dock, bottom-right --
-       sized to be clearly visible (not a tiny thumbnail) while still
-       staying out of the way of the exam questions. ---------- *@
-    <div id="monitorDock" class="fixed bottom-4 right-4 z-40 flex gap-3">
+    @* ---------- Small always-visible camera/screen preview dock, bottom-right ---------- *@
+    <div id="monitorDock" class="fixed bottom-4 right-4 z-40 flex gap-2">
         <div class="space-y-1">
-            <div class="relative rounded-xl overflow-hidden bg-slate-900 border-2 border-slate-200 dark:border-slate-700 shadow-lg w-[200px] h-[150px]">
+            <div class="relative rounded-xl overflow-hidden bg-slate-900 border-2 border-slate-200 dark:border-slate-700 shadow-lg w-[130px] h-[98px]">
                 <video id="dockCameraPreview" class="w-full h-full object-cover" autoplay playsinline muted></video>
-                <span id="dockCameraLiveBadge" class="hidden absolute top-1.5 right-1.5 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wide bg-red-50/90 dark:bg-red-950/90 text-red-600 dark:text-red-300">
+                <span id="dockCameraLiveBadge" class="hidden absolute top-1 right-1 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-semibold uppercase tracking-wide bg-red-50/90 dark:bg-red-950/90 text-red-600 dark:text-red-300">
                     <span class="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse"></span> Live
                 </span>
             </div>
-            <p class="text-center text-xs font-medium text-slate-500 dark:text-slate-400">Camera</p>
+            <p class="text-center text-[10px] font-medium text-slate-500 dark:text-slate-400">Camera</p>
         </div>
         <div class="space-y-1">
-            <div class="relative rounded-xl overflow-hidden bg-slate-900 border-2 border-slate-200 dark:border-slate-700 shadow-lg w-[200px] h-[150px]">
+            <div class="relative rounded-xl overflow-hidden bg-slate-900 border-2 border-slate-200 dark:border-slate-700 shadow-lg w-[130px] h-[98px]">
                 <video id="dockScreenPreview" class="w-full h-full object-cover" autoplay playsinline muted></video>
-                <span id="dockScreenLiveBadge" class="hidden absolute top-1.5 right-1.5 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wide bg-red-50/90 dark:bg-red-950/90 text-red-600 dark:text-red-300">
+                <span id="dockScreenLiveBadge" class="hidden absolute top-1 right-1 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-semibold uppercase tracking-wide bg-red-50/90 dark:bg-red-950/90 text-red-600 dark:text-red-300">
                     <span class="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse"></span> Live
                 </span>
             </div>
-            <p class="text-center text-xs font-medium text-slate-500 dark:text-slate-400">Screen</p>
+            <p class="text-center text-[10px] font-medium text-slate-500 dark:text-slate-400">Screen</p>
         </div>
     </div>
 
