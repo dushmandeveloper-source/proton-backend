@@ -143,6 +143,7 @@
         var hubConnection = new signalR.HubConnectionBuilder().withUrl('/hubs/exam-watch').withAutomaticReconnect().build();
         var peerConnection = null;
         var currentAttemptId = null;
+        var currentStreamRoles = {}; // MediaStream.id -> 'camera' | 'screen', from the offer's payload
 
         var focusOverlay = document.getElementById('focusOverlay');
         var focusScreenVideo = document.getElementById('focusScreenVideo');
@@ -157,6 +158,7 @@
         hubConnection.on('SignalReceived', async function (attemptId, fromConnectionId, payload) {
             if (attemptId !== currentAttemptId || !peerConnection) return;
             if (payload.type === 'offer') {
+                currentStreamRoles = payload.streamRoles || {};
                 await peerConnection.setRemoteDescription({ type: 'offer', sdp: payload.sdp });
                 var answer = await peerConnection.createAnswer();
                 await peerConnection.setLocalDescription(answer);
@@ -167,6 +169,7 @@
         });
 
         function resetFocusVideo() {
+            currentStreamRoles = {};
             focusScreenVideo.srcObject = null;
             focusScreenVideo.classList.add('hidden');
             focusScreenPlaceholder.classList.remove('hidden');
@@ -178,10 +181,19 @@
 
         // A student sends two separate MediaStreams (camera + screen-share)
         // as two separate WebRTC tracks -- ontrack fires once per stream.
-        // Distinguish them by the video track's displaySurface setting,
-        // which is only ever set (to 'monitor') on a getDisplayMedia track,
-        // never on a getUserMedia camera track.
+        // Matched primarily by the explicit stream-id -> role map the
+        // student's offer sends alongside its SDP (see Take.cshtml) --
+        // NOT by the video track's displaySurface setting, which is a
+        // getDisplayMedia-only hint that is not reliably preserved on the
+        // received/remote track after WebRTC negotiation across browsers,
+        // which was the actual cause of the screen-share feed sometimes
+        // never appearing even though the peer connection worked fine.
+        // Falls back to the displaySurface heuristic only if no role
+        // mapping arrived at all (e.g. an older offer payload).
         function isScreenShareStream(stream) {
+            if (currentStreamRoles && stream.id in currentStreamRoles) {
+                return currentStreamRoles[stream.id] === 'screen';
+            }
             var videoTrack = stream.getVideoTracks()[0];
             if (!videoTrack) return false;
             var settings = videoTrack.getSettings ? videoTrack.getSettings() : {};

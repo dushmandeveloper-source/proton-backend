@@ -362,8 +362,19 @@
             currentWatcherConnectionId = watcherConnectionId;
             watchPeerConnection = createWatchPeerConnection(watcherConnectionId);
 
-            [cameraStream, screenStream].forEach(function (stream) {
+            // Tag each MediaStream's id with its role (camera vs screen) and
+            // send that mapping alongside the offer -- the lecturer side
+            // cannot reliably tell them apart from track settings alone
+            // (getSettings().displaySurface is a getDisplayMedia-only hint
+            // that isn't guaranteed to survive onto the received/remote
+            // track after WebRTC negotiation on every browser), so an
+            // explicit label sent over the signaling channel is the only
+            // reliable way to distinguish which incoming stream is which.
+            var streamRoles = {};
+            [['camera', cameraStream], ['screen', screenStream]].forEach(function (pair) {
+                var role = pair[0], stream = pair[1];
                 if (!stream) return;
+                streamRoles[stream.id] = role;
                 stream.getTracks().forEach(function (track) {
                     watchPeerConnection.addTrack(track, stream);
                 });
@@ -371,7 +382,7 @@
 
             var offer = await watchPeerConnection.createOffer();
             await watchPeerConnection.setLocalDescription(offer);
-            await watchHubConnection.invoke('SendSignal', attemptId, watcherConnectionId, { type: 'offer', sdp: offer.sdp });
+            await watchHubConnection.invoke('SendSignal', attemptId, watcherConnectionId, { type: 'offer', sdp: offer.sdp, streamRoles: streamRoles });
         });
 
         watchHubConnection.on('SignalReceived', async function (attemptId, fromConnectionId, payload) {
