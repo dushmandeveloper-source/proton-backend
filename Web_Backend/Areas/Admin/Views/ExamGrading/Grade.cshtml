@@ -7,8 +7,9 @@
 }
 
 <div class="max-w-4xl mx-auto page-enter space-y-6">
-    <a asp-action="Index" class="text-sm text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-100 inline-flex items-center gap-1">
-        <i data-lucide="arrow-left" class="w-4 h-4"></i> Back to grading queue
+    <a asp-action="Index" asp-route-tab="@(attempt.TeacherReviewStatus == "Approved" ? "review" : "grading")"
+       class="text-sm text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-100 inline-flex items-center gap-1">
+        <i data-lucide="arrow-left" class="w-4 h-4"></i> Back to Exam Grading &amp; Review
     </a>
 
     @if (TempData["SuccessMessage"] != null)
