@@ -153,7 +153,7 @@
                 }
                 var canWatch = isToday && withinWindow;
                 var watchBtn = canWatch
-                    ? `<button type="button" class="px-3 py-1.5 rounded-lg font-medium text-xs bg-amber-500 text-slate-900 hover:bg-amber-600 transition-colors flex items-center gap-1" title="Live monitoring is not available yet"><i data-lucide="eye" class="w-3.5 h-3.5"></i> Watch Exam</button>`
+                    ? `<a href="/Lecturer/ExamWatch/Index" class="px-3 py-1.5 rounded-lg font-medium text-xs bg-amber-500 text-slate-900 hover:bg-amber-600 transition-colors flex items-center gap-1"><i data-lucide="eye" class="w-3.5 h-3.5"></i> Watch Exam</a>`
                     : `<span class="px-3 py-1.5 rounded-lg font-medium text-xs bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 cursor-not-allowed flex items-center gap-1" title="${!isToday ? 'Only available on the scheduled day' : 'Only available during the exam window'}"><i data-lucide="eye" class="w-3.5 h-3.5"></i> Watch Exam</span>`;
                 return `
                 <div class="p-3 rounded-xl border border-slate-100 dark:border-slate-700 ${e.isMakeup ? 'bg-fuchsia-50/60 dark:bg-fuchsia-950/30' : ''}">
