@@ -129,7 +129,7 @@
 
                                     @if (isExam)
                                     {
-                                        @if (examJoin != null && examJoin.ShowPendingReviewInstead)
+                                        @if (isToday && examJoin != null && examJoin.ShowPendingReviewInstead)
                                         {
                                             <a asp-area="Student" asp-controller="MyResults" asp-action="Index"
                                                class="px-3 py-1.5 rounded-lg font-medium text-xs bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900 transition-colors flex items-center gap-1 flex-shrink-0"

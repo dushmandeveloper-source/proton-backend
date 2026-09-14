@@ -75,7 +75,7 @@
                                     Web_Backend.Areas.Admin.Models.ExamJoinRow? examJoin = null;
                                     examJoinRows?.TryGetValue(seg.CourseID, out examJoin);
                                     var canJoinExam = isToday && examJoin != null && examJoin.CanJoin;
-                                    var showPendingReview = !canJoinExam && examJoin != null && examJoin.ShowPendingReviewInstead;
+                                    var showPendingReview = isToday && !canJoinExam && examJoin != null && examJoin.ShowPendingReviewInstead;
                                     return new
                                     {
                                         examId = seg.CourseID,
