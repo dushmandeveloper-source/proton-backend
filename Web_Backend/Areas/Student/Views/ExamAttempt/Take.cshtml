@@ -99,6 +99,40 @@
         </div>
     </div>
 
+    @* ---------- Phase 4: opt-in live-view consent, distinct from the local-only
+       preview promised above. Shown AFTER acquireStreams() settles, never
+       merged with the permissionIntroModal copy, since this is a materially
+       different privacy commitment: video actually leaves the browser and is
+       watched live by a lecturer, for students who accept. Declining never
+       blocks taking the exam -- this is purely additive. ---------- *@
+    <div id="liveViewConsentModal" class="hidden fixed inset-0 z-50 bg-slate-950/90 flex items-center justify-center p-6">
+        <div class="max-w-md w-full bg-white dark:bg-slate-900 rounded-[24px] shadow-lg p-6 space-y-4 text-center">
+            <div class="mx-auto w-12 h-12 rounded-full bg-blue-50 dark:bg-blue-950 flex items-center justify-center">
+                <i data-lucide="video" class="w-6 h-6 text-blue-600 dark:text-blue-300"></i>
+            </div>
+            <h2 class="font-semibold text-lg text-slate-800 dark:text-slate-100">Allow live viewing?</h2>
+            <p class="text-sm text-slate-600 dark:text-slate-300">
+                This is different from the camera/screen preview you already granted, which never leaves
+                this browser. If you allow live viewing, your lecturer may watch your camera and screen
+                <strong>live</strong> while you take this exam.
+            </p>
+            <p class="text-xs text-slate-500 dark:text-slate-400">
+                Nothing is recorded or stored either way &mdash; it is only ever watched live, never saved.
+                Declining does not stop you from taking the exam.
+            </p>
+            <div class="flex gap-3">
+                <button type="button" id="declineLiveView"
+                        class="flex-1 px-4 py-2.5 rounded-xl font-medium text-sm bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
+                    Decline
+                </button>
+                <button type="button" id="acceptLiveView"
+                        class="flex-1 px-4 py-2.5 rounded-xl font-medium text-sm bg-[#7c3aed] text-white hover:bg-[#6d28d9] shadow-sm transition-all">
+                    Allow
+                </button>
+            </div>
+        </div>
+    </div>
+
     @* ---------- Small always-visible camera/screen preview dock, bottom-right ---------- *@
     <div id="monitorDock" class="fixed bottom-4 right-4 z-40 flex gap-2">
         <div class="space-y-1">
@@ -292,6 +326,89 @@
     var graceIntervalId = null;
     var GRACE_WINDOW_SECONDS = 30;
 
+    // ---------- Phase 4: opt-in live viewing (additive to the local-only preview above) ----------
+    var liveViewAccepted = false;
+    var watchHubConnection = null;
+    var watchPeerConnection = null;
+    var currentWatcherConnectionId = null;
+    var liveViewConsentModal = document.getElementById('liveViewConsentModal');
+    var acceptLiveViewBtn = document.getElementById('acceptLiveView');
+    var declineLiveViewBtn = document.getElementById('declineLiveView');
+
+    function createWatchPeerConnection(watcherConnectionId) {
+        var pc = new RTCPeerConnection();
+        pc.onicecandidate = function (e) {
+            if (e.candidate) {
+                watchHubConnection.invoke('SendSignal', '@attempt.AttemptID', watcherConnectionId, { type: 'ice-candidate', candidate: e.candidate });
+            }
+        };
+        return pc;
+    }
+
+    async function setupLiveViewIfAccepted() {
+        if (!liveViewAccepted) return;
+
+        watchHubConnection = new signalR.HubConnectionBuilder()
+            .withUrl('/hubs/exam-watch')
+            .withAutomaticReconnect()
+            .build();
+
+        watchHubConnection.on('WatchRequested', async function (attemptId, watcherConnectionId) {
+            // A new watcher supersedes any previous one -- exactly one
+            // lecturer is ever connected at a time.
+            if (watchPeerConnection) {
+                watchPeerConnection.close();
+            }
+            currentWatcherConnectionId = watcherConnectionId;
+            watchPeerConnection = createWatchPeerConnection(watcherConnectionId);
+
+            [cameraStream, screenStream].forEach(function (stream) {
+                if (!stream) return;
+                stream.getTracks().forEach(function (track) {
+                    watchPeerConnection.addTrack(track, stream);
+                });
+            });
+
+            var offer = await watchPeerConnection.createOffer();
+            await watchPeerConnection.setLocalDescription(offer);
+            await watchHubConnection.invoke('SendSignal', attemptId, watcherConnectionId, { type: 'offer', sdp: offer.sdp });
+        });
+
+        watchHubConnection.on('SignalReceived', async function (attemptId, fromConnectionId, payload) {
+            if (!watchPeerConnection || fromConnectionId !== currentWatcherConnectionId) return;
+            if (payload.type === 'answer') {
+                await watchPeerConnection.setRemoteDescription({ type: 'answer', sdp: payload.sdp });
+            } else if (payload.type === 'ice-candidate' && payload.candidate) {
+                await watchPeerConnection.addIceCandidate(payload.candidate);
+            }
+        });
+
+        watchHubConnection.on('WatchStopped', function () {
+            if (watchPeerConnection) {
+                watchPeerConnection.close();
+                watchPeerConnection = null;
+            }
+            currentWatcherConnectionId = null;
+        });
+
+        try {
+            await watchHubConnection.start();
+            await watchHubConnection.invoke('JoinAsStudent', '@attempt.AttemptID');
+        } catch (err) {
+            console.warn('Live-view hub connection failed to start:', err);
+        }
+    }
+
+    acceptLiveViewBtn.addEventListener('click', function () {
+        liveViewAccepted = true;
+        liveViewConsentModal.classList.add('hidden');
+        setupLiveViewIfAccepted();
+    });
+    declineLiveViewBtn.addEventListener('click', function () {
+        liveViewAccepted = false;
+        liveViewConsentModal.classList.add('hidden');
+    });
+
     function beginGraceWindow() {
         if (graceTimeoutId !== null) return; // already counting down
         var remaining = GRACE_WINDOW_SECONDS;
@@ -463,6 +580,8 @@
             if (!document.fullscreenElement && !document.webkitFullscreenElement) {
                 reenterFullscreenPrompt.classList.remove('hidden');
             }
+
+            liveViewConsentModal.classList.remove('hidden');
         });
     });
 
