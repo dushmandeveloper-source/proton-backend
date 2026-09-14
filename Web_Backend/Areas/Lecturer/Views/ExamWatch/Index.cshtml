@@ -105,9 +105,11 @@
         </button>
     </div>
 
-    <div class="relative flex-1 min-h-0 bg-slate-950 flex items-center justify-center p-4 md:p-8">
-        @* Big centered screen-share stage *@
-        <div class="relative w-full h-full max-w-6xl rounded-2xl overflow-hidden bg-slate-900 flex items-center justify-center">
+    <div class="relative flex-1 min-h-0 bg-slate-950 flex items-center justify-center p-2 md:p-3">
+        @* Big centered screen-share stage -- uses nearly the full available
+           area (no max-width cap) since the actual exam content needs to be
+           readable, not just visible. *@
+        <div class="relative w-full h-full rounded-2xl overflow-hidden bg-slate-900 flex items-center justify-center">
             <video id="focusScreenVideo" class="w-full h-full object-contain hidden" autoplay playsinline></video>
             <div id="focusScreenPlaceholder" class="flex flex-col items-center gap-2 text-slate-600">
                 <i data-lucide="monitor" class="w-10 h-10"></i>
