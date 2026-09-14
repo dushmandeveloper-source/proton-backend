@@ -16,8 +16,9 @@ namespace Web_Backend.Areas.Admin.Models
         public string CourseTitle { get; set; } = "";
         public string CategoryID { get; set; } = "";
 
-        // General | CSCA — fixed at creation; see edu.Course_AddEdit comment
-        // for why it isn't editable afterward.
+        // General | CSCA. Editable after creation via the Details tab dropdown —
+        // switching away from CSCA drops its CourseSubject rows server-side
+        // (edu.Course_AddEdit), since the Subjects tab no longer applies.
         public string CourseType { get; set; } = "General";
 
         public string Duration { get; set; } = "";
@@ -25,6 +26,11 @@ namespace Web_Backend.Areas.Admin.Models
         public string DeliveryMethod { get; set; } = "";
         public string LocationID { get; set; } = "";
         public string CourseImageURL { get; set; } = "";
+        // Either an uploaded video file's web-relative URL, or an external
+        // link (YouTube/Vimeo/etc.) pasted in as-is — the player popup
+        // treats both the same way, just handing the URL to a <video> tag
+        // or an <iframe> depending on which it looks like.
+        public string VideoURL { get; set; } = "";
         public string HandbookTitle { get; set; } = "";
         public string HandbookFileURL { get; set; } = "";
         public string ShortDescription { get; set; } = "";

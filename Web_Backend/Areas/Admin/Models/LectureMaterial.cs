@@ -14,9 +14,15 @@ namespace Web_Backend.Areas.Admin.Models
         public string Title { get; set; } = "";
         public string? Description { get; set; }
 
-        // 'Document' | 'Video' | 'Image'
+        // 'Document' | 'Video' | 'Image' -- format indicator, inferred from
+        // the uploaded file's extension at upload time.
         public string FileType { get; set; } = "";
         public string FileURL { get; set; } = "";
+
+        // 'LectureNote' | 'Homework' -- chosen explicitly by the uploader;
+        // orthogonal to FileType (a homework assignment can be a PDF or a
+        // video, same as a lecture note can).
+        public string Category { get; set; } = "LectureNote";
         public string UploadedByUserID { get; set; } = "";
 
         // 'Lecturer' | 'Admin'

@@ -1,0 +1,152 @@
+@model Student
+@{
+    ViewData["Title"] = Model.FullName;
+    var registrations = (ViewBag.Registrations as List<CourseRegistration>) ?? new List<CourseRegistration>();
+    var examAttempts = (ViewBag.ExamAttempts as List<ExamAttempt>) ?? new List<ExamAttempt>();
+}
+
+<div class="max-w-3xl mx-auto page-enter space-y-6">
+    <div class="flex items-center gap-3">
+        <a asp-action="Index" class="p-2 rounded-xl text-slate-400 dark:text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+            <i data-lucide="arrow-left" class="w-5 h-5"></i>
+        </a>
+        <div class="flex-1">
+            <h2 class="text-2xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">@Model.FullName</h2>
+            <p class="text-slate-500 dark:text-slate-400 text-sm mt-1">Registered @Model.CreatedDate.ToString("MMM d, yyyy")</p>
+        </div>
+        <form method="post" asp-action="ResetAndSendPassword" asp-route-studentId="@Model.StudentID"
+              data-confirm="Generate a new temporary password and email it to this student?" data-confirm-title="Reset password" data-confirm-label="Reset">
+            @Html.AntiForgeryToken()
+            <button type="submit" class="px-4 py-2 rounded-xl font-medium bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all text-sm flex items-center gap-2">
+                <i data-lucide="key-round" class="w-4 h-4"></i> Reset Password
+            </button>
+        </form>
+        <a asp-action="Edit" asp-route-id="@Model.StudentID" class="px-4 py-2 rounded-xl font-medium bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all text-sm flex items-center gap-2">
+            <i data-lucide="pencil" class="w-4 h-4"></i> Edit
+        </a>
+    </div>
+
+    <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 p-6 space-y-4">
+        <div class="flex items-center justify-between">
+            <h3 class="font-semibold text-slate-800 dark:text-slate-100">Account Status</h3>
+            <span class="px-2 py-0.5 rounded-full text-xs font-medium @(Model.AccountVerificationStatus == "Verified" ? "bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300" : Model.AccountVerificationStatus == "Rejected" ? "bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-300" : "bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-300")">
+                @Model.AccountVerificationStatus
+            </span>
+        </div>
+        <p class="text-xs text-slate-400 dark:text-slate-500">Account and passport approval is handled by an administrator — this is for your reference only.</p>
+        <dl class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3 text-sm">
+            <div><dt class="text-xs text-slate-400 dark:text-slate-500 uppercase tracking-wide">Email</dt><dd class="text-slate-800 dark:text-slate-100">@Model.Email</dd></div>
+            <div><dt class="text-xs text-slate-400 dark:text-slate-500 uppercase tracking-wide">Phone</dt><dd class="text-slate-800 dark:text-slate-100">@Model.Phone</dd></div>
+            <div><dt class="text-xs text-slate-400 dark:text-slate-500 uppercase tracking-wide">Date of Birth</dt><dd class="text-slate-800 dark:text-slate-100">@(Model.DateOfBirth?.ToString("MMM d, yyyy") ?? "—")</dd></div>
+            <div><dt class="text-xs text-slate-400 dark:text-slate-500 uppercase tracking-wide">Gender</dt><dd class="text-slate-800 dark:text-slate-100">@Model.Gender</dd></div>
+            <div><dt class="text-xs text-slate-400 dark:text-slate-500 uppercase tracking-wide">Nationality</dt><dd class="text-slate-800 dark:text-slate-100">@Model.Nationality</dd></div>
+        </dl>
+    </div>
+
+    <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 p-6 space-y-4">
+        <h3 class="font-semibold text-slate-800 dark:text-slate-100">Address</h3>
+        <p class="text-sm text-slate-600 dark:text-slate-300">
+            @(new[] { Model.AddressLine1, Model.AddressLine2, Model.City, Model.StateProvince, Model.PostalCode, Model.Country }.Where(x => !string.IsNullOrWhiteSpace(x)).Any()
+                ? string.Join(", ", new[] { Model.AddressLine1, Model.AddressLine2, Model.City, Model.StateProvince, Model.PostalCode, Model.Country }.Where(x => !string.IsNullOrWhiteSpace(x)))
+                : "—")
+        </p>
+    </div>
+
+    <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 p-6 space-y-4">
+        <div class="flex items-center justify-between">
+            <h3 class="font-semibold text-slate-800 dark:text-slate-100">Passport</h3>
+            @if (!string.IsNullOrWhiteSpace(Model.PassportNumber))
+            {
+                <span class="px-2 py-0.5 rounded-full text-xs font-medium @(Model.PassportVerificationStatus == "Verified" ? "bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300" : Model.PassportVerificationStatus == "Rejected" ? "bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-300" : "bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-300")">
+                    @Model.PassportVerificationStatus
+                </span>
+            }
+        </div>
+        <dl class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3 text-sm">
+            <div><dt class="text-xs text-slate-400 dark:text-slate-500 uppercase tracking-wide">Number</dt><dd class="text-slate-800 dark:text-slate-100">@(string.IsNullOrWhiteSpace(Model.PassportNumber) ? "—" : Model.PassportNumber)</dd></div>
+            <div><dt class="text-xs text-slate-400 dark:text-slate-500 uppercase tracking-wide">Country</dt><dd class="text-slate-800 dark:text-slate-100">@(string.IsNullOrWhiteSpace(Model.PassportCountry) ? "—" : Model.PassportCountry)</dd></div>
+            <div><dt class="text-xs text-slate-400 dark:text-slate-500 uppercase tracking-wide">Expiry</dt><dd class="text-slate-800 dark:text-slate-100">@(Model.PassportExpiryDate?.ToString("MMM d, yyyy") ?? "—")</dd></div>
+        </dl>
+        @if (!string.IsNullOrEmpty(Model.PassportPhotoURL))
+        {
+            <a href="@Model.PassportPhotoURL" target="_blank" class="text-xs text-[#7c3aed] dark:text-purple-300 hover:underline">View passport photo</a>
+        }
+    </div>
+
+    <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 p-6 space-y-4">
+        <h3 class="font-semibold text-slate-800 dark:text-slate-100">Emergency Contact</h3>
+        <dl class="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-3 text-sm">
+            <div><dt class="text-xs text-slate-400 dark:text-slate-500 uppercase tracking-wide">Name</dt><dd class="text-slate-800 dark:text-slate-100">@(string.IsNullOrWhiteSpace(Model.EmergencyContactName) ? "—" : Model.EmergencyContactName)</dd></div>
+            <div><dt class="text-xs text-slate-400 dark:text-slate-500 uppercase tracking-wide">Phone</dt><dd class="text-slate-800 dark:text-slate-100">@(string.IsNullOrWhiteSpace(Model.EmergencyContactPhone) ? "—" : Model.EmergencyContactPhone)</dd></div>
+            <div><dt class="text-xs text-slate-400 dark:text-slate-500 uppercase tracking-wide">Relationship</dt><dd class="text-slate-800 dark:text-slate-100">@(string.IsNullOrWhiteSpace(Model.EmergencyRelationship) ? "—" : Model.EmergencyRelationship)</dd></div>
+        </dl>
+    </div>
+
+    <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 p-6 space-y-4">
+        <h3 class="font-semibold text-slate-800 dark:text-slate-100">Course Enrollments</h3>
+        <p class="text-xs text-slate-400 dark:text-slate-500">Payment verification is handled by an administrator.</p>
+        @if (!registrations.Any())
+        {
+            <p class="text-sm text-slate-400 dark:text-slate-500">Not enrolled in any course.</p>
+        }
+        else
+        {
+            <div class="space-y-2">
+                @foreach (var reg in registrations)
+                {
+                    <div class="flex items-center justify-between gap-3 rounded-xl border border-slate-100 dark:border-slate-700 px-4 py-3">
+                        <div>
+                            <p class="text-sm font-medium text-slate-800 dark:text-slate-100">@(string.IsNullOrWhiteSpace(reg.CourseTitle) ? reg.CourseID : reg.CourseTitle)</p>
+                            <p class="text-xs text-slate-400 dark:text-slate-500">@reg.CurrencyCode @reg.CourseFee.ToString("N2")</p>
+                        </div>
+                        <span class="px-2 py-0.5 rounded-full text-xs font-medium @(reg.PaymentStatus == "Paid" ? "bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300" : reg.PaymentStatus == "PartiallyPaid" ? "bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-300" : "bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400")">
+                            @reg.PaymentStatus
+                        </span>
+                    </div>
+                }
+            </div>
+        }
+    </div>
+
+    <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 p-6 space-y-4">
+        <h3 class="font-semibold text-slate-800 dark:text-slate-100">Exam Results</h3>
+        @if (!examAttempts.Any())
+        {
+            <p class="text-sm text-slate-400 dark:text-slate-500">No exam attempts yet.</p>
+        }
+        else
+        {
+            <div class="space-y-2">
+                @foreach (var attempt in examAttempts)
+                {
+                    <div class="flex items-center justify-between gap-3 rounded-xl border border-slate-100 dark:border-slate-700 px-4 py-3">
+                        <div>
+                            <p class="text-sm font-medium text-slate-800 dark:text-slate-100">@attempt.ExamTitle</p>
+                            <p class="text-xs text-slate-400 dark:text-slate-500">
+                                @attempt.StartedDate.ToString("MMM d, yyyy")
+                                @if (attempt.TotalMarksAwarded.HasValue)
+                                {
+                                    <text> &middot; @attempt.TotalMarksAwarded.Value.ToString("N1") / @attempt.TotalMarks.ToString("N1")</text>
+                                }
+                            </p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            @if (attempt.ResultReleasedDate.HasValue && attempt.Passed.HasValue)
+                            {
+                                <span class="px-2 py-0.5 rounded-full text-xs font-medium @(attempt.Passed == true ? "bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300" : "bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-300")">
+                                    @(attempt.Passed == true ? "Passed" : "Failed")
+                                </span>
+                            }
+                            else
+                            {
+                                <span class="px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400">
+                                    @attempt.Status
+                                </span>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    </div>
+</div>

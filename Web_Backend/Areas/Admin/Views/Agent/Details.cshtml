@@ -1,0 +1,170 @@
+@model AppUser
+@{
+    ViewData["Title"] = "Agent Details";
+    var students = ViewBag.Students as List<Student> ?? new();
+    var agentDetail = ViewBag.AgentDetail as Agent;
+    bool canEdit = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.Agents, 'E');
+    bool canDelete = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.Agents, 'D');
+    var pendingApproval = agentDetail != null && agentDetail.IsSelfRegistered && agentDetail.AccountVerificationStatus == "Pending";
+}
+
+<div class="max-w-4xl mx-auto space-y-8 page-enter">
+
+    <div class="flex items-center justify-between flex-wrap gap-4">
+        <div class="flex items-center gap-4">
+            @if (!string.IsNullOrEmpty(Model.ProfileImageUrl))
+            {
+                <img src="@Model.ProfileImageUrl" alt="" class="w-14 h-14 rounded-full object-cover" />
+            }
+            else
+            {
+                <div class="w-14 h-14 rounded-full bg-red-50 dark:bg-red-950 flex items-center justify-center text-[#dc2626] dark:text-red-300 font-semibold text-xl">
+                    @(Model.FirstName.Length > 0 ? Model.FirstName[0].ToString().ToUpper() : "?")
+                </div>
+            }
+            <div>
+                <p class="text-sm font-medium text-slate-500 dark:text-slate-400">Agent</p>
+                <h1 class="text-2xl md:text-3xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">@Model.FullName</h1>
+            </div>
+        </div>
+        <div class="flex items-center gap-3">
+            @if (canEdit)
+            {
+                <a asp-action="Edit" asp-route-id="@Model.UserID" class="px-4 py-2 rounded-xl font-medium text-sm bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-2 w-fit">
+                    <i data-lucide="pencil" class="w-4 h-4"></i> Edit
+                </a>
+            }
+            <a asp-action="Index" class="px-4 py-2 rounded-xl font-medium text-sm bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors flex items-center gap-2 w-fit">
+                <i data-lucide="arrow-left" class="w-4 h-4"></i> Back to Agents
+            </a>
+        </div>
+    </div>
+
+    @if (pendingApproval)
+    {
+        <div class="flex items-start gap-3 rounded-2xl bg-amber-50 dark:bg-amber-950 border border-amber-100 dark:border-amber-900 px-5 py-4">
+            <i data-lucide="clock" class="w-5 h-5 text-amber-600 dark:text-amber-300 flex-shrink-0 mt-0.5"></i>
+            <div class="flex-1">
+                <p class="text-sm font-semibold text-amber-800 dark:text-amber-200">This agent self-registered and is awaiting approval</p>
+                <p class="text-sm text-amber-700 dark:text-amber-300 mt-0.5">They can sign in but can't register students until you approve their account.</p>
+            </div>
+            @if (canEdit)
+            {
+                <div class="flex items-center gap-2 flex-shrink-0">
+                    <form method="post" asp-action="VerifyAccount" asp-route-userId="@Model.UserID">
+                        @Html.AntiForgeryToken()
+                        <button type="submit" class="px-3 py-1.5 rounded-lg font-medium text-xs bg-emerald-600 text-white hover:bg-emerald-700 transition-colors">Approve</button>
+                    </form>
+                    <form method="post" asp-action="RejectAccount" asp-route-userId="@Model.UserID">
+                        @Html.AntiForgeryToken()
+                        <button type="submit" class="px-3 py-1.5 rounded-lg font-medium text-xs bg-white dark:bg-slate-800 text-red-600 dark:text-red-300 border border-red-200 dark:border-red-900 hover:bg-red-50 dark:hover:bg-red-950 transition-colors">Reject</button>
+                    </form>
+                </div>
+            }
+        </div>
+    }
+
+    <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
+        <div class="p-6 border-b border-slate-100 dark:border-slate-700 flex items-center gap-3">
+            <div class="bg-red-50 dark:bg-red-950 p-2 rounded-lg"><i data-lucide="user-circle" class="w-5 h-5 text-red-600 dark:text-red-300"></i></div>
+            <h3 class="font-semibold text-lg text-slate-800 dark:text-slate-100">Account Information</h3>
+            <span class="ml-auto px-2 py-0.5 rounded-full text-xs font-semibold @(Model.IsActive == "A" ? "bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300" : "bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400")">@Model.StatusLabel</span>
+        </div>
+        <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-6 text-sm">
+            <div>
+                <p class="text-xs text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-0.5">Email</p>
+                <p class="text-slate-700 dark:text-slate-200 font-medium">@Model.Email</p>
+            </div>
+            <div>
+                <p class="text-xs text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-0.5">Phone</p>
+                <p class="text-slate-700 dark:text-slate-200 font-medium">@(string.IsNullOrEmpty(Model.Phone) ? "-" : Model.Phone)</p>
+            </div>
+            @if (agentDetail != null)
+            {
+                <div>
+                    <p class="text-xs text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-0.5">Date of Birth</p>
+                    <p class="text-slate-700 dark:text-slate-200 font-medium">@(agentDetail.DateOfBirth?.ToString("MMM d, yyyy") ?? "-")</p>
+                </div>
+                <div>
+                    <p class="text-xs text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-0.5">Nationality</p>
+                    <p class="text-slate-700 dark:text-slate-200 font-medium">@(string.IsNullOrEmpty(agentDetail.Nationality) ? "-" : agentDetail.Nationality)</p>
+                </div>
+                <div class="md:col-span-2">
+                    <p class="text-xs text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-0.5">Address</p>
+                    <p class="text-slate-700 dark:text-slate-200 font-medium">
+                        @(new[] { agentDetail.AddressLine1, agentDetail.AddressLine2, agentDetail.City, agentDetail.StateProvince, agentDetail.PostalCode, agentDetail.Country }.Where(x => !string.IsNullOrWhiteSpace(x)).Any()
+                            ? string.Join(", ", new[] { agentDetail.AddressLine1, agentDetail.AddressLine2, agentDetail.City, agentDetail.StateProvince, agentDetail.PostalCode, agentDetail.Country }.Where(x => !string.IsNullOrWhiteSpace(x)))
+                            : "-")
+                    </p>
+                </div>
+                <div>
+                    <p class="text-xs text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-0.5">Passport Number</p>
+                    <p class="text-slate-700 dark:text-slate-200 font-medium">@(string.IsNullOrEmpty(agentDetail.PassportNumber) ? "-" : agentDetail.PassportNumber)</p>
+                </div>
+                <div>
+                    <p class="text-xs text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-0.5">Emergency Contact</p>
+                    <p class="text-slate-700 dark:text-slate-200 font-medium">
+                        @(string.IsNullOrEmpty(agentDetail.EmergencyContactName) ? "-" : $"{agentDetail.EmergencyContactName} ({agentDetail.EmergencyContactPhone})")
+                    </p>
+                </div>
+            }
+        </div>
+        @if (canEdit || canDelete)
+        {
+            <div class="px-6 pb-6 flex flex-wrap items-center gap-3">
+                @if (canEdit)
+                {
+                    <form method="post" asp-action="ResetAndSendPassword" asp-route-userId="@Model.UserID"
+                          data-confirm="Generate a new temporary password and email it to this agent?" data-confirm-title="Reset password" data-confirm-label="Reset">
+                        @Html.AntiForgeryToken()
+                        <button type="submit" class="px-4 py-2 rounded-xl font-medium text-sm bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+                            Reset &amp; Email Password
+                        </button>
+                    </form>
+                }
+                @if (canDelete)
+                {
+                    <form method="post" asp-action="Delete" asp-route-id="@Model.UserID"
+                          data-confirm="Deactivate this agent account?" data-confirm-title="Deactivate agent" data-confirm-label="Deactivate">
+                        @Html.AntiForgeryToken()
+                        <button type="submit" class="px-4 py-2 rounded-xl font-medium text-sm bg-red-50 dark:bg-red-950 text-red-600 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-900 transition-colors">
+                            Deactivate
+                        </button>
+                    </form>
+                }
+            </div>
+        }
+    </div>
+
+    @* ---------- Students registered by this agent ---------- *@
+    <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
+        <div class="p-6 border-b border-slate-100 dark:border-slate-700 flex items-center gap-3">
+            <div class="bg-purple-50 dark:bg-purple-950 p-2 rounded-lg"><i data-lucide="users" class="w-5 h-5 text-purple-600 dark:text-purple-300"></i></div>
+            <h3 class="font-semibold text-lg text-slate-800 dark:text-slate-100">Students Registered</h3>
+            <span class="ml-auto text-xs text-slate-400 dark:text-slate-500">@students.Count total</span>
+        </div>
+        @if (students.Count == 0)
+        {
+            <div class="p-10 text-center">
+                <p class="text-sm text-slate-400 dark:text-slate-500">This agent hasn't registered any students yet.</p>
+            </div>
+        }
+        else
+        {
+            <div class="divide-y divide-slate-100 dark:divide-slate-700">
+                @foreach (var s in students)
+                {
+                    <a asp-controller="Student" asp-action="Details" asp-route-id="@s.StudentID" class="flex items-center justify-between gap-3 p-4 px-6 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors">
+                        <div>
+                            <p class="text-sm font-medium text-slate-800 dark:text-slate-100">@s.FullName</p>
+                            <p class="text-xs text-slate-500 dark:text-slate-400">@s.Email</p>
+                        </div>
+                        <span class="px-2 py-0.5 rounded-full text-xs font-medium @(s.IsActive == "A" ? "bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300" : "bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400")">
+                            @s.StatusLabel
+                        </span>
+                    </a>
+                }
+            </div>
+        }
+    </div>
+</div>

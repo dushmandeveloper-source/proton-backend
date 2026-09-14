@@ -28,6 +28,13 @@ namespace Web_Backend.Areas.Admin.Data
         public Task<List<AppUser>> GetInstructors() =>
             GetList(new AppUserSearchView { UserTypeID = "INSTRUCTOR", IsActive = "A" });
 
+        // Agent-type users for Admin's Student list "Registered by" agent
+        // filter — same pattern as GetInstructors(), reusing usr.Users_List's
+        // existing UserTypeID filter. 'AGENT' matches the UserTypeID seeded
+        // in 0058_agent_role_portal.sql.
+        public Task<List<AppUser>> GetAgents() =>
+            GetList(new AppUserSearchView { UserTypeID = "AGENT", IsActive = "A" });
+
         public Task<AppUser?> Get(string id) =>
             db.Get<AppUser, object>("usr.Users_Get", new { APIKey = AppData.GetAPIKey(), ID = id });
 

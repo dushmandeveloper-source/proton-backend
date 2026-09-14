@@ -1,0 +1,171 @@
+@model AgentProfileViewModel
+@{
+    ViewData["Title"] = "My Profile";
+    const string CardCls = "bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 p-6 space-y-4";
+    const string LabelCls = "text-sm font-medium text-slate-700 dark:text-slate-300";
+    const string InputCls = "w-full rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 px-4 py-2.5 text-sm outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400";
+}
+
+<div class="max-w-3xl mx-auto page-enter space-y-6">
+    <div>
+        <h2 class="text-2xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">My Profile</h2>
+        <p class="text-slate-500 dark:text-slate-400 text-sm mt-1">Your account details.</p>
+    </div>
+
+    @if (Model.AccountVerificationStatus == "Pending")
+    {
+        <div class="flex items-start gap-3 rounded-2xl bg-amber-50 dark:bg-amber-950 border border-amber-100 dark:border-amber-900 px-5 py-4">
+            <i data-lucide="clock" class="w-5 h-5 text-amber-600 dark:text-amber-300 flex-shrink-0 mt-0.5"></i>
+            <div>
+                <p class="text-sm font-semibold text-amber-800 dark:text-amber-200">Account pending approval</p>
+                <p class="text-sm text-amber-700 dark:text-amber-300 mt-0.5">You can still update your details below — an administrator needs to approve your account before you can register students.</p>
+            </div>
+        </div>
+    }
+
+    <form method="post" asp-action="Save" enctype="multipart/form-data" class="space-y-6">
+        @Html.AntiForgeryToken()
+
+        <div class="@CardCls">
+            <h3 class="font-semibold text-slate-800 dark:text-slate-100">Basic Details</h3>
+            <div class="flex items-center gap-4">
+                @if (!string.IsNullOrEmpty(Model.ProfileImageUrl))
+                {
+                    <img src="@Model.ProfileImageUrl" alt="" class="w-16 h-16 rounded-full object-cover" />
+                }
+                else
+                {
+                    <div class="w-16 h-16 rounded-full bg-purple-50 dark:bg-purple-950 flex items-center justify-center text-[#7c3aed] dark:text-purple-300 font-semibold text-xl">
+                        @(Model.FirstName.Length > 0 ? Model.FirstName[0].ToString().ToUpper() : "?")
+                    </div>
+                }
+                <div>
+                    <label class="@LabelCls block mb-1">Profile Photo</label>
+                    <input type="file" name="profileImage" accept="image/*,.svg,.jfif" class="text-sm" />
+                </div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="space-y-1">
+                    <label class="@LabelCls">First Name</label>
+                    <input asp-for="FirstName" required class="@InputCls" />
+                </div>
+                <div class="space-y-1">
+                    <label class="@LabelCls">Last Name</label>
+                    <input asp-for="LastName" required class="@InputCls" />
+                </div>
+                <div class="space-y-1">
+                    <label class="@LabelCls">Email</label>
+                    <input asp-for="Email" type="email" readonly class="w-full rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-800/60 text-slate-500 dark:text-slate-400 px-4 py-2.5 text-sm outline-none cursor-not-allowed" />
+                </div>
+                <div class="space-y-1">
+                    <label class="@LabelCls">Phone</label>
+                    <input asp-for="Phone" class="@InputCls" />
+                </div>
+                <div class="space-y-1">
+                    <label class="@LabelCls">Date of Birth</label>
+                    <input asp-for="DateOfBirth" type="date" class="@InputCls" />
+                </div>
+                <div class="space-y-1">
+                    <label class="@LabelCls">Gender</label>
+                    <select asp-for="Gender" class="@InputCls">
+                        <option value="">Select...</option>
+                        <option value="Male">Male</option>
+                        <option value="Female">Female</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+                <div class="space-y-1">
+                    <label class="@LabelCls">Nationality</label>
+                    <input asp-for="Nationality" autocomplete="off" data-nationality-picker class="@InputCls" />
+                </div>
+                <div class="space-y-1">
+                    <label class="@LabelCls">Role</label>
+                    <input value="@Model.UserTypeName" readonly class="w-full rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-800/60 text-slate-500 dark:text-slate-400 px-4 py-2.5 text-sm outline-none cursor-not-allowed" />
+                </div>
+            </div>
+        </div>
+
+        <div class="@CardCls">
+            <h3 class="font-semibold text-slate-800 dark:text-slate-100">Address</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="space-y-1 md:col-span-2">
+                    <label class="@LabelCls">Address Line 1</label>
+                    <input asp-for="AddressLine1" class="@InputCls" />
+                </div>
+                <div class="space-y-1 md:col-span-2">
+                    <label class="@LabelCls">Address Line 2</label>
+                    <input asp-for="AddressLine2" class="@InputCls" />
+                </div>
+                <div class="space-y-1">
+                    <label class="@LabelCls">City</label>
+                    <input asp-for="City" class="@InputCls" />
+                </div>
+                <div class="space-y-1">
+                    <label class="@LabelCls">State / Province</label>
+                    <input asp-for="StateProvince" class="@InputCls" />
+                </div>
+                <div class="space-y-1">
+                    <label class="@LabelCls">Postal Code</label>
+                    <input asp-for="PostalCode" class="@InputCls" />
+                </div>
+                <div class="space-y-1">
+                    <label class="@LabelCls">Country</label>
+                    <input asp-for="Country" autocomplete="off" data-country-picker class="@InputCls" />
+                </div>
+            </div>
+        </div>
+
+        <div class="@CardCls">
+            <h3 class="font-semibold text-slate-800 dark:text-slate-100">Passport Information</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="space-y-1">
+                    <label class="@LabelCls">Passport Number</label>
+                    <input asp-for="PassportNumber" class="@InputCls" />
+                </div>
+                <div class="space-y-1">
+                    <label class="@LabelCls">Passport Country</label>
+                    <input asp-for="PassportCountry" autocomplete="off" data-country-picker class="@InputCls" />
+                </div>
+                <div class="space-y-1">
+                    <label class="@LabelCls">Passport Expiry Date</label>
+                    <input asp-for="PassportExpiryDate" type="date" class="@InputCls" />
+                </div>
+                <div class="space-y-1">
+                    <label class="@LabelCls">Passport Photo</label>
+                    @if (!string.IsNullOrEmpty(Model.PassportPhotoURL))
+                    {
+                        <a href="@Model.PassportPhotoURL" target="_blank" class="text-xs text-[#7c3aed] dark:text-purple-300 hover:underline block mb-1">Current photo</a>
+                    }
+                    <input type="file" name="passportPhoto" accept="image/*,.svg,.jfif,.pdf" class="text-sm" />
+                </div>
+            </div>
+        </div>
+
+        <div class="@CardCls">
+            <h3 class="font-semibold text-slate-800 dark:text-slate-100">Emergency Contact</h3>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="space-y-1">
+                    <label class="@LabelCls">Name</label>
+                    <input asp-for="EmergencyContactName" class="@InputCls" />
+                </div>
+                <div class="space-y-1">
+                    <label class="@LabelCls">Phone</label>
+                    <input asp-for="EmergencyContactPhone" class="@InputCls" />
+                </div>
+                <div class="space-y-1">
+                    <label class="@LabelCls">Relationship</label>
+                    <input asp-for="EmergencyRelationship" class="@InputCls" />
+                </div>
+            </div>
+        </div>
+
+        <div class="flex items-center justify-between">
+            <a asp-action="ChangePassword" class="text-sm font-medium text-[#7c3aed] dark:text-[#a78bfa] hover:text-[#6d28d9] dark:hover:text-[#c4b5fd]">Change password</a>
+            <button type="submit" class="px-5 py-2.5 rounded-xl font-medium text-sm bg-[#dc2626] text-white hover:bg-[#b91c1c] shadow-sm transition-all">
+                Save Changes
+            </button>
+        </div>
+    </form>
+</div>
+
+<script src="~/js/country-picker.js"></script>

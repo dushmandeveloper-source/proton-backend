@@ -123,6 +123,7 @@ namespace Web_Backend.Areas.LecturerPortal.Controllers
                     Description = form.Description,
                     FileType = fileType,
                     FileURL = fileUrl,
+                    Category = form.Category == "Homework" ? "Homework" : "LectureNote",
                     UploadedByUserID = userId,
                     UploadedByRole = "Lecturer"
                 });

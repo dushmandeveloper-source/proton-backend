@@ -66,6 +66,7 @@ namespace Web_Backend.Areas.Admin.Data
                 c.DeliveryMethod,
                 c.LocationID,
                 c.CourseImageURL,
+                c.VideoURL,
                 c.HandbookTitle,
                 c.HandbookFileURL,
                 c.EnableExperiencePricing,
