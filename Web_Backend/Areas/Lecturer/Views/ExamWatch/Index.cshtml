@@ -70,24 +70,41 @@
     }
 </div>
 
-@* ---------- Focused/expanded view: a single large panel, CCTV-monitor style ---------- *@
-<div id="focusOverlay" class="hidden fixed inset-0 z-50 bg-black/90 backdrop-blur-sm flex items-center justify-center p-4 md:p-10">
-    <div class="w-full max-w-5xl">
-        <div class="flex items-center justify-between mb-3">
+@* ---------- Focused/expanded view: Teams-style call layout -- large
+   screen-share as the main view, small camera picture-in-picture tile in
+   the corner (mirrors a normal video-call "presenter" layout, since the
+   student sends both a camera stream and a screen-share stream as two
+   separate WebRTC tracks/streams). ---------- *@
+<div id="focusOverlay" class="hidden fixed inset-0 z-50 bg-black flex flex-col">
+    <div class="flex items-center justify-between px-6 py-4 bg-slate-950/90 backdrop-blur-sm border-b border-slate-800 flex-shrink-0">
+        <div class="flex items-center gap-3">
+            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold uppercase tracking-wide bg-red-600/90 text-white">
+                <span class="w-1.5 h-1.5 rounded-full bg-white animate-pulse"></span> Live
+            </span>
             <div>
-                <p id="focusStudentName" class="text-white font-semibold"></p>
+                <p id="focusStudentName" class="text-white font-semibold text-sm"></p>
                 <p id="focusExamTitle" class="text-slate-400 text-xs"></p>
             </div>
-            <button type="button" id="focusCloseBtn" class="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors">
-                <i data-lucide="x" class="w-5 h-5"></i>
-            </button>
         </div>
-        <div class="relative aspect-video bg-slate-950 rounded-2xl overflow-hidden border border-slate-800 shadow-2xl">
-            <video id="focusVideo" class="w-full h-full object-contain hidden" autoplay playsinline></video>
-            <div id="focusPlaceholder" class="absolute inset-0 flex flex-col items-center justify-center gap-3 text-slate-600">
-                <i data-lucide="loader-circle" class="w-8 h-8 animate-spin"></i>
-                <span class="text-sm">Connecting…</span>
-            </div>
+        <button type="button" id="focusCloseBtn" class="p-2.5 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors">
+            <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+    </div>
+
+    <div class="relative flex-1 min-h-0 bg-slate-950 flex items-center justify-center">
+        <video id="focusScreenVideo" class="w-full h-full object-contain hidden" autoplay playsinline></video>
+        <div id="focusPlaceholder" class="absolute inset-0 flex flex-col items-center justify-center gap-3 text-slate-600">
+            <i data-lucide="loader-circle" class="w-10 h-10 animate-spin"></i>
+            <span class="text-sm">Connecting…</span>
+        </div>
+
+        @* Camera picture-in-picture, bottom-right -- shown once a camera
+           track arrives, positioned over the main screen-share view. *@
+        <div id="focusCameraTile" class="hidden absolute bottom-6 right-6 w-56 aspect-video rounded-xl overflow-hidden border-2 border-slate-700 shadow-2xl bg-slate-900">
+            <video id="focusCameraVideo" class="w-full h-full object-cover" autoplay playsinline></video>
+            <span class="absolute bottom-1.5 left-1.5 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-semibold uppercase tracking-wide bg-black/60 text-white">
+                <i data-lucide="camera" class="w-2.5 h-2.5"></i> Camera
+            </span>
         </div>
     </div>
 </div>
@@ -100,7 +117,9 @@
         var currentTileEl = null;
 
         var focusOverlay = document.getElementById('focusOverlay');
-        var focusVideo = document.getElementById('focusVideo');
+        var focusScreenVideo = document.getElementById('focusScreenVideo');
+        var focusCameraTile = document.getElementById('focusCameraTile');
+        var focusCameraVideo = document.getElementById('focusCameraVideo');
         var focusPlaceholder = document.getElementById('focusPlaceholder');
         var focusStudentName = document.getElementById('focusStudentName');
         var focusExamTitle = document.getElementById('focusExamTitle');
@@ -119,12 +138,29 @@
         });
 
         function resetFocusVideo() {
-            focusVideo.srcObject = null;
-            focusVideo.classList.add('hidden');
+            focusScreenVideo.srcObject = null;
+            focusScreenVideo.classList.add('hidden');
+            focusCameraVideo.srcObject = null;
+            focusCameraTile.classList.add('hidden');
             focusPlaceholder.classList.remove('hidden');
         }
 
+        // A student sends two separate MediaStreams (camera + screen-share)
+        // as two separate WebRTC tracks -- ontrack fires once per stream.
+        // Distinguish them by the video track's displaySurface setting,
+        // which is only ever set (to 'monitor') on a getDisplayMedia track,
+        // never on a getUserMedia camera track.
+        function isScreenShareStream(stream) {
+            var videoTrack = stream.getVideoTracks()[0];
+            if (!videoTrack) return false;
+            var settings = videoTrack.getSettings ? videoTrack.getSettings() : {};
+            return !!settings.displaySurface;
+        }
+
         function updateTileFeed(attemptId, stream) {
+            // The grid tile shows whichever feed is the main/screen one --
+            // matches the focused view's own "screen is the big feed" choice.
+            if (!isScreenShareStream(stream)) return;
             var tile = document.querySelector('.watch-tile[data-attempt-id="' + attemptId + '"]');
             if (!tile) return;
             var video = tile.querySelector('.tile-video');
@@ -157,10 +193,18 @@
                 }
             };
             peerConnection.ontrack = function (e) {
-                focusVideo.srcObject = e.streams[0];
-                focusVideo.classList.remove('hidden');
+                var stream = e.streams[0];
                 focusPlaceholder.classList.add('hidden');
-                updateTileFeed(attemptId, e.streams[0]);
+
+                if (isScreenShareStream(stream)) {
+                    focusScreenVideo.srcObject = stream;
+                    focusScreenVideo.classList.remove('hidden');
+                } else {
+                    focusCameraVideo.srcObject = stream;
+                    focusCameraTile.classList.remove('hidden');
+                }
+
+                updateTileFeed(attemptId, stream);
             };
 
             try {
