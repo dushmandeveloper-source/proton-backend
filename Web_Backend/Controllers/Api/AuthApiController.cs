@@ -5,7 +5,13 @@ using Web_Backend.Classes;
 
 namespace Web_Backend.Controllers.Api
 {
-    public record LoginRequest(string Email, string Password);
+    // Portal defaults to "" (any role) for backward compatibility with any
+    // existing caller that doesn't pass it — but the public frontend's own
+    // Student and Agent login forms both now pass it, so a Student can't
+    // accidentally sign into the Agent-branded form (or vice versa) and end
+    // up redirected into a portal AreaAccessFilter immediately bounces them
+    // out of. "Student" | "Agent" | "" (unrestricted).
+    public record LoginRequest(string Email, string Password, string Portal = "");
     public record ForgotPasswordRequest(string Email);
     public record ResetPasswordRequest(string Token, string NewPassword);
 
@@ -46,6 +52,17 @@ namespace Web_Backend.Controllers.Api
                 return Unauthorized(new { message = "Invalid email or password." });
             }
 
+            // Same "wrong sign-in page" enforcement Classes/PortalSignIn.cs
+            // applies to the MVC Razor login pages — a Student's credentials
+            // shouldn't work from the Agent login form and land them
+            // redirected into a portal AreaAccessFilter immediately bounces
+            // them back out of. Only enforced when the caller declares which
+            // portal this form is for; an empty Portal stays unrestricted.
+            if (!string.IsNullOrEmpty(request.Portal) && !string.Equals(request.Portal, auth.UserTypeName, StringComparison.OrdinalIgnoreCase))
+            {
+                return Unauthorized(new { message = $"This account signs in through the {auth.UserTypeName} sign-in page." });
+            }
+
             await authRep.RecordLoginResult(auth.AuthID, success: true);
 
             await Auth.SignIn(new Areas.Admin.Models.SessionUser
@@ -60,7 +77,28 @@ namespace Web_Backend.Controllers.Api
                 Role = auth.UserTypeID
             });
 
-            return Ok(new { userId = auth.UserID, fullName = auth.FullName, email = auth.Email, role = auth.UserTypeName });
+            var area = auth.UserTypeName == "Student" ? "Student"
+                     : auth.UserTypeName == "Instructor" ? "Lecturer"
+                     : auth.UserTypeName == "Agent" ? "Agent"
+                     : "Admin";
+
+            // Same field shape as GET /me below (role = the opaque
+            // UserTypeID, roleName = the readable name) — the frontend's
+            // useAuth() cache is populated from either endpoint depending on
+            // whether the visitor just logged in or a page reload restored
+            // the session, and a shape mismatch between the two previously
+            // let a stale cached user (e.g. an Agent) render as "signed in"
+            // on the Student login view, which only ever checked truthiness
+            // of `user`, never its actual role.
+            return Ok(new
+            {
+                userId = auth.UserID,
+                fullName = auth.FullName,
+                email = auth.Email,
+                role = auth.UserTypeID,
+                roleName = auth.UserTypeName,
+                dashboardUrl = $"/{area}/Dashboard/Index"
+            });
         }
 
         [HttpPost("forgot-password")]
@@ -135,6 +173,7 @@ namespace Web_Backend.Controllers.Api
             var roleName = userTypes.FirstOrDefault(t => t.UserTypeID == user.Role)?.UserTypeName;
             var area = roleName == "Student" ? "Student"
                      : roleName == "Instructor" ? "Lecturer"
+                     : roleName == "Agent" ? "Agent"
                      : "Admin";
 
             return Ok(new

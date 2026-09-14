@@ -21,11 +21,20 @@ namespace Web_Backend.Areas.Admin.Data
                 search.RegistrationSource,
                 search.IsActive,
                 search.EnrollmentFilter,
-                search.PaymentStatusFilter
+                search.PaymentStatusFilter,
+                search.CreatedByUserID
             });
 
         public Task<Student?> Get(string id) =>
             db.Get<Student, object>("mst.Student_Get", new { APIKey = AppData.GetAPIKey(), ID = id });
+
+        // Defense-in-depth single-record fetch for the Agent portal: only
+        // returns a row if this UserID is the one who created it, so an
+        // agent can't view/edit another agent's student by guessing/editing
+        // a StudentID in the URL even if the controller-side check were
+        // ever missed. See mst.Student_GetForAgent (0058_agent_role_portal.sql).
+        public Task<Student?> GetForAgent(string id, string agentUserId) =>
+            db.Get<Student, object>("mst.Student_GetForAgent", new { APIKey = AppData.GetAPIKey(), ID = id, UserID = agentUserId });
 
         public Task<Student?> GetByUserID(string userId) =>
             db.Get<Student, object>("mst.Student_GetByUserID", new { APIKey = AppData.GetAPIKey(), UserID = userId });

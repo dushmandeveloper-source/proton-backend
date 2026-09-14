@@ -115,9 +115,16 @@ namespace Web_Backend.Areas.Admin.Controllers
             return View("View", await BuildDetail(course, "details"));
         }
 
+        // Video files aren't images, so they go through SaveMediaAsync with
+        // their own extension whitelist/size cap rather than ImageUploader's
+        // image-oriented defaults.
+        private static readonly string[] VideoExtensions = { ".mp4", ".webm", ".ogg", ".mov", ".m4v" };
+        private const long MaxVideoBytes = 200 * 1024 * 1024; // 200 MB
+
         [HttpPost, ValidateAntiForgeryToken]
         public async Task<IActionResult> Save(
-            [Bind(Prefix = "Course")] Course form, IFormFile? imageFile, IFormFile? handbookFile, string tab = "details",
+            [Bind(Prefix = "Course")] Course form, IFormFile? imageFile, IFormFile? handbookFile, IFormFile? videoFile,
+            string? videoUrlInput = null, string tab = "details",
             string? PricingJSON = null, string? DescriptionJSON = null, string? PathwayJSON = null,
             string? ComboOfferJSON = null, string? TrainingPointJSON = null, string? OutcomeJSON = null,
             string? RequirementJSON = null, string? FeeChargeJSON = null)
@@ -161,6 +168,7 @@ namespace Web_Backend.Areas.Admin.Controllers
                 target.CourseCode = form.CourseCode;
                 target.CourseTitle = form.CourseTitle;
                 target.CategoryID = form.CategoryID;
+                target.CourseType = form.CourseType;
                 target.LocationID = form.LocationID;
                 target.Duration = form.Duration;
                 target.CertificateValidity = form.CertificateValidity;
@@ -190,6 +198,11 @@ namespace Web_Backend.Areas.Admin.Controllers
 
                 var newHandbook = await uploader.SaveAsync(handbookFile, UploadFolder);
                 if (newHandbook != null) target.HandbookFileURL = newHandbook;
+
+                // An uploaded file takes precedence over a pasted link when
+                // both are somehow present; otherwise use whichever was given.
+                var newVideo = await uploader.SaveMediaAsync(videoFile, UploadFolder, VideoExtensions, MaxVideoBytes);
+                target.VideoURL = newVideo ?? videoUrlInput?.Trim() ?? target.VideoURL;
 
                 if (!ModelState.IsValid)
                     return View("Edit", await BuildDetail(target, tab));

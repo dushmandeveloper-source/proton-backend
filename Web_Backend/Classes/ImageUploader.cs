@@ -22,7 +22,7 @@ namespace Web_Backend.Classes
         // and the public EnrollmentsApiController), and both registration UIs
         // invite PDF slips (accept="image/*,.pdf") — without it, a PDF slip
         // throws InvalidOperationException and surfaces as an unhandled 500.
-        private static readonly string[] AllowedExtensions = { ".jpg", ".jpeg", ".png", ".webp", ".gif", ".svg", ".pdf" };
+        private static readonly string[] AllowedExtensions = { ".jpg", ".jpeg", ".jfif", ".jpe", ".png", ".webp", ".gif", ".bmp", ".tif", ".tiff", ".avif", ".heic", ".heif", ".svg", ".pdf" };
         private const long MaxBytes = 5 * 1024 * 1024; // 5 MB
 
         private readonly IWebHostEnvironment env;

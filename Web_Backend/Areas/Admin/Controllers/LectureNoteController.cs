@@ -45,7 +45,7 @@ namespace Web_Backend.Areas.Admin.Controllers
         [HttpPost, ValidateAntiForgeryToken]
         [RequestFormLimits(MultipartBodyLengthLimit = 110_000_000)]
         [RequestSizeLimit(110_000_000)]
-        public async Task<IActionResult> Upload(string scheduleId, string segmentId, DateTime materialDate, string title, string description, IFormFile? file)
+        public async Task<IActionResult> Upload(string scheduleId, string segmentId, DateTime materialDate, string title, string description, string category, IFormFile? file)
         {
             Auth.CheckPermission(PermissionCode.LectureNotes, 'A');
 
@@ -54,6 +54,8 @@ namespace Web_Backend.Areas.Admin.Controllers
                 TempData["ErrorMessage"] = "Batch, title, and file are required.";
                 return RedirectToAction("Index");
             }
+
+            if (category != "Homework") category = "LectureNote";
 
             try
             {
@@ -81,6 +83,7 @@ namespace Web_Backend.Areas.Admin.Controllers
                     Description = description,
                     FileType = fileType,
                     FileURL = fileUrl,
+                    Category = category,
                     UploadedByUserID = Auth.GetUserId(),
                     UploadedByRole = "Admin"
                 });

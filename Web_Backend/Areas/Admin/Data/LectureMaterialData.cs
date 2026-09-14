@@ -25,6 +25,7 @@ namespace Web_Backend.Areas.Admin.Data
                 Description = m.Description ?? "",
                 m.FileType,
                 m.FileURL,
+                m.Category,
                 m.UploadedByUserID,
                 m.UploadedByRole
             });

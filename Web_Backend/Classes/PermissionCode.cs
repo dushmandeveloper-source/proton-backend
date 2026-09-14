@@ -18,6 +18,7 @@ namespace Web_Backend.Classes
         public const string Enrollments = "Enrollments";
         public const string LectureNotes = "LectureNotes";
         public const string LectureSchedule = "LectureSchedule";
+        public const string Agents = "Agents";
 
         public static readonly (string Code, string Label)[] All =
         {
@@ -31,8 +32,9 @@ namespace Web_Backend.Classes
             (HolidayCalendar, "Holiday & Events Calendar"),
             (Exams, "Exams"),
             (Enrollments, "Enrollments & Payments"),
-            (LectureNotes, "Lecture Notes"),
+            (LectureNotes, "Homework / Lecture Notes"),
             (LectureSchedule, "Lecture Schedule"),
+            (Agents, "Agents"),
         };
     }
 }

@@ -68,6 +68,7 @@ builder.Services.AddTransient<IPasswordResetData, PasswordResetData>();
 builder.Services.AddTransient<IEmailSender, EmailSender>();
 builder.Services.AddTransient<IUniversityData, UniversityData>();
 builder.Services.AddTransient<IStudentData, StudentData>();
+builder.Services.AddTransient<IAgentData, AgentData>();
 builder.Services.AddTransient<ICourseRegistrationData, CourseRegistrationData>();
 builder.Services.AddTransient<ICourseCategoryData, CourseCategoryData>();
 builder.Services.AddTransient<ICourseData, CourseData>();

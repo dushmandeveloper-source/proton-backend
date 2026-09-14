@@ -1,6 +1,6 @@
 @model Web_Backend.Areas.LecturerPortal.Models.LectureMaterialFormModel
 @{
-    ViewData["Title"] = "Upload Lecture Material";
+    ViewData["Title"] = "Upload Homework / Lecture Material";
     var batches = ViewBag.Batches as List<Web_Backend.Areas.Admin.Models.CourseSchedule> ?? new();
     var batch = batches.FirstOrDefault(b => b.ScheduleID == Model.ScheduleID);
 }
@@ -9,7 +9,7 @@
 
     <div>
         <p class="text-sm font-medium text-slate-500 dark:text-slate-400 mb-2">@Model.CourseTitle &middot; @Model.ScheduleName</p>
-        <h1 class="text-3xl md:text-4xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">Upload Lecture Material</h1>
+        <h1 class="text-3xl md:text-4xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">Upload Homework / Lecture Material</h1>
         <p class="text-sm text-slate-500 dark:text-slate-400 mt-2">Documents, images, or video for this batch. Max 100 MB. Allowed types: PDF, Word, PowerPoint, Excel, JPG/PNG/WEBP, MP4/MOV/WEBM.</p>
     </div>
 
@@ -39,6 +39,15 @@
                 <input asp-for="MaterialDate" type="date"
                        class="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-[#7c3aed]/40" />
                 <span asp-validation-for="MaterialDate" class="text-xs text-red-600 dark:text-red-400"></span>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-1.5">Category</label>
+                <select asp-for="Category"
+                        class="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-[#7c3aed]/40">
+                    <option value="LectureNote">Lecture Note</option>
+                    <option value="Homework">Homework</option>
+                </select>
             </div>
 
             <div>

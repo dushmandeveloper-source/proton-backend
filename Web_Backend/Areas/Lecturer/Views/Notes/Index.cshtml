@@ -1,6 +1,6 @@
 @model List<Web_Backend.Areas.Admin.Models.LectureMaterial>
 @{
-    ViewData["Title"] = "Lecture Notes";
+    ViewData["Title"] = "Homework / Lecture Notes";
 }
 
 <div class="max-w-5xl mx-auto space-y-8 page-enter">
@@ -8,7 +8,7 @@
     <div class="flex items-center justify-between flex-wrap gap-4">
         <div>
             <p class="text-sm font-medium text-slate-500 dark:text-slate-400 mb-2">Class Management</p>
-            <h1 class="text-3xl md:text-4xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">Lecture Notes</h1>
+            <h1 class="text-3xl md:text-4xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">Homework / Lecture Notes</h1>
         </div>
         <a asp-area="Lecturer" asp-controller="Courses" asp-action="Index"
            class="px-4 py-2 rounded-xl font-medium text-sm bg-[#7c3aed] text-white hover:bg-[#6d28d9] shadow-sm transition-all flex items-center gap-2 w-fit">
@@ -30,7 +30,12 @@
                 {
                     <div class="p-4 px-6 flex items-center justify-between gap-4">
                         <div>
-                            <p class="text-sm font-medium text-slate-800 dark:text-slate-100">@m.Title</p>
+                            <div class="flex items-center gap-2">
+                                <p class="text-sm font-medium text-slate-800 dark:text-slate-100">@m.Title</p>
+                                <span class="px-2 py-0.5 rounded-full text-xs font-medium @(m.Category == "Homework" ? "bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-300" : "bg-purple-50 dark:bg-purple-950 text-[#7c3aed] dark:text-purple-300")">
+                                    @(m.Category == "Homework" ? "Homework" : "Lecture Note")
+                                </span>
+                            </div>
                             <p class="text-xs text-slate-400 dark:text-slate-500 mt-0.5">@m.CourseTitle &middot; @m.ScheduleName &middot; @m.MaterialDate.ToString("MMM d, yyyy") &middot; @m.FileType</p>
                             @if (!string.IsNullOrEmpty(m.Description))
                             {

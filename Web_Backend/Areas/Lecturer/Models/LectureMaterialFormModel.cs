@@ -21,6 +21,10 @@ namespace Web_Backend.Areas.LecturerPortal.Models
         [MaxLength(1000)]
         public string Description { get; set; } = "";
 
+        // 'LectureNote' | 'Homework'
+        [Required]
+        public string Category { get; set; } = "LectureNote";
+
         // Display-only, populated by the controller for the upload form.
         public string ScheduleName { get; set; } = "";
         public string CourseTitle { get; set; } = "";

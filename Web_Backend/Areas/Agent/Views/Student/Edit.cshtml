@@ -1,0 +1,537 @@
+@model StudentFormViewModel
+@{
+    ViewData["Title"] = string.IsNullOrEmpty(Model.StudentID) ? "Register Student" : "Edit Student";
+    var isNew = string.IsNullOrEmpty(Model.StudentID);
+    var availableCourses = (ViewBag.AvailableCourses as List<Course>) ?? new List<Course>();
+    var availableSchedules = (ViewBag.AvailableSchedules as List<CourseSchedule>) ?? new List<CourseSchedule>();
+
+    var baseSteps = new[]
+    {
+        ("basic",     "Basic Details",      "user"),
+        ("address",   "Address",            "map-pin"),
+        ("passport",  "Passport",           "book-open"),
+        ("emergency", "Emergency Contact",  "phone")
+    };
+    // Enrollment is a registration-time-only convenience — never shown when
+    // editing an existing student, same rule as the Admin wizard.
+    var steps = isNew ? baseSteps.Append(("enrollment", "Enrollment", "graduation-cap")).ToArray() : baseSteps;
+
+    const string CardCls = "bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 p-6 space-y-4";
+    const string LabelCls = "text-sm font-medium text-slate-700 dark:text-slate-300";
+    const string InputCls = "w-full rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 px-4 py-2.5 text-sm outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400";
+    const string PrimaryBtn = "px-5 py-2.5 rounded-xl font-medium bg-[#dc2626] text-white hover:bg-[#b91c1c] shadow-sm transition-all text-sm";
+    const string SecondaryBtn = "px-5 py-2.5 rounded-xl font-medium text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all text-sm";
+
+    var generatedPassword = TempData["GeneratedPassword"] as string;
+}
+
+<div class="max-w-3xl mx-auto page-enter">
+    <div class="flex items-center gap-3 mb-6">
+        <a asp-action="Index" class="p-2 rounded-xl text-slate-400 dark:text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+            <i data-lucide="arrow-left" class="w-5 h-5"></i>
+        </a>
+        <h2 class="text-2xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">@ViewData["Title"]</h2>
+    </div>
+
+    @if (!string.IsNullOrEmpty(generatedPassword))
+    {
+        <div class="mb-6 text-sm text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950 border border-emerald-100 dark:border-emerald-900 rounded-xl px-4 py-3">
+            Student account created. Temporary password: <span class="font-mono font-semibold">@generatedPassword</span> — share this with the student so they can sign in and change it.
+        </div>
+    }
+
+    @if (!ViewData.ModelState.IsValid)
+    {
+        <div class="mb-6 text-sm text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-950 border border-red-100 dark:border-red-900 rounded-xl px-4 py-3">
+            <p class="font-medium mb-1">Please fix the following:</p>
+            <ul class="list-disc list-inside space-y-0.5">
+                @foreach (var entry in ViewData.ModelState)
+                {
+                    foreach (var err in entry.Value.Errors)
+                    {
+                        <li>@(string.IsNullOrEmpty(err.ErrorMessage) ? "invalid value" : err.ErrorMessage)</li>
+                    }
+                }
+            </ul>
+        </div>
+    }
+
+    @* ---------- Step indicator ---------- *@
+    <div class="flex items-center gap-2 mb-6 overflow-x-auto">
+        @for (var idx = 0; idx < steps.Length; idx++)
+        {
+            var (key, label, icon) = steps[idx];
+            <div class="step-indicator flex items-center gap-2 flex-shrink-0" data-step-index="@idx">
+                <div class="step-dot w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold border-2 transition-colors @(idx == 0 ? "border-[#dc2626] bg-[#dc2626] text-white" : "border-slate-200 dark:border-slate-600 text-slate-400 dark:text-slate-500")">
+                    @(idx + 1)
+                </div>
+                <span class="step-label text-sm font-medium @(idx == 0 ? "text-slate-800 dark:text-slate-100" : "text-slate-400 dark:text-slate-500")">@label</span>
+            </div>
+            if (idx < steps.Length - 1)
+            {
+                <div class="flex-1 h-0.5 bg-slate-200 dark:bg-slate-700 min-w-[24px]"></div>
+            }
+        }
+    </div>
+
+    <form method="post" asp-action="Save" enctype="multipart/form-data" class="space-y-6" id="agentStudentWizardForm">
+        @Html.AntiForgeryToken()
+        <input type="hidden" asp-for="StudentID" />
+        <input type="hidden" asp-for="UserID" />
+        @if (!isNew)
+        {
+            <input type="hidden" asp-for="IsActive" />
+        }
+
+        @* ===== STEP 1: BASIC DETAILS ===== *@
+        <div class="wizard-step space-y-6" data-step="basic">
+            <div class="@CardCls">
+                <h3 class="font-semibold text-slate-800 dark:text-slate-100">Basic Details</h3>
+                <div class="flex items-center gap-4">
+                    @if (!string.IsNullOrEmpty(Model.ProfileImageUrl))
+                    {
+                        <img src="@Model.ProfileImageUrl" alt="" class="w-16 h-16 rounded-full object-cover" />
+                    }
+                    else
+                    {
+                        <div class="w-16 h-16 rounded-full bg-purple-50 dark:bg-purple-950 flex items-center justify-center text-[#7c3aed] dark:text-purple-300 font-semibold text-xl">?</div>
+                    }
+                    <div>
+                        <label class="@LabelCls block mb-1">Profile Photo</label>
+                        <input type="file" name="profileImage" accept="image/*,.svg,.jfif" class="text-sm" />
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="space-y-1">
+                        <label class="@LabelCls">First Name <span class="text-red-500">*</span></label>
+                        <input asp-for="FirstName" required class="@InputCls" />
+                        <span asp-validation-for="FirstName" class="text-xs text-red-600"></span>
+                    </div>
+                    <div class="space-y-1">
+                        <label class="@LabelCls">Last Name <span class="text-red-500">*</span></label>
+                        <input asp-for="LastName" required class="@InputCls" />
+                        <span asp-validation-for="LastName" class="text-xs text-red-600"></span>
+                    </div>
+                    <div class="space-y-1">
+                        <label class="@LabelCls">Email <span class="text-red-500">*</span></label>
+                        <input asp-for="Email" type="email" required="@isNew" class="@InputCls" readonly="@(!isNew)" />
+                        <span asp-validation-for="Email" class="text-xs text-red-600"></span>
+                    </div>
+                    <div class="space-y-1">
+                        <label class="@LabelCls">Phone <span class="text-red-500">*</span></label>
+                        <input asp-for="Phone" required class="@InputCls" />
+                        <span asp-validation-for="Phone" class="text-xs text-red-600"></span>
+                    </div>
+                    <div class="space-y-1">
+                        <label class="@LabelCls">Date of Birth <span class="text-red-500">*</span></label>
+                        <input asp-for="DateOfBirth" type="date" required class="@InputCls" />
+                        <span asp-validation-for="DateOfBirth" class="text-xs text-red-600"></span>
+                    </div>
+                    <div class="space-y-1">
+                        <label class="@LabelCls">Gender <span class="text-red-500">*</span></label>
+                        <select asp-for="Gender" required class="@InputCls">
+                            <option value="">Select...</option>
+                            <option value="Male">Male</option>
+                            <option value="Female">Female</option>
+                            <option value="Other">Other</option>
+                        </select>
+                        <span asp-validation-for="Gender" class="text-xs text-red-600"></span>
+                    </div>
+                    <div class="space-y-1">
+                        <label class="@LabelCls">Nationality <span class="text-red-500">*</span></label>
+                        <input asp-for="Nationality" required autocomplete="off" data-nationality-picker class="@InputCls" />
+                        <span asp-validation-for="Nationality" class="text-xs text-red-600"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        @* ===== STEP 2: ADDRESS ===== *@
+        <div class="wizard-step space-y-6 hidden" data-step="address">
+            <div class="@CardCls">
+                <h3 class="font-semibold text-slate-800 dark:text-slate-100">Address</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="space-y-1 md:col-span-2">
+                        <label class="@LabelCls">Address Line 1</label>
+                        <input asp-for="AddressLine1" class="@InputCls" />
+                    </div>
+                    <div class="space-y-1 md:col-span-2">
+                        <label class="@LabelCls">Address Line 2</label>
+                        <input asp-for="AddressLine2" class="@InputCls" />
+                    </div>
+                    <div class="space-y-1">
+                        <label class="@LabelCls">City</label>
+                        <input asp-for="City" class="@InputCls" />
+                    </div>
+                    <div class="space-y-1">
+                        <label class="@LabelCls">State / Province</label>
+                        <input asp-for="StateProvince" class="@InputCls" />
+                    </div>
+                    <div class="space-y-1">
+                        <label class="@LabelCls">Postal Code</label>
+                        <input asp-for="PostalCode" class="@InputCls" />
+                    </div>
+                    <div class="space-y-1">
+                        <label class="@LabelCls">Country</label>
+                        <input asp-for="Country" autocomplete="off" data-country-picker class="@InputCls" />
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        @* ===== STEP 3: PASSPORT ===== *@
+        <div class="wizard-step space-y-6 hidden" data-step="passport">
+            <div class="@CardCls">
+                <h3 class="font-semibold text-slate-800 dark:text-slate-100">Passport Information</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="space-y-1">
+                        <label class="@LabelCls">Passport Number <span class="text-red-500">*</span></label>
+                        <input asp-for="PassportNumber" required class="@InputCls" />
+                        <span asp-validation-for="PassportNumber" class="text-xs text-red-600"></span>
+                    </div>
+                    <div class="space-y-1">
+                        <label class="@LabelCls">Passport Country <span class="text-red-500">*</span></label>
+                        <input asp-for="PassportCountry" required autocomplete="off" data-country-picker class="@InputCls" />
+                        <span asp-validation-for="PassportCountry" class="text-xs text-red-600"></span>
+                    </div>
+                    <div class="space-y-1">
+                        <label class="@LabelCls">Passport Expiry Date <span class="text-red-500">*</span></label>
+                        <input asp-for="PassportExpiryDate" type="date" required class="@InputCls" />
+                        <span asp-validation-for="PassportExpiryDate" class="text-xs text-red-600"></span>
+                    </div>
+                    <div class="space-y-1">
+                        <label class="@LabelCls">Passport Photo @(isNew ? "*" : "")</label>
+                        @if (!string.IsNullOrEmpty(Model.PassportPhotoURL))
+                        {
+                            <a href="@Model.PassportPhotoURL" target="_blank" class="text-xs text-[#7c3aed] dark:text-purple-300 hover:underline block mb-1">Current photo</a>
+                        }
+                        <input type="file" name="passportPhoto" accept="image/*,.svg,.jfif,.pdf" class="text-sm" />
+                        <span asp-validation-for="PassportPhotoURL" class="text-xs text-red-600"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        @* ===== STEP 4: EMERGENCY CONTACT ===== *@
+        <div class="wizard-step space-y-6 hidden" data-step="emergency">
+            <div class="@CardCls">
+                <h3 class="font-semibold text-slate-800 dark:text-slate-100">Emergency Contact</h3>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="space-y-1">
+                        <label class="@LabelCls">Name</label>
+                        <input asp-for="EmergencyContactName" class="@InputCls" />
+                    </div>
+                    <div class="space-y-1">
+                        <label class="@LabelCls">Phone</label>
+                        <input asp-for="EmergencyContactPhone" class="@InputCls" />
+                    </div>
+                    <div class="space-y-1">
+                        <label class="@LabelCls">Relationship</label>
+                        <input asp-for="EmergencyRelationship" class="@InputCls" />
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        @if (isNew)
+        {
+            @* ===== STEP 5: ENROLLMENT (registration-time only) ===== *@
+            <div class="wizard-step space-y-6 hidden" data-step="enrollment">
+                <div class="@CardCls">
+                    <h3 class="font-semibold text-slate-800 dark:text-slate-100">Course Enrollment (optional)</h3>
+                    @if (!availableCourses.Any())
+                    {
+                        <p class="text-sm text-slate-400 dark:text-slate-500">No active courses available.</p>
+                    }
+                    else
+                    {
+                        <div class="space-y-2 max-h-64 overflow-y-auto pr-1">
+                            @foreach (var course in availableCourses)
+                            {
+                                var courseSchedules = availableSchedules.Where(s => s.CourseID == course.CourseID).ToList();
+                                <div class="rounded-xl border border-slate-100 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/60">
+                                    <label class="flex items-center justify-between gap-3 px-3 py-2 cursor-pointer">
+                                        <span class="flex items-center gap-2">
+                                            <input type="checkbox" name="SelectedCourseIDs" value="@course.CourseID" data-fee="@(course.Fee ?? 0)"
+                                                   class="course-checkbox rounded border-slate-300 dark:border-slate-600 text-[#dc2626] focus:ring-[#dc2626]" />
+                                            <span class="text-sm text-slate-700 dark:text-slate-200">@course.CourseTitle</span>
+                                        </span>
+                                        <span class="text-xs text-slate-400 dark:text-slate-500 whitespace-nowrap">@course.CurrencyCode @((course.Fee ?? 0).ToString("N2"))</span>
+                                    </label>
+                                    <div class="course-schedule-wrap hidden px-3 pb-2 pl-9" data-course-id="@course.CourseID">
+                                        @if (!courseSchedules.Any())
+                                        {
+                                            <p class="text-xs text-slate-400 dark:text-slate-500">No batches scheduled — this course will be enrolled without a batch.</p>
+                                        }
+                                        else
+                                        {
+                                            <select class="course-schedule-select w-full rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 px-3 py-1.5 text-xs outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400" data-course-id="@course.CourseID">
+                                                <option value="">Select a batch...</option>
+                                                @foreach (var sch in courseSchedules)
+                                                {
+                                                    <option value="@sch.ScheduleID">@sch.ScheduleName</option>
+                                                }
+                                            </select>
+                                        }
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                        <div id="enrollmentTotal" class="text-sm font-medium text-slate-700 dark:text-slate-200">Total: 0.00</div>
+                        @if (availableCourses.Count > 1)
+                        {
+                            <p class="text-xs text-slate-400 dark:text-slate-500">If you select more than one course, the payment below will be applied only to the first course listed.</p>
+                        }
+                        <input type="hidden" name="CourseScheduleSelectionsJson" id="courseScheduleSelectionsJson" value="" />
+                    }
+                </div>
+
+                <div class="@CardCls">
+                    <h3 class="font-semibold text-slate-800 dark:text-slate-100">Payment (optional)</h3>
+                    <p class="text-xs text-slate-400 dark:text-slate-500">A payment recorded here still needs to be verified by an administrator before it counts as confirmed.</p>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="space-y-1">
+                            <label class="@LabelCls block mb-1">Payment Method</label>
+                            <div class="flex items-center gap-6 mt-2">
+                                <label class="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-200 cursor-pointer">
+                                    <input type="radio" name="PaymentMethod" value="" checked class="payment-method-radio text-[#dc2626] focus:ring-[#dc2626]" />
+                                    None
+                                </label>
+                                <label class="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-200 cursor-pointer">
+                                    <input type="radio" name="PaymentMethod" value="Cash" class="payment-method-radio text-[#dc2626] focus:ring-[#dc2626]" />
+                                    Cash
+                                </label>
+                                <label class="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-200 cursor-pointer">
+                                    <input type="radio" name="PaymentMethod" value="BankDeposit" class="payment-method-radio text-[#dc2626] focus:ring-[#dc2626]" />
+                                    Bank Deposit
+                                </label>
+                            </div>
+                        </div>
+                        <div class="space-y-1">
+                            <label class="@LabelCls">Initial Payment Amount</label>
+                            <input id="initialPaymentAmount" name="InitialPaymentAmount" type="number" step="0.01" min="0" class="@InputCls" />
+                            <p id="paymentAmountError" class="hidden text-xs text-red-600"></p>
+                        </div>
+                    </div>
+
+                    <div id="payment-slip-field" class="hidden space-y-1">
+                        <label class="@LabelCls">Payment Slip / Receipt <span class="text-red-500">*</span></label>
+                        <p class="text-xs text-slate-400 dark:text-slate-500">Upload proof of the bank deposit — required for the payment to be considered for verification.</p>
+                        <input id="paymentSlipInput" type="file" name="paymentSlip" accept="image/*,.svg,.jfif,.pdf" class="text-sm" />
+                    </div>
+
+                    <div class="space-y-1">
+                        <label class="@LabelCls">Payment Notes</label>
+                        <input name="PaymentNotes" class="@InputCls" />
+                    </div>
+                </div>
+
+                <div class="@CardCls">
+                    <label class="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300 cursor-pointer">
+                        <input asp-for="SendWelcomeEmail" type="checkbox" checked class="rounded border-slate-300 dark:border-slate-600 text-[#dc2626] focus:ring-[#dc2626]" />
+                        Send the student a welcome email with their login details
+                    </label>
+                </div>
+            </div>
+        }
+
+        <div class="flex items-center justify-between">
+            <a asp-action="Index" class="@SecondaryBtn">Cancel</a>
+            <div class="flex items-center gap-3">
+                <button type="button" id="wizardBackBtn" class="@SecondaryBtn hidden">
+                    <i data-lucide="arrow-left" class="w-4 h-4 inline -mt-0.5 mr-1"></i>Back
+                </button>
+                <button type="button" id="wizardNextBtn" class="@PrimaryBtn">
+                    Next<i data-lucide="arrow-right" class="w-4 h-4 inline -mt-0.5 ml-1"></i>
+                </button>
+                <button type="submit" id="wizardSaveBtn" class="@PrimaryBtn hidden">@(isNew ? "Register Student" : "Save Changes")</button>
+            </div>
+        </div>
+    </form>
+</div>
+
+<script src="~/js/country-picker.js"></script>
+<script>
+    (function () {
+        // ---------- Course checkbox -> batch dropdown reveal + running total ----------
+        const checkboxes = document.querySelectorAll('.course-checkbox');
+        const totalEl = document.getElementById('enrollmentTotal');
+        const scheduleJsonInput = document.getElementById('courseScheduleSelectionsJson');
+        const amountInput = document.getElementById('initialPaymentAmount');
+        const amountError = document.getElementById('paymentAmountError');
+
+        function recalcTotal() {
+            if (!totalEl) return;
+            let total = 0;
+            checkboxes.forEach(cb => { if (cb.checked) total += parseFloat(cb.dataset.fee || '0'); });
+            totalEl.textContent = 'Total: ' + total.toFixed(2);
+        }
+
+        // Payment applies only to the FIRST course checked in DOM order (see
+        // the note above the checkbox list, and Agent StudentController.Save
+        // which enrolls in checkbox order and only passes initialAmount for
+        // the first) -- so the cap is that course's fee, not the combined
+        // total of every course selected.
+        function firstSelectedCourseFee() {
+            for (const cb of checkboxes) {
+                if (cb.checked) return parseFloat(cb.dataset.fee || '0');
+            }
+            return null;
+        }
+
+        function validatePaymentAmount() {
+            if (!amountInput) return true;
+            const fee = firstSelectedCourseFee();
+            const amount = parseFloat(amountInput.value || '0');
+            if (fee !== null && amount > fee) {
+                amountInput.setCustomValidity('Payment amount cannot exceed the course fee (' + fee.toFixed(2) + ').');
+                if (amountError) {
+                    amountError.textContent = 'Cannot exceed the course fee of ' + fee.toFixed(2) + '.';
+                    amountError.classList.remove('hidden');
+                }
+                return false;
+            }
+            amountInput.setCustomValidity('');
+            if (amountError) amountError.classList.add('hidden');
+            return true;
+        }
+
+        function syncScheduleJson() {
+            if (!scheduleJsonInput) return;
+            const map = {};
+            document.querySelectorAll('.course-schedule-select').forEach(sel => {
+                if (sel.value) map[sel.dataset.courseId] = sel.value;
+            });
+            scheduleJsonInput.value = JSON.stringify(map);
+        }
+
+        checkboxes.forEach(cb => {
+            cb.addEventListener('change', () => {
+                const wrap = document.querySelector('.course-schedule-wrap[data-course-id="' + cb.value + '"]');
+                if (wrap) wrap.classList.toggle('hidden', !cb.checked);
+                recalcTotal();
+                syncScheduleJson();
+                validatePaymentAmount();
+            });
+        });
+        document.querySelectorAll('.course-schedule-select').forEach(sel => {
+            sel.addEventListener('change', syncScheduleJson);
+        });
+        recalcTotal();
+
+        if (amountInput) {
+            const fee = firstSelectedCourseFee();
+            if (fee !== null) amountInput.setAttribute('max', fee.toFixed(2));
+            amountInput.addEventListener('input', validatePaymentAmount);
+        }
+
+        // ---------- Payment method -> slip upload reveal ----------
+        const slipField = document.getElementById('payment-slip-field');
+        const slipInput = document.getElementById('paymentSlipInput');
+        document.querySelectorAll('.payment-method-radio').forEach(radio => {
+            radio.addEventListener('change', () => {
+                const isBankDeposit = radio.value === 'BankDeposit' && radio.checked;
+                if (slipField) slipField.classList.toggle('hidden', !isBankDeposit);
+                if (slipInput) slipInput.required = isBankDeposit;
+            });
+        });
+
+        window.protonValidateAgentPaymentStep = function () {
+            if (!validatePaymentAmount()) {
+                amountInput.reportValidity();
+                return false;
+            }
+            if (slipInput && slipInput.required && slipInput.files.length === 0) {
+                slipInput.reportValidity();
+                return false;
+            }
+            return true;
+        };
+    })();
+
+    // ---------- Step wizard navigation ----------
+    (function () {
+        var steps = Array.from(document.querySelectorAll('.wizard-step'));
+        var indicators = Array.from(document.querySelectorAll('.step-indicator'));
+        var backBtn = document.getElementById('wizardBackBtn');
+        var nextBtn = document.getElementById('wizardNextBtn');
+        var saveBtn = document.getElementById('wizardSaveBtn');
+        var current = 0;
+
+        function showStep(index) {
+            steps.forEach(function (el, i) { el.classList.toggle('hidden', i !== index); });
+            indicators.forEach(function (el, i) {
+                var dot = el.querySelector('.step-dot');
+                var label = el.querySelector('.step-label');
+                var isActiveOrDone = i <= index;
+                dot.classList.toggle('border-[#dc2626]', isActiveOrDone);
+                dot.classList.toggle('bg-[#dc2626]', isActiveOrDone);
+                dot.classList.toggle('text-white', isActiveOrDone);
+                dot.classList.toggle('border-slate-200', !isActiveOrDone);
+                dot.classList.toggle('dark:border-slate-600', !isActiveOrDone);
+                dot.classList.toggle('text-slate-400', !isActiveOrDone);
+                dot.classList.toggle('dark:text-slate-500', !isActiveOrDone);
+                label.classList.toggle('text-slate-800', isActiveOrDone);
+                label.classList.toggle('dark:text-slate-100', isActiveOrDone);
+                label.classList.toggle('text-slate-400', !isActiveOrDone);
+                label.classList.toggle('dark:text-slate-500', !isActiveOrDone);
+            });
+            backBtn.classList.toggle('hidden', index === 0);
+            var isLast = index === steps.length - 1;
+            nextBtn.classList.toggle('hidden', isLast);
+            if (saveBtn) saveBtn.classList.toggle('hidden', !isLast);
+            current = index;
+        }
+
+        function validateCurrentStep() {
+            var inputs = steps[current].querySelectorAll('input[required], select[required]');
+            for (var i = 0; i < inputs.length; i++) {
+                if (!inputs[i].checkValidity()) {
+                    inputs[i].reportValidity();
+                    return false;
+                }
+            }
+            // Enrollment step's payment-amount cap / slip-required rule isn't
+            // expressible via plain HTML [required] (it depends on which
+            // course is checked and which payment method is picked) --
+            // window.protonValidateAgentPaymentStep only exists on the
+            // Enrollment step (new-student wizard), see the script block above.
+            if (steps[current].getAttribute('data-step') === 'enrollment' && window.protonValidateAgentPaymentStep) {
+                if (!window.protonValidateAgentPaymentStep()) return false;
+            }
+            return true;
+        }
+
+        nextBtn.addEventListener('click', function () {
+            if (!validateCurrentStep()) return;
+            if (current < steps.length - 1) showStep(current + 1);
+        });
+        backBtn.addEventListener('click', function () {
+            if (current > 0) showStep(current - 1);
+        });
+
+        var wizardForm = document.getElementById('agentStudentWizardForm');
+        if (wizardForm) {
+            wizardForm.addEventListener('submit', function (e) {
+                if (!validateCurrentStep()) { e.preventDefault(); return; }
+                if (wizardForm.dataset.submitting === '1') { e.preventDefault(); return; }
+                wizardForm.dataset.submitting = '1';
+                if (saveBtn) {
+                    saveBtn.disabled = true;
+                    saveBtn.textContent = 'Saving…';
+                }
+            });
+        }
+
+        indicators.forEach(function (el) {
+            el.addEventListener('click', function () {
+                var target = parseInt(el.getAttribute('data-step-index'), 10);
+                if (target <= current) showStep(target);
+            });
+            el.style.cursor = 'pointer';
+        });
+
+        showStep(0);
+        if (window.lucide) lucide.createIcons();
+    })();
+</script>

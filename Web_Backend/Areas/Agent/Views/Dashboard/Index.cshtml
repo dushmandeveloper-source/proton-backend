@@ -1,0 +1,90 @@
+@model AgentDashboardViewModel
+@{
+    ViewData["Title"] = "Overview";
+}
+
+<div class="page-enter">
+    <div class="mb-6">
+        <h2 class="text-2xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">Welcome, @Model.AgentName</h2>
+        <p class="text-slate-500 dark:text-slate-400 text-sm mt-1">Here's a quick look at the students you've registered.</p>
+    </div>
+
+    @if (Model.IsPendingApproval)
+    {
+        <div class="mb-6 flex items-start gap-3 rounded-2xl bg-amber-50 dark:bg-amber-950 border border-amber-100 dark:border-amber-900 px-5 py-4">
+            <i data-lucide="clock" class="w-5 h-5 text-amber-600 dark:text-amber-300 flex-shrink-0 mt-0.5"></i>
+            <div>
+                <p class="text-sm font-semibold text-amber-800 dark:text-amber-200">Account pending approval</p>
+                <p class="text-sm text-amber-700 dark:text-amber-300 mt-0.5">An administrator needs to approve your agent account before you can register students. You'll be notified once it's approved.</p>
+            </div>
+        </div>
+    }
+
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
+        <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 p-6 flex items-center gap-4">
+            <div class="w-12 h-12 rounded-2xl bg-red-50 dark:bg-red-950 flex items-center justify-center text-red-600 dark:text-red-400">
+                <i data-lucide="users" class="w-6 h-6"></i>
+            </div>
+            <div>
+                <p class="text-2xl font-bold text-slate-800 dark:text-slate-100">@Model.TotalStudents</p>
+                <p class="text-sm text-slate-500 dark:text-slate-400">Students registered</p>
+            </div>
+        </div>
+
+        @if (Model.IsPendingApproval)
+        {
+            <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 p-6 flex items-center gap-4 opacity-60 cursor-not-allowed">
+                <div class="w-12 h-12 rounded-2xl bg-purple-50 dark:bg-purple-950 flex items-center justify-center text-[#7c3aed] dark:text-purple-300">
+                    <i data-lucide="user-plus" class="w-6 h-6"></i>
+                </div>
+                <div>
+                    <p class="text-base font-semibold text-slate-800 dark:text-slate-100">Register a student</p>
+                    <p class="text-sm text-slate-500 dark:text-slate-400">Available once your account is approved</p>
+                </div>
+            </div>
+        }
+        else
+        {
+            <a asp-area="Agent" asp-controller="Student" asp-action="Add"
+               class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 p-6 flex items-center gap-4 hover:border-red-200 dark:hover:border-red-800 transition-colors">
+                <div class="w-12 h-12 rounded-2xl bg-purple-50 dark:bg-purple-950 flex items-center justify-center text-[#7c3aed] dark:text-purple-300">
+                    <i data-lucide="user-plus" class="w-6 h-6"></i>
+                </div>
+                <div>
+                    <p class="text-base font-semibold text-slate-800 dark:text-slate-100">Register a student</p>
+                    <p class="text-sm text-slate-500 dark:text-slate-400">Add a new student now</p>
+                </div>
+            </a>
+        }
+    </div>
+
+    <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
+        <div class="px-6 py-4 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between">
+            <h3 class="text-sm font-semibold text-slate-800 dark:text-slate-100">Recently registered</h3>
+            <a asp-area="Agent" asp-controller="Student" asp-action="Index" class="text-xs font-medium text-[#7c3aed] dark:text-purple-300 hover:underline">View all</a>
+        </div>
+        @if (Model.RecentStudents.Count == 0)
+        {
+            <p class="px-6 py-10 text-center text-sm text-slate-400 dark:text-slate-500">No students registered yet.</p>
+        }
+        else
+        {
+            <div class="divide-y divide-slate-100 dark:divide-slate-700">
+                @foreach (var s in Model.RecentStudents)
+                {
+                    <a asp-area="Agent" asp-controller="Student" asp-action="Details" asp-route-id="@s.StudentID"
+                       class="flex items-center gap-3 px-6 py-3 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors">
+                        <div class="w-9 h-9 rounded-full bg-purple-50 dark:bg-purple-950 flex items-center justify-center text-[#7c3aed] dark:text-purple-300 font-semibold text-sm flex-shrink-0">
+                            @(s.FirstName.Length > 0 ? s.FirstName[0].ToString().ToUpper() : "?")
+                        </div>
+                        <div class="min-w-0 flex-1">
+                            <p class="text-sm font-medium text-slate-800 dark:text-slate-100 truncate">@s.FullName</p>
+                            <p class="text-xs text-slate-500 dark:text-slate-400 truncate">@s.Email</p>
+                        </div>
+                        <span class="text-xs text-slate-400 dark:text-slate-500 flex-shrink-0">@s.CreatedDate.ToString("MMM d, yyyy")</span>
+                    </a>
+                }
+            </div>
+        }
+    </div>
+</div>

@@ -66,7 +66,7 @@ namespace Web_Backend.Areas.Admin.Controllers
             ViewBag.AvailableSchedules = schedules;
         }
 
-        public async Task<IActionResult> Index(string KeyW = "", bool showInactive = false, string enrollmentFilter = "", string paymentStatusFilter = "")
+        public async Task<IActionResult> Index(string KeyW = "", bool showInactive = false, string enrollmentFilter = "", string paymentStatusFilter = "", string agentUserId = "")
         {
             Auth.CheckPermission(PermissionCode.Students, 'V');
             ViewBag.CurrentUser = Auth.GetUser();
@@ -74,13 +74,19 @@ namespace Web_Backend.Areas.Admin.Controllers
             ViewBag.ShowInactive = showInactive;
             ViewBag.EnrollmentFilter = enrollmentFilter;
             ViewBag.PaymentStatusFilter = paymentStatusFilter;
+            ViewBag.AgentUserId = agentUserId;
+            ViewBag.Agents = await userRep.GetAgents();
 
             var list = await rep.GetList(new StudentSearchView
             {
                 KeyW = KeyW,
                 IsActive = showInactive ? "" : "A",
                 EnrollmentFilter = enrollmentFilter,
-                PaymentStatusFilter = paymentStatusFilter
+                PaymentStatusFilter = paymentStatusFilter,
+                // Picking a specific agent implies "registered by an agent" —
+                // CreatedByUserID alone is enough to scope the query without
+                // also requiring RegistrationSource = 'Agent' explicitly.
+                CreatedByUserID = agentUserId
             });
 
             // One aggregate query for every student's course-count/balance

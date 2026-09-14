@@ -12,7 +12,8 @@ namespace Web_Backend.Classes
     {
         Admin,
         Student,
-        Lecturer
+        Lecturer,
+        Agent
     }
 
     public class SignInOutcome
@@ -47,8 +48,8 @@ namespace Web_Backend.Classes
         }
 
         // Resolves which portal an account belongs to from its UserTypeID.
-        // Anything that isn't Student or Instructor is staff, so it belongs to
-        // the Admin portal — same rule AreaAccessFilter applies.
+        // Anything that isn't Student, Instructor, or Agent is staff, so it
+        // belongs to the Admin portal — same rule AreaAccessFilter applies.
         public async Task<Portal> GetPortalForUserType(string userTypeId)
         {
             var userTypes = await userTypeRep.GetList();
@@ -57,6 +58,9 @@ namespace Web_Backend.Classes
 
             var instructorTypeId = userTypes.FirstOrDefault(t => t.UserTypeName == "Instructor")?.UserTypeID;
             if (instructorTypeId != null && userTypeId == instructorTypeId) return Portal.Lecturer;
+
+            var agentTypeId = userTypes.FirstOrDefault(t => t.UserTypeName == "Agent")?.UserTypeID;
+            if (agentTypeId != null && userTypeId == agentTypeId) return Portal.Agent;
 
             return Portal.Admin;
         }
@@ -94,6 +98,7 @@ namespace Web_Backend.Classes
                 {
                     Portal.Student => "the Student sign-in page",
                     Portal.Lecturer => "the Lecturer sign-in page",
+                    Portal.Agent => "the Agent sign-in page",
                     _ => "the Admin sign-in page"
                 };
                 return new SignInOutcome { Success = false, ErrorMessage = $"This account signs in through {where}." };

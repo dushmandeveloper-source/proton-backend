@@ -103,6 +103,11 @@ namespace Web_Backend.Areas.Admin.Models
         // Database/migrations/0019_student_list_filters.sql for the EXISTS
         // subquery implementing this).
         public string PaymentStatusFilter { get; set; } = "";
+
+        // "" = no filtering (every existing caller). Non-blank scopes the
+        // list to students created by that one UserID -- the Agent portal's
+        // "my students" list (Areas/Agent/Controllers/StudentController.cs).
+        public string CreatedByUserID { get; set; } = "";
     }
 
     // Admin-side create/edit form: student identity (usr.Users fields) plus

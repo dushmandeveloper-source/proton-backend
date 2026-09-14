@@ -13,6 +13,7 @@
     var canViewEmailSettings = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.EmailSettings, 'V');
     var canViewEmailTemplates = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.EmailTemplates, 'V');
     var canViewUserManagement = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.UserManagement, 'V');
+    var canViewAgents = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.Agents, 'V');
     var canAddUser = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.UserManagement, 'A');
     var canViewLectureNotes = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.LectureNotes, 'V');
     var canViewLectureSchedule = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.LectureSchedule, 'V');
@@ -183,7 +184,7 @@ else
                         <a asp-area="Admin" asp-controller="LectureNote" asp-action="Index"
                            class="w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-200 group @(activeController == "LectureNote" ? "bg-slate-50/80 dark:bg-slate-700/60 text-slate-900 dark:text-slate-100 font-semibold" : "text-slate-500 dark:text-slate-400 hover:bg-slate-50/50 dark:hover:bg-slate-700/40 hover:text-slate-900 dark:hover:text-slate-100")">
                             <i data-lucide="file-text" class="w-5 h-5 @(activeController == "LectureNote" ? "text-[#5a43f1] dark:text-[#a78bfa]" : "text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300")"></i>
-                            <span>Lecture Notes</span>
+                            <span>Homework / Lecture Notes</span>
                         </a>
                     }
                     @if (canViewHolidayCalendar)
@@ -253,6 +254,14 @@ else
                        class="w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-200 group @(activeController == "Lecturer" ? "bg-slate-50/80 dark:bg-slate-700/60 text-slate-900 dark:text-slate-100 font-semibold" : "text-slate-500 dark:text-slate-400 hover:bg-slate-50/50 dark:hover:bg-slate-700/40 hover:text-slate-900 dark:hover:text-slate-100")">
                         <i data-lucide="user-cog" class="w-5 h-5 @(activeController == "Lecturer" ? "text-[#5a43f1] dark:text-[#a78bfa]" : "text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300")"></i>
                         <span>Lecturers</span>
+                    </a>
+                }
+                @if (canViewAgents)
+                {
+                    <a asp-area="Admin" asp-controller="Agent" asp-action="Index"
+                       class="w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-200 group @(activeController == "Agent" ? "bg-slate-50/80 dark:bg-slate-700/60 text-slate-900 dark:text-slate-100 font-semibold" : "text-slate-500 dark:text-slate-400 hover:bg-slate-50/50 dark:hover:bg-slate-700/40 hover:text-slate-900 dark:hover:text-slate-100")">
+                        <i data-lucide="briefcase" class="w-5 h-5 @(activeController == "Agent" ? "text-[#5a43f1] dark:text-[#a78bfa]" : "text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300")"></i>
+                        <span>Agents</span>
                     </a>
                 }
                 <a asp-area="Admin" asp-controller="Profile" asp-action="Index"

@@ -21,6 +21,9 @@ namespace Web_Backend.Classes
         public static string Lecturer(IConfiguration config, HttpRequest? request) =>
             Build(config["ApplicationSettings:LecturerPortalUrl"], request, "/Lecturer/Account/Login");
 
+        public static string Agent(IConfiguration config, HttpRequest? request) =>
+            Build(config["ApplicationSettings:AgentPortalUrl"], request, "/Agent/Account/Login");
+
         private static string Build(string? configuredBase, HttpRequest? request, string path)
         {
             var baseUrl = configuredBase;

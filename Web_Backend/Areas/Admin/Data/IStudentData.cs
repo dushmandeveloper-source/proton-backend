@@ -6,6 +6,7 @@ namespace Web_Backend.Areas.Admin.Data
     {
         Task<List<Student>> GetList(StudentSearchView search);
         Task<Student?> Get(string id);
+        Task<Student?> GetForAgent(string id, string agentUserId);
         Task<Student?> GetByUserID(string userId);
         Task<Student?> GetByPassportNumber(string passportNumber);
         Task<string> AddEdit(Student student);

@@ -1,6 +1,6 @@
 @model List<LectureMaterial>
 @{
-    ViewData["Title"] = "Lecture Notes";
+    ViewData["Title"] = "Homework / Lecture Notes";
     bool canAdd = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.LectureNotes, 'A');
     bool canDelete = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.LectureNotes, 'D');
     var batches = ViewBag.Batches as List<CourseSchedule> ?? new();
@@ -9,8 +9,8 @@
 <div class="max-w-5xl mx-auto page-enter">
     <div class="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
         <div>
-            <h2 class="text-3xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">Lecture Notes</h2>
-            <p class="text-slate-500 dark:text-slate-400 mt-2">Every material uploaded by lecturers and admins, across all batches.</p>
+            <h2 class="text-3xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">Homework / Lecture Notes</h2>
+            <p class="text-slate-500 dark:text-slate-400 mt-2">Every lecture note and homework assignment uploaded by lecturers and admins, across all batches.</p>
         </div>
         @if (canAdd)
         {
@@ -34,6 +34,10 @@
                     }
                 </select>
                 <input type="date" name="materialDate" required class="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" />
+                <select name="category" required class="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm">
+                    <option value="LectureNote">Lecture Note</option>
+                    <option value="Homework">Homework</option>
+                </select>
                 <input type="text" name="title" placeholder="Title" required class="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" />
                 <input type="file" name="file" required class="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" />
                 <textarea name="description" rows="2" placeholder="Description (optional)"
@@ -64,6 +68,7 @@
                             <th class="px-6 py-3 font-medium">Date</th>
                             <th class="px-6 py-3 font-medium">Batch</th>
                             <th class="px-6 py-3 font-medium">Title</th>
+                            <th class="px-6 py-3 font-medium">Category</th>
                             <th class="px-6 py-3 font-medium">Type</th>
                             <th class="px-6 py-3 font-medium">Uploaded By</th>
                             <th class="px-6 py-3 font-medium text-right">Actions</th>
@@ -76,6 +81,11 @@
                                 <td class="px-6 py-3 text-slate-600 dark:text-slate-300">@m.MaterialDate.ToString("MMM d, yyyy")</td>
                                 <td class="px-6 py-3 text-slate-600 dark:text-slate-300">@m.CourseTitle &middot; @m.ScheduleName</td>
                                 <td class="px-6 py-3 font-medium text-slate-800 dark:text-slate-100">@m.Title</td>
+                                <td class="px-6 py-3">
+                                    <span class="px-2 py-0.5 rounded-full text-xs font-medium @(m.Category == "Homework" ? "bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-300" : "bg-purple-50 dark:bg-purple-950 text-[#7c3aed] dark:text-purple-300")">
+                                        @(m.Category == "Homework" ? "Homework" : "Lecture Note")
+                                    </span>
+                                </td>
                                 <td class="px-6 py-3 text-slate-500 dark:text-slate-400">@m.FileType</td>
                                 <td class="px-6 py-3 text-slate-500 dark:text-slate-400">@m.UploadedByName (@m.UploadedByRole)</td>
                                 <td class="px-6 py-3 text-right">

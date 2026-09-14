@@ -48,25 +48,28 @@ namespace Web_Backend.Classes
             var userTypes = await userTypeRep.GetList();
             var studentTypeId = userTypes.FirstOrDefault(t => t.UserTypeName == "Student")?.UserTypeID;
             var instructorTypeId = userTypes.FirstOrDefault(t => t.UserTypeName == "Instructor")?.UserTypeID;
+            var agentTypeId = userTypes.FirstOrDefault(t => t.UserTypeName == "Agent")?.UserTypeID;
             var isStudent = studentTypeId != null && user.Role == studentTypeId;
             var isInstructor = instructorTypeId != null && user.Role == instructorTypeId;
-            // Anyone who is neither Student nor Instructor is a staff account
-            // (Master Admin, Admin, SuperAdmin, ...) — the Admin area's own
-            // per-module permission checks (Auth.CheckPermission) still gate
-            // what a staff account can do once inside.
-            var isStaff = !isStudent && !isInstructor;
+            var isAgent = agentTypeId != null && user.Role == agentTypeId;
+            // Anyone who is neither Student, Instructor, nor Agent is a staff
+            // account (Master Admin, Admin, SuperAdmin, ...) — the Admin
+            // area's own per-module permission checks (Auth.CheckPermission)
+            // still gate what a staff account can do once inside.
+            var isStaff = !isStudent && !isInstructor && !isAgent;
 
             var allowed = area switch
             {
                 "Student" => isStudent,
                 "Lecturer" => isInstructor,
+                "Agent" => isAgent,
                 "Admin" => isStaff,
                 _ => true
             };
 
             if (!allowed)
             {
-                var home = isStudent ? "Student" : isInstructor ? "Lecturer" : "Admin";
+                var home = isStudent ? "Student" : isInstructor ? "Lecturer" : isAgent ? "Agent" : "Admin";
                 context.Result = new Microsoft.AspNetCore.Mvc.RedirectToActionResult("Index", "Dashboard", new { area = home });
                 return;
             }
