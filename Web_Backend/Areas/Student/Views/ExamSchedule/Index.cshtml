@@ -74,7 +74,8 @@
                                 {
                                     Web_Backend.Areas.Admin.Models.ExamJoinRow? examJoin = null;
                                     examJoinRows?.TryGetValue(seg.CourseID, out examJoin);
-                                    var canJoinExam = isToday && examJoin != null && examJoin.CanJoin;
+                                    var hasPendingReview = examJoin != null && examJoin.HasPendingReview;
+                                    var canJoinExam = !hasPendingReview && isToday && examJoin != null && examJoin.CanJoin;
                                     return new
                                     {
                                         examId = seg.CourseID,
@@ -87,6 +88,7 @@
                                         meetingLink = Model.IsContentRestricted ? null : seg.MeetingLink,
                                         isMakeup = seg.CourseTitle.EndsWith("(Makeup Exam)"),
                                         canJoinExam = canJoinExam,
+                                        hasPendingReview = hasPendingReview,
                                         joinBlockedReason = examJoin == null ? "" : !isToday ? "Only available on the scheduled day" : !examJoin.IsWithinWindow ? "Not open yet" : "Maximum attempts reached",
                                         attemptsUsed = examJoin?.AttemptsUsed,
                                         maxAttempts = examJoin?.MaxAttempts
@@ -168,7 +170,9 @@
                             </div>
                         </div>
                         <div class="flex flex-col items-end gap-2 flex-shrink-0">
-                            ${e.canJoinExam
+                            ${e.hasPendingReview
+                                ? `<a href="/Student/MyResults/Index" class="px-3 py-1.5 rounded-lg font-medium text-xs bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900 transition-colors flex items-center gap-1" title="Your last attempt is still being graded/approved"><i data-lucide="clock" class="w-3.5 h-3.5"></i> Pending Review</a>`
+                                : e.canJoinExam
                                 ? `<a href="/Student/ExamAttempt/Start?examId=${encodeURIComponent(e.examId)}" class="px-3 py-1.5 rounded-lg font-medium text-xs bg-amber-500 text-slate-900 hover:bg-amber-600 transition-colors flex items-center gap-1"><i data-lucide="file-edit" class="w-3.5 h-3.5"></i> Join Exam</a>`
                                 : (e.maxAttempts != null ? `<span class="px-3 py-1.5 rounded-lg font-medium text-xs bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 cursor-not-allowed" title="${e.joinBlockedReason}">Join Exam</span>` : '')}
                             ${e.meetingLink ? `<a href="${e.meetingLink}" target="_blank" rel="noopener" class="px-3 py-1.5 rounded-lg font-medium text-xs bg-[#0284c7] text-white hover:bg-[#0369a1] transition-colors flex items-center gap-1"><i data-lucide="video" class="w-3.5 h-3.5"></i> Join</a>` : ''}

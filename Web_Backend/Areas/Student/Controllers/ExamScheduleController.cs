@@ -159,6 +159,12 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
             var now = DateTime.Now;
             var joinRows = new Dictionary<string, ExamJoinRow>();
             var seenExamIds = new HashSet<string>();
+
+            // Same "don't offer Join while a submitted attempt is still
+            // awaiting grading/approval" check as DashboardController's
+            // "This Week" list -- see ExamJoinRow.HasPendingReview.
+            var studentAttempts = await attemptRep.ListForStudent(student.StudentID);
+
             foreach (var seg in examSegments)
             {
                 if (!seenExamIds.Add(seg.ExamID))
@@ -173,6 +179,11 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
 
                 var attemptsUsed = await attemptRep.CountByExamAndStudent(seg.ExamID, student.StudentID);
 
+                var hasPendingReview = studentAttempts.Any(a =>
+                    a.ExamID == seg.ExamID &&
+                    a.Status != "InProgress" &&
+                    !a.ResultReleasedDate.HasValue);
+
                 joinRows[seg.ExamID] = new ExamJoinRow
                 {
                     ExamID = seg.ExamID,
@@ -181,7 +192,8 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
                     WindowEnd = windowEnd,
                     IsWithinWindow = withinWindow,
                     AttemptsUsed = attemptsUsed,
-                    MaxAttempts = exam.MaxAttempts
+                    MaxAttempts = exam.MaxAttempts,
+                    HasPendingReview = hasPendingReview
                 };
             }
 

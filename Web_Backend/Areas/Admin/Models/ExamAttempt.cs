@@ -107,6 +107,16 @@ namespace Web_Backend.Areas.Admin.Models
         public bool IsWithinWindow { get; set; }
         public int AttemptsUsed { get; set; }
         public int MaxAttempts { get; set; }
-        public bool CanJoin => IsWithinWindow && AttemptsUsed < MaxAttempts;
+
+        // True when the student has a finalized attempt for this exam that
+        // hasn't finished the two-stage approval gate yet (submitted, but
+        // TeacherReviewStatus and/or AdminReviewStatus still not Approved,
+        // and no ResultReleasedDate) -- there is no point letting them start
+        // another attempt while one is still awaiting grading/approval, so
+        // the dashboard shows "Pending Review" instead of "Join" for this
+        // exam regardless of MaxAttempts/window.
+        public bool HasPendingReview { get; set; }
+
+        public bool CanJoin => !HasPendingReview && IsWithinWindow && AttemptsUsed < MaxAttempts;
     }
 }

@@ -96,6 +96,14 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
             var joinRows = new Dictionary<string, Web_Backend.Areas.Admin.Models.ExamJoinRow>();
             var seenExamIds = new HashSet<string>();
 
+            // Every attempt this student has ever made, any exam -- used
+            // below purely to detect a still-pending-review one per exam so
+            // the dashboard can show "Pending Review" instead of "Join" (no
+            // point starting another attempt while one is still awaiting
+            // grading/approval). Fetched once outside the loop rather than
+            // per-exam, same reasoning as reusing examSegments' window above.
+            var studentAttempts = await attemptRep.ListForStudent(student.StudentID);
+
             foreach (var seg in examSegments)
             {
                 if (!seenExamIds.Add(seg.ExamID))
@@ -110,6 +118,11 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
 
                 var attemptsUsed = await attemptRep.CountByExamAndStudent(seg.ExamID, student.StudentID);
 
+                var hasPendingReview = studentAttempts.Any(a =>
+                    a.ExamID == seg.ExamID &&
+                    a.Status != "InProgress" &&
+                    !a.ResultReleasedDate.HasValue);
+
                 joinRows[seg.ExamID] = new Web_Backend.Areas.Admin.Models.ExamJoinRow
                 {
                     ExamID = seg.ExamID,
@@ -118,7 +131,8 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
                     WindowEnd = windowEnd,
                     IsWithinWindow = withinWindow,
                     AttemptsUsed = attemptsUsed,
-                    MaxAttempts = exam.MaxAttempts
+                    MaxAttempts = exam.MaxAttempts,
+                    HasPendingReview = hasPendingReview
                 };
             }
 
