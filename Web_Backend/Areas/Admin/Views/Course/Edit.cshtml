@@ -60,14 +60,14 @@
             <input type="hidden" asp-for="Course.HandbookFileURL" />
             @Html.Hidden("tab", "details")
             @* Content/pricing/combo JSON is preserved across the Details-tab save via hidden fields so a Details-only submit doesn't wipe other tabs' data. *@
-            <input type="hidden" name="DescriptionJSON" value="@Html.Raw(System.Text.Json.JsonSerializer.Serialize(c.Descriptions))" />
-            <input type="hidden" name="PathwayJSON" value="@Html.Raw(System.Text.Json.JsonSerializer.Serialize(c.Pathways))" />
-            <input type="hidden" name="TrainingPointJSON" value="@Html.Raw(System.Text.Json.JsonSerializer.Serialize(c.TrainingPoints))" />
-            <input type="hidden" name="OutcomeJSON" value="@Html.Raw(System.Text.Json.JsonSerializer.Serialize(c.Outcomes))" />
-            <input type="hidden" name="RequirementJSON" value="@Html.Raw(System.Text.Json.JsonSerializer.Serialize(c.Requirements))" />
-            <input type="hidden" name="PricingJSON" value="@Html.Raw(System.Text.Json.JsonSerializer.Serialize(c.PricingDetails))" />
-            <input type="hidden" name="FeeChargeJSON" value="@Html.Raw(System.Text.Json.JsonSerializer.Serialize(c.FeeCharges))" />
-            <input type="hidden" name="ComboOfferJSON" value="@Html.Raw(System.Text.Json.JsonSerializer.Serialize(c.ComboOffers))" />
+            <input type="hidden" name="DescriptionJSON" value="@System.Text.Json.JsonSerializer.Serialize(c.Descriptions)" />
+            <input type="hidden" name="PathwayJSON" value="@System.Text.Json.JsonSerializer.Serialize(c.Pathways)" />
+            <input type="hidden" name="TrainingPointJSON" value="@System.Text.Json.JsonSerializer.Serialize(c.TrainingPoints)" />
+            <input type="hidden" name="OutcomeJSON" value="@System.Text.Json.JsonSerializer.Serialize(c.Outcomes)" />
+            <input type="hidden" name="RequirementJSON" value="@System.Text.Json.JsonSerializer.Serialize(c.Requirements)" />
+            <input type="hidden" name="PricingJSON" value="@System.Text.Json.JsonSerializer.Serialize(c.PricingDetails)" />
+            <input type="hidden" name="FeeChargeJSON" value="@System.Text.Json.JsonSerializer.Serialize(c.FeeCharges)" />
+            <input type="hidden" name="ComboOfferJSON" value="@System.Text.Json.JsonSerializer.Serialize(c.ComboOffers)" />
 
             <div>
                 <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Course Type <span class="text-red-500">*</span></label>
@@ -189,7 +189,7 @@
                            class="flex-1 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" />
                     @if (!string.IsNullOrEmpty(c.VideoURL))
                     {
-                        <button type="button" onclick="openCourseVideoPreview('@Html.Raw(System.Text.Json.JsonSerializer.Serialize(c.VideoURL))')"
+                        <button type="button" onclick="openCourseVideoPreview(document.getElementById('video-url-input').value)"
                                 class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-purple-50 dark:bg-purple-950 text-[#7c3aed] dark:text-purple-300 text-sm font-medium hover:bg-purple-100 dark:hover:bg-purple-900 whitespace-nowrap">
                             <i data-lucide="play-circle" class="w-4 h-4"></i> Preview
                         </button>
@@ -272,9 +272,9 @@
                 <input type="hidden" name="PathwayJSON" id="PathwayJSON" />
             </div>
 
-            <input type="hidden" name="PricingJSON" value="@Html.Raw(System.Text.Json.JsonSerializer.Serialize(c.PricingDetails))" />
-            <input type="hidden" name="FeeChargeJSON" value="@Html.Raw(System.Text.Json.JsonSerializer.Serialize(c.FeeCharges))" />
-            <input type="hidden" name="ComboOfferJSON" value="@Html.Raw(System.Text.Json.JsonSerializer.Serialize(c.ComboOffers))" />
+            <input type="hidden" name="PricingJSON" value="@System.Text.Json.JsonSerializer.Serialize(c.PricingDetails)" />
+            <input type="hidden" name="FeeChargeJSON" value="@System.Text.Json.JsonSerializer.Serialize(c.FeeCharges)" />
+            <input type="hidden" name="ComboOfferJSON" value="@System.Text.Json.JsonSerializer.Serialize(c.ComboOffers)" />
 
             @if (canEdit)
             {
@@ -315,12 +315,12 @@
             <input type="hidden" name="CourseType" value="@c.CourseType" />
             <input type="hidden" name="CourseTitle" value="@c.CourseTitle" />
             <input type="hidden" name="tab" value="pricing" />
-            <input type="hidden" name="DescriptionJSON" value="@Html.Raw(System.Text.Json.JsonSerializer.Serialize(c.Descriptions))" />
-            <input type="hidden" name="PathwayJSON" value="@Html.Raw(System.Text.Json.JsonSerializer.Serialize(c.Pathways))" />
-            <input type="hidden" name="TrainingPointJSON" value="@Html.Raw(System.Text.Json.JsonSerializer.Serialize(c.TrainingPoints))" />
-            <input type="hidden" name="OutcomeJSON" value="@Html.Raw(System.Text.Json.JsonSerializer.Serialize(c.Outcomes))" />
-            <input type="hidden" name="RequirementJSON" value="@Html.Raw(System.Text.Json.JsonSerializer.Serialize(c.Requirements))" />
-            <input type="hidden" name="ComboOfferJSON" value="@Html.Raw(System.Text.Json.JsonSerializer.Serialize(c.ComboOffers))" />
+            <input type="hidden" name="DescriptionJSON" value="@System.Text.Json.JsonSerializer.Serialize(c.Descriptions)" />
+            <input type="hidden" name="PathwayJSON" value="@System.Text.Json.JsonSerializer.Serialize(c.Pathways)" />
+            <input type="hidden" name="TrainingPointJSON" value="@System.Text.Json.JsonSerializer.Serialize(c.TrainingPoints)" />
+            <input type="hidden" name="OutcomeJSON" value="@System.Text.Json.JsonSerializer.Serialize(c.Outcomes)" />
+            <input type="hidden" name="RequirementJSON" value="@System.Text.Json.JsonSerializer.Serialize(c.Requirements)" />
+            <input type="hidden" name="ComboOfferJSON" value="@System.Text.Json.JsonSerializer.Serialize(c.ComboOffers)" />
 
             <div>
                 <h3 class="font-semibold text-slate-800 dark:text-slate-100 mb-3">Pricing Tiers</h3>
@@ -425,13 +425,13 @@
             <input type="hidden" name="CourseType" value="@c.CourseType" />
             <input type="hidden" name="CourseTitle" value="@c.CourseTitle" />
             <input type="hidden" name="tab" value="combo" />
-            <input type="hidden" name="DescriptionJSON" value="@Html.Raw(System.Text.Json.JsonSerializer.Serialize(c.Descriptions))" />
-            <input type="hidden" name="PathwayJSON" value="@Html.Raw(System.Text.Json.JsonSerializer.Serialize(c.Pathways))" />
-            <input type="hidden" name="TrainingPointJSON" value="@Html.Raw(System.Text.Json.JsonSerializer.Serialize(c.TrainingPoints))" />
-            <input type="hidden" name="OutcomeJSON" value="@Html.Raw(System.Text.Json.JsonSerializer.Serialize(c.Outcomes))" />
-            <input type="hidden" name="RequirementJSON" value="@Html.Raw(System.Text.Json.JsonSerializer.Serialize(c.Requirements))" />
-            <input type="hidden" name="PricingJSON" value="@Html.Raw(System.Text.Json.JsonSerializer.Serialize(c.PricingDetails))" />
-            <input type="hidden" name="FeeChargeJSON" value="@Html.Raw(System.Text.Json.JsonSerializer.Serialize(c.FeeCharges))" />
+            <input type="hidden" name="DescriptionJSON" value="@System.Text.Json.JsonSerializer.Serialize(c.Descriptions)" />
+            <input type="hidden" name="PathwayJSON" value="@System.Text.Json.JsonSerializer.Serialize(c.Pathways)" />
+            <input type="hidden" name="TrainingPointJSON" value="@System.Text.Json.JsonSerializer.Serialize(c.TrainingPoints)" />
+            <input type="hidden" name="OutcomeJSON" value="@System.Text.Json.JsonSerializer.Serialize(c.Outcomes)" />
+            <input type="hidden" name="RequirementJSON" value="@System.Text.Json.JsonSerializer.Serialize(c.Requirements)" />
+            <input type="hidden" name="PricingJSON" value="@System.Text.Json.JsonSerializer.Serialize(c.PricingDetails)" />
+            <input type="hidden" name="FeeChargeJSON" value="@System.Text.Json.JsonSerializer.Serialize(c.FeeCharges)" />
 
             <h3 class="font-semibold text-slate-800 dark:text-slate-100 mb-1">Combo Offers</h3>
             <div id="combo-rows" class="space-y-2">

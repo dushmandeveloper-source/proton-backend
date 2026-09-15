@@ -17,5 +17,12 @@ namespace Web_Backend.Areas.StudentPortal.Models
         // which joins mst.CourseRegistration so ownership is already
         // enforced by the sproc, not filtered again here.
         public List<LectureMaterial> Materials { get; set; } = new();
+
+        // Payment-gated course videos for this registration's course — see
+        // ICourseVideoData.ListForStudent (edu.CourseVideo_ListForStudent),
+        // which already nulls out FileURL/ExternalURL server-side for any
+        // row where PaymentStatus <> 'Paid', so a locked video's URL never
+        // reaches this view model in the first place.
+        public List<CourseVideo> Videos { get; set; } = new();
     }
 }

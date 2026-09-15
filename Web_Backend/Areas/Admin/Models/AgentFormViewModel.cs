@@ -14,6 +14,8 @@ namespace Web_Backend.Areas.Admin.Models
         public string Phone { get; set; } = "";
         public string ProfileImageUrl { get; set; } = "";
 
+        public string CompanyName { get; set; } = "";
+
         public DateTime? DateOfBirth { get; set; }
         public string Gender { get; set; } = "";
         public string Nationality { get; set; } = "";

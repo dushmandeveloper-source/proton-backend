@@ -1,0 +1,183 @@
+@model List<CourseVideo>
+@{
+    ViewData["Title"] = "Course Videos";
+    bool canAdd = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.CourseVideos, 'A');
+    bool canDelete = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.CourseVideos, 'D');
+    var courses = ViewBag.Courses as List<Course> ?? new();
+    var batches = ViewBag.Batches as List<CourseSchedule> ?? new();
+    var selectedCourseId = ViewBag.SelectedCourseId as string ?? "";
+}
+
+<div class="max-w-5xl mx-auto page-enter">
+    <div class="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
+        <div>
+            <h2 class="text-3xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">Course Videos</h2>
+            <p class="text-slate-500 dark:text-slate-400 mt-2">Payment-gated course content — students unlock playback once they've paid the course in full.</p>
+        </div>
+        @if (canAdd)
+        {
+            <button type="button" onclick="openUploadForm()"
+                    class="px-4 py-2 rounded-xl font-medium bg-[#7c3aed] text-white hover:bg-[#6d28d9] shadow-sm text-sm flex items-center gap-2 w-fit">
+                <i data-lucide="upload" class="w-4 h-4"></i> Add Video
+            </button>
+        }
+    </div>
+
+    <form method="get" class="mb-4 flex items-center gap-3">
+        <select name="courseId" onchange="this.form.submit()" class="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm">
+            <option value="">-- All courses --</option>
+            @foreach (var c in courses)
+            {
+                <option value="@c.CourseID" selected="@(c.CourseID == selectedCourseId)">@c.CourseTitle</option>
+            }
+        </select>
+    </form>
+
+    @if (canAdd)
+    {
+        <form id="upload-form" method="post" asp-action="Upload" enctype="multipart/form-data" class="hidden bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 p-6 mb-6">
+            @Html.AntiForgeryToken()
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <select name="courseId" required onchange="filterBatches(this.value)" class="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm">
+                    <option value="">-- Select course --</option>
+                    @foreach (var c in courses)
+                    {
+                        <option value="@c.CourseID">@c.CourseTitle</option>
+                    }
+                </select>
+
+                <select name="visibilityScope" required onchange="toggleBatchPicker(this.value)" class="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm">
+                    <option value="AllEnrolled">All enrolled students (any batch)</option>
+                    <option value="BatchOnly">One batch only</option>
+                </select>
+
+                <select id="batch-picker" name="scheduleId" disabled class="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm opacity-50">
+                    <option value="">-- Select batch --</option>
+                    @foreach (var b in batches)
+                    {
+                        <option value="@b.ScheduleID" data-course="@b.CourseID">@b.CourseTitle &middot; @b.ScheduleName</option>
+                    }
+                </select>
+
+                <select name="videoSourceType" required onchange="toggleSourceFields(this.value)" class="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm">
+                    <option value="Upload">Upload a video file</option>
+                    <option value="External">Link (YouTube / Google Drive / other)</option>
+                </select>
+
+                <input type="text" name="title" placeholder="Title" required class="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" />
+
+                <input id="file-field" type="file" name="file" accept=".mp4,.mov,.webm" class="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" />
+                <input id="external-field" type="url" name="externalUrl" placeholder="https://..." class="hidden px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" />
+
+                <textarea name="description" rows="2" placeholder="Description (optional)"
+                          class="md:col-span-2 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm"></textarea>
+            </div>
+            <p class="text-xs text-slate-400 dark:text-slate-500 mb-4">Uploaded videos: max 100 MB, MP4/MOV/WEBM only.</p>
+            <div class="flex gap-2">
+                <button type="submit" class="px-4 py-2 rounded-xl font-medium bg-[#7c3aed] text-white hover:bg-[#6d28d9] text-sm">Save</button>
+                <button type="button" onclick="closeUploadForm()"
+                        class="px-4 py-2 rounded-xl font-medium bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-sm">Cancel</button>
+            </div>
+        </form>
+    }
+
+    <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
+        @if (!Model.Any())
+        {
+            <div class="p-12 text-center">
+                <p class="text-sm text-slate-400 dark:text-slate-500">No course videos added yet.</p>
+            </div>
+        }
+        else
+        {
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead>
+                        <tr class="border-b border-slate-100 dark:border-slate-700 text-left text-slate-500 dark:text-slate-400">
+                            <th class="px-6 py-3 font-medium">Course</th>
+                            <th class="px-6 py-3 font-medium">Visibility</th>
+                            <th class="px-6 py-3 font-medium">Title</th>
+                            <th class="px-6 py-3 font-medium">Source</th>
+                            <th class="px-6 py-3 font-medium">Uploaded By</th>
+                            <th class="px-6 py-3 font-medium text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var v in Model)
+                        {
+                            <tr class="border-b border-slate-50 dark:border-slate-800 last:border-0">
+                                <td class="px-6 py-3 text-slate-600 dark:text-slate-300">@v.CourseTitle</td>
+                                <td class="px-6 py-3">
+                                    @if (v.VisibilityScope == "BatchOnly")
+                                    {
+                                        <span class="px-2 py-0.5 rounded-full text-xs font-medium bg-sky-50 dark:bg-sky-950 text-sky-700 dark:text-sky-300">@v.ScheduleName</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="px-2 py-0.5 rounded-full text-xs font-medium bg-purple-50 dark:bg-purple-950 text-[#7c3aed] dark:text-purple-300">All enrolled</span>
+                                    }
+                                </td>
+                                <td class="px-6 py-3 font-medium text-slate-800 dark:text-slate-100">@v.Title</td>
+                                <td class="px-6 py-3 text-slate-500 dark:text-slate-400">@(v.VideoSourceType == "Upload" ? "Uploaded file" : "External link")</td>
+                                <td class="px-6 py-3 text-slate-500 dark:text-slate-400">@v.UploadedByName (@v.UploadedByRole)</td>
+                                <td class="px-6 py-3 text-right">
+                                    <button type="button" data-video-url="@v.PlayableUrl" onclick="openCourseVideoPreview(this.dataset.videoUrl)" title="View"
+                                            class="p-2 rounded-xl text-slate-400 dark:text-slate-500 hover:text-[#7c3aed] dark:hover:text-purple-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors inline-block">
+                                        <i data-lucide="eye" class="w-4 h-4"></i>
+                                    </button>
+                                    @if (canDelete)
+                                    {
+                                        <form method="post" asp-action="Delete" asp-route-id="@v.VideoID" class="inline"
+                                              data-confirm="Delete this course video?" data-confirm-title="Delete video" data-confirm-label="Delete">
+                                            @Html.AntiForgeryToken()
+                                            <button type="submit" title="Delete" class="p-2 rounded-xl text-slate-400 dark:text-slate-500 hover:text-red-600 dark:hover:text-red-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+                                                <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                            </button>
+                                        </form>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+</div>
+
+@await Html.PartialAsync("_CourseVideoPlayer")
+
+@section Scripts {
+    <script>
+        (function () {
+            const form = document.getElementById('upload-form');
+            if (!form) return;
+            window.openUploadForm = function () { form.classList.remove('hidden'); form.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); };
+            window.closeUploadForm = function () { form.classList.add('hidden'); };
+
+            window.toggleBatchPicker = function (scope) {
+                const picker = document.getElementById('batch-picker');
+                const isBatch = scope === 'BatchOnly';
+                picker.disabled = !isBatch;
+                picker.classList.toggle('opacity-50', !isBatch);
+                picker.required = isBatch;
+            };
+
+            window.toggleSourceFields = function (sourceType) {
+                const fileField = document.getElementById('file-field');
+                const externalField = document.getElementById('external-field');
+                const isUpload = sourceType === 'Upload';
+                fileField.classList.toggle('hidden', !isUpload);
+                externalField.classList.toggle('hidden', isUpload);
+            };
+
+            window.filterBatches = function (courseId) {
+                const picker = document.getElementById('batch-picker');
+                for (const opt of picker.options) {
+                    if (!opt.value) continue;
+                    opt.hidden = courseId && opt.dataset.course !== courseId;
+                }
+            };
+        })();
+    </script>
+}

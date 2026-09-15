@@ -1,0 +1,131 @@
+@model List<Web_Backend.Areas.Admin.Models.CourseVideo>
+@using Web_Backend.Areas.Admin.Models
+@{
+    ViewData["Title"] = "Course Videos";
+    var batches = ViewBag.Batches as List<CourseSchedule> ?? new();
+}
+
+<div class="max-w-5xl mx-auto space-y-8 page-enter">
+
+    <div class="flex items-center justify-between flex-wrap gap-4">
+        <div>
+            <p class="text-sm font-medium text-slate-500 dark:text-slate-400 mb-2">Class Management</p>
+            <h1 class="text-3xl md:text-4xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">Course Videos</h1>
+            <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">Payment-gated content — students unlock playback once they've paid the course in full.</p>
+        </div>
+        <button type="button" onclick="openUploadForm()"
+                class="px-4 py-2 rounded-xl font-medium text-sm bg-[#7c3aed] text-white hover:bg-[#6d28d9] shadow-sm transition-all flex items-center gap-2 w-fit">
+            <i data-lucide="upload" class="w-4 h-4"></i> Add Video
+        </button>
+    </div>
+
+    <form id="upload-form" method="post" asp-action="Upload" enctype="multipart/form-data" class="hidden bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 p-6">
+        @Html.AntiForgeryToken()
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <select name="scheduleId" required class="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm">
+                <option value="">-- Select batch --</option>
+                @foreach (var b in batches)
+                {
+                    <option value="@b.ScheduleID">@b.CourseTitle &middot; @b.ScheduleName</option>
+                }
+            </select>
+
+            <select name="visibilityScope" required class="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm">
+                <option value="BatchOnly">This batch only</option>
+                <option value="AllEnrolled">All enrolled students (any batch of this course)</option>
+            </select>
+
+            <select name="videoSourceType" required onchange="toggleSourceFields(this.value)" class="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm">
+                <option value="Upload">Upload a video file</option>
+                <option value="External">Link (YouTube / Google Drive / other)</option>
+            </select>
+
+            <input type="text" name="title" placeholder="Title" required class="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" />
+
+            <input id="file-field" type="file" name="file" accept=".mp4,.mov,.webm" class="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" />
+            <input id="external-field" type="url" name="externalUrl" placeholder="https://..." class="hidden px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" />
+
+            <textarea name="description" rows="2" placeholder="Description (optional)"
+                      class="md:col-span-2 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm"></textarea>
+        </div>
+        <p class="text-xs text-slate-400 dark:text-slate-500 mb-4">Uploaded videos: max 100 MB, MP4/MOV/WEBM only.</p>
+        <div class="flex gap-2">
+            <button type="submit" class="px-4 py-2 rounded-xl font-medium bg-[#7c3aed] text-white hover:bg-[#6d28d9] text-sm">Save</button>
+            <button type="button" onclick="closeUploadForm()"
+                    class="px-4 py-2 rounded-xl font-medium bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-sm">Cancel</button>
+        </div>
+    </form>
+
+    <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
+        @if (Model.Count == 0)
+        {
+            <div class="p-10 text-center">
+                <p class="text-sm text-slate-400 dark:text-slate-500">No course videos added yet.</p>
+            </div>
+        }
+        else
+        {
+            <div class="divide-y divide-slate-100 dark:divide-slate-700">
+                @foreach (var v in Model)
+                {
+                    <div class="p-4 px-6 flex items-center justify-between gap-4">
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <p class="text-sm font-medium text-slate-800 dark:text-slate-100">@v.Title</p>
+                                @if (v.VisibilityScope == "BatchOnly")
+                                {
+                                    <span class="px-2 py-0.5 rounded-full text-xs font-medium bg-sky-50 dark:bg-sky-950 text-sky-700 dark:text-sky-300">@v.ScheduleName</span>
+                                }
+                                else
+                                {
+                                    <span class="px-2 py-0.5 rounded-full text-xs font-medium bg-purple-50 dark:bg-purple-950 text-[#7c3aed] dark:text-purple-300">All enrolled</span>
+                                }
+                            </div>
+                            <p class="text-xs text-slate-400 dark:text-slate-500 mt-0.5">@v.CourseTitle &middot; @(v.VideoSourceType == "Upload" ? "Uploaded file" : "External link") &middot; by @v.UploadedByName (@v.UploadedByRole)</p>
+                            @if (!string.IsNullOrEmpty(v.Description))
+                            {
+                                <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">@v.Description</p>
+                            }
+                        </div>
+                        <div class="flex items-center gap-2 flex-shrink-0">
+                            <button type="button" data-video-url="@v.PlayableUrl" onclick="openCourseVideoPreview(this.dataset.videoUrl)"
+                                    class="px-3 py-1.5 rounded-lg font-medium text-xs bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+                                View
+                            </button>
+                            @if (v.UploadedByRole == "Lecturer")
+                            {
+                                <form asp-action="Delete" asp-route-id="@v.VideoID" method="post" onsubmit="return confirm('Delete this video?');">
+                                    @Html.AntiForgeryToken()
+                                    <button type="submit" class="px-3 py-1.5 rounded-lg font-medium text-xs bg-red-50 dark:bg-red-950 text-red-600 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-900 transition-colors">
+                                        Delete
+                                    </button>
+                                </form>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    </div>
+</div>
+
+@await Html.PartialAsync("_CourseVideoPlayer")
+
+@section Scripts {
+    <script>
+        (function () {
+            const form = document.getElementById('upload-form');
+            if (!form) return;
+            window.openUploadForm = function () { form.classList.remove('hidden'); form.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); };
+            window.closeUploadForm = function () { form.classList.add('hidden'); };
+
+            window.toggleSourceFields = function (sourceType) {
+                const fileField = document.getElementById('file-field');
+                const externalField = document.getElementById('external-field');
+                const isUpload = sourceType === 'Upload';
+                fileField.classList.toggle('hidden', !isUpload);
+                externalField.classList.toggle('hidden', isUpload);
+            };
+        })();
+    </script>
+}

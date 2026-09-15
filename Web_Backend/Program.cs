@@ -83,6 +83,7 @@ builder.Services.AddTransient<IUserPermissionOverrideData, UserPermissionOverrid
 builder.Services.AddTransient<ICourseScheduleRescheduleData, CourseScheduleRescheduleData>();
 builder.Services.AddTransient<IExamScheduleRescheduleData, ExamScheduleRescheduleData>();
 builder.Services.AddTransient<ILectureMaterialData, LectureMaterialData>();
+builder.Services.AddTransient<ICourseVideoData, CourseVideoData>();
 builder.Services.AddSingleton<IImageUploader, ImageUploader>();
 builder.Services.AddSignalR();
 

@@ -82,6 +82,10 @@
             @if (agentDetail != null)
             {
                 <div>
+                    <p class="text-xs text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-0.5">Company Name</p>
+                    <p class="text-slate-700 dark:text-slate-200 font-medium">@(string.IsNullOrEmpty(agentDetail.CompanyName) ? "-" : agentDetail.CompanyName)</p>
+                </div>
+                <div>
                     <p class="text-xs text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-0.5">Date of Birth</p>
                     <p class="text-slate-700 dark:text-slate-200 font-medium">@(agentDetail.DateOfBirth?.ToString("MMM d, yyyy") ?? "-")</p>
                 </div>
