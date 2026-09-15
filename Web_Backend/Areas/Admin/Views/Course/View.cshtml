@@ -93,6 +93,17 @@
         </div>
     }
 
+    @if (!string.IsNullOrEmpty(c.VideoURL))
+    {
+        <div class="@CardCls mb-6">
+            <p class="@LabelCls mb-2">Course Video</p>
+            <button type="button" onclick="openCourseVideoPreview('@Html.Raw(System.Text.Json.JsonSerializer.Serialize(c.VideoURL))')"
+                    class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-purple-50 dark:bg-purple-950 text-[#7c3aed] dark:text-purple-300 text-sm font-medium hover:bg-purple-100 dark:hover:bg-purple-900">
+                <i data-lucide="play-circle" class="w-4 h-4"></i> Watch video
+            </button>
+        </div>
+    }
+
     @if (c.Descriptions.Any() || c.Outcomes.Any() || c.Requirements.Any() || c.TrainingPoints.Any())
     {
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
@@ -383,5 +394,50 @@
         document.getElementById('periods-modal-close').addEventListener('click', closeModal);
         modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
         document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal(); });
+    })();
+</script>
+
+
+@* ---------- Video preview popup (Course Video field) ---------- *@
+<div id="course-video-modal" class="hidden fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/70" role="dialog" aria-modal="true">
+    <div class="bg-black rounded-2xl shadow-2xl w-full max-w-4xl relative">
+        <button type="button" id="course-video-modal-close" aria-label="Close"
+                class="absolute -top-11 right-0 p-2 rounded-lg text-white/80 hover:text-white hover:bg-white/10">
+            <i data-lucide="x" class="w-6 h-6"></i>
+        </button>
+        <div id="course-video-modal-body" class="aspect-video w-full flex items-center justify-center overflow-hidden rounded-2xl"></div>
+    </div>
+</div>
+<script>
+    function openCourseVideoPreview(url) {
+        const modal = document.getElementById('course-video-modal');
+        const body = document.getElementById('course-video-modal-body');
+        if (!url) return;
+
+        const yt = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([\w-]+)/);
+        const vimeo = url.match(/vimeo\.com\/(\d+)/);
+
+        if (yt) {
+            body.innerHTML = `<iframe class="w-full h-full" src="https://www.youtube.com/embed/${yt[1]}?autoplay=1" title="Course video" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`;
+        } else if (vimeo) {
+            body.innerHTML = `<iframe class="w-full h-full" src="https://player.vimeo.com/video/${vimeo[1]}?autoplay=1" title="Course video" frameborder="0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe>`;
+        } else {
+            body.innerHTML = `<video id="course-video-player" class="w-full h-full" src="${url}" controls autoplay controlsList="nodownload" playsinline></video>`;
+        }
+
+        modal.classList.remove('hidden');
+        if (window.lucide) lucide.createIcons();
+    }
+
+    (function () {
+        const modal = document.getElementById('course-video-modal');
+        const body = document.getElementById('course-video-modal-body');
+        function closeVideoModal() {
+            modal.classList.add('hidden');
+            body.innerHTML = '';
+        }
+        document.getElementById('course-video-modal-close').addEventListener('click', closeVideoModal);
+        modal.addEventListener('click', (e) => { if (e.target === modal) closeVideoModal(); });
+        document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !modal.classList.contains('hidden')) closeVideoModal(); });
     })();
 </script>
