@@ -97,7 +97,7 @@
     {
         <div class="@CardCls mb-6">
             <p class="@LabelCls mb-2">Course Video</p>
-            <button type="button" onclick="openCourseVideoPreview('@Html.Raw(System.Text.Json.JsonSerializer.Serialize(c.VideoURL))')"
+            <button type="button" data-video-url="@c.VideoURL" onclick="openCourseVideoPreview(this.dataset.videoUrl)"
                     class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-purple-50 dark:bg-purple-950 text-[#7c3aed] dark:text-purple-300 text-sm font-medium hover:bg-purple-100 dark:hover:bg-purple-900">
                 <i data-lucide="play-circle" class="w-4 h-4"></i> Watch video
             </button>

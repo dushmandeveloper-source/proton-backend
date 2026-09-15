@@ -37,6 +37,7 @@ namespace Web_Backend.Areas.Admin.Data
                 APIKey = AppData.GetAPIKey(),
                 a.AgentID,
                 a.UserID,
+                a.CompanyName,
                 a.DateOfBirth,
                 a.Gender,
                 a.Nationality,

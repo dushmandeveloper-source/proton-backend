@@ -21,15 +21,17 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
         private readonly ICourseData courseRep;
         private readonly ICourseScheduleData scheduleRep;
         private readonly ILectureMaterialData materialRep;
+        private readonly ICourseVideoData videoRep;
         private readonly IImageUploader uploader;
 
-        public CoursesController(IStudentData studentRep, ICourseRegistrationData registrationRep, ICourseData courseRep, ICourseScheduleData scheduleRep, ILectureMaterialData materialRep, IImageUploader uploader)
+        public CoursesController(IStudentData studentRep, ICourseRegistrationData registrationRep, ICourseData courseRep, ICourseScheduleData scheduleRep, ILectureMaterialData materialRep, ICourseVideoData videoRep, IImageUploader uploader)
         {
             this.studentRep = studentRep;
             this.registrationRep = registrationRep;
             this.courseRep = courseRep;
             this.scheduleRep = scheduleRep;
             this.materialRep = materialRep;
+            this.videoRep = videoRep;
             this.uploader = uploader;
         }
 
@@ -93,13 +95,19 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
                 .Where(m => m.ScheduleID == registration.ScheduleID || segments.Any(s => s.ScheduleID == m.ScheduleID))
                 .ToList();
 
+            // Already scoped to this course and ownership-checked (joins
+            // mst.CourseRegistration) — no further filtering needed here,
+            // unlike Materials above which also has to match the batch.
+            var videos = await videoRep.ListForStudent(student.StudentID, registration.CourseID);
+
             var model = new CourseDetailsViewModel
             {
                 Registration = registration,
                 Course = course,
                 Payments = payments,
                 Segments = segments,
-                Materials = materials
+                Materials = materials,
+                Videos = videos
             };
 
             ViewBag.CurrentUser = Auth.GetUser();

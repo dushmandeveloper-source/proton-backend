@@ -12,6 +12,10 @@ namespace Web_Backend.Areas.Admin.Models
         public string AgentID { get; set; } = "";
         public string UserID { get; set; } = "";
 
+        // Compulsory — which company this agent registers students on
+        // behalf of.
+        public string CompanyName { get; set; } = "";
+
         // Personal
         public DateTime? DateOfBirth { get; set; }
         public string Gender { get; set; } = "";
@@ -86,6 +90,8 @@ namespace Web_Backend.Areas.Admin.Models
         public string LastName { get; set; } = "";
         public string Email { get; set; } = "";
         public string Phone { get; set; } = "";
+
+        public string CompanyName { get; set; } = "";
 
         public DateTime? DateOfBirth { get; set; }
         public string Gender { get; set; } = "";

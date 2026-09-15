@@ -48,7 +48,10 @@ namespace Web_Backend.Areas.Admin.Controllers
             Auth.CheckPermission(PermissionCode.Agents, 'V');
             ViewBag.CurrentUser = Auth.GetUser();
 
-            var list = await userRep.GetAgents();
+            // mst.Agent_List (joins usr.Users) so Company Name is available
+            // for the list table — userRep.GetAgents() only returns bare
+            // identity rows with no mst.Agent detail at all.
+            var list = await agentRep.GetList(new AgentSearchView { IsActive = "A" });
             return View(list);
         }
 
@@ -103,6 +106,17 @@ namespace Web_Backend.Areas.Admin.Controllers
 
             var isNew = string.IsNullOrEmpty(form.UserID);
             Auth.CheckPermission(PermissionCode.Agents, isNew ? 'A' : 'E');
+
+            if (string.IsNullOrWhiteSpace(form.Phone))
+                ModelState.AddModelError(nameof(form.Phone), "Phone is required.");
+            if (string.IsNullOrWhiteSpace(form.CompanyName))
+                ModelState.AddModelError(nameof(form.CompanyName), "Company name is required.");
+            if (string.IsNullOrWhiteSpace(form.Gender))
+                ModelState.AddModelError(nameof(form.Gender), "Gender is required.");
+            if (string.IsNullOrWhiteSpace(form.Nationality))
+                ModelState.AddModelError(nameof(form.Nationality), "Nationality is required.");
+            if (form.DateOfBirth == null)
+                ModelState.AddModelError(nameof(form.DateOfBirth), "Date of birth is required.");
 
             Agent? existingAgentDetail = null;
             if (isNew)
@@ -169,6 +183,7 @@ namespace Web_Backend.Areas.Admin.Controllers
                     await agentRep.AddEdit(new Agent
                     {
                         UserID = userId,
+                        CompanyName = form.CompanyName,
                         DateOfBirth = form.DateOfBirth,
                         Gender = form.Gender,
                         Nationality = form.Nationality,
@@ -212,6 +227,7 @@ namespace Web_Backend.Areas.Admin.Controllers
                     {
                         AgentID = existingAgentDetail?.AgentID ?? "",
                         UserID = userId,
+                        CompanyName = form.CompanyName,
                         DateOfBirth = form.DateOfBirth,
                         Gender = form.Gender,
                         Nationality = form.Nationality,
@@ -274,6 +290,7 @@ namespace Web_Backend.Areas.Admin.Controllers
             Email = u.Email,
             Phone = u.Phone,
             ProfileImageUrl = u.ProfileImageUrl,
+            CompanyName = a?.CompanyName ?? "",
             DateOfBirth = a?.DateOfBirth,
             Gender = a?.Gender ?? "",
             Nationality = a?.Nationality ?? "",

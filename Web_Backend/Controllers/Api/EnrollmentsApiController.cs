@@ -69,6 +69,14 @@ namespace Web_Backend.Controllers.Api
                 return BadRequest(new { message = "First and last name are required." });
             if (string.IsNullOrWhiteSpace(request.Email))
                 return BadRequest(new { message = "Email is required." });
+            if (string.IsNullOrWhiteSpace(request.Phone))
+                return BadRequest(new { message = "Phone is required." });
+            if (request.DateOfBirth == null)
+                return BadRequest(new { message = "Date of birth is required." });
+            if (string.IsNullOrWhiteSpace(request.Gender))
+                return BadRequest(new { message = "Gender is required." });
+            if (string.IsNullOrWhiteSpace(request.Nationality))
+                return BadRequest(new { message = "Nationality is required." });
 
             var existing = await userRep.GetByEmail(request.Email);
             if (existing != null)
