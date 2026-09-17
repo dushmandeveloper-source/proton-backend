@@ -18,6 +18,7 @@
     var canViewLectureNotes = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.LectureNotes, 'V');
     var canViewLectureSchedule = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.LectureSchedule, 'V');
     var canViewCourseVideos = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.CourseVideos, 'V');
+    var canViewDocuments = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.Documents, 'V');
 }
 <!DOCTYPE html>
 <html lang="en">
@@ -134,6 +135,20 @@ else
                     <span>Dashboard</span>
                 </a>
 
+                @{
+                    // A group is force-expanded on page load whenever the
+                    // current page's controller belongs to it — otherwise
+                    // navigating into a collapsed group's page would hide
+                    // its own active link with no way to tell where you are.
+                    var coursesControllers = new[] { "Course", "CourseSchedule", "LectureSchedule", "LectureNote", "CourseVideo", "HolidayEvent" };
+                    var examinationControllers = new[] { "Exam", "ExamSchedule", "ExamGrading" };
+                    var communicationControllers = new[] { "EmailSettings", "EmailTemplate" };
+                    var administratorControllers = new[] { "User", "Lecturer", "Agent", "Document" };
+                    bool coursesOpen = coursesControllers.Contains(activeController);
+                    bool examinationOpen = examinationControllers.Contains(activeController);
+                    bool communicationOpen = communicationControllers.Contains(activeController);
+                    bool administratorOpen = administratorControllers.Contains(activeController);
+                }
                 <div class="py-2">
                     <p class="px-4 text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2 mt-4">Education</p>
                     @if (canViewUniversities)
@@ -154,8 +169,12 @@ else
                     }
                 </div>
 
-                <div class="py-2">
-                    <p class="px-4 text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2 mt-4">Courses</p>
+                <div class="py-1 sidebar-group" data-open="@(coursesOpen ? "true" : "false")">
+                    <button type="button" class="sidebar-group-toggle w-full flex items-center justify-between px-4 py-2 mt-1 group">
+                        <span class="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Courses</span>
+                        <i data-lucide="chevron-down" class="sidebar-group-chevron w-3.5 h-3.5 text-slate-400 dark:text-slate-500 transition-transform duration-200 @(coursesOpen ? "rotate-180" : "")"></i>
+                    </button>
+                    <div class="sidebar-group-items space-y-1 @(coursesOpen ? "" : "hidden")">
                     @if (canViewCourses)
                     {
                         <a asp-area="Admin" asp-controller="Course" asp-action="Index"
@@ -204,6 +223,15 @@ else
                             <span>Holiday &amp; Events</span>
                         </a>
                     }
+                    </div>
+                </div>
+
+                <div class="py-1 sidebar-group" data-open="@(examinationOpen ? "true" : "false")">
+                    <button type="button" class="sidebar-group-toggle w-full flex items-center justify-between px-4 py-2 mt-1 group">
+                        <span class="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Examination</span>
+                        <i data-lucide="chevron-down" class="sidebar-group-chevron w-3.5 h-3.5 text-slate-400 dark:text-slate-500 transition-transform duration-200 @(examinationOpen ? "rotate-180" : "")"></i>
+                    </button>
+                    <div class="sidebar-group-items space-y-1 @(examinationOpen ? "" : "hidden")">
                     @if (canViewExams)
                     {
                         <a asp-area="Admin" asp-controller="Exam" asp-action="Index"
@@ -227,10 +255,15 @@ else
                             <span>Exam Results History</span>
                         </a>
                     }
+                    </div>
                 </div>
 
-                <div class="py-2">
-                    <p class="px-4 text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2 mt-4">Communication</p>
+                <div class="py-1 sidebar-group" data-open="@(communicationOpen ? "true" : "false")">
+                    <button type="button" class="sidebar-group-toggle w-full flex items-center justify-between px-4 py-2 mt-1 group">
+                        <span class="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Communication</span>
+                        <i data-lucide="chevron-down" class="sidebar-group-chevron w-3.5 h-3.5 text-slate-400 dark:text-slate-500 transition-transform duration-200 @(communicationOpen ? "rotate-180" : "")"></i>
+                    </button>
+                    <div class="sidebar-group-items space-y-1 @(communicationOpen ? "" : "hidden")">
                     @if (canViewEmailSettings)
                     {
                         <a asp-area="Admin" asp-controller="EmailSettings" asp-action="Index"
@@ -247,31 +280,51 @@ else
                             <span>Email Templates</span>
                         </a>
                     }
+                    </div>
                 </div>
 
             </nav>
 
             <div class="flex-shrink-0 pt-4 border-t border-slate-100 dark:border-slate-700 space-y-1">
-                @if (canViewUserManagement)
+                @if (canViewUserManagement || canViewAgents || canViewDocuments)
                 {
-                    <a asp-area="Admin" asp-controller="User" asp-action="Index"
-                       class="w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-200 group @(activeController == "User" ? "bg-slate-50/80 dark:bg-slate-700/60 text-slate-900 dark:text-slate-100 font-semibold" : "text-slate-500 dark:text-slate-400 hover:bg-slate-50/50 dark:hover:bg-slate-700/40 hover:text-slate-900 dark:hover:text-slate-100")">
-                        <i data-lucide="users" class="w-5 h-5 @(activeController == "User" ? "text-[#5a43f1] dark:text-[#a78bfa]" : "text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300")"></i>
-                        <span>User Management</span>
-                    </a>
-                    <a asp-area="Admin" asp-controller="Lecturer" asp-action="Index"
-                       class="w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-200 group @(activeController == "Lecturer" ? "bg-slate-50/80 dark:bg-slate-700/60 text-slate-900 dark:text-slate-100 font-semibold" : "text-slate-500 dark:text-slate-400 hover:bg-slate-50/50 dark:hover:bg-slate-700/40 hover:text-slate-900 dark:hover:text-slate-100")">
-                        <i data-lucide="user-cog" class="w-5 h-5 @(activeController == "Lecturer" ? "text-[#5a43f1] dark:text-[#a78bfa]" : "text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300")"></i>
-                        <span>Lecturers</span>
-                    </a>
-                }
-                @if (canViewAgents)
-                {
-                    <a asp-area="Admin" asp-controller="Agent" asp-action="Index"
-                       class="w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-200 group @(activeController == "Agent" ? "bg-slate-50/80 dark:bg-slate-700/60 text-slate-900 dark:text-slate-100 font-semibold" : "text-slate-500 dark:text-slate-400 hover:bg-slate-50/50 dark:hover:bg-slate-700/40 hover:text-slate-900 dark:hover:text-slate-100")">
-                        <i data-lucide="briefcase" class="w-5 h-5 @(activeController == "Agent" ? "text-[#5a43f1] dark:text-[#a78bfa]" : "text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300")"></i>
-                        <span>Agents</span>
-                    </a>
+                    <div class="sidebar-group" data-open="@(administratorOpen ? "true" : "false")">
+                        <button type="button" class="sidebar-group-toggle w-full flex items-center justify-between px-4 py-2 group">
+                            <span class="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Administrator</span>
+                            <i data-lucide="chevron-down" class="sidebar-group-chevron w-3.5 h-3.5 text-slate-400 dark:text-slate-500 transition-transform duration-200 @(administratorOpen ? "rotate-180" : "")"></i>
+                        </button>
+                        <div class="sidebar-group-items space-y-1 @(administratorOpen ? "" : "hidden")">
+                        @if (canViewUserManagement)
+                        {
+                            <a asp-area="Admin" asp-controller="User" asp-action="Index"
+                               class="w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-200 group @(activeController == "User" ? "bg-slate-50/80 dark:bg-slate-700/60 text-slate-900 dark:text-slate-100 font-semibold" : "text-slate-500 dark:text-slate-400 hover:bg-slate-50/50 dark:hover:bg-slate-700/40 hover:text-slate-900 dark:hover:text-slate-100")">
+                                <i data-lucide="users" class="w-5 h-5 @(activeController == "User" ? "text-[#5a43f1] dark:text-[#a78bfa]" : "text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300")"></i>
+                                <span>User Management</span>
+                            </a>
+                            <a asp-area="Admin" asp-controller="Lecturer" asp-action="Index"
+                               class="w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-200 group @(activeController == "Lecturer" ? "bg-slate-50/80 dark:bg-slate-700/60 text-slate-900 dark:text-slate-100 font-semibold" : "text-slate-500 dark:text-slate-400 hover:bg-slate-50/50 dark:hover:bg-slate-700/40 hover:text-slate-900 dark:hover:text-slate-100")">
+                                <i data-lucide="user-cog" class="w-5 h-5 @(activeController == "Lecturer" ? "text-[#5a43f1] dark:text-[#a78bfa]" : "text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300")"></i>
+                                <span>Lecturers</span>
+                            </a>
+                        }
+                        @if (canViewAgents)
+                        {
+                            <a asp-area="Admin" asp-controller="Agent" asp-action="Index"
+                               class="w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-200 group @(activeController == "Agent" ? "bg-slate-50/80 dark:bg-slate-700/60 text-slate-900 dark:text-slate-100 font-semibold" : "text-slate-500 dark:text-slate-400 hover:bg-slate-50/50 dark:hover:bg-slate-700/40 hover:text-slate-900 dark:hover:text-slate-100")">
+                                <i data-lucide="briefcase" class="w-5 h-5 @(activeController == "Agent" ? "text-[#5a43f1] dark:text-[#a78bfa]" : "text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300")"></i>
+                                <span>Agents</span>
+                            </a>
+                        }
+                        @if (canViewDocuments)
+                        {
+                            <a asp-area="Admin" asp-controller="Document" asp-action="Index"
+                               class="w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-200 group @(activeController == "Document" ? "bg-slate-50/80 dark:bg-slate-700/60 text-slate-900 dark:text-slate-100 font-semibold" : "text-slate-500 dark:text-slate-400 hover:bg-slate-50/50 dark:hover:bg-slate-700/40 hover:text-slate-900 dark:hover:text-slate-100")">
+                                <i data-lucide="file-text" class="w-5 h-5 @(activeController == "Document" ? "text-[#5a43f1] dark:text-[#a78bfa]" : "text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300")"></i>
+                                <span>Documents</span>
+                            </a>
+                        }
+                        </div>
+                    </div>
                 }
                 <a asp-area="Admin" asp-controller="Profile" asp-action="Index"
                    class="w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-200 group @(activeController == "Profile" ? "bg-slate-50/80 dark:bg-slate-700/60 text-slate-900 dark:text-slate-100 font-semibold" : "text-slate-500 dark:text-slate-400 hover:bg-slate-50/50 dark:hover:bg-slate-700/40 hover:text-slate-900 dark:hover:text-slate-100")">
@@ -395,6 +448,43 @@ else
 @RenderSection("Scripts", required: false)
 
 <script>
+    // ---------- Sidebar collapsible groups ----------
+    // Each .sidebar-group starts expanded/collapsed per data-open (server-
+    // rendered: open whenever the current page belongs to that group), then
+    // toggles freely from here on. Remembers the open/closed state per
+    // group in localStorage so it survives a page navigation instead of
+    // resetting to the server's default every time.
+    (function () {
+        const groups = document.querySelectorAll('.sidebar-group');
+        groups.forEach((group, i) => {
+            const toggle = group.querySelector('.sidebar-group-toggle');
+            const items = group.querySelector('.sidebar-group-items');
+            const chevron = group.querySelector('.sidebar-group-chevron');
+            if (!toggle || !items) return;
+
+            const label = toggle.querySelector('span')?.textContent?.trim() || ('group-' + i);
+            const storageKey = 'adminSidebarGroup:' + label;
+            const stored = localStorage.getItem(storageKey);
+            // A stored preference overrides the server-rendered default,
+            // EXCEPT the group the current page belongs to always stays
+            // open (data-open="true") regardless of what was remembered —
+            // otherwise navigating to a page inside a collapsed group would
+            // hide its own active link.
+            if (stored !== null && group.dataset.open !== 'true') {
+                const open = stored === 'true';
+                items.classList.toggle('hidden', !open);
+                chevron?.classList.toggle('rotate-180', open);
+            }
+
+            toggle.addEventListener('click', () => {
+                const isOpen = !items.classList.contains('hidden');
+                items.classList.toggle('hidden', isOpen);
+                chevron?.classList.toggle('rotate-180', !isOpen);
+                localStorage.setItem(storageKey, String(!isOpen));
+            });
+        });
+    })();
+
     // ---------- Mobile sidebar drawer ----------
     (function () {
         const sidebar = document.getElementById('sidebar');

@@ -84,7 +84,9 @@ builder.Services.AddTransient<ICourseScheduleRescheduleData, CourseScheduleResch
 builder.Services.AddTransient<IExamScheduleRescheduleData, ExamScheduleRescheduleData>();
 builder.Services.AddTransient<ILectureMaterialData, LectureMaterialData>();
 builder.Services.AddTransient<ICourseVideoData, CourseVideoData>();
+builder.Services.AddTransient<IDocumentData, DocumentData>();
 builder.Services.AddSingleton<IImageUploader, ImageUploader>();
+builder.Services.AddSingleton<IDocumentStorage, DocumentStorage>();
 builder.Services.AddSignalR();
 
 var app = builder.Build();

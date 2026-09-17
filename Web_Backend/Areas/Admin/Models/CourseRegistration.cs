@@ -20,9 +20,29 @@ namespace Web_Backend.Areas.Admin.Models
         // Joined from edu.CourseSchedule.
         public string ScheduleName { get; set; } = "";
 
-        // Snapshot of edu.Course.Fee at registration time.
+        // Snapshot of edu.Course.Fee at registration time. Equal to
+        // (OriginalFee - DiscountAmount) + FeeChargesTotal — see the Data
+        // Model section of docs/plans/2026-09-17-course-discounts.md for
+        // the order-of-operations rule.
         public decimal CourseFee { get; set; }
         public string CurrencyCode { get; set; } = "CNY";
+
+        // Discount snapshot — resolved ONCE at enrollment time
+        // (edu.Course_ResolveDiscount) and never recomputed afterward, even
+        // if the course's discount config changes later. OriginalFee is the
+        // course's base tuition BEFORE discount and before fee charges.
+        public decimal OriginalFee { get; set; }
+        public decimal DiscountAmount { get; set; }
+        public string DiscountLabel { get; set; } = "";
+
+        // Sum of Course.FeeCharges[].Amount at enrollment time (e.g.
+        // registration fee + materials fee) — snapshotted for the same
+        // "never retroactive" reason as the discount fields above. Added on
+        // top of (OriginalFee - DiscountAmount); never itself discounted.
+        public decimal FeeChargesTotal { get; set; }
+
+        public bool HasDiscount => DiscountAmount > 0;
+        public bool HasFeeCharges => FeeChargesTotal > 0;
 
         // "Unpaid" | "PartiallyPaid" | "Paid" — maintained by the payment
         // sprocs, never set directly by app code.
@@ -84,6 +104,22 @@ namespace Web_Backend.Areas.Admin.Models
         public bool IsVerified => IsSlipVerified == "Y";
     }
 
+    // Result of edu.Course_ResolveDiscount — resolved ONCE at enrollment
+    // time and snapshotted onto CourseRegistration.OriginalFee/
+    // DiscountAmount/DiscountLabel; never recomputed afterward. Covers the
+    // discount only — fee charges are summed separately in C# (see
+    // SumFeeCharges helpers in each enrollment controller) since that data
+    // doesn't need a DB round trip; it's a plain sum over an already-
+    // fetched Course.FeeCharges list.
+    public class CourseDiscountResolution
+    {
+        public bool DiscountApplies { get; set; }
+        public decimal OriginalFee { get; set; }
+        public decimal DiscountAmount { get; set; }
+        public decimal DiscountedFee { get; set; }
+        public string DiscountLabel { get; set; } = "";
+    }
+
     public class CourseRegistrationSearchView
     {
         public string KeyW { get; set; } = "";
@@ -101,6 +137,14 @@ namespace Web_Backend.Areas.Admin.Models
         // Optional batch selection — only meaningful when the course has
         // schedules defined; left blank otherwise.
         public string ScheduleID { get; set; } = "";
+
+        // Optional currency choice — only meaningful when the course offers
+        // more than its base currency (edu.CourseFeeOption). Left blank (or
+        // naming a currency the course doesn't actually offer) falls back to
+        // the course's base CurrencyCode/Fee. The server resolves the real
+        // fee for whichever currency is chosen, never a client-supplied
+        // amount — see EnrollmentsApiController.ResolveFee.
+        public string CurrencyCode { get; set; } = "";
 
         // Optional payment declaration — the public registration page's
         // payment step is optional, so all of these may be left blank/zero.
@@ -120,7 +164,7 @@ namespace Web_Backend.Areas.Admin.Models
         public string PaymentMethod { get; set; } = "";
         public decimal Amount { get; set; }
         public string Notes { get; set; } = "";
-        // Only read when PaymentMethod == "BankDeposit".
+        // Read for either method — Cash needs a receipt too, not just BankDeposit.
         public IFormFile? PaymentSlip { get; set; }
     }
 

@@ -42,6 +42,21 @@ namespace Web_Backend.Areas.Admin.Models
         public string CurrencyCode { get; set; } = "CNY";
         public decimal? Fee { get; set; }
 
+        // Discount configuration — at most ONE discount type is ever active
+        // per course (enforced by edu.Course_AddEdit, which blanks the other
+        // type's fields whenever DiscountType changes). "None" | "FirstN" | "DateRange".
+        public string DiscountType { get; set; } = "None";
+        // "Percent" | "Flat" — how DiscountValue should be interpreted.
+        public string DiscountValueType { get; set; } = "Percent";
+        public decimal? DiscountValue { get; set; }
+        // Only meaningful when DiscountType == "FirstN".
+        public int? DiscountFirstN { get; set; }
+        // Only meaningful when DiscountType == "DateRange".
+        public DateTime? DiscountStartDate { get; set; }
+        public DateTime? DiscountEndDate { get; set; }
+
+        public bool HasDiscountConfigured => DiscountType == "FirstN" || DiscountType == "DateRange";
+
         public int SortOrder { get; set; }
         public string IsActive { get; set; } = "A";
         public DateTime CreatedDate { get; set; }
@@ -70,6 +85,75 @@ namespace Web_Backend.Areas.Admin.Models
         public List<CourseOutcome> Outcomes { get; set; } = new();
         public List<CourseRequirement> Requirements { get; set; } = new();
         public List<CourseFeeCharge> FeeCharges { get; set; } = new();
+
+        // Additional currency/fee pairs a student can pay this course in,
+        // alongside the required base CurrencyCode/Fee above (e.g. base CNY
+        // 1000, plus USD 150, plus LKR 45000). Optional — most courses have
+        // none, in which case only the base currency is offered.
+        public List<CourseFeeOption> FeeOptions { get; set; } = new();
+
+        // Display-only discount preview for the Student portal (Browse/Info/
+        // Enroll views) — mirrors frontend2's computeDisplayDiscount exactly
+        // (duplicated rather than shared, matching this codebase's pattern
+        // of small per-surface helpers). "FirstN" eligibility is a hint
+        // only: remaining-seats can't be known until edu.Course_ResolveDiscount
+        // actually runs at enrollment time, which is the only place a
+        // discount is ever really applied/charged.
+        //
+        // A Percent discount is a ratio, so it applies the same way to any
+        // currency's own listed price. A Flat discount amount is
+        // denominated in the course's base currency only — there's no FX
+        // rate anywhere in this system to translate it into another
+        // currency's terms — so it never applies when pricing a non-base
+        // currency (matches edu.Course_ResolveDiscount's rule exactly).
+        public CourseDisplayDiscount? GetDisplayDiscount(string? currencyCode = null, decimal? fee = null)
+        {
+            var code = currencyCode ?? CurrencyCode;
+            var price = fee ?? Fee;
+            if (!price.HasValue || price.Value <= 0 || !DiscountValue.HasValue || DiscountValue.Value <= 0)
+                return null;
+            if (DiscountValueType == "Flat" && code != CurrencyCode)
+                return null;
+
+            var value = DiscountValue.Value;
+            var savings = DiscountValueType == "Percent" ? $"{value}% off" : $"{code} {value:N0} off";
+
+            if (DiscountType == "DateRange" && DiscountStartDate.HasValue && DiscountEndDate.HasValue)
+            {
+                var today = DateTime.Today;
+                if (today < DiscountStartDate.Value.Date || today > DiscountEndDate.Value.Date) return null;
+                var amount = DiscountValueType == "Flat" ? value : Math.Round(price.Value * value / 100m, 2);
+                var range = $"{DiscountStartDate.Value:MMM d} – {DiscountEndDate.Value:MMM d}";
+                return new CourseDisplayDiscount { Amount = Math.Min(amount, price.Value), Label = $"{savings} — {range}" };
+            }
+
+            if (DiscountType == "FirstN" && DiscountFirstN.HasValue)
+            {
+                var amount = DiscountValueType == "Flat" ? value : Math.Round(price.Value * value / 100m, 2);
+                return new CourseDisplayDiscount { Amount = Math.Min(amount, price.Value), Label = $"{savings} — first {DiscountFirstN} students" };
+            }
+
+            return null;
+        }
+
+        // Sum of FeeCharges' per-currency amounts for one currency
+        // (defaulting to the base) — a flat charge like "registration fee"
+        // has no FX rate to convert between currencies, so each currency's
+        // amount is entered explicitly by Admin (see CourseFeeChargeAmount).
+        public decimal GetFeeChargesTotal(string? currencyCode = null)
+        {
+            var code = currencyCode ?? CurrencyCode;
+            return FeeCharges
+                .SelectMany(f => f.AmountsByCurrency)
+                .Where(a => a.CurrencyCode == code && a.Amount.HasValue)
+                .Sum(a => a.Amount!.Value);
+        }
+    }
+
+    public class CourseDisplayDiscount
+    {
+        public decimal Amount { get; set; }
+        public string Label { get; set; } = "";
     }
 
     public class CourseSearchView
@@ -137,7 +221,35 @@ namespace Web_Backend.Areas.Admin.Models
         public string FeeChargeID { get; set; } = "";
         public string FeeType { get; set; } = "";
         public string Description { get; set; } = "";
+        // No longer written by edu.Course_AddEdit (see AmountsByCurrency
+        // below) — kept only because dropping a column isn't reversible and
+        // pre-existing rows still have it. Nothing reads this going forward.
         public decimal? Amount { get; set; }
+
+        // One amount per currency the COURSE offers (base + each
+        // CourseFeeOption) — a flat charge like "registration fee" has no
+        // FX rate to convert between currencies, so Admin enters each
+        // currency's amount explicitly, same shape as Course.FeeOptions.
+        public List<CourseFeeChargeAmount> AmountsByCurrency { get; set; } = new();
+    }
+
+    public class CourseFeeChargeAmount
+    {
+        public string FeeChargeAmountID { get; set; } = "";
+        public string CurrencyCode { get; set; } = "";
+        public decimal? Amount { get; set; }
+    }
+
+    // One row per extra currency a course can be paid in — see
+    // Course.FeeOptions. edu.Course_AddEdit silently drops any row whose
+    // CurrencyCode matches the course's own base CurrencyCode, so this list
+    // never duplicates the base price.
+    public class CourseFeeOption
+    {
+        public string FeeOptionID { get; set; } = "";
+        public string CurrencyCode { get; set; } = "";
+        public decimal? Fee { get; set; }
+        public int SortOrder { get; set; }
     }
 
     // Exam subjects for CSCA courses (Chinese/Math/Physics/Chemistry). Not

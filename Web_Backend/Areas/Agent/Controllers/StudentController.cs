@@ -209,7 +209,7 @@ namespace Web_Backend.Areas.AgentPortal.Controllers
         }
 
         [HttpPost, ValidateAntiForgeryToken]
-        public async Task<IActionResult> Save(StudentFormViewModel form, IFormFile? profileImage, IFormFile? passportPhoto, IFormFile? paymentSlip)
+        public async Task<IActionResult> Save(StudentFormViewModel form, IFormFile? profileImage, IFormFile? passportPhoto)
         {
             Auth.CheckUser();
             ViewBag.CurrentUser = Auth.GetUser();
@@ -261,23 +261,45 @@ namespace Web_Backend.Areas.AgentPortal.Controllers
                 ModelState.AddModelError(nameof(form.PassportPhotoURL), "A passport photo is required when a passport number is entered.");
             }
 
-            // Payment is only ever applied to the first selected course (see
-            // the Save loop below), so that course's fee is the cap — same
-            // rule the client-side wizard enforces, re-checked here since a
+            // Every selected course now has its own independent payment
+            // declaration (CoursePaymentsJson, keyed by CourseID) instead of
+            // one payment applied only to the first course — each one's
+            // amount is capped against ITS OWN discounted+fee-inclusive
+            // total, same rule the client-side wizard enforces via each
+            // amount input's own max attribute, re-checked here since a
             // client-side check alone can be bypassed.
-            if (isNew && form.SelectedCourseIDs != null && form.SelectedCourseIDs.Any() && form.InitialPaymentAmount.HasValue && form.InitialPaymentAmount.Value > 0)
+            if (isNew && form.SelectedCourseIDs != null && form.SelectedCourseIDs.Any() && !string.IsNullOrWhiteSpace(form.CoursePaymentsJson))
             {
-                var firstCourseId = form.SelectedCourseIDs.First();
-                var firstCourse = await courseRep.Get(firstCourseId);
-                var firstCourseFee = firstCourse?.Fee ?? 0;
-                if (form.InitialPaymentAmount.Value > firstCourseFee)
+                Dictionary<string, CoursePaymentEntry> coursePaymentsForValidation;
+                try
                 {
-                    ModelState.AddModelError(nameof(form.InitialPaymentAmount), $"Payment amount cannot exceed the course fee ({firstCourseFee:N2}).");
+                    coursePaymentsForValidation = JsonSerializer.Deserialize<Dictionary<string, CoursePaymentEntry>>(form.CoursePaymentsJson)
+                        ?? new Dictionary<string, CoursePaymentEntry>();
+                }
+                catch (JsonException)
+                {
+                    coursePaymentsForValidation = new Dictionary<string, CoursePaymentEntry>();
                 }
 
-                if (form.PaymentMethod == "BankDeposit" && paymentSlip == null)
+                foreach (var courseId in form.SelectedCourseIDs.Distinct())
                 {
-                    ModelState.AddModelError("PaymentSlip", "A payment slip is required for a bank deposit.");
+                    if (!coursePaymentsForValidation.TryGetValue(courseId, out var payment) || string.IsNullOrEmpty(payment.Method))
+                        continue;
+
+                    var course = await courseRep.Get(courseId);
+                    var discount = await registrationRep.ResolveDiscount(courseId, course?.CurrencyCode ?? "CNY", course?.Fee ?? 0);
+                    var feeChargesTotal = SumFeeCharges(course);
+                    var courseFee = (discount?.DiscountApplies == true ? discount.DiscountedFee : (course?.Fee ?? 0)) + feeChargesTotal;
+
+                    if (payment.Amount > courseFee)
+                    {
+                        ModelState.AddModelError(nameof(form.CoursePaymentsJson), $"Payment amount for '{course?.CourseTitle ?? courseId}' cannot exceed the course fee ({courseFee:N2}).");
+                    }
+
+                    if (payment.Method == "BankDeposit" && Request.Form.Files.GetFile($"PaymentSlip_{courseId}") == null)
+                    {
+                        ModelState.AddModelError(nameof(form.CoursePaymentsJson), $"A payment slip is required for '{course?.CourseTitle ?? courseId}''s bank deposit.");
+                    }
                 }
             }
 
@@ -374,13 +396,6 @@ namespace Web_Backend.Areas.AgentPortal.Controllers
                 // student, never on a later edit.
                 if (isNew && form.SelectedCourseIDs != null && form.SelectedCourseIDs.Any())
                 {
-                    var slipUrl = "";
-                    if (form.PaymentMethod == "BankDeposit")
-                    {
-                        var savedSlipUrl = await uploader.SaveAsync(paymentSlip, PaymentSlipUploadFolder);
-                        slipUrl = savedSlipUrl ?? "";
-                    }
-
                     var scheduleSelections = new Dictionary<string, string>();
                     if (!string.IsNullOrWhiteSpace(form.CourseScheduleSelectionsJson))
                     {
@@ -395,30 +410,64 @@ namespace Web_Backend.Areas.AgentPortal.Controllers
                         }
                     }
 
+                    // Every selected course now carries its own independent
+                    // payment declaration (CoursePaymentsJson, keyed by
+                    // CourseID) instead of a single payment that only ever
+                    // applied to the first course listed.
+                    var coursePayments = new Dictionary<string, CoursePaymentEntry>();
+                    if (!string.IsNullOrWhiteSpace(form.CoursePaymentsJson))
+                    {
+                        try
+                        {
+                            coursePayments = JsonSerializer.Deserialize<Dictionary<string, CoursePaymentEntry>>(form.CoursePaymentsJson)
+                                ?? new Dictionary<string, CoursePaymentEntry>();
+                        }
+                        catch (JsonException)
+                        {
+                            coursePayments = new Dictionary<string, CoursePaymentEntry>();
+                        }
+                    }
+
                     var uniqueCourseIds = form.SelectedCourseIDs.Distinct().ToList();
 
-                    for (var i = 0; i < uniqueCourseIds.Count; i++)
+                    foreach (var courseId in uniqueCourseIds)
                     {
-                        var courseId = uniqueCourseIds[i];
-                        var isFirst = i == 0;
                         var scheduleId = scheduleSelections.TryGetValue(courseId, out var sid) ? sid : "";
+                        var payment = coursePayments.TryGetValue(courseId, out var p) ? p : null;
 
                         try
                         {
+                            var slipUrl = "";
+                            if (payment?.Method == "BankDeposit" || payment?.Method == "Cash")
+                            {
+                                var courseSlip = Request.Form.Files.GetFile($"PaymentSlip_{courseId}");
+                                if (courseSlip != null)
+                                {
+                                    var savedSlipUrl = await uploader.SaveAsync(courseSlip, PaymentSlipUploadFolder);
+                                    slipUrl = savedSlipUrl ?? "";
+                                }
+                            }
+
                             var course = await courseRep.Get(courseId);
+                            var discount = await registrationRep.ResolveDiscount(courseId, course?.CurrencyCode ?? "CNY", course?.Fee ?? 0);
+                            var feeChargesTotal = SumFeeCharges(course);
                             await registrationRep.AddEdit(new CourseRegistration
                             {
                                 StudentID = studentId,
                                 CourseID = courseId,
-                                CourseFee = course?.Fee ?? 0,
+                                OriginalFee = discount?.OriginalFee ?? (course?.Fee ?? 0),
+                                CourseFee = (discount?.DiscountApplies == true ? discount.DiscountedFee : (course?.Fee ?? 0)) + feeChargesTotal,
                                 CurrencyCode = course?.CurrencyCode ?? "CNY",
+                                DiscountAmount = discount?.DiscountApplies == true ? discount.DiscountAmount : 0,
+                                DiscountLabel = discount?.DiscountApplies == true ? discount.DiscountLabel : "",
+                                FeeChargesTotal = feeChargesTotal,
                                 RegistrationSource = "Agent",
                                 CreatedByUserID = agentUserId
                             },
-                            initialAmount: isFirst ? (form.InitialPaymentAmount ?? 0) : 0,
-                            initialPaymentMethod: isFirst ? form.PaymentMethod : "",
-                            initialPaymentSlipUrl: isFirst ? slipUrl : "",
-                            initialNotes: isFirst ? form.PaymentNotes : "",
+                            initialAmount: payment?.Amount ?? 0,
+                            initialPaymentMethod: payment?.Method ?? "",
+                            initialPaymentSlipUrl: slipUrl,
+                            initialNotes: payment?.Notes ?? "",
                             scheduleId: scheduleId);
                             enrolledCount++;
                         }
@@ -476,5 +525,12 @@ namespace Web_Backend.Areas.AgentPortal.Controllers
             EmergencyRelationship = s.EmergencyRelationship,
             IsActive = s.IsActive
         };
+
+        // Sum of a course's additional fee charges (edu.CourseFeeCharge —
+        // e.g. registration fee, materials fee), added on top of the
+        // (possibly discounted) base fee. Never itself discounted — see
+        // docs/plans/2026-09-17-course-discounts.md's order-of-operations rule.
+        private static decimal SumFeeCharges(Course? course) =>
+            course?.FeeCharges?.Where(f => f.Amount.HasValue).Sum(f => f.Amount!.Value) ?? 0;
     }
 }

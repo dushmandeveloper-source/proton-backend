@@ -36,9 +36,26 @@
                         }
                         @if (course.Fee.HasValue)
                         {
-                            <span class="inline-flex items-center gap-1 font-semibold text-slate-700 dark:text-slate-200"><i data-lucide="badge-dollar-sign" class="w-4 h-4"></i>@course.CurrencyCode @course.Fee.Value.ToString("N2")</span>
+                            var d = course.GetDisplayDiscount();
+                            var feeCharges = course.GetFeeChargesTotal();
+                            var total = (d?.Amount is decimal disc ? course.Fee.Value - disc : course.Fee.Value) + feeCharges;
+                            <span class="inline-flex items-center gap-1.5">
+                                @if (d != null)
+                                {
+                                    <span class="text-slate-400 dark:text-slate-500 line-through text-xs">@course.CurrencyCode @course.Fee.Value.ToString("N0")</span>
+                                }
+                                <span class="inline-flex items-center gap-1 font-semibold @(d != null || feeCharges > 0 ? "bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 px-2 py-0.5 rounded-lg" : "text-slate-700 dark:text-slate-200")">
+                                    <i data-lucide="badge-dollar-sign" class="w-4 h-4"></i>@course.CurrencyCode @total.ToString("N2")
+                                </span>
+                            </span>
                         }
                     </div>
+                    @if (course.GetDisplayDiscount() != null)
+                    {
+                        <span class="w-fit rounded-full bg-lime-100 dark:bg-lime-950 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-lime-700 dark:text-lime-300">
+                            @course.GetDisplayDiscount()!.Label
+                        </span>
+                    }
                     <div class="mt-2 flex items-center gap-2">
                         <a asp-area="Student" asp-controller="Enrollment" asp-action="Info" asp-route-courseId="@course.CourseID"
                            class="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl font-medium text-sm border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all">

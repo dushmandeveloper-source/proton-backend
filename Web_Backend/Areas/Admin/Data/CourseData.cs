@@ -23,8 +23,9 @@ namespace Web_Backend.Areas.Admin.Data
         }
 
         // ---------- Course ----------
-        public Task<List<Course>> GetList(CourseSearchView search) =>
-            db.GetList<Course, object>("edu.Course_List", new
+        public async Task<List<Course>> GetList(CourseSearchView search)
+        {
+            var raw = await db.GetList<CourseRaw, object>("edu.Course_List", new
             {
                 APIKey = AppData.GetAPIKey(),
                 search.KeyW,
@@ -32,6 +33,18 @@ namespace Web_Backend.Areas.Admin.Data
                 search.CourseType,
                 search.IsActive
             });
+            // Course_List only returns FeeOptionJSON and FeeChargeJSON (not
+            // the other 7 child lists — those remain Get-only), since
+            // additional currencies and additional fees both need to be
+            // visible on the public course grid/registration wizard without
+            // a second per-course fetch.
+            foreach (var r in raw)
+            {
+                r.FeeOptions = Deserialize<CourseFeeOption>(r.FeeOptionJSON);
+                r.FeeCharges = Deserialize<CourseFeeCharge>(r.FeeChargeJSON);
+            }
+            return raw.Cast<Course>().ToList();
+        }
 
         public async Task<Course?> Get(string id)
         {
@@ -46,6 +59,7 @@ namespace Web_Backend.Areas.Admin.Data
             raw.Outcomes = Deserialize<CourseOutcome>(raw.OutcomeJSON);
             raw.Requirements = Deserialize<CourseRequirement>(raw.RequirementJSON);
             raw.FeeCharges = Deserialize<CourseFeeCharge>(raw.FeeChargeJSON);
+            raw.FeeOptions = Deserialize<CourseFeeOption>(raw.FeeOptionJSON);
             return raw;
         }
 
@@ -77,6 +91,12 @@ namespace Web_Backend.Areas.Admin.Data
                 c.Fee,
                 c.SortOrder,
                 c.IsActive,
+                c.DiscountType,
+                c.DiscountValueType,
+                c.DiscountValue,
+                c.DiscountFirstN,
+                c.DiscountStartDate,
+                c.DiscountEndDate,
                 PricingJSON = JsonSerializer.Serialize(c.PricingDetails, CamelCase),
                 DescriptionJSON = JsonSerializer.Serialize(c.Descriptions, CamelCase),
                 PathwayJSON = JsonSerializer.Serialize(c.Pathways, CamelCase),
@@ -84,7 +104,8 @@ namespace Web_Backend.Areas.Admin.Data
                 TrainingPointJSON = JsonSerializer.Serialize(c.TrainingPoints, CamelCase),
                 OutcomeJSON = JsonSerializer.Serialize(c.Outcomes, CamelCase),
                 RequirementJSON = JsonSerializer.Serialize(c.Requirements, CamelCase),
-                FeeChargeJSON = JsonSerializer.Serialize(c.FeeCharges, CamelCase)
+                FeeChargeJSON = JsonSerializer.Serialize(c.FeeCharges, CamelCase),
+                FeeOptionJSON = JsonSerializer.Serialize(c.FeeOptions, CamelCase)
             });
 
         public Task Deactivate(string id) =>

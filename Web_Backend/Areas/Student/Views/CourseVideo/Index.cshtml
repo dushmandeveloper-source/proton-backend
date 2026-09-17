@@ -1,0 +1,68 @@
+@model List<Web_Backend.Areas.Admin.Models.CourseVideo>
+@{
+    ViewData["Title"] = "Course Video";
+    bool restricted = ViewBag.Restricted as bool? ?? false;
+}
+
+<div class="max-w-4xl mx-auto space-y-6 page-enter">
+    <div>
+        <h2 class="text-2xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">Course Video</h2>
+        <p class="text-slate-500 dark:text-slate-400 text-sm mt-1">Videos your lecturers have posted, across all your enrolled courses. Locked videos unlock once that course is fully paid.</p>
+    </div>
+
+    <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
+        @if (restricted)
+        {
+            <div class="p-10 text-center">
+                <p class="text-sm text-slate-400 dark:text-slate-500">Your account is still being verified. Course videos unlock once an administrator verifies your account.</p>
+            </div>
+        }
+        else if (Model.Count == 0)
+        {
+            <div class="p-10 text-center">
+                <p class="text-sm text-slate-400 dark:text-slate-500">No videos have been added for your courses yet.</p>
+            </div>
+        }
+        else
+        {
+            <div class="divide-y divide-slate-100 dark:divide-slate-700">
+                @foreach (var v in Model)
+                {
+                    <div class="p-4 px-6 flex items-center justify-between gap-4">
+                        <div class="flex items-center gap-3 min-w-0">
+                            <div class="p-2 rounded-lg bg-slate-50 dark:bg-slate-800 flex-shrink-0">
+                                <i data-lucide="@(v.IsUnlocked ? "play-circle" : "lock")" class="w-4 h-4 text-slate-500 dark:text-slate-400"></i>
+                            </div>
+                            <div class="min-w-0">
+                                <p class="text-sm font-medium text-slate-800 dark:text-slate-100 truncate">@v.Title</p>
+                                <p class="text-xs text-slate-400 dark:text-slate-500 truncate">
+                                    @v.CourseTitle
+                                    @if (!string.IsNullOrEmpty(v.Description))
+                                    {
+                                        <text> &middot; @v.Description</text>
+                                    }
+                                </p>
+                            </div>
+                        </div>
+                        @if (v.IsUnlocked)
+                        {
+                            <button type="button" data-video-url="@v.PlayableUrl" onclick="openCourseVideoPreview(this.dataset.videoUrl)"
+                                    class="px-3 py-1.5 rounded-lg font-medium text-xs bg-purple-50 dark:bg-purple-950 text-[#7c3aed] dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900 transition-colors flex-shrink-0 flex items-center gap-1.5">
+                                <i data-lucide="play" class="w-3.5 h-3.5"></i> Watch
+                            </button>
+                        }
+                        else
+                        {
+                            <a asp-area="Student" asp-controller="Courses" asp-action="Index"
+                               class="px-3 py-1.5 rounded-lg font-medium text-xs bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900 transition-colors flex-shrink-0 flex items-center gap-1.5">
+                                <i data-lucide="lock" class="w-3.5 h-3.5"></i> Pay full amount to unlock
+                            </a>
+                        }
+                    </div>
+                }
+            </div>
+        }
+    </div>
+</div>
+
+@await Html.PartialAsync("_CourseVideoPlayer")

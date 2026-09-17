@@ -156,43 +156,56 @@ namespace Web_Backend.Controllers.Api
 
             var enrolledCourseIds = new List<string>();
             var enrollmentErrors = new List<string>();
-            // Same simplification as the admin wizard (StudentController.Save,
-            // see Views/Student/Edit.cshtml's helper text): when several
-            // courses are selected in one submission, a single payment step
-            // can't unambiguously apply to all of them, so the declared
-            // payment (if any) is recorded only against the first course.
-            // Further payments are added per-course afterward.
+            // Every enrolled course's own registration ID, so the frontend
+            // can follow up with POST {registrationId}/payment for EACH
+            // course that had a slip file attached — no longer restricted
+            // to a single "first course" registration.
+            var registrationIdsByCourse = new Dictionary<string, string>();
             string? firstRegistrationId = null;
-            string? firstCourseId = null;
             var distinctCourseIds = request.CourseIDs.Where(id => !string.IsNullOrWhiteSpace(id)).Distinct().ToList();
 
             foreach (var courseId in distinctCourseIds)
             {
-                var isFirst = firstCourseId == null;
                 try
                 {
                     var course = await courseRep.Get(courseId);
+                    var requestedCurrency = request.CourseCurrencySelections.GetValueOrDefault(courseId, "");
+                    var (currencyCode, fee) = ResolveFee(course, requestedCurrency);
+                    var discount = await registrationRep.ResolveDiscount(courseId, currencyCode, fee);
+                    var feeChargesTotal = SumFeeCharges(course);
+                    // Each course now gets its own payment declaration (if the
+                    // visitor made one for it) rather than only the first
+                    // selected course receiving the single legacy PaymentMethod/
+                    // InitialPaymentAmount fields.
+                    var payment = request.CoursePayments.GetValueOrDefault(courseId);
                     var registrationId = await registrationRep.AddEdit(new CourseRegistration
                     {
                         StudentID = studentId,
                         CourseID = courseId,
-                        CourseFee = course?.Fee ?? 0,
-                        CurrencyCode = course?.CurrencyCode ?? "CNY",
+                        OriginalFee = discount?.OriginalFee ?? fee,
+                        CourseFee = (discount?.DiscountApplies == true ? discount.DiscountedFee : fee) + feeChargesTotal,
+                        CurrencyCode = currencyCode,
+                        DiscountAmount = discount?.DiscountApplies == true ? discount.DiscountAmount : 0,
+                        DiscountLabel = discount?.DiscountApplies == true ? discount.DiscountLabel : "",
+                        FeeChargesTotal = feeChargesTotal,
                         RegistrationSource = "Self",
                         CreatedByUserID = ""
                     },
-                    initialAmount: isFirst ? (request.InitialPaymentAmount ?? 0) : 0,
-                    initialPaymentMethod: isFirst ? request.PaymentMethod : "",
-                    initialPaymentSlipUrl: "", // slip file, if any, is attached via a follow-up call — see {registrationId}/payment below
-                    initialNotes: isFirst ? request.PaymentNotes : "",
+                    // The declared payment itself is NEVER recorded here —
+                    // only via the {registrationId}/payment follow-up call
+                    // below, which is the one place a slip actually gets
+                    // uploaded (Cash needs a receipt too, not just
+                    // BankDeposit). Recording it here AS WELL as there
+                    // would double-count the same payment as two rows.
+                    initialAmount: 0,
+                    initialPaymentMethod: "",
+                    initialPaymentSlipUrl: "",
+                    initialNotes: "",
                     scheduleId: request.CourseScheduleSelections.GetValueOrDefault(courseId, ""));
 
                     enrolledCourseIds.Add(courseId);
-                    if (isFirst)
-                    {
-                        firstCourseId = courseId;
-                        firstRegistrationId = registrationId;
-                    }
+                    registrationIdsByCourse[courseId] = registrationId;
+                    firstRegistrationId ??= registrationId;
                 }
                 catch (SqlException ex)
                 {
@@ -253,6 +266,10 @@ namespace Web_Backend.Controllers.Api
                 // POST {firstRegistrationId}/payment to attach a slip file,
                 // if the visitor chose Bank Deposit and picked a file.
                 firstRegistrationId,
+                // Every enrolled course's own registration ID (CourseID ->
+                // RegistrationID), so the frontend can attach a slip file for
+                // ANY course that had one declared, not just the first.
+                registrationIdsByCourse,
                 // False only if the mandatory welcome-email send (which carries
                 // the visitor's auto-generated password) failed — the frontend
                 // should tell the visitor to contact support in that case,
@@ -280,19 +297,30 @@ namespace Web_Backend.Controllers.Api
                 // first), this is always exactly one course per call — so any
                 // declared payment amount/method applies to it directly, no
                 // "first course only" ambiguity to resolve.
+                var (currencyCode, fee) = ResolveFee(course, request.CurrencyCode);
+                var discount = await registrationRep.ResolveDiscount(request.CourseID, currencyCode, fee);
+                var feeChargesTotal = SumFeeCharges(course);
                 var registrationId = await registrationRep.AddEdit(new CourseRegistration
                 {
                     StudentID = student.StudentID,
                     CourseID = request.CourseID,
-                    CourseFee = course?.Fee ?? 0,
-                    CurrencyCode = course?.CurrencyCode ?? "CNY",
+                    OriginalFee = discount?.OriginalFee ?? fee,
+                    CourseFee = (discount?.DiscountApplies == true ? discount.DiscountedFee : fee) + feeChargesTotal,
+                    CurrencyCode = currencyCode,
+                    DiscountAmount = discount?.DiscountApplies == true ? discount.DiscountAmount : 0,
+                    DiscountLabel = discount?.DiscountApplies == true ? discount.DiscountLabel : "",
+                    FeeChargesTotal = feeChargesTotal,
                     RegistrationSource = "Self",
                     CreatedByUserID = ""
                 },
-                initialAmount: request.InitialPaymentAmount ?? 0,
-                initialPaymentMethod: request.PaymentMethod,
-                initialPaymentSlipUrl: "", // slip file, if any, is attached via a follow-up call — see {registrationId}/payment below
-                initialNotes: request.PaymentNotes,
+                // Same reasoning as RegisterNew: the declared payment is
+                // recorded ONLY via the {registrationId}/payment follow-up
+                // call, never here too — otherwise it's double-counted as
+                // two separate payment rows for the same declared amount.
+                initialAmount: 0,
+                initialPaymentMethod: "",
+                initialPaymentSlipUrl: "",
+                initialNotes: "",
                 scheduleId: request.ScheduleID);
 
                 return Ok(new { registrationId });
@@ -353,8 +381,13 @@ namespace Web_Backend.Controllers.Api
             if (registration.CourseFee > 0 && (alreadyPaid + request.Amount) > registration.CourseFee)
                 return BadRequest(new { message = $"Payment amount exceeds the remaining balance of {registration.CourseFee - alreadyPaid} for this course." });
 
+            // Both Cash and BankDeposit require a receipt/slip on this
+            // form (Cash has no bank record to fall back on for
+            // verification, so it needs one just as much) — upload
+            // whichever file was sent regardless of method, rather than
+            // only ever saving it for BankDeposit.
             var slipUrl = "";
-            if (request.PaymentMethod == "BankDeposit")
+            if (request.PaymentSlip != null)
             {
                 try
                 {
@@ -402,5 +435,34 @@ namespace Web_Backend.Controllers.Api
             var registrations = await registrationRep.GetByStudent(student.StudentID);
             return Ok(registrations);
         }
+
+        // Resolves the (CurrencyCode, Fee) pair to actually charge for a
+        // registration. The client only ever sends a REQUESTED currency
+        // code — never an amount — and this looks up the real fee for that
+        // currency from the course's own priced options, so a tampered or
+        // made-up fee can never reach mst.CourseRegistration. Falls back to
+        // the course's base CurrencyCode/Fee whenever the requested currency
+        // is blank, unknown, or not actually offered by this course.
+        private static (string CurrencyCode, decimal Fee) ResolveFee(Course? course, string? requestedCurrency)
+        {
+            var baseCurrency = course?.CurrencyCode ?? "CNY";
+            var baseFee = course?.Fee ?? 0;
+            if (string.IsNullOrWhiteSpace(requestedCurrency) || course == null)
+                return (baseCurrency, baseFee);
+
+            if (string.Equals(requestedCurrency, baseCurrency, StringComparison.OrdinalIgnoreCase))
+                return (baseCurrency, baseFee);
+
+            var option = course.FeeOptions.FirstOrDefault(o =>
+                string.Equals(o.CurrencyCode, requestedCurrency, StringComparison.OrdinalIgnoreCase) && o.Fee.HasValue);
+            return option != null ? (option.CurrencyCode, option.Fee!.Value) : (baseCurrency, baseFee);
+        }
+
+        // Sum of a course's additional fee charges (edu.CourseFeeCharge —
+        // e.g. registration fee, materials fee), added on top of the
+        // (possibly discounted) base fee. Never itself discounted — see
+        // docs/plans/2026-09-17-course-discounts.md's order-of-operations rule.
+        private static decimal SumFeeCharges(Course? course) =>
+            course?.FeeCharges?.Where(f => f.Amount.HasValue).Sum(f => f.Amount!.Value) ?? 0;
     }
 }

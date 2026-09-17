@@ -181,9 +181,32 @@ namespace Web_Backend.Areas.Admin.Models
         // client-side by Edit.cshtml's enrollment-step script. Parsed in
         // StudentController.Save via System.Text.Json.
         public string CourseScheduleSelectionsJson { get; set; } = "";
+        // JSON map of CourseID -> { method, amount, notes }, built client-side
+        // by Edit.cshtml's enrollment-step script — one independent payment
+        // declaration per selected course, instead of a single payment that
+        // only ever applied to the first course listed (that was the old
+        // PaymentMethod/InitialPaymentAmount/PaymentNotes behavior below,
+        // which StudentController.Save no longer reads once this is
+        // populated). Each course's slip file (if any) is a separate
+        // uniquely-named <input type="file"> read directly from
+        // Request.Form.Files in Save, keyed "PaymentSlip_{courseId}".
+        public string CoursePaymentsJson { get; set; } = "";
+
+        // Legacy singular fields — no longer read by Save once
+        // CoursePaymentsJson is populated; kept only so old cached pages
+        // still bind without a hard model error.
         public string PaymentMethod { get; set; } = "";      // "Cash" | "BankDeposit" | "" (no payment recorded now)
         public decimal? InitialPaymentAmount { get; set; }
         public string PaymentNotes { get; set; } = "";
+    }
+
+    // One course's payment declaration, deserialized from
+    // StudentFormViewModel.CoursePaymentsJson.
+    public class CoursePaymentEntry
+    {
+        public string Method { get; set; } = "";   // "Cash" | "BankDeposit" | ""
+        public decimal Amount { get; set; }
+        public string Notes { get; set; } = "";
     }
 
     // Backs the step-wizard add/edit page.
@@ -267,14 +290,39 @@ namespace Web_Backend.Areas.Admin.Models
         // simply absent, same optionality as CourseIDs itself.
         public Dictionary<string, string> CourseScheduleSelections { get; set; } = new();
 
+        // Currency selections for the courses above, keyed by CourseID ->
+        // CurrencyCode — only meaningful for a course that actually offers
+        // more than its base currency (edu.CourseFeeOption). A course absent
+        // here (or naming a currency the course doesn't actually offer)
+        // falls back to the course's own base CurrencyCode/Fee — the server
+        // resolves the real fee for whichever currency ends up chosen
+        // (EnrollmentsApiController.ResolveFee), never trusting a client-
+        // supplied amount.
+        public Dictionary<string, string> CourseCurrencySelections { get; set; } = new();
+
         // Optional payment declaration for the public registration page's
-        // payment step — all blank/zero by default (payment step is entirely
-        // optional). Same "first selected course only" simplification as the
-        // admin wizard (see StudentController.Save): when CourseIDs has more
-        // than one entry, this payment is recorded only against the first.
-        // "Cash" | "BankDeposit" | "" (no payment declared).
+        // payment step, keyed by CourseID — a visitor with several selected
+        // courses can now declare a separate payment (method/amount/notes)
+        // for EACH one in the same submission, rather than only the first
+        // (that "first course only" restriction was the previous behavior;
+        // CoursePayments replaces it — see EnrollmentsApiController.RegisterNew).
+        // A course absent here (or entirely omitted) simply gets no initial
+        // payment recorded, same as leaving the payment step blank today.
+        public Dictionary<string, CoursePaymentDeclaration> CoursePayments { get; set; } = new();
+
+        // Legacy singular fields — kept only so an old cached frontend build
+        // (pre-CoursePayments) still compiles/binds against this model
+        // without a hard error; RegisterNew no longer reads them once
+        // CoursePayments is populated. "Cash" | "BankDeposit" | "" (none).
         public string PaymentMethod { get; set; } = "";
         public decimal? InitialPaymentAmount { get; set; }
         public string PaymentNotes { get; set; } = "";
+    }
+
+    public class CoursePaymentDeclaration
+    {
+        public string PaymentMethod { get; set; } = "";
+        public decimal? Amount { get; set; }
+        public string Notes { get; set; } = "";
     }
 }

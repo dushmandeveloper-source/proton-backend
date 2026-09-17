@@ -85,14 +85,49 @@
         return { code: row[0], name: row[1], nationality: row[2], flagUrl: flagUrl(row[0]) };
     });
 
-    // mode: "country" matches/displays the country name; "nationality" matches/displays the demonym.
+    // Currency picker data: [ISO-4217 code, display name, symbol]. Badge
+    // shows the symbol (no flag — a currency isn't tied to one country,
+    // e.g. USD/EUR are used well beyond the US/Eurozone) rather than a
+    // country flag icon. Kept short and Proton-relevant rather than
+    // exhaustive ISO-4217 — matches the currencies this site actually
+    // quotes prices in (CLAUDE.md / existing CurrencyCode values seen in
+    // the data: CNY, USD, LKR) plus the other common ones a course could
+    // reasonably be priced in.
+    var currenciesData = [
+        ["CNY", "Chinese Yuan", "¥"], ["USD", "US Dollar", "$"], ["LKR", "Sri Lankan Rupee", "Rs"],
+        ["EUR", "Euro", "€"], ["GBP", "British Pound", "£"], ["AUD", "Australian Dollar", "A$"],
+        ["CAD", "Canadian Dollar", "C$"], ["SGD", "Singapore Dollar", "S$"], ["HKD", "Hong Kong Dollar", "HK$"],
+        ["INR", "Indian Rupee", "₹"], ["AED", "UAE Dirham", "د.إ"], ["JPY", "Japanese Yen", "¥"],
+        ["MYR", "Malaysian Ringgit", "RM"], ["THB", "Thai Baht", "฿"], ["PKR", "Pakistani Rupee", "Rs"],
+        ["BDT", "Bangladeshi Taka", "৳"], ["NPR", "Nepalese Rupee", "Rs"], ["NZD", "New Zealand Dollar", "NZ$"]
+    ];
+    var currencies = currenciesData.map(function (row) {
+        return { code: row[0], name: row[1], symbol: row[2] };
+    });
+
+    // mode: "country" matches/displays the country name; "nationality" matches/displays the demonym;
+    // "currency" matches/displays "CODE — Name" and stores/posts just the ISO code as the input value.
     function initPicker(input, mode) {
         if (!input || input.dataset.pickerInit) return;
         input.dataset.pickerInit = "1";
 
-        var labelOf = mode === "nationality"
-            ? function (c) { return c.nationality; }
-            : function (c) { return c.name; };
+        var isCurrency = mode === "currency";
+        var items = isCurrency ? currencies : countries;
+        var labelOf = isCurrency
+            ? function (c) { return c.code + " — " + c.name; }
+            : mode === "nationality"
+                ? function (c) { return c.nationality; }
+                : function (c) { return c.name; };
+        // For currency, the input's actual value is the bare ISO code (what
+        // gets posted/saved) even though the dropdown/badge show "CODE —
+        // Name" — a plain text input showing just "USD" gives the visitor
+        // no cue it's pickable/searchable, so the fuller label is shown
+        // once chosen, same idea as the country picker showing "United
+        // States" rather than "US".
+        var valueOf = isCurrency ? function (c) { return c.code; } : labelOf;
+        var matchOf = isCurrency
+            ? function (c) { return c.code.toLowerCase() === input.value.trim().toLowerCase(); }
+            : function (c) { return labelOf(c).toLowerCase() === input.value.trim().toLowerCase(); };
 
         input.setAttribute("autocomplete", "off");
         input.classList.add("country-picker-input");
@@ -102,17 +137,25 @@
         input.parentNode.insertBefore(wrap, input);
         wrap.appendChild(input);
 
-        var flagBadge = document.createElement("img");
-        flagBadge.alt = "";
-        flagBadge.className = "hidden absolute left-3 top-1/2 -translate-y-1/2 w-5 h-3.5 object-cover rounded-sm pointer-events-none";
+        var flagBadge = isCurrency ? document.createElement("span") : document.createElement("img");
+        if (isCurrency) {
+            flagBadge.className = "hidden absolute left-3 top-1/2 -translate-y-1/2 text-sm font-semibold text-slate-500 dark:text-slate-400 pointer-events-none";
+        } else {
+            flagBadge.alt = "";
+            flagBadge.className = "hidden absolute left-3 top-1/2 -translate-y-1/2 w-5 h-3.5 object-cover rounded-sm pointer-events-none";
+        }
         wrap.appendChild(flagBadge);
         input.classList.add("pl-10");
 
         function syncBadge() {
-            var match = countries.find(function (c) { return labelOf(c).toLowerCase() === input.value.trim().toLowerCase(); });
+            var match = items.find(matchOf);
             if (match) {
-                flagBadge.src = match.flagUrl;
+                if (isCurrency) { flagBadge.textContent = match.symbol; } else { flagBadge.src = match.flagUrl; }
                 flagBadge.classList.remove("hidden");
+                // Once a match is confirmed, normalize the visible text to
+                // the full label (e.g. typing "usd" and blurring shows
+                // "USD — US Dollar") while the posted value stays the code.
+                if (isCurrency) input.value = match.code;
             } else {
                 flagBadge.classList.add("hidden");
             }
@@ -124,8 +167,8 @@
 
         function render(filterText) {
             var q = (filterText || "").trim().toLowerCase();
-            var matches = countries.filter(function (c) {
-                return !q || labelOf(c).toLowerCase().indexOf(q) !== -1;
+            var matches = items.filter(function (c) {
+                return !q || labelOf(c).toLowerCase().indexOf(q) !== -1 || (isCurrency && c.code.toLowerCase().indexOf(q) !== -1);
             }).slice(0, 50);
 
             list.innerHTML = "";
@@ -141,10 +184,12 @@
                 var row = document.createElement("button");
                 row.type = "button";
                 row.className = "w-full flex items-center gap-2 px-4 py-2 text-sm text-left text-slate-700 dark:text-slate-200 hover:bg-purple-50 dark:hover:bg-purple-950";
-                row.innerHTML = "<img src=\"" + c.flagUrl + "\" alt=\"\" class=\"w-5 h-3.5 object-cover rounded-sm flex-shrink-0\" /><span>" + labelOf(c) + "</span>";
+                row.innerHTML = isCurrency
+                    ? "<span class=\"w-5 flex-shrink-0 text-center font-semibold text-slate-500 dark:text-slate-400\">" + c.symbol + "</span><span>" + labelOf(c) + "</span>"
+                    : "<img src=\"" + c.flagUrl + "\" alt=\"\" class=\"w-5 h-3.5 object-cover rounded-sm flex-shrink-0\" /><span>" + labelOf(c) + "</span>";
                 row.addEventListener("mousedown", function (e) {
                     e.preventDefault();
-                    input.value = labelOf(c);
+                    input.value = valueOf(c);
                     input.dispatchEvent(new Event("change", { bubbles: true }));
                     syncBadge();
                     close();
@@ -174,6 +219,9 @@
         });
         (root || document).querySelectorAll("[data-nationality-picker]").forEach(function (el) {
             initPicker(el, "nationality");
+        });
+        (root || document).querySelectorAll("[data-currency-picker]").forEach(function (el) {
+            initPicker(el, "currency");
         });
     }
 

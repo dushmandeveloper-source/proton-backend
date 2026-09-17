@@ -20,6 +20,7 @@ namespace Web_Backend.Classes
         public const string LectureSchedule = "LectureSchedule";
         public const string Agents = "Agents";
         public const string CourseVideos = "CourseVideos";
+        public const string Documents = "Documents";
 
         public static readonly (string Code, string Label)[] All =
         {
@@ -37,6 +38,7 @@ namespace Web_Backend.Classes
             (LectureSchedule, "Lecture Schedule"),
             (Agents, "Agents"),
             (CourseVideos, "Course Videos"),
+            (Documents, "Documents"),
         };
     }
 }

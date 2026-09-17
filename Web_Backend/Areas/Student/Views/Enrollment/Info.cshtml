@@ -236,32 +236,44 @@
                         }
                         @if (c.Fee.HasValue)
                         {
-                            <div class="flex justify-between gap-3"><dt class="text-slate-500 dark:text-slate-400">Fee</dt><dd class="text-slate-800 dark:text-slate-100 font-semibold text-right">@c.CurrencyCode @c.Fee.Value.ToString("N2")</dd></div>
+                            var d = c.GetDisplayDiscount();
+                            var feeCharges = c.GetFeeChargesTotal();
+                            var total = (d?.Amount is decimal disc ? c.Fee.Value - disc : c.Fee.Value) + feeCharges;
+                            <div class="flex justify-between gap-3">
+                                <dt class="text-slate-500 dark:text-slate-400">Fee</dt>
+                                <dd class="text-right">
+                                    @if (d != null)
+                                    {
+                                        <span class="text-slate-400 dark:text-slate-500 line-through text-xs mr-1.5">@c.CurrencyCode @c.Fee.Value.ToString("N0")</span>
+                                    }
+                                    <span class="font-semibold @(d != null || feeCharges > 0 ? "bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 px-1.5 py-0.5 rounded-lg" : "text-slate-800 dark:text-slate-100")">@c.CurrencyCode @total.ToString("N2")</span>
+                                </dd>
+                            </div>
+                            @if (d != null)
+                            {
+                                <div class="flex justify-end">
+                                    <span class="w-fit rounded-full bg-lime-100 dark:bg-lime-950 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-lime-700 dark:text-lime-300">
+                                        @d.Label
+                                    </span>
+                                </div>
+                            }
+                        }
+                        @if (c.FeeOptions.Any(o => o.Fee.HasValue))
+                        {
+                            <div class="flex justify-between gap-3">
+                                <dt class="text-slate-500 dark:text-slate-400">Also available in</dt>
+                                <dd class="text-slate-800 dark:text-slate-100 font-medium text-right">
+                                    @string.Join(", ", c.FeeOptions.Where(o => o.Fee.HasValue).Select(o =>
+                                    {
+                                        var od = c.GetDisplayDiscount(o.CurrencyCode, o.Fee);
+                                        var oTotal = (od?.Amount is decimal odisc ? o.Fee!.Value - odisc : o.Fee!.Value) + c.GetFeeChargesTotal(o.CurrencyCode);
+                                        return $"{o.CurrencyCode} {oTotal:N2}";
+                                    }))
+                                </dd>
+                            </div>
                         }
                     </dl>
                 </div>
-
-                @if (c.PricingDetails.Count > 0)
-                {
-                    <div class="pt-4 border-t border-slate-200 dark:border-slate-700">
-                        <h3 class="text-sm font-semibold text-slate-800 dark:text-slate-100 mb-3">Pricing Tiers</h3>
-                        <ul class="space-y-2 text-sm">
-                            @foreach (var p in c.PricingDetails)
-                            {
-                                <li class="flex justify-between gap-3">
-                                    <span class="text-slate-500 dark:text-slate-400">@p.PricingTier</span>
-                                    <span class="text-slate-800 dark:text-slate-100 font-medium text-right">
-                                        @if (p.OriginalPrice.HasValue && p.OriginalPrice != p.SellingPrice)
-                                        {
-                                            <span class="line-through text-slate-400 dark:text-slate-500 mr-1.5">@c.CurrencyCode @p.OriginalPrice.Value.ToString("N2")</span>
-                                        }
-                                        @(p.SellingPrice.HasValue ? $"{c.CurrencyCode} {p.SellingPrice.Value:N2}" : "—")
-                                    </span>
-                                </li>
-                            }
-                        </ul>
-                    </div>
-                }
 
                 @if (c.FeeCharges.Count > 0)
                 {
@@ -272,7 +284,11 @@
                             {
                                 <li class="flex justify-between gap-3">
                                     <span class="text-slate-500 dark:text-slate-400">@f.FeeType</span>
-                                    <span class="text-slate-800 dark:text-slate-100 font-medium text-right">@(f.Amount.HasValue ? $"{c.CurrencyCode} {f.Amount.Value:N2}" : "—")</span>
+                                    <span class="text-slate-800 dark:text-slate-100 font-medium text-right">
+                                        @(f.AmountsByCurrency.Any(a => a.Amount.HasValue)
+                                            ? string.Join(", ", f.AmountsByCurrency.Where(a => a.Amount.HasValue).Select(a => $"{a.CurrencyCode} {a.Amount!.Value:N2}"))
+                                            : "—")
+                                    </span>
                                 </li>
                             }
                         </ul>

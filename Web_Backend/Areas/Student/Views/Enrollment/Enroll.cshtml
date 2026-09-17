@@ -3,6 +3,12 @@
     ViewData["Title"] = "Enroll";
     var course = ViewBag.Course as Web_Backend.Areas.Admin.Models.Course;
     var schedules = ViewBag.Schedules as List<Web_Backend.Areas.Admin.Models.CourseSchedule> ?? new();
+    // Every currency this course can be bought in, base first — only shown
+    // as a picker when there's more than one option; otherwise the base
+    // fee display above is the only price and no choice is needed.
+    var currencyOptions = new List<(string Code, decimal Fee)> { (course?.CurrencyCode ?? "CNY", course?.Fee ?? 0) };
+    if (course != null)
+        currencyOptions.AddRange(course.FeeOptions.Where(o => o.Fee.HasValue).Select(o => (o.CurrencyCode, o.Fee!.Value)));
 }
 
 <div class="max-w-2xl mx-auto page-enter">
@@ -11,6 +17,11 @@
         <p class="text-slate-500 dark:text-slate-400 text-sm mt-1">Confirm the batch and, optionally, declare a payment.</p>
     </div>
 
+    @{
+        var baseDiscount = course?.GetDisplayDiscount();
+        var baseFeeCharges = course?.GetFeeChargesTotal() ?? 0;
+        var baseTotal = (baseDiscount?.Amount is decimal bd ? (course?.Fee ?? 0) - bd : course?.Fee ?? 0) + baseFeeCharges;
+    }
     <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 p-6 mb-6 flex items-center justify-between">
         <div>
             <p class="text-sm font-semibold text-slate-800 dark:text-slate-100">@course?.CourseTitle</p>
@@ -25,13 +36,52 @@
         </div>
         <div class="text-right">
             <p class="text-xs text-slate-400 dark:text-slate-500">Course Fee</p>
-            <p class="text-lg font-bold text-slate-800 dark:text-slate-100">@course?.CurrencyCode @(course?.Fee?.ToString("N2") ?? "0.00")</p>
+            @if (baseDiscount != null)
+            {
+                <p id="feeStrike" class="text-xs text-slate-400 dark:text-slate-500 line-through">@course?.CurrencyCode @course?.Fee?.ToString("N0")</p>
+            }
+            <p id="feeDisplay" class="text-lg font-bold @(baseDiscount != null || baseFeeCharges > 0 ? "bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 px-2 py-0.5 rounded-lg inline-block" : "text-slate-800 dark:text-slate-100")">@course?.CurrencyCode @baseTotal.ToString("N2")</p>
+            @if (baseDiscount != null)
+            {
+                <p id="feeDiscountLabel" class="text-[11px] font-semibold uppercase tracking-wide text-lime-700 dark:text-lime-300 mt-1">@baseDiscount.Label</p>
+            }
+            @if (baseFeeCharges > 0)
+            {
+                <p id="feeChargesNote" class="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">Includes @course?.CurrencyCode @baseFeeCharges.ToString("N2") in additional fees</p>
+            }
         </div>
     </div>
 
     <form method="post" asp-action="Enroll" enctype="multipart/form-data" id="enrollForm" class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 p-6 space-y-6">
         @Html.AntiForgeryToken()
         <input type="hidden" asp-for="CourseID" />
+
+        @if (currencyOptions.Count > 1)
+        {
+            <div>
+                <h3 class="text-sm font-semibold text-slate-800 dark:text-slate-100 mb-3">Pay In</h3>
+                <div class="grid grid-cols-2 sm:grid-cols-3 gap-2" id="currencyOptions">
+                    @foreach (var opt in currencyOptions)
+                    {
+                        var optDiscount = course?.GetDisplayDiscount(opt.Code, opt.Fee);
+                        var optFeeCharges = course?.GetFeeChargesTotal(opt.Code) ?? 0;
+                        var optTotal = (optDiscount?.Amount is decimal od ? opt.Fee - od : opt.Fee) + optFeeCharges;
+                        <label class="flex items-center justify-between gap-2 rounded-xl border border-slate-200 dark:border-slate-600 px-3 py-2.5 cursor-pointer has-[:checked]:border-[#7c3aed] has-[:checked]:bg-purple-50/50 dark:has-[:checked]:bg-purple-950/30">
+                            <input type="radio" name="CurrencyCode" value="@opt.Code"
+                                   data-raw-fee="@opt.Fee.ToString("F2")" data-total="@optTotal.ToString("F2")"
+                                   data-fee-charges="@optFeeCharges.ToString("F2")" data-discount-label="@(optDiscount?.Label ?? "")"
+                                   class="currency-radio accent-[#7c3aed]" checked="@(opt.Code == course?.CurrencyCode)" />
+                            <span class="text-sm text-slate-700 dark:text-slate-200 flex-1">@opt.Code</span>
+                            <span class="text-xs text-slate-400 dark:text-slate-500">@optTotal.ToString("N2")</span>
+                        </label>
+                    }
+                </div>
+            </div>
+        }
+        else
+        {
+            <input type="hidden" asp-for="CurrencyCode" value="@course?.CurrencyCode" />
+        }
 
         <div>
             <h3 class="text-sm font-semibold text-slate-800 dark:text-slate-100 mb-3">Batch / Schedule</h3>
@@ -43,11 +93,14 @@
             {
                 <div class="space-y-1">
                     <label class="text-sm font-medium text-slate-700 dark:text-slate-300">Choose a batch</label>
-                    <select asp-for="ScheduleID" class="w-full rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 px-4 py-2.5 text-sm outline-none focus:border-[#7c3aed] focus:ring-1 focus:ring-[#7c3aed]">
-                        <option value="">No specific batch</option>
+                    <select asp-for="ScheduleID" required id="scheduleSelect" class="w-full rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 px-4 py-2.5 text-sm outline-none focus:border-[#7c3aed] focus:ring-1 focus:ring-[#7c3aed]">
+                        @if (schedules.Count > 1)
+                        {
+                            <option value="">Select a batch...</option>
+                        }
                         @foreach (var sched in schedules)
                         {
-                            <option value="@sched.ScheduleID">@sched.ScheduleName @(!string.IsNullOrEmpty(sched.Location) ? $"({sched.Location})" : "")</option>
+                            <option value="@sched.ScheduleID" selected="@(schedules.Count == 1)">@sched.ScheduleName @(!string.IsNullOrEmpty(sched.Location) ? $"({sched.Location})" : "")</option>
                         }
                     </select>
                 </div>
@@ -92,6 +145,43 @@
 
 @section Scripts {
     <script>
+        (function () {
+            var radios = document.querySelectorAll('.currency-radio');
+            var feeDisplay = document.getElementById('feeDisplay');
+            if (!radios.length || !feeDisplay) return;
+            var feeStrike = document.getElementById('feeStrike');
+            var discountLabel = document.getElementById('feeDiscountLabel');
+            var chargesNote = document.getElementById('feeChargesNote');
+            var highlightClasses = ['bg-emerald-50', 'dark:bg-emerald-950', 'text-emerald-700', 'dark:text-emerald-300', 'px-2', 'py-0.5', 'rounded-lg', 'inline-block'];
+            var plainClasses = ['text-slate-800', 'dark:text-slate-100'];
+            radios.forEach(function (r) {
+                r.addEventListener('change', function () {
+                    if (!r.checked) return;
+                    var total = parseFloat(r.dataset.total) || 0;
+                    var rawFee = parseFloat(r.dataset.rawFee) || 0;
+                    var feeCharges = parseFloat(r.dataset.feeCharges) || 0;
+                    var hasDiscount = rawFee !== total - feeCharges;
+                    var highlighted = hasDiscount || feeCharges > 0;
+
+                    feeDisplay.textContent = r.value + ' ' + total.toFixed(2);
+                    feeDisplay.classList.remove.apply(feeDisplay.classList, highlightClasses.concat(plainClasses));
+                    feeDisplay.classList.add.apply(feeDisplay.classList, highlighted ? highlightClasses : plainClasses);
+
+                    if (feeStrike) feeStrike.style.display = hasDiscount ? '' : 'none';
+                    if (feeStrike && hasDiscount) feeStrike.textContent = r.value + ' ' + rawFee.toFixed(0);
+
+                    if (discountLabel) {
+                        discountLabel.style.display = r.dataset.discountLabel ? '' : 'none';
+                        discountLabel.textContent = r.dataset.discountLabel || '';
+                    }
+                    if (chargesNote) {
+                        chargesNote.style.display = feeCharges > 0 ? '' : 'none';
+                        chargesNote.textContent = feeCharges > 0 ? ('Includes ' + r.value + ' ' + feeCharges.toFixed(2) + ' in additional fees') : '';
+                    }
+                });
+            });
+        })();
+
         (function () {
             var select = document.getElementById('paymentMethodSelect');
             var slipField = document.getElementById('paymentSlipField');
