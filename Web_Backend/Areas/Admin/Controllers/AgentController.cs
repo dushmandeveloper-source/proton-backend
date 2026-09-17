@@ -26,12 +26,13 @@ namespace Web_Backend.Areas.Admin.Controllers
         private readonly IImageUploader uploader;
         private readonly IStudentData studentRep;
         private readonly IAgentData agentRep;
+        private readonly IDocumentData documentRep;
         private readonly IEmailSender emailSender;
         private readonly IConfiguration configuration;
 
         public AgentController(
             IUserData userRep, IUserAuthData authRep, IUserTypeData userTypeRep, IImageUploader uploader,
-            IStudentData studentRep, IAgentData agentRep, IEmailSender emailSender, IConfiguration configuration)
+            IStudentData studentRep, IAgentData agentRep, IDocumentData documentRep, IEmailSender emailSender, IConfiguration configuration)
         {
             this.userRep = userRep;
             this.authRep = authRep;
@@ -39,6 +40,7 @@ namespace Web_Backend.Areas.Admin.Controllers
             this.uploader = uploader;
             this.studentRep = studentRep;
             this.agentRep = agentRep;
+            this.documentRep = documentRep;
             this.emailSender = emailSender;
             this.configuration = configuration;
         }
@@ -96,6 +98,12 @@ namespace Web_Backend.Areas.Admin.Controllers
             var students = await studentRep.GetList(new StudentSearchView { CreatedByUserID = id, IsActive = "" });
             ViewBag.Students = students;
             ViewBag.AgentDetail = await agentRep.GetByUserID(id);
+
+            // Same scoped query the Agent portal itself uses
+            // (mst.Document_ListForAgent) — shows Admin exactly what this
+            // agent can currently see: every "All Agents" document plus any
+            // "Specific" ones this agent was individually assigned.
+            ViewBag.VisibleDocuments = await documentRep.GetListForAgent(id);
             return View(agent);
         }
 

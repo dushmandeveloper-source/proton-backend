@@ -10,6 +10,14 @@ namespace Web_Backend.Areas.StudentPortal.Models
         public string CourseID { get; set; } = "";
         public string ScheduleID { get; set; } = "";
 
+        // Optional currency choice — only meaningful when the course offers
+        // more than its base currency (edu.CourseFeeOption). Left blank (or
+        // naming a currency the course doesn't actually offer) falls back to
+        // the course's base CurrencyCode/Fee. The server resolves the real
+        // fee for whichever currency is chosen, never a client-supplied
+        // amount — see EnrollmentController.ResolveFee.
+        public string CurrencyCode { get; set; } = "";
+
         // "Cash" | "BankDeposit" | "" (no payment declared now).
         public string PaymentMethod { get; set; } = "";
         public decimal? InitialPaymentAmount { get; set; }

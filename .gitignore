@@ -37,3 +37,12 @@ Database/generated/
 # runtime data written by IImageUploader, not source. Each environment
 # (local dev, hosted) accumulates its own independently.
 Web_Backend/wwwroot/Uploads/
+
+# Admin/Agent document library uploads (Classes/DocumentStorage.cs) — stored
+# outside wwwroot on purpose (see 0063_agent_document_library.sql), but still
+# runtime data, not source.
+Web_Backend/PrivateStorage/
+
+# Local dev server console output
+Web_Backend/run_stdout.log
+Web_Backend/run_stderr.log

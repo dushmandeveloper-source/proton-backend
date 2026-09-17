@@ -24,5 +24,13 @@ namespace Web_Backend.Areas.StudentPortal.Models
         // row where PaymentStatus <> 'Paid', so a locked video's URL never
         // reaches this view model in the first place.
         public List<CourseVideo> Videos { get; set; } = new();
+
+        // Account/passport verification gate (Student.IsContentRestricted).
+        // The page itself is always reachable — a restricted student still
+        // needs to see their balance and pay it — but Materials/Schedule/
+        // Homework sections render disabled (no join links, no file
+        // downloads) until an Admin verifies the account. Distinct from,
+        // and stacked on top of, Videos' own payment-only gate above.
+        public bool IsContentRestricted { get; set; }
     }
 }

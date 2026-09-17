@@ -127,7 +127,7 @@ namespace Web_Backend.Areas.Admin.Controllers
             string? videoUrlInput = null, string tab = "details",
             string? PricingJSON = null, string? DescriptionJSON = null, string? PathwayJSON = null,
             string? ComboOfferJSON = null, string? TrainingPointJSON = null, string? OutcomeJSON = null,
-            string? RequirementJSON = null, string? FeeChargeJSON = null)
+            string? RequirementJSON = null, string? FeeChargeJSON = null, string? FeeOptionJSON = null)
         {
             ViewBag.CurrentUser = Auth.GetUser();
 
@@ -177,6 +177,12 @@ namespace Web_Backend.Areas.Admin.Controllers
                 target.AboutHtml = form.AboutHtml;
                 target.CurrencyCode = form.CurrencyCode;
                 target.Fee = form.Fee;
+                target.DiscountType = form.DiscountType;
+                target.DiscountValueType = form.DiscountValueType;
+                target.DiscountValue = form.DiscountValue;
+                target.DiscountFirstN = form.DiscountFirstN;
+                target.DiscountStartDate = form.DiscountStartDate;
+                target.DiscountEndDate = form.DiscountEndDate;
                 target.SortOrder = form.SortOrder;
                 target.EnableExperiencePricing = form.EnableExperiencePricing;
                 target.EnableComboOffer = form.EnableComboOffer;
@@ -192,6 +198,7 @@ namespace Web_Backend.Areas.Admin.Controllers
                 target.Outcomes = JsonList<CourseOutcome>(OutcomeJSON);
                 target.Requirements = JsonList<CourseRequirement>(RequirementJSON);
                 target.FeeCharges = JsonList<CourseFeeCharge>(FeeChargeJSON);
+                target.FeeOptions = JsonList<CourseFeeOption>(FeeOptionJSON);
 
                 var newImage = await uploader.SaveAsync(imageFile, UploadFolder);
                 if (newImage != null) target.CourseImageURL = newImage;

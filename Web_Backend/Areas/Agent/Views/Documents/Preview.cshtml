@@ -1,0 +1,46 @@
+@model AgentDocumentView
+@{
+    ViewData["Title"] = Model.Title;
+}
+
+<div class="max-w-4xl mx-auto page-enter space-y-4">
+    <div class="flex items-center justify-between flex-wrap gap-4">
+        <div>
+            <h2 class="text-2xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">@Model.Title</h2>
+            @if (!string.IsNullOrEmpty(Model.Description))
+            {
+                <p class="text-slate-500 dark:text-slate-400 mt-1">@Model.Description</p>
+            }
+        </div>
+        <a asp-action="Index" class="px-4 py-2 rounded-xl font-medium text-sm bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors flex items-center gap-2 w-fit">
+            <i data-lucide="arrow-left" class="w-4 h-4"></i> Back to Documents
+        </a>
+    </div>
+
+    @* View-only: this page intentionally has no download link or button —
+       the file is only ever reachable through Content (inline disposition),
+       and PDFs load with the viewer's own toolbar suppressed so the built-in
+       save/print icons aren't a substitute download path. This is a soft
+       control (see DocumentsController's class comment) — reducing casual
+       download, not preventing every possible copy (e.g. a screenshot). *@
+    <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden" style="height: calc(100vh - 260px); min-height: 480px;" oncontextmenu="return false;">
+        @if (Model.IsPdf)
+        {
+            <iframe src="@Url.Action("ViewFile", new { id = Model.DocumentID })#toolbar=0&navpanes=0"
+                    class="w-full h-full border-0" title="@Model.Title"></iframe>
+        }
+        else if (Model.IsImage)
+        {
+            <div class="w-full h-full flex items-center justify-center p-6 bg-slate-50 dark:bg-slate-950">
+                <img src="@Url.Action("ViewFile", new { id = Model.DocumentID })" alt="@Model.Title"
+                     class="max-w-full max-h-full object-contain rounded-xl select-none" draggable="false" />
+            </div>
+        }
+        else
+        {
+            <div class="p-12 text-center">
+                <p class="text-sm text-slate-400 dark:text-slate-500">This file type can't be previewed here.</p>
+            </div>
+        }
+    </div>
+</div>

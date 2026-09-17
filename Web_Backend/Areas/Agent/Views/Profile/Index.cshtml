@@ -115,31 +115,12 @@
             </div>
         </div>
 
-        <div class="@CardCls">
-            <h3 class="font-semibold text-slate-800 dark:text-slate-100">Passport Information</h3>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div class="space-y-1">
-                    <label class="@LabelCls">Passport Number</label>
-                    <input asp-for="PassportNumber" class="@InputCls" />
-                </div>
-                <div class="space-y-1">
-                    <label class="@LabelCls">Passport Country</label>
-                    <input asp-for="PassportCountry" autocomplete="off" data-country-picker class="@InputCls" />
-                </div>
-                <div class="space-y-1">
-                    <label class="@LabelCls">Passport Expiry Date</label>
-                    <input asp-for="PassportExpiryDate" type="date" class="@InputCls" />
-                </div>
-                <div class="space-y-1">
-                    <label class="@LabelCls">Passport Photo</label>
-                    @if (!string.IsNullOrEmpty(Model.PassportPhotoURL))
-                    {
-                        <a href="@Model.PassportPhotoURL" target="_blank" class="text-xs text-[#7c3aed] dark:text-purple-300 hover:underline block mb-1">Current photo</a>
-                    }
-                    <input type="file" name="passportPhoto" accept="image/*,.svg,.jfif,.pdf" class="text-sm" />
-                </div>
-            </div>
-        </div>
+        @* Agents don't need passport info (unlike students) — hidden from this
+           form. Fields stay posted (unchanged) via hidden inputs since the
+           model/DB columns are unchanged and nullable. *@
+        <input type="hidden" asp-for="PassportNumber" />
+        <input type="hidden" asp-for="PassportCountry" />
+        <input type="hidden" asp-for="PassportExpiryDate" />
 
         <div class="@CardCls">
             <h3 class="font-semibold text-slate-800 dark:text-slate-100">Emergency Contact</h3>

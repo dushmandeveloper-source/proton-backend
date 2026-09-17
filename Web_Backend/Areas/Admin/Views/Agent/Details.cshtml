@@ -3,6 +3,7 @@
     ViewData["Title"] = "Agent Details";
     var students = ViewBag.Students as List<Student> ?? new();
     var agentDetail = ViewBag.AgentDetail as Agent;
+    var visibleDocuments = ViewBag.VisibleDocuments as List<AgentDocumentView> ?? new();
     bool canEdit = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.Agents, 'E');
     bool canDelete = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.Agents, 'D');
     var pendingApproval = agentDetail != null && agentDetail.IsSelfRegistered && agentDetail.AccountVerificationStatus == "Pending";
@@ -102,10 +103,6 @@
                     </p>
                 </div>
                 <div>
-                    <p class="text-xs text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-0.5">Passport Number</p>
-                    <p class="text-slate-700 dark:text-slate-200 font-medium">@(string.IsNullOrEmpty(agentDetail.PassportNumber) ? "-" : agentDetail.PassportNumber)</p>
-                </div>
-                <div>
                     <p class="text-xs text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-0.5">Emergency Contact</p>
                     <p class="text-slate-700 dark:text-slate-200 font-medium">
                         @(string.IsNullOrEmpty(agentDetail.EmergencyContactName) ? "-" : $"{agentDetail.EmergencyContactName} ({agentDetail.EmergencyContactPhone})")
@@ -140,35 +137,91 @@
         }
     </div>
 
-    @* ---------- Students registered by this agent ---------- *@
+    @* ---------- Students / Documents tabs ---------- *@
     <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
-        <div class="p-6 border-b border-slate-100 dark:border-slate-700 flex items-center gap-3">
-            <div class="bg-purple-50 dark:bg-purple-950 p-2 rounded-lg"><i data-lucide="users" class="w-5 h-5 text-purple-600 dark:text-purple-300"></i></div>
-            <h3 class="font-semibold text-lg text-slate-800 dark:text-slate-100">Students Registered</h3>
-            <span class="ml-auto text-xs text-slate-400 dark:text-slate-500">@students.Count total</span>
+        <div class="p-3 border-b border-slate-100 dark:border-slate-700 flex items-center gap-1">
+            <button type="button" data-tab-btn="students"
+                    class="tab-btn px-4 py-2 rounded-xl text-sm font-medium transition-colors bg-slate-50/80 dark:bg-slate-700/60 text-slate-900 dark:text-slate-100">
+                <i data-lucide="users" class="w-4 h-4 inline-block -mt-0.5 mr-1.5"></i> Students
+                <span class="ml-1 text-xs text-slate-400 dark:text-slate-500">@students.Count</span>
+            </button>
+            <button type="button" data-tab-btn="documents"
+                    class="tab-btn px-4 py-2 rounded-xl text-sm font-medium transition-colors text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800">
+                <i data-lucide="file-text" class="w-4 h-4 inline-block -mt-0.5 mr-1.5"></i> Documents
+                <span class="ml-1 text-xs text-slate-400 dark:text-slate-500">@visibleDocuments.Count</span>
+            </button>
         </div>
-        @if (students.Count == 0)
-        {
-            <div class="p-10 text-center">
-                <p class="text-sm text-slate-400 dark:text-slate-500">This agent hasn't registered any students yet.</p>
-            </div>
-        }
-        else
-        {
-            <div class="divide-y divide-slate-100 dark:divide-slate-700">
-                @foreach (var s in students)
-                {
-                    <a asp-controller="Student" asp-action="Details" asp-route-id="@s.StudentID" class="flex items-center justify-between gap-3 p-4 px-6 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors">
-                        <div>
-                            <p class="text-sm font-medium text-slate-800 dark:text-slate-100">@s.FullName</p>
-                            <p class="text-xs text-slate-500 dark:text-slate-400">@s.Email</p>
-                        </div>
-                        <span class="px-2 py-0.5 rounded-full text-xs font-medium @(s.IsActive == "A" ? "bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300" : "bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400")">
-                            @s.StatusLabel
-                        </span>
-                    </a>
-                }
-            </div>
-        }
+
+        <div data-tab-panel="students">
+            @if (students.Count == 0)
+            {
+                <div class="p-10 text-center">
+                    <p class="text-sm text-slate-400 dark:text-slate-500">This agent hasn't registered any students yet.</p>
+                </div>
+            }
+            else
+            {
+                <div class="divide-y divide-slate-100 dark:divide-slate-700">
+                    @foreach (var s in students)
+                    {
+                        <a asp-controller="Student" asp-action="Details" asp-route-id="@s.StudentID" class="flex items-center justify-between gap-3 p-4 px-6 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors">
+                            <div>
+                                <p class="text-sm font-medium text-slate-800 dark:text-slate-100">@s.FullName</p>
+                                <p class="text-xs text-slate-500 dark:text-slate-400">@s.Email</p>
+                            </div>
+                            <span class="px-2 py-0.5 rounded-full text-xs font-medium @(s.IsActive == "A" ? "bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300" : "bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400")">
+                                @s.StatusLabel
+                            </span>
+                        </a>
+                    }
+                </div>
+            }
+        </div>
+
+        <div data-tab-panel="documents" class="hidden">
+            @if (visibleDocuments.Count == 0)
+            {
+                <div class="p-10 text-center">
+                    <p class="text-sm text-slate-400 dark:text-slate-500">This agent can't see any documents yet — none are marked "All Agents" and they haven't been individually assigned one.</p>
+                </div>
+            }
+            else
+            {
+                <div class="divide-y divide-slate-100 dark:divide-slate-700">
+                    @foreach (var d in visibleDocuments)
+                    {
+                        <a asp-controller="Document" asp-action="Details" asp-route-id="@d.DocumentID" class="flex items-center justify-between gap-3 p-4 px-6 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors">
+                            <div>
+                                <p class="text-sm font-medium text-slate-800 dark:text-slate-100">@d.Title</p>
+                                <p class="text-xs text-slate-500 dark:text-slate-400">@d.OriginalFileName</p>
+                            </div>
+                            <span class="text-xs text-slate-400 dark:text-slate-500">@d.FileSizeLabel</span>
+                        </a>
+                    }
+                </div>
+            }
+        </div>
     </div>
 </div>
+
+<script>
+    (function () {
+        document.querySelectorAll('[data-tab-btn]').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                var tab = btn.getAttribute('data-tab-btn');
+                document.querySelectorAll('[data-tab-btn]').forEach(function (b) {
+                    var active = b === btn;
+                    b.classList.toggle('bg-slate-50/80', active);
+                    b.classList.toggle('dark:bg-slate-700/60', active);
+                    b.classList.toggle('text-slate-900', active);
+                    b.classList.toggle('dark:text-slate-100', active);
+                    b.classList.toggle('text-slate-500', !active);
+                    b.classList.toggle('dark:text-slate-400', !active);
+                });
+                document.querySelectorAll('[data-tab-panel]').forEach(function (panel) {
+                    panel.classList.toggle('hidden', panel.getAttribute('data-tab-panel') !== tab);
+                });
+            });
+        });
+    })();
+</script>

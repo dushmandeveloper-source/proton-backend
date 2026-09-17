@@ -72,6 +72,39 @@
             <p class="@LabelCls mb-1">Base Fee</p>
             <p class="text-slate-800 dark:text-slate-100">@(c.Fee.HasValue ? $"{c.CurrencyCode} {c.Fee.Value:N0}" : "-")</p>
         </div>
+        @if (c.FeeOptions.Any(o => o.Fee.HasValue))
+        {
+            <div class="@CardCls">
+                <p class="@LabelCls mb-1">Also Available In</p>
+                <p class="text-slate-800 dark:text-slate-100">@string.Join(", ", c.FeeOptions.Where(o => o.Fee.HasValue).Select(o => $"{o.CurrencyCode} {o.Fee!.Value:N0}"))</p>
+            </div>
+        }
+        @if (c.HasDiscountConfigured)
+        {
+            <div class="@CardCls">
+                <p class="@LabelCls mb-1">Discount</p>
+                <p class="text-slate-800 dark:text-slate-100">
+                    @(c.DiscountValueType == "Flat" ? $"{c.CurrencyCode} {c.DiscountValue:N0}" : $"{c.DiscountValue:N0}%") off
+                    @if (c.DiscountType == "FirstN")
+                    {
+                        <text> — first @c.DiscountFirstN students</text>
+                    }
+                    else if (c.DiscountType == "DateRange")
+                    {
+                        <text> — @c.DiscountStartDate?.ToString("MMM d, yyyy") to @c.DiscountEndDate?.ToString("MMM d, yyyy")</text>
+                    }
+                </p>
+            </div>
+        }
+        @if (c.FeeCharges.Any(f => f.Amount.HasValue))
+        {
+            <div class="@CardCls">
+                <p class="@LabelCls mb-1">Additional Fees</p>
+                <p class="text-slate-800 dark:text-slate-100">
+                    @string.Join(", ", c.FeeCharges.Where(f => f.Amount.HasValue).Select(f => $"{f.FeeType}: {c.CurrencyCode} {f.Amount!.Value:N0}"))
+                </p>
+            </div>
+        }
         <div class="@CardCls">
             <p class="@LabelCls mb-1">Handbook</p>
             @if (!string.IsNullOrEmpty(c.HandbookFileURL))
@@ -162,50 +195,6 @@
                     </div>
                 }
             </div>
-        </div>
-    }
-
-    @if (c.PricingDetails.Any() || c.FeeCharges.Any())
-    {
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-            @if (c.PricingDetails.Any())
-            {
-                <div class="@CardCls">
-                    <p class="@LabelCls mb-2">Pricing Tiers</p>
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-sm">
-                            <tbody>
-                                @foreach (var p in c.PricingDetails)
-                                {
-                                    <tr class="border-b border-slate-50 dark:border-slate-800 last:border-0">
-                                        <td class="py-1.5 text-slate-700 dark:text-slate-200">@p.PricingTier</td>
-                                        <td class="py-1.5 text-right text-slate-800 dark:text-slate-100">@(p.SellingPrice?.ToString("N0") ?? "-")</td>
-                                    </tr>
-                                }
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            }
-            @if (c.FeeCharges.Any())
-            {
-                <div class="@CardCls">
-                    <p class="@LabelCls mb-2">Fee Charges</p>
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-sm">
-                            <tbody>
-                                @foreach (var f in c.FeeCharges)
-                                {
-                                    <tr class="border-b border-slate-50 dark:border-slate-800 last:border-0">
-                                        <td class="py-1.5 text-slate-700 dark:text-slate-200">@f.FeeType</td>
-                                        <td class="py-1.5 text-right text-slate-800 dark:text-slate-100">@(f.Amount?.ToString("N0") ?? "-")</td>
-                                    </tr>
-                                }
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            }
         </div>
     }
 

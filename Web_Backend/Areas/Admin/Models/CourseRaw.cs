@@ -14,5 +14,6 @@ namespace Web_Backend.Areas.Admin.Models
         public string? OutcomeJSON { get; set; }
         public string? RequirementJSON { get; set; }
         public string? FeeChargeJSON { get; set; }
+        public string? FeeOptionJSON { get; set; }
     }
 }

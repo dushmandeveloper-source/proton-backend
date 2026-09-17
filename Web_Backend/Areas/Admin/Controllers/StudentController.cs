@@ -182,7 +182,7 @@ namespace Web_Backend.Areas.Admin.Controllers
         }
 
         [HttpPost, ValidateAntiForgeryToken]
-        public async Task<IActionResult> Save(StudentFormViewModel form, IFormFile? profileImage, IFormFile? passportPhoto, IFormFile? paymentSlip)
+        public async Task<IActionResult> Save(StudentFormViewModel form, IFormFile? profileImage, IFormFile? passportPhoto)
         {
             ViewBag.CurrentUser = Auth.GetUser();
 
@@ -325,13 +325,6 @@ namespace Web_Backend.Areas.Admin.Controllers
 
                 if (isNew && form.SelectedCourseIDs != null && form.SelectedCourseIDs.Any())
                 {
-                    var slipUrl = "";
-                    if (form.PaymentMethod == "BankDeposit")
-                    {
-                        var savedSlipUrl = await uploader.SaveAsync(paymentSlip, PaymentSlipUploadFolder);
-                        slipUrl = savedSlipUrl ?? "";
-                    }
-
                     var scheduleSelections = new Dictionary<string, string>();
                     if (!string.IsNullOrWhiteSpace(form.CourseScheduleSelectionsJson))
                     {
@@ -348,6 +341,24 @@ namespace Web_Backend.Areas.Admin.Controllers
                         }
                     }
 
+                    // Every selected course now carries its own independent
+                    // payment declaration (CoursePaymentsJson, keyed by
+                    // CourseID) instead of a single payment that only ever
+                    // applied to the first course listed.
+                    var coursePayments = new Dictionary<string, CoursePaymentEntry>();
+                    if (!string.IsNullOrWhiteSpace(form.CoursePaymentsJson))
+                    {
+                        try
+                        {
+                            coursePayments = JsonSerializer.Deserialize<Dictionary<string, CoursePaymentEntry>>(form.CoursePaymentsJson)
+                                ?? new Dictionary<string, CoursePaymentEntry>();
+                        }
+                        catch (JsonException)
+                        {
+                            coursePayments = new Dictionary<string, CoursePaymentEntry>();
+                        }
+                    }
+
                     // De-dupe the submitted course IDs: the form only ever renders one
                     // checkbox per course, but a double-submit (double-click, or a
                     // resubmitted request) can otherwise send the same course twice,
@@ -359,11 +370,10 @@ namespace Web_Backend.Areas.Admin.Controllers
                         .Select(r => r.CourseID)
                         .ToHashSet();
 
-                    for (var i = 0; i < uniqueCourseIds.Count; i++)
+                    foreach (var courseId in uniqueCourseIds)
                     {
-                        var courseId = uniqueCourseIds[i];
-                        var isFirst = i == 0;
                         var scheduleId = scheduleSelections.TryGetValue(courseId, out var sid) ? sid : "";
+                        var payment = coursePayments.TryGetValue(courseId, out var p) ? p : null;
 
                         // Pre-check rather than relying solely on the DB's unique-constraint
                         // throw: gives a clear, specific message instead of surfacing the
@@ -376,20 +386,42 @@ namespace Web_Backend.Areas.Admin.Controllers
 
                         try
                         {
+                            var slipUrl = "";
+                            if (payment?.Method == "BankDeposit" || payment?.Method == "Cash")
+                            {
+                                // Each course's slip is its own uniquely-named file
+                                // input (see Edit.cshtml), read directly from the
+                                // multipart form rather than model-bound, since
+                                // ASP.NET Core can't bind a dynamic-keyed file
+                                // dictionary the way [FromForm] binds scalar fields.
+                                var courseSlip = Request.Form.Files.GetFile($"PaymentSlip_{courseId}");
+                                if (courseSlip != null)
+                                {
+                                    var savedSlipUrl = await uploader.SaveAsync(courseSlip, PaymentSlipUploadFolder);
+                                    slipUrl = savedSlipUrl ?? "";
+                                }
+                            }
+
                             var course = await courseRep.Get(courseId);
+                            var discount = await registrationRep.ResolveDiscount(courseId, course?.CurrencyCode ?? "CNY", course?.Fee ?? 0);
+                            var feeChargesTotal = SumFeeCharges(course);
                             await registrationRep.AddEdit(new CourseRegistration
                             {
                                 StudentID = studentId,
                                 CourseID = courseId,
-                                CourseFee = course?.Fee ?? 0,
+                                OriginalFee = discount?.OriginalFee ?? (course?.Fee ?? 0),
+                                CourseFee = (discount?.DiscountApplies == true ? discount.DiscountedFee : (course?.Fee ?? 0)) + feeChargesTotal,
                                 CurrencyCode = course?.CurrencyCode ?? "CNY",
+                                DiscountAmount = discount?.DiscountApplies == true ? discount.DiscountAmount : 0,
+                                DiscountLabel = discount?.DiscountApplies == true ? discount.DiscountLabel : "",
+                                FeeChargesTotal = feeChargesTotal,
                                 RegistrationSource = "Admin",
                                 CreatedByUserID = Auth.GetUserId()
                             },
-                            initialAmount: isFirst ? (form.InitialPaymentAmount ?? 0) : 0,
-                            initialPaymentMethod: isFirst ? form.PaymentMethod : "",
-                            initialPaymentSlipUrl: isFirst ? slipUrl : "",
-                            initialNotes: isFirst ? form.PaymentNotes : "",
+                            initialAmount: payment?.Amount ?? 0,
+                            initialPaymentMethod: payment?.Method ?? "",
+                            initialPaymentSlipUrl: slipUrl,
+                            initialNotes: payment?.Notes ?? "",
                             scheduleId: scheduleId);
                             enrolledCount++;
                         }
@@ -646,12 +678,18 @@ namespace Web_Backend.Areas.Admin.Controllers
             try
             {
                 var course = await courseRep.Get(courseId);
+                var discount = await registrationRep.ResolveDiscount(courseId, course?.CurrencyCode ?? "CNY", course?.Fee ?? 0);
+                var feeChargesTotal = SumFeeCharges(course);
                 await registrationRep.AddEdit(new CourseRegistration
                 {
                     StudentID = studentId,
                     CourseID = courseId,
-                    CourseFee = course?.Fee ?? 0,
+                    OriginalFee = discount?.OriginalFee ?? (course?.Fee ?? 0),
+                    CourseFee = (discount?.DiscountApplies == true ? discount.DiscountedFee : (course?.Fee ?? 0)) + feeChargesTotal,
                     CurrencyCode = course?.CurrencyCode ?? "CNY",
+                    DiscountAmount = discount?.DiscountApplies == true ? discount.DiscountAmount : 0,
+                    DiscountLabel = discount?.DiscountApplies == true ? discount.DiscountLabel : "",
+                    FeeChargesTotal = feeChargesTotal,
                     RegistrationSource = "Admin",
                     CreatedByUserID = Auth.GetUserId()
                 }, scheduleId: scheduleId);
@@ -802,5 +840,12 @@ namespace Web_Backend.Areas.Admin.Controllers
             EmergencyRelationship = s.EmergencyRelationship,
             IsActive = s.IsActive
         };
+
+        // Sum of a course's additional fee charges (edu.CourseFeeCharge —
+        // e.g. registration fee, materials fee), added on top of the
+        // (possibly discounted) base fee. Never itself discounted — see
+        // docs/plans/2026-09-17-course-discounts.md's order-of-operations rule.
+        private static decimal SumFeeCharges(Course? course) =>
+            course?.FeeCharges?.Where(f => f.Amount.HasValue).Sum(f => f.Amount!.Value) ?? 0;
     }
 }

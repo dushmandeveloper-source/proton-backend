@@ -152,6 +152,21 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
             }
 
             var course = await courseRep.Get(form.CourseID);
+            var availableSchedules = await scheduleRep.GetList(new CourseScheduleSearchView { CourseID = form.CourseID, IsActive = "A" });
+
+            // A course with active batches must have one selected — the same
+            // "No specific batch" default that used to sit here silently
+            // produced registrations with no ScheduleID, which then hid every
+            // batch-scoped CourseVideo/LectureMaterial from that student even
+            // though they picked a real batch's price/timing on this very page.
+            if (availableSchedules.Count > 0 && string.IsNullOrEmpty(form.ScheduleID))
+            {
+                TempData["ErrorMessage"] = "Please select a batch for this course.";
+                ViewBag.Course = course;
+                ViewBag.Schedules = availableSchedules;
+                ViewBag.CurrentUser = Auth.GetUser();
+                return View(form);
+            }
 
             // A declared payment (Cash or BankDeposit) must have a receipt/
             // slip attached — same requirement either way, since Cash has no
@@ -161,9 +176,8 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
                 TempData["ErrorMessage"] = form.PaymentMethod == "Cash"
                     ? "Please attach a receipt for your cash payment."
                     : "Please attach your bank deposit slip.";
-                var schedulesForRetry = await scheduleRep.GetList(new CourseScheduleSearchView { CourseID = form.CourseID, IsActive = "A" });
                 ViewBag.Course = course;
-                ViewBag.Schedules = schedulesForRetry;
+                ViewBag.Schedules = availableSchedules;
                 ViewBag.CurrentUser = Auth.GetUser();
                 return View(form);
             }
@@ -177,12 +191,19 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
                     slipUrl = savedUrl ?? "";
                 }
 
+                var (currencyCode, fee) = ResolveFee(course, form.CurrencyCode);
+                var discount = await registrationRep.ResolveDiscount(form.CourseID, currencyCode, fee);
+                var feeChargesTotal = SumFeeCharges(course);
                 await registrationRep.AddEdit(new CourseRegistration
                 {
                     StudentID = student.StudentID,
                     CourseID = form.CourseID,
-                    CourseFee = course?.Fee ?? 0,
-                    CurrencyCode = course?.CurrencyCode ?? "CNY",
+                    OriginalFee = discount?.OriginalFee ?? fee,
+                    CourseFee = (discount?.DiscountApplies == true ? discount.DiscountedFee : fee) + feeChargesTotal,
+                    CurrencyCode = currencyCode,
+                    DiscountAmount = discount?.DiscountApplies == true ? discount.DiscountAmount : 0,
+                    DiscountLabel = discount?.DiscountApplies == true ? discount.DiscountLabel : "",
+                    FeeChargesTotal = feeChargesTotal,
                     RegistrationSource = "Self",
                     CreatedByUserID = ""
                 },
@@ -205,5 +226,33 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
 
             return RedirectToAction("Index", "Dashboard");
         }
+
+        // Resolves the (CurrencyCode, Fee) pair to actually charge — mirrors
+        // Controllers/Api/EnrollmentsApiController.ResolveFee exactly (kept
+        // as a separate copy since the two controllers don't share a base
+        // class): the client only ever names a REQUESTED currency, never an
+        // amount, and this looks up the real fee for that currency from the
+        // course's own priced options rather than trusting anything posted.
+        private static (string CurrencyCode, decimal Fee) ResolveFee(Course? course, string? requestedCurrency)
+        {
+            var baseCurrency = course?.CurrencyCode ?? "CNY";
+            var baseFee = course?.Fee ?? 0;
+            if (string.IsNullOrWhiteSpace(requestedCurrency) || course == null)
+                return (baseCurrency, baseFee);
+
+            if (string.Equals(requestedCurrency, baseCurrency, StringComparison.OrdinalIgnoreCase))
+                return (baseCurrency, baseFee);
+
+            var option = course.FeeOptions.FirstOrDefault(o =>
+                string.Equals(o.CurrencyCode, requestedCurrency, StringComparison.OrdinalIgnoreCase) && o.Fee.HasValue);
+            return option != null ? (option.CurrencyCode, option.Fee!.Value) : (baseCurrency, baseFee);
+        }
+
+        // Sum of a course's additional fee charges (edu.CourseFeeCharge —
+        // e.g. registration fee, materials fee), added on top of the
+        // (possibly discounted) base fee. Never itself discounted — see
+        // docs/plans/2026-09-17-course-discounts.md's order-of-operations rule.
+        private static decimal SumFeeCharges(Course? course) =>
+            course?.FeeCharges?.Where(f => f.Amount.HasValue).Sum(f => f.Amount!.Value) ?? 0;
     }
 }

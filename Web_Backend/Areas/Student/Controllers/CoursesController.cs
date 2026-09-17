@@ -72,10 +72,14 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
                 return RedirectToAction("Index");
             }
 
+            // The page itself is always reachable — a restricted student
+            // still needs to see their balance and pay it — but the view
+            // renders Materials/Schedule/Homework sections disabled (see
+            // CourseDetailsViewModel.IsContentRestricted) rather than
+            // redirecting the student away entirely.
             if (student.IsContentRestricted)
             {
-                TempData["ErrorMessage"] = "Your account is still being verified. Course materials and joining links unlock once an administrator verifies your account.";
-                return RedirectToAction("Index");
+                TempData["ErrorMessage"] = "Your account is still being verified. Course materials and joining links unlock once an administrator verifies your account — you can still view and pay your balance below.";
             }
 
             var course = await courseRep.Get(registration.CourseID);
@@ -107,7 +111,8 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
                 Payments = payments,
                 Segments = segments,
                 Materials = materials,
-                Videos = videos
+                Videos = videos,
+                IsContentRestricted = student.IsContentRestricted
             };
 
             ViewBag.CurrentUser = Auth.GetUser();

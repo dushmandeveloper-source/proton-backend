@@ -29,7 +29,20 @@ namespace Web_Backend.Areas.Admin.Data
                 InitialPaymentMethod = initialPaymentMethod,
                 InitialPaymentSlipURL = initialPaymentSlipUrl,
                 InitialNotes = initialNotes,
-                reg.IsActive
+                reg.IsActive,
+                reg.OriginalFee,
+                reg.DiscountAmount,
+                reg.DiscountLabel,
+                reg.FeeChargesTotal
+            });
+
+        public Task<CourseDiscountResolution?> ResolveDiscount(string courseId, string currencyCode, decimal fee) =>
+            db.Get<CourseDiscountResolution, object>("edu.Course_ResolveDiscount", new
+            {
+                APIKey = AppData.GetAPIKey(),
+                CourseID = courseId,
+                CurrencyCode = currencyCode,
+                Fee = fee
             });
 
         public Task<string> AddPayment(string registrationId, decimal amount, string method, string slipUrl, string notes, string createdByUserId) =>

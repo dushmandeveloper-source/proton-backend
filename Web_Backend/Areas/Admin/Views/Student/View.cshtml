@@ -260,7 +260,28 @@
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
                             <div class="rounded-xl bg-slate-50 dark:bg-slate-800/60 px-4 py-3">
                                 <p class="@LabelCls">Course Fee</p>
-                                <p class="text-lg font-bold text-slate-800 dark:text-slate-100 mt-1">@reg.CurrencyCode @reg.CourseFee.ToString("N2")</p>
+                                @if (reg.HasDiscount || reg.HasFeeCharges)
+                                {
+                                    <div class="mt-1">
+                                        @if (reg.HasDiscount)
+                                        {
+                                            <span class="line-through text-slate-400 dark:text-slate-500 text-sm mr-1.5">@reg.CurrencyCode @reg.OriginalFee.ToString("N2")</span>
+                                        }
+                                        <span class="text-lg font-bold text-slate-800 dark:text-slate-100">@reg.CurrencyCode @reg.CourseFee.ToString("N2")</span>
+                                        @if (reg.HasDiscount)
+                                        {
+                                            <span class="block text-xs text-emerald-600 dark:text-emerald-400">@reg.DiscountLabel</span>
+                                        }
+                                        @if (reg.HasFeeCharges)
+                                        {
+                                            <span class="block text-xs text-slate-500 dark:text-slate-400">Includes @reg.CurrencyCode @reg.FeeChargesTotal.ToString("N2") in additional fees</span>
+                                        }
+                                    </div>
+                                }
+                                else
+                                {
+                                    <p class="text-lg font-bold text-slate-800 dark:text-slate-100 mt-1">@reg.CurrencyCode @reg.CourseFee.ToString("N2")</p>
+                                }
                             </div>
                             <div class="rounded-xl bg-slate-50 dark:bg-slate-800/60 px-4 py-3">
                                 <p class="@LabelCls">Amount Paid</p>
@@ -495,7 +516,14 @@
                                 <option value="">Select a course...</option>
                                 @foreach (var course in remainingCourses)
                                 {
-                                    <option value="@course.CourseID">@course.CourseTitle (@course.CurrencyCode @((course.Fee ?? 0).ToString("N2")))</option>
+                                    var optDiscount = course.GetDisplayDiscount();
+                                    var optFeeCharges = course.GetFeeChargesTotal();
+                                    var optBaseFee = course.Fee ?? 0;
+                                    var optTotal = (optDiscount?.Amount is decimal odisc ? optBaseFee - odisc : optBaseFee) + optFeeCharges;
+                                    var optLabel = optDiscount != null
+                                        ? $"{course.CourseTitle} ({course.CurrencyCode} {optBaseFee:N0} → {course.CurrencyCode} {optTotal:N2}, {optDiscount.Label})"
+                                        : $"{course.CourseTitle} ({course.CurrencyCode} {optTotal:N2})";
+                                    <option value="@course.CourseID">@optLabel</option>
                                 }
                             </select>
                         </div>

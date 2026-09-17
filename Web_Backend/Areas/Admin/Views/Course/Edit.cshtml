@@ -15,6 +15,19 @@
         ["details"] = "Details", ["content"] = "Content",
         ["pricing"] = "Pricing & Fees", ["combo"] = "Combo Offers", ["subjects"] = "Exam Subjects", ["schedules"] = "Schedules"
     };
+
+    // edu.Course_AddEdit's OPENJSON ... WITH clauses read camelCase paths
+    // ($.feeType, $.amountsByCurrency, ...) — every hidden "carry-through"
+    // field below (a tab re-posting another tab's child list unchanged)
+    // MUST serialize with this same policy, or the sproc's WHERE ISNULL(j.X,'')<>''
+    // guard silently sees every row as blank and wipes that whole child
+    // list on save. Plain JsonSerializer.Serialize(x) keeps C#'s PascalCase
+    // property names instead, which is the bug this closure exists to avoid.
+    var camelCaseJsonOptions = new System.Text.Json.JsonSerializerOptions
+    {
+        PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase
+    };
+    Func<object?, string> ToJson = (obj) => System.Text.Json.JsonSerializer.Serialize(obj, camelCaseJsonOptions);
 }
 
 <div class="max-w-5xl mx-auto page-enter">
@@ -51,6 +64,8 @@
         }
     </div>
 
+    <script src="~/js/country-picker.js"></script>
+
     @if (Model.IsNew || Model.ActiveTab == "details")
     {
         <form method="post" asp-action="Save" enctype="multipart/form-data" id="details-form" class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 p-6 space-y-5">
@@ -60,14 +75,15 @@
             <input type="hidden" asp-for="Course.HandbookFileURL" />
             @Html.Hidden("tab", "details")
             @* Content/pricing/combo JSON is preserved across the Details-tab save via hidden fields so a Details-only submit doesn't wipe other tabs' data. *@
-            <input type="hidden" name="DescriptionJSON" value="@System.Text.Json.JsonSerializer.Serialize(c.Descriptions)" />
-            <input type="hidden" name="PathwayJSON" value="@System.Text.Json.JsonSerializer.Serialize(c.Pathways)" />
-            <input type="hidden" name="TrainingPointJSON" value="@System.Text.Json.JsonSerializer.Serialize(c.TrainingPoints)" />
-            <input type="hidden" name="OutcomeJSON" value="@System.Text.Json.JsonSerializer.Serialize(c.Outcomes)" />
-            <input type="hidden" name="RequirementJSON" value="@System.Text.Json.JsonSerializer.Serialize(c.Requirements)" />
-            <input type="hidden" name="PricingJSON" value="@System.Text.Json.JsonSerializer.Serialize(c.PricingDetails)" />
-            <input type="hidden" name="FeeChargeJSON" value="@System.Text.Json.JsonSerializer.Serialize(c.FeeCharges)" />
-            <input type="hidden" name="ComboOfferJSON" value="@System.Text.Json.JsonSerializer.Serialize(c.ComboOffers)" />
+            <input type="hidden" name="DescriptionJSON" value="@ToJson(c.Descriptions)" />
+            <input type="hidden" name="PathwayJSON" value="@ToJson(c.Pathways)" />
+            <input type="hidden" name="TrainingPointJSON" value="@ToJson(c.TrainingPoints)" />
+            <input type="hidden" name="OutcomeJSON" value="@ToJson(c.Outcomes)" />
+            <input type="hidden" name="RequirementJSON" value="@ToJson(c.Requirements)" />
+            <input type="hidden" name="PricingJSON" value="@ToJson(c.PricingDetails)" />
+            <input type="hidden" name="FeeChargeJSON" value="@ToJson(c.FeeCharges)" />
+            <input type="hidden" name="ComboOfferJSON" value="@ToJson(c.ComboOffers)" />
+            <input type="hidden" name="FeeOptionJSON" value="@ToJson(c.FeeOptions)" />
 
             <div>
                 <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Course Type <span class="text-red-500">*</span></label>
@@ -139,16 +155,17 @@
                 <input asp-for="Course.DeliveryMethod" placeholder="e.g. Online, In-person" class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" />
             </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                    <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Currency</label>
-                    <input asp-for="Course.CurrencyCode" class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" />
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Base Fee</label>
-                    <input asp-for="Course.Fee" type="number" step="0.01" class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" />
-                </div>
-            </div>
+            @* Currency/Base Fee/Discount/Fee Charges are edited on the
+               Pricing & Fees tab now — carried through unchanged here so a
+               Details-only save doesn't blank them back to defaults. *@
+            <input type="hidden" asp-for="Course.CurrencyCode" />
+            <input type="hidden" asp-for="Course.Fee" />
+            <input type="hidden" asp-for="Course.DiscountType" />
+            <input type="hidden" asp-for="Course.DiscountValueType" />
+            <input type="hidden" asp-for="Course.DiscountValue" />
+            <input type="hidden" asp-for="Course.DiscountFirstN" />
+            <input type="hidden" name="Course.DiscountStartDate" value="@(c.DiscountStartDate?.ToString("yyyy-MM-dd"))" />
+            <input type="hidden" name="Course.DiscountEndDate" value="@(c.DiscountEndDate?.ToString("yyyy-MM-dd"))" />
 
             <div>
                 <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Short Description</label>
@@ -232,10 +249,44 @@
     {
         <form method="post" asp-action="Save" id="content-form" class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 p-6 space-y-8">
             @Html.AntiForgeryToken()
-            <input type="hidden" name="CourseID" value="@c.CourseID" />
-            <input type="hidden" name="CourseType" value="@c.CourseType" />
-            <input type="hidden" name="CourseTitle" value="@c.CourseTitle" />
+            <input type="hidden" name="Course.CourseID" value="@c.CourseID" />
             <input type="hidden" name="tab" value="content" />
+            @* Fields this tab's form never shows are carried through unchanged
+               so saving here doesn't blank them back to defaults. Must be
+               "Course.X"-prefixed to match Save's [Bind(Prefix="Course")] —
+               ASP.NET Core's complex-object binder does NOT fall back to
+               unprefixed keys when the prefix has zero matches; it leaves
+               every property at its default instead (this is what caused
+               form.CourseID to bind empty and every save silently behave
+               like "create new" for any tab other than Details). *@
+            <input type="hidden" name="Course.CourseType" value="@c.CourseType" />
+            <input type="hidden" name="Course.CourseTitle" value="@c.CourseTitle" />
+            <input type="hidden" name="Course.CourseCode" value="@c.CourseCode" />
+            <input type="hidden" name="Course.CategoryID" value="@c.CategoryID" />
+            <input type="hidden" name="Course.LocationID" value="@c.LocationID" />
+            <input type="hidden" name="Course.Duration" value="@c.Duration" />
+            <input type="hidden" name="Course.CertificateValidity" value="@c.CertificateValidity" />
+            <input type="hidden" name="Course.DeliveryMethod" value="@c.DeliveryMethod" />
+            <input type="hidden" name="Course.ShortDescription" value="@c.ShortDescription" />
+            <input type="hidden" name="Course.AboutHtml" value="@c.AboutHtml" />
+            <input type="hidden" name="Course.CurrencyCode" value="@c.CurrencyCode" />
+            <input type="hidden" name="Course.Fee" value="@c.Fee" />
+            <input type="hidden" name="Course.DiscountType" value="@c.DiscountType" />
+            <input type="hidden" name="Course.DiscountValueType" value="@c.DiscountValueType" />
+            <input type="hidden" name="Course.DiscountValue" value="@c.DiscountValue" />
+            <input type="hidden" name="Course.DiscountFirstN" value="@c.DiscountFirstN" />
+            <input type="hidden" name="Course.DiscountStartDate" value="@(c.DiscountStartDate?.ToString("yyyy-MM-dd"))" />
+            <input type="hidden" name="Course.DiscountEndDate" value="@(c.DiscountEndDate?.ToString("yyyy-MM-dd"))" />
+            <input type="hidden" name="Course.SortOrder" value="@c.SortOrder" />
+            <input type="hidden" name="Course.IsActive" value="@c.IsActive" />
+            <input type="hidden" name="Course.HandbookTitle" value="@c.HandbookTitle" />
+            <input type="hidden" name="Course.CourseImageURL" value="@c.CourseImageURL" />
+            <input type="hidden" name="Course.HandbookFileURL" value="@c.HandbookFileURL" />
+            <input type="hidden" name="Course.VideoURL" value="@c.VideoURL" />
+            <input type="hidden" name="Course.EnableExperiencePricing" value="@(c.EnableExperiencePricing ? "true" : "false")" />
+            <input type="hidden" name="Course.EnableComboOffer" value="@(c.EnableComboOffer ? "true" : "false")" />
+            <input type="hidden" name="FeeOptionJSON" value="@ToJson(c.FeeOptions)" />
+            <input type="hidden" name="FeeChargeJSON" value="@ToJson(c.FeeCharges)" />
 
             @await Html.PartialAsync("_RepeatableList", new RepeatableListModel {
                 Title = "Descriptions", FieldName = "DescriptionJSON", TextField = "descriptionText",
@@ -272,9 +323,9 @@
                 <input type="hidden" name="PathwayJSON" id="PathwayJSON" />
             </div>
 
-            <input type="hidden" name="PricingJSON" value="@System.Text.Json.JsonSerializer.Serialize(c.PricingDetails)" />
-            <input type="hidden" name="FeeChargeJSON" value="@System.Text.Json.JsonSerializer.Serialize(c.FeeCharges)" />
-            <input type="hidden" name="ComboOfferJSON" value="@System.Text.Json.JsonSerializer.Serialize(c.ComboOffers)" />
+            <input type="hidden" name="PricingJSON" value="@ToJson(c.PricingDetails)" />
+            <input type="hidden" name="FeeChargeJSON" value="@ToJson(c.FeeCharges)" />
+            <input type="hidden" name="ComboOfferJSON" value="@ToJson(c.ComboOffers)" />
 
             @if (canEdit)
             {
@@ -311,54 +362,156 @@
     {
         <form method="post" asp-action="Save" class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 p-6 space-y-8">
             @Html.AntiForgeryToken()
-            <input type="hidden" name="CourseID" value="@c.CourseID" />
-            <input type="hidden" name="CourseType" value="@c.CourseType" />
-            <input type="hidden" name="CourseTitle" value="@c.CourseTitle" />
+            <input type="hidden" name="Course.CourseID" value="@c.CourseID" />
             <input type="hidden" name="tab" value="pricing" />
-            <input type="hidden" name="DescriptionJSON" value="@System.Text.Json.JsonSerializer.Serialize(c.Descriptions)" />
-            <input type="hidden" name="PathwayJSON" value="@System.Text.Json.JsonSerializer.Serialize(c.Pathways)" />
-            <input type="hidden" name="TrainingPointJSON" value="@System.Text.Json.JsonSerializer.Serialize(c.TrainingPoints)" />
-            <input type="hidden" name="OutcomeJSON" value="@System.Text.Json.JsonSerializer.Serialize(c.Outcomes)" />
-            <input type="hidden" name="RequirementJSON" value="@System.Text.Json.JsonSerializer.Serialize(c.Requirements)" />
-            <input type="hidden" name="ComboOfferJSON" value="@System.Text.Json.JsonSerializer.Serialize(c.ComboOffers)" />
+            <input type="hidden" name="DescriptionJSON" value="@ToJson(c.Descriptions)" />
+            <input type="hidden" name="PathwayJSON" value="@ToJson(c.Pathways)" />
+            <input type="hidden" name="TrainingPointJSON" value="@ToJson(c.TrainingPoints)" />
+            <input type="hidden" name="OutcomeJSON" value="@ToJson(c.Outcomes)" />
+            <input type="hidden" name="RequirementJSON" value="@ToJson(c.Requirements)" />
+            <input type="hidden" name="ComboOfferJSON" value="@ToJson(c.ComboOffers)" />
+            @* Fields this tab's form never shows are carried through unchanged
+               so saving Pricing doesn't blank them back to defaults — see the
+               matching comment on the Content tab's form above about why
+               these must be "Course.X"-prefixed. *@
+            <input type="hidden" name="Course.CourseType" value="@c.CourseType" />
+            <input type="hidden" name="Course.CourseTitle" value="@c.CourseTitle" />
+            <input type="hidden" name="Course.CourseCode" value="@c.CourseCode" />
+            <input type="hidden" name="Course.CategoryID" value="@c.CategoryID" />
+            <input type="hidden" name="Course.LocationID" value="@c.LocationID" />
+            <input type="hidden" name="Course.Duration" value="@c.Duration" />
+            <input type="hidden" name="Course.CertificateValidity" value="@c.CertificateValidity" />
+            <input type="hidden" name="Course.DeliveryMethod" value="@c.DeliveryMethod" />
+            <input type="hidden" name="Course.ShortDescription" value="@c.ShortDescription" />
+            <input type="hidden" name="Course.AboutHtml" value="@c.AboutHtml" />
+            <input type="hidden" name="Course.SortOrder" value="@c.SortOrder" />
+            <input type="hidden" name="Course.IsActive" value="@c.IsActive" />
+            <input type="hidden" name="Course.HandbookTitle" value="@c.HandbookTitle" />
+            <input type="hidden" name="Course.CourseImageURL" value="@c.CourseImageURL" />
+            <input type="hidden" name="Course.HandbookFileURL" value="@c.HandbookFileURL" />
+            <input type="hidden" name="Course.VideoURL" value="@c.VideoURL" />
+            <input type="hidden" name="Course.EnableExperiencePricing" value="@(c.EnableExperiencePricing ? "true" : "false")" />
+            <input type="hidden" name="Course.EnableComboOffer" value="@(c.EnableComboOffer ? "true" : "false")" />
+
+            @* Pricing Tiers are hidden from this tab (still carried through
+               unchanged via this hidden field, same as any other tab that
+               doesn't show a given field). *@
+            <input type="hidden" name="PricingJSON" value="@ToJson(c.PricingDetails)" />
 
             <div>
-                <h3 class="font-semibold text-slate-800 dark:text-slate-100 mb-3">Pricing Tiers</h3>
-                <div id="pricing-rows" class="space-y-2">
-                    @foreach (var p in c.PricingDetails)
-                    {
-                        <div class="pricing-row grid grid-cols-1 md:grid-cols-5 gap-2">
-                            <input type="text" class="pr-tier px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" value="@p.PricingTier" placeholder="Tier name" />
-                            <input type="number" step="0.01" class="pr-sell px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" value="@p.SellingPrice" placeholder="Selling price" />
-                            <input type="number" step="0.01" class="pr-orig px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" value="@p.OriginalPrice" placeholder="Original price" />
-                            <input type="number" step="0.01" class="pr-slbl px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" value="@p.SLBLPrice" placeholder="SLBL price" />
-                            <div class="flex gap-2">
-                                <input type="number" step="0.01" class="pr-slblst flex-1 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" value="@p.SLBLStrikethroughPrice" placeholder="SLBL strike price" />
-                                <button type="button" onclick="this.closest('.pricing-row').remove()" class="p-2 text-slate-400 hover:text-red-600 dark:hover:text-red-400"><i data-lucide="x" class="w-4 h-4"></i></button>
-                            </div>
-                        </div>
-                    }
+                <h3 class="font-semibold text-slate-800 dark:text-slate-100 mb-3">Base Price</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Currency</label>
+                        <input type="text" name="Course.CurrencyCode" id="base-currency-input" value="@c.CurrencyCode" autocomplete="off" data-currency-picker onchange="syncFeeChargeCurrencies()" class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" />
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Base Fee</label>
+                        <input type="number" name="Course.Fee" value="@c.Fee" step="0.01" class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" />
+                    </div>
                 </div>
-                <button type="button" onclick="addPricingRow()" class="mt-2 text-sm text-[#7c3aed] hover:underline">+ Add pricing tier</button>
-                <input type="hidden" name="PricingJSON" id="PricingJSON" />
             </div>
 
             <div>
-                <h3 class="font-semibold text-slate-800 dark:text-slate-100 mb-3">Fee Charges</h3>
-                <div id="fee-rows" class="space-y-2">
-                    @foreach (var f in c.FeeCharges)
+                <h3 class="font-semibold text-slate-800 dark:text-slate-100 mb-1">Additional Currency Options</h3>
+                <p class="text-xs text-slate-500 dark:text-slate-400 mb-3">Optional — let students pay this course in another currency besides the base @c.CurrencyCode fee above (e.g. also offer USD or LKR).</p>
+                <div id="fee-option-rows" class="space-y-2">
+                    @foreach (var fo in c.FeeOptions)
                     {
-                        <div class="fee-row grid grid-cols-1 md:grid-cols-4 gap-2">
-                            <input type="text" class="fee-type px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" value="@f.FeeType" placeholder="Fee type" />
-                            <input type="text" class="fee-desc col-span-2 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" value="@f.Description" placeholder="Description" />
-                            <div class="flex gap-2">
-                                <input type="number" step="0.01" class="fee-amt flex-1 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" value="@f.Amount" placeholder="Amount" />
-                                <button type="button" onclick="this.closest('.fee-row').remove()" class="p-2 text-slate-400 hover:text-red-600 dark:hover:text-red-400"><i data-lucide="x" class="w-4 h-4"></i></button>
+                        <div class="fee-option-row grid grid-cols-1 md:grid-cols-3 gap-2">
+                            <input type="text" class="fo-currency px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" value="@fo.CurrencyCode" placeholder="Currency" autocomplete="off" data-currency-picker onchange="syncFeeChargeCurrencies()" />
+                            <div class="flex gap-2 md:col-span-2">
+                                <input type="number" step="0.01" class="fo-amt flex-1 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" value="@fo.Fee" placeholder="Fee in that currency" />
+                                <button type="button" onclick="this.closest('.fee-option-row').remove(); syncFeeChargeCurrencies()" class="p-2 text-slate-400 hover:text-red-600 dark:hover:text-red-400"><i data-lucide="x" class="w-4 h-4"></i></button>
                             </div>
                         </div>
                     }
                 </div>
-                <button type="button" onclick="addFeeRow()" class="mt-2 text-sm text-[#7c3aed] hover:underline">+ Add fee charge</button>
+                <button type="button" onclick="addFeeOptionRow()" class="mt-2 text-sm text-[#7c3aed] hover:underline">+ Add currency option</button>
+                <input type="hidden" name="FeeOptionJSON" id="FeeOptionJSON" />
+            </div>
+
+            <div>
+                <h3 class="font-semibold text-slate-800 dark:text-slate-100 mb-1">Discount</h3>
+                <p class="text-xs text-slate-500 dark:text-slate-400 mb-3">Optional — at most one discount can be active at a time. Choosing a type here clears the other type's fields on save.</p>
+
+                <div class="flex flex-col gap-3">
+                    <label class="flex items-center gap-3 rounded-xl border border-slate-200 dark:border-slate-600 px-4 py-3 cursor-pointer has-[:checked]:border-[#7c3aed] has-[:checked]:bg-purple-50/50 dark:has-[:checked]:bg-purple-950/30">
+                        <input type="radio" name="Course.DiscountType" value="None" id="disc-none" @(c.DiscountType != "FirstN" && c.DiscountType != "DateRange" ? "checked" : "") class="accent-[#7c3aed]" onchange="toggleDiscountFields()" />
+                        <span class="text-sm font-medium text-slate-800 dark:text-slate-100">No discount</span>
+                    </label>
+                    <label class="flex items-center gap-3 rounded-xl border border-slate-200 dark:border-slate-600 px-4 py-3 cursor-pointer has-[:checked]:border-[#7c3aed] has-[:checked]:bg-purple-50/50 dark:has-[:checked]:bg-purple-950/30">
+                        <input type="radio" name="Course.DiscountType" value="FirstN" id="disc-firstn" @(c.DiscountType == "FirstN" ? "checked" : "") class="accent-[#7c3aed]" onchange="toggleDiscountFields()" />
+                        <span class="text-sm font-medium text-slate-800 dark:text-slate-100">First N students to enroll</span>
+                    </label>
+                    <label class="flex items-center gap-3 rounded-xl border border-slate-200 dark:border-slate-600 px-4 py-3 cursor-pointer has-[:checked]:border-[#7c3aed] has-[:checked]:bg-purple-50/50 dark:has-[:checked]:bg-purple-950/30">
+                        <input type="radio" name="Course.DiscountType" value="DateRange" id="disc-daterange" @(c.DiscountType == "DateRange" ? "checked" : "") class="accent-[#7c3aed]" onchange="toggleDiscountFields()" />
+                        <span class="text-sm font-medium text-slate-800 dark:text-slate-100">Special date-range discount</span>
+                    </label>
+                </div>
+
+                <div class="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Discount Value Type</label>
+                        <select name="Course.DiscountValueType" class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm">
+                            <option value="Percent" selected="@(c.DiscountValueType != "Flat")">Percent (%)</option>
+                            <option value="Flat" selected="@(c.DiscountValueType == "Flat")">Flat amount</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Discount Value</label>
+                        <input type="number" step="0.01" name="Course.DiscountValue" value="@c.DiscountValue" class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" />
+                    </div>
+                    <div id="disc-firstn-field" class="@(c.DiscountType == "FirstN" ? "" : "hidden")">
+                        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">First N Students</label>
+                        <input type="number" step="1" min="1" name="Course.DiscountFirstN" value="@c.DiscountFirstN" class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" />
+                    </div>
+                    <div id="disc-start-field" class="@(c.DiscountType == "DateRange" ? "" : "hidden")">
+                        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">From</label>
+                        <input type="date" name="Course.DiscountStartDate" value="@(c.DiscountStartDate?.ToString("yyyy-MM-dd"))" class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" />
+                    </div>
+                    <div id="disc-end-field" class="@(c.DiscountType == "DateRange" ? "" : "hidden")">
+                        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Until</label>
+                        <input type="date" name="Course.DiscountEndDate" value="@(c.DiscountEndDate?.ToString("yyyy-MM-dd"))" class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" />
+                    </div>
+                </div>
+            </div>
+
+            <div>
+                <h3 class="font-semibold text-slate-800 dark:text-slate-100 mb-1">Additional Fees</h3>
+                <p class="text-xs text-slate-500 dark:text-slate-400 mb-3">Optional — extra charges on top of the base fee (e.g. registration fee, materials fee). Added to the total owed at enrollment; never discounted. Enter an amount for each currency this course is offered in (base @c.CurrencyCode, plus any Additional Currency Options above) — a flat fee like this has no exchange rate to convert automatically.</p>
+                <div id="fee-charge-rows" class="space-y-3">
+                    @foreach (var f in c.FeeCharges)
+                    {
+                        <div class="fee-charge-row rounded-xl border border-slate-200 dark:border-slate-600 p-3 space-y-2">
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-2">
+                                <input type="text" class="fc-type px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" value="@f.FeeType" placeholder="Fee type" />
+                                <div class="flex gap-2 md:col-span-2">
+                                    <input type="text" class="fc-desc flex-1 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" value="@f.Description" placeholder="Description" />
+                                    <button type="button" onclick="this.closest('.fee-charge-row').remove()" class="p-2 text-slate-400 hover:text-red-600 dark:hover:text-red-400"><i data-lucide="x" class="w-4 h-4"></i></button>
+                                </div>
+                            </div>
+                            <div class="fc-amounts grid grid-cols-2 md:grid-cols-4 gap-2">
+                                @{
+                                    var baseAmt = f.AmountsByCurrency.FirstOrDefault(a => a.CurrencyCode == c.CurrencyCode);
+                                }
+                                <div class="flex items-center gap-1.5">
+                                    <span class="text-xs font-mono text-slate-400 w-10 shrink-0">@c.CurrencyCode</span>
+                                    <input type="number" step="0.01" data-currency="@c.CurrencyCode" class="fc-amt w-full px-2 py-1.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" value="@baseAmt?.Amount" placeholder="Amount" />
+                                </div>
+                                @foreach (var fo in c.FeeOptions.Where(o => !string.IsNullOrEmpty(o.CurrencyCode)))
+                                {
+                                    var amt = f.AmountsByCurrency.FirstOrDefault(a => a.CurrencyCode == fo.CurrencyCode);
+                                    <div class="flex items-center gap-1.5">
+                                        <span class="text-xs font-mono text-slate-400 w-10 shrink-0">@fo.CurrencyCode</span>
+                                        <input type="number" step="0.01" data-currency="@fo.CurrencyCode" class="fc-amt w-full px-2 py-1.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" value="@amt?.Amount" placeholder="Amount" />
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    }
+                </div>
+                <button type="button" onclick="addFeeChargeRow()" class="mt-2 text-sm text-[#7c3aed] hover:underline">+ Add fee charge</button>
                 <input type="hidden" name="FeeChargeJSON" id="FeeChargeJSON" />
             </div>
 
@@ -371,48 +524,93 @@
         </form>
 
         <script>
-            function addPricingRow() {
+            function toggleDiscountFields() {
+                var isFirstN = document.getElementById('disc-firstn').checked;
+                var isDateRange = document.getElementById('disc-daterange').checked;
+                document.getElementById('disc-firstn-field').classList.toggle('hidden', !isFirstN);
+                document.getElementById('disc-start-field').classList.toggle('hidden', !isDateRange);
+                document.getElementById('disc-end-field').classList.toggle('hidden', !isDateRange);
+            }
+            // Every currency the course is currently offered in: the base
+            // currency plus whatever's typed into the Additional Currency
+            // Options rows right now. Additional Fees rows always show one
+            // amount input per entry in this list, kept in sync as currency
+            // options are added/removed/edited (see syncFeeChargeCurrencies).
+            function currentCourseCurrencies() {
+                const base = document.getElementById('base-currency-input').value.trim().toUpperCase();
+                const extra = [...document.querySelectorAll('.fo-currency')]
+                    .map(i => i.value.trim().toUpperCase())
+                    .filter(code => code && code !== base);
+                return [base, ...extra];
+            }
+            function feeChargeAmountsHtml(currencies, amountsByCurrency) {
+                amountsByCurrency = amountsByCurrency || {};
+                return currencies.map(code => `
+                    <div class="flex items-center gap-1.5">
+                        <span class="text-xs font-mono text-slate-400 w-10 shrink-0">${code}</span>
+                        <input type="number" step="0.01" data-currency="${code}" class="fc-amt w-full px-2 py-1.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" placeholder="Amount" value="${amountsByCurrency[code] ?? ''}" />
+                    </div>`).join('');
+            }
+            function addFeeChargeRow() {
                 const div = document.createElement('div');
-                div.className = 'pricing-row grid grid-cols-1 md:grid-cols-5 gap-2';
-                div.innerHTML = `<input type="text" class="pr-tier px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" placeholder="Tier name" />
-                    <input type="number" step="0.01" class="pr-sell px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" placeholder="Selling price" />
-                    <input type="number" step="0.01" class="pr-orig px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" placeholder="Original price" />
-                    <input type="number" step="0.01" class="pr-slbl px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" placeholder="SLBL price" />
-                    <div class="flex gap-2">
-                        <input type="number" step="0.01" class="pr-slblst flex-1 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" placeholder="SLBL strike price" />
-                        <button type="button" onclick="this.closest('.pricing-row').remove()" class="p-2 text-slate-400 hover:text-red-600 dark:hover:text-red-400"><i data-lucide="x" class="w-4 h-4"></i></button>
-                    </div>`;
-                document.getElementById('pricing-rows').appendChild(div);
+                div.className = 'fee-charge-row rounded-xl border border-slate-200 dark:border-slate-600 p-3 space-y-2';
+                div.innerHTML = `<div class="grid grid-cols-1 md:grid-cols-3 gap-2">
+                        <input type="text" class="fc-type px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" placeholder="Fee type" />
+                        <div class="flex gap-2 md:col-span-2">
+                            <input type="text" class="fc-desc flex-1 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" placeholder="Description" />
+                            <button type="button" onclick="this.closest('.fee-charge-row').remove()" class="p-2 text-slate-400 hover:text-red-600 dark:hover:text-red-400"><i data-lucide="x" class="w-4 h-4"></i></button>
+                        </div>
+                    </div>
+                    <div class="fc-amounts grid grid-cols-2 md:grid-cols-4 gap-2">${feeChargeAmountsHtml(currentCourseCurrencies())}</div>`;
+                document.getElementById('fee-charge-rows').appendChild(div);
                 if (window.lucide) lucide.createIcons();
             }
-            function addFeeRow() {
+            function addFeeOptionRow() {
                 const div = document.createElement('div');
-                div.className = 'fee-row grid grid-cols-1 md:grid-cols-4 gap-2';
-                div.innerHTML = `<input type="text" class="fee-type px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" placeholder="Fee type" />
-                    <input type="text" class="fee-desc col-span-2 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" placeholder="Description" />
-                    <div class="flex gap-2">
-                        <input type="number" step="0.01" class="fee-amt flex-1 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" placeholder="Amount" />
-                        <button type="button" onclick="this.closest('.fee-row').remove()" class="p-2 text-slate-400 hover:text-red-600 dark:hover:text-red-400"><i data-lucide="x" class="w-4 h-4"></i></button>
+                div.className = 'fee-option-row grid grid-cols-1 md:grid-cols-3 gap-2';
+                div.innerHTML = `<input type="text" class="fo-currency px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" placeholder="Currency" autocomplete="off" data-currency-picker onchange="syncFeeChargeCurrencies()" />
+                    <div class="flex gap-2 md:col-span-2">
+                        <input type="number" step="0.01" class="fo-amt flex-1 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" placeholder="Fee in that currency" />
+                        <button type="button" onclick="this.closest('.fee-option-row').remove(); syncFeeChargeCurrencies()" class="p-2 text-slate-400 hover:text-red-600 dark:hover:text-red-400"><i data-lucide="x" class="w-4 h-4"></i></button>
                     </div>`;
-                document.getElementById('fee-rows').appendChild(div);
+                document.getElementById('fee-option-rows').appendChild(div);
                 if (window.lucide) lucide.createIcons();
+                // Newly-inserted row needs the picker wired up too — the
+                // page-load init in country-picker.js only ran once already.
+                if (window.ProtonCountryPicker) window.ProtonCountryPicker.init(div);
+            }
+            // Re-renders every existing Additional Fees row's amount inputs
+            // to match the current currency list, preserving whatever the
+            // Admin already typed for a currency that's still present.
+            function syncFeeChargeCurrencies() {
+                const currencies = currentCourseCurrencies();
+                document.querySelectorAll('.fee-charge-row').forEach(row => {
+                    const existing = {};
+                    row.querySelectorAll('.fc-amt').forEach(i => {
+                        if (i.dataset.currency && i.value) existing[i.dataset.currency] = i.value;
+                    });
+                    row.querySelector('.fc-amounts').innerHTML = feeChargeAmountsHtml(currencies, existing);
+                });
             }
             function preparePricingForm() {
-                const pricing = [...document.querySelectorAll('.pricing-row')].map(r => ({
-                    pricingTier: r.querySelector('.pr-tier').value,
-                    sellingPrice: parseFloat(r.querySelector('.pr-sell').value) || null,
-                    originalPrice: parseFloat(r.querySelector('.pr-orig').value) || null,
-                    slblPrice: parseFloat(r.querySelector('.pr-slbl').value) || null,
-                    slblStrikethroughPrice: parseFloat(r.querySelector('.pr-slblst').value) || null
-                })).filter(p => p.pricingTier);
-                document.getElementById('PricingJSON').value = JSON.stringify(pricing);
-
-                const fees = [...document.querySelectorAll('.fee-row')].map(r => ({
-                    feeType: r.querySelector('.fee-type').value,
-                    description: r.querySelector('.fee-desc').value,
-                    amount: parseFloat(r.querySelector('.fee-amt').value) || null
+                // Pricing Tiers no longer render on this tab — its hidden
+                // PricingJSON field above already carries the existing data
+                // through unchanged, so there's nothing to serialize here
+                // for it any more.
+                const feeCharges = [...document.querySelectorAll('.fee-charge-row')].map(r => ({
+                    feeType: r.querySelector('.fc-type').value,
+                    description: r.querySelector('.fc-desc').value,
+                    amountsByCurrency: [...r.querySelectorAll('.fc-amt')]
+                        .map(i => ({ currencyCode: i.dataset.currency, amount: parseFloat(i.value) || null }))
+                        .filter(a => a.amount !== null)
                 })).filter(f => f.feeType);
-                document.getElementById('FeeChargeJSON').value = JSON.stringify(fees);
+                document.getElementById('FeeChargeJSON').value = JSON.stringify(feeCharges);
+
+                const feeOptions = [...document.querySelectorAll('.fee-option-row')].map(r => ({
+                    currencyCode: r.querySelector('.fo-currency').value.trim().toUpperCase(),
+                    fee: parseFloat(r.querySelector('.fo-amt').value) || null
+                })).filter(o => o.currencyCode && o.fee);
+                document.getElementById('FeeOptionJSON').value = JSON.stringify(feeOptions);
                 return true;
             }
         </script>
@@ -421,17 +619,45 @@
     {
         <form method="post" asp-action="Save" class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 p-6 space-y-4">
             @Html.AntiForgeryToken()
-            <input type="hidden" name="CourseID" value="@c.CourseID" />
-            <input type="hidden" name="CourseType" value="@c.CourseType" />
-            <input type="hidden" name="CourseTitle" value="@c.CourseTitle" />
+            <input type="hidden" name="Course.CourseID" value="@c.CourseID" />
             <input type="hidden" name="tab" value="combo" />
-            <input type="hidden" name="DescriptionJSON" value="@System.Text.Json.JsonSerializer.Serialize(c.Descriptions)" />
-            <input type="hidden" name="PathwayJSON" value="@System.Text.Json.JsonSerializer.Serialize(c.Pathways)" />
-            <input type="hidden" name="TrainingPointJSON" value="@System.Text.Json.JsonSerializer.Serialize(c.TrainingPoints)" />
-            <input type="hidden" name="OutcomeJSON" value="@System.Text.Json.JsonSerializer.Serialize(c.Outcomes)" />
-            <input type="hidden" name="RequirementJSON" value="@System.Text.Json.JsonSerializer.Serialize(c.Requirements)" />
-            <input type="hidden" name="PricingJSON" value="@System.Text.Json.JsonSerializer.Serialize(c.PricingDetails)" />
-            <input type="hidden" name="FeeChargeJSON" value="@System.Text.Json.JsonSerializer.Serialize(c.FeeCharges)" />
+            <input type="hidden" name="DescriptionJSON" value="@ToJson(c.Descriptions)" />
+            <input type="hidden" name="PathwayJSON" value="@ToJson(c.Pathways)" />
+            <input type="hidden" name="TrainingPointJSON" value="@ToJson(c.TrainingPoints)" />
+            <input type="hidden" name="OutcomeJSON" value="@ToJson(c.Outcomes)" />
+            <input type="hidden" name="RequirementJSON" value="@ToJson(c.Requirements)" />
+            <input type="hidden" name="PricingJSON" value="@ToJson(c.PricingDetails)" />
+            <input type="hidden" name="FeeChargeJSON" value="@ToJson(c.FeeCharges)" />
+            <input type="hidden" name="FeeOptionJSON" value="@ToJson(c.FeeOptions)" />
+            @* Fields this tab's form never shows are carried through unchanged
+               so saving Combo Offers doesn't blank them back to defaults — see
+               the matching comment on the Content tab's form above about why
+               these must be "Course.X"-prefixed. *@
+            <input type="hidden" name="Course.CourseType" value="@c.CourseType" />
+            <input type="hidden" name="Course.CourseTitle" value="@c.CourseTitle" />
+            <input type="hidden" name="Course.CourseCode" value="@c.CourseCode" />
+            <input type="hidden" name="Course.CategoryID" value="@c.CategoryID" />
+            <input type="hidden" name="Course.LocationID" value="@c.LocationID" />
+            <input type="hidden" name="Course.Duration" value="@c.Duration" />
+            <input type="hidden" name="Course.CertificateValidity" value="@c.CertificateValidity" />
+            <input type="hidden" name="Course.DeliveryMethod" value="@c.DeliveryMethod" />
+            <input type="hidden" name="Course.ShortDescription" value="@c.ShortDescription" />
+            <input type="hidden" name="Course.AboutHtml" value="@c.AboutHtml" />
+            <input type="hidden" name="Course.CurrencyCode" value="@c.CurrencyCode" />
+            <input type="hidden" name="Course.Fee" value="@c.Fee" />
+            <input type="hidden" name="Course.DiscountType" value="@c.DiscountType" />
+            <input type="hidden" name="Course.DiscountValueType" value="@c.DiscountValueType" />
+            <input type="hidden" name="Course.DiscountValue" value="@c.DiscountValue" />
+            <input type="hidden" name="Course.DiscountFirstN" value="@c.DiscountFirstN" />
+            <input type="hidden" name="Course.DiscountStartDate" value="@(c.DiscountStartDate?.ToString("yyyy-MM-dd"))" />
+            <input type="hidden" name="Course.DiscountEndDate" value="@(c.DiscountEndDate?.ToString("yyyy-MM-dd"))" />
+            <input type="hidden" name="Course.SortOrder" value="@c.SortOrder" />
+            <input type="hidden" name="Course.IsActive" value="@c.IsActive" />
+            <input type="hidden" name="Course.HandbookTitle" value="@c.HandbookTitle" />
+            <input type="hidden" name="Course.CourseImageURL" value="@c.CourseImageURL" />
+            <input type="hidden" name="Course.HandbookFileURL" value="@c.HandbookFileURL" />
+            <input type="hidden" name="Course.VideoURL" value="@c.VideoURL" />
+            <input type="hidden" name="Course.EnableExperiencePricing" value="@(c.EnableExperiencePricing ? "true" : "false")" />
 
             <h3 class="font-semibold text-slate-800 dark:text-slate-100 mb-1">Combo Offers</h3>
             <div id="combo-rows" class="space-y-2">

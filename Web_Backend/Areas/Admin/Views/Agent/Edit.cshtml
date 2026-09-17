@@ -2,11 +2,12 @@
 @{
     var isNew = string.IsNullOrEmpty(Model.UserID);
     ViewData["Title"] = isNew ? "Add Agent" : "Edit Agent";
+    // Agents don't need passport info (unlike students) — that step is
+    // hidden here. Model/DB columns are unchanged and nullable.
     var steps = new[]
     {
         ("identity",  "Identity",           "user"),
         ("personal",  "Personal",           "calendar"),
-        ("passport",  "Passport",           "book-open"),
         ("emergency", "Emergency Contact",  "phone")
     };
     string InputCls = "w-full rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 px-4 py-2.5 text-sm outline-none focus:border-[#dc2626] focus:ring-1 focus:ring-[#dc2626]";
@@ -194,37 +195,12 @@
             </div>
         </div>
 
-        @* ===== STEP 3: PASSPORT ===== *@
-        <div class="wizard-step space-y-6 hidden" data-step="passport">
-            <div class="@CardCls space-y-6">
-                <h3 class="font-semibold text-slate-800 dark:text-slate-100">Passport</h3>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div class="space-y-1">
-                        <label class="@LabelCls">Passport Number</label>
-                        <input asp-for="PassportNumber" class="@InputCls" />
-                    </div>
-                    <div class="space-y-1">
-                        <label class="@LabelCls">Passport Country</label>
-                        <input asp-for="PassportCountry" autocomplete="off" data-country-picker class="@InputCls" />
-                    </div>
-                    <div class="space-y-1">
-                        <label class="@LabelCls">Passport Expiry</label>
-                        <input asp-for="PassportExpiryDate" type="date" class="@InputCls" />
-                    </div>
-                    <div class="space-y-2">
-                        <label class="@LabelCls">Passport Photo</label>
-                        @if (!string.IsNullOrEmpty(Model.PassportPhotoURL))
-                        {
-                            <img src="@Model.PassportPhotoURL" alt="" class="w-24 h-16 rounded-lg object-cover border border-slate-200 dark:border-slate-600" />
-                        }
-                        <input type="file" name="passportPhoto" accept="image/*,.svg,.jfif,.pdf"
-                               class="block w-full text-sm text-slate-500 dark:text-slate-400 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-medium file:bg-red-50 dark:file:bg-red-950 file:text-[#dc2626] dark:file:text-red-300 hover:file:bg-red-100" />
-                    </div>
-                </div>
-            </div>
-        </div>
+        @* Passport step hidden — fields still post (unchanged) via hidden inputs. *@
+        <input type="hidden" asp-for="PassportNumber" />
+        <input type="hidden" asp-for="PassportCountry" />
+        <input type="hidden" asp-for="PassportExpiryDate" />
 
-        @* ===== STEP 4: EMERGENCY CONTACT ===== *@
+        @* ===== STEP 3: EMERGENCY CONTACT ===== *@
         <div class="wizard-step space-y-6 hidden" data-step="emergency">
             <div class="@CardCls space-y-6">
                 <h3 class="font-semibold text-slate-800 dark:text-slate-100">Emergency Contact</h3>
