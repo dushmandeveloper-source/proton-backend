@@ -1,6 +1,13 @@
 @model Web_Backend.Areas.StudentPortal.Models.StudentDashboardViewModel
 @{
     ViewData["Title"] = "Dashboard";
+    var currentUser = ViewBag.CurrentUser as Web_Backend.Areas.Admin.Models.SessionUser;
+
+    // A course segment's Join link is only shown when that course's own
+    // registration has FullAccess -- separate from Model.IsContentRestricted,
+    // which is an account-wide verification gate, not a per-course one.
+    bool HasCourseFullAccess(string courseId) =>
+        !Model.Registrations.Any(r => r.CourseID == courseId && r.IsActive == "A" && !r.FullAccess);
 }
 
 <div class="max-w-5xl mx-auto space-y-8 page-enter">
@@ -157,6 +164,14 @@
                                                 <i data-lucide="file-edit" class="w-3.5 h-3.5"></i> Join Exam
                                             </a>
                                         }
+                                        else if (examJoin != null && !examJoin.HasFullAccess)
+                                        {
+                                            <a href="@Web_Backend.Classes.WhatsAppLink.RequestAccess(currentUser?.Name ?? "", currentUser?.Email ?? "", seg.CourseTitle)" target="_blank" rel="noopener"
+                                               class="px-3 py-1.5 rounded-lg font-medium text-xs bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900 transition-colors flex items-center gap-1.5 flex-shrink-0"
+                                               title="Pay the full course fee to unlock, or request access from admin">
+                                                <i data-lucide="message-circle" class="w-3.5 h-3.5"></i> Request Access
+                                            </a>
+                                        }
                                         else
                                         {
                                             <span class="px-3 py-1.5 rounded-lg font-medium text-xs bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 cursor-not-allowed flex-shrink-0"
@@ -165,7 +180,7 @@
                                             </span>
                                         }
                                     }
-                                    else if (!Model.IsContentRestricted && !string.IsNullOrEmpty(seg.MeetingLink))
+                                    else if (!Model.IsContentRestricted && !string.IsNullOrEmpty(seg.MeetingLink) && HasCourseFullAccess(seg.CourseID))
                                     {
                                         @if (isToday)
                                         {
@@ -181,6 +196,14 @@
                                                 Join
                                             </span>
                                         }
+                                    }
+                                    else if (!Model.IsContentRestricted && !string.IsNullOrEmpty(seg.MeetingLink) && !HasCourseFullAccess(seg.CourseID))
+                                    {
+                                        <a href="@Web_Backend.Classes.WhatsAppLink.RequestAccess(currentUser?.Name ?? "", currentUser?.Email ?? "", seg.CourseTitle)" target="_blank" rel="noopener"
+                                           class="px-3 py-1.5 rounded-lg font-medium text-xs bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900 transition-colors flex items-center gap-1.5 flex-shrink-0"
+                                           title="Pay the full course fee to unlock, or request access from admin">
+                                            <i data-lucide="message-circle" class="w-3.5 h-3.5"></i> Request Access
+                                        </a>
                                     }
                                 </div>
                             }

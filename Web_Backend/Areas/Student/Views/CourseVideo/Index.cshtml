@@ -2,12 +2,13 @@
 @{
     ViewData["Title"] = "Course Video";
     bool restricted = ViewBag.Restricted as bool? ?? false;
+    var currentUser = ViewBag.CurrentUser as Web_Backend.Areas.Admin.Models.SessionUser;
 }
 
 <div class="max-w-4xl mx-auto space-y-6 page-enter">
     <div>
         <h2 class="text-2xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">Course Video</h2>
-        <p class="text-slate-500 dark:text-slate-400 text-sm mt-1">Videos your lecturers have posted, across all your enrolled courses. Locked videos unlock once that course is fully paid.</p>
+        <p class="text-slate-500 dark:text-slate-400 text-sm mt-1">Videos your lecturers have posted, across all your enrolled courses. Locked videos unlock once you pay the full course fee, or an administrator grants access.</p>
     </div>
 
     <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
@@ -53,10 +54,18 @@
                         }
                         else
                         {
-                            <a asp-area="Student" asp-controller="Courses" asp-action="Index"
-                               class="px-3 py-1.5 rounded-lg font-medium text-xs bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900 transition-colors flex-shrink-0 flex items-center gap-1.5">
-                                <i data-lucide="lock" class="w-3.5 h-3.5"></i> Pay full amount to unlock
-                            </a>
+                            <div class="flex items-center gap-1.5 flex-shrink-0">
+                                <a asp-area="Student" asp-controller="Courses" asp-action="Index"
+                                   class="px-3 py-1.5 rounded-lg font-medium text-xs bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900 transition-colors flex items-center gap-1.5"
+                                   title="Pay the full course fee to unlock">
+                                    <i data-lucide="lock" class="w-3.5 h-3.5"></i> Pay to unlock
+                                </a>
+                                <a href="@Web_Backend.Classes.WhatsAppLink.RequestAccess(currentUser?.Name ?? "", currentUser?.Email ?? "", v.CourseTitle)" target="_blank" rel="noopener"
+                                   class="px-3 py-1.5 rounded-lg font-medium text-xs bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900 transition-colors flex items-center gap-1.5"
+                                   title="Request access from admin via WhatsApp">
+                                    <i data-lucide="message-circle" class="w-3.5 h-3.5"></i> Request Access
+                                </a>
+                            </div>
                         }
                     </div>
                 }
