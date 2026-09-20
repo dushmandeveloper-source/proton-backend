@@ -169,7 +169,7 @@
             <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Answers save automatically as you go &middot; you can skip and come back before submitting</p>
         </div>
         <div id="examTimer" class="px-4 py-2 rounded-xl bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-300 font-bold text-sm flex-shrink-0"
-             data-expires="@attempt.ExpiresDate.ToString("o")"></div>
+             data-expires="@DateTime.SpecifyKind(attempt.ExpiresDate, DateTimeKind.Utc).ToString("o")"></div>
     </div>
 
     @* ---------- Question palette: jump to any question, shows answered/unanswered ---------- *@

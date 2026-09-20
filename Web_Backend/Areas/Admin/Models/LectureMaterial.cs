@@ -23,6 +23,12 @@ namespace Web_Backend.Areas.Admin.Models
         // orthogonal to FileType (a homework assignment can be a PDF or a
         // video, same as a lecture note can).
         public string Category { get; set; } = "LectureNote";
+
+        // Whether students may download the raw file. When false, the
+        // student portal only shows an in-browser preview (image/PDF) or a
+        // disabled download button (file types with no reliable preview).
+        public bool AllowDownload { get; set; } = true;
+
         public string UploadedByUserID { get; set; } = "";
 
         // 'Lecturer' | 'Admin'

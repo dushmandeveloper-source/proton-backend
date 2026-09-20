@@ -1,0 +1,276 @@
+@{
+    ViewData["Title"] = "New Document Request";
+    var students = ViewBag.Students as List<Web_Backend.Areas.Admin.Models.Student> ?? new();
+    var types = ViewBag.Types as List<Web_Backend.Areas.Admin.Models.DocumentType> ?? new();
+}
+
+<div class="max-w-4xl mx-auto space-y-8 page-enter">
+    <div class="flex items-center gap-3">
+        <a asp-action="Index" class="p-2 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors flex-shrink-0">
+            <i data-lucide="arrow-left" class="w-5 h-5"></i>
+        </a>
+        <div>
+            <p class="text-sm font-medium text-slate-500 dark:text-slate-400">Document Requests</p>
+            <h1 class="text-2xl md:text-3xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">New Request</h1>
+        </div>
+    </div>
+
+    @if (types.Count == 0)
+    {
+        <div class="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-2xl p-4 text-sm text-amber-800 dark:text-amber-300 flex items-center justify-between gap-4">
+            <span>No document types exist yet — add at least one before creating a request.</span>
+            <a asp-action="Types" class="px-3 py-1.5 rounded-lg font-medium text-xs bg-amber-100 dark:bg-amber-900 text-amber-800 dark:text-amber-200 hover:bg-amber-200 dark:hover:bg-amber-800 transition-colors flex-shrink-0">Manage Types</a>
+        </div>
+    }
+
+    <form asp-action="Create" method="post" class="space-y-6">
+        @Html.AntiForgeryToken()
+
+        <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 p-6 space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-1.5">Title</label>
+                <input type="text" name="title" required placeholder="e.g. Final Results Submission"
+                       class="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-[#7c3aed]/40" />
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-1.5">Instructions (optional)</label>
+                <textarea name="instructions" rows="2"
+                          class="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-[#7c3aed]/40"></textarea>
+            </div>
+        </div>
+
+        <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 p-6 space-y-4">
+            <div class="flex items-center justify-between gap-3 flex-wrap">
+                <div>
+                    <h3 class="font-semibold text-slate-800 dark:text-slate-100">Select students &amp; document types</h3>
+                    <p class="text-xs text-slate-400 dark:text-slate-500 mt-0.5"><span id="selected-count">0</span> student(s) selected</p>
+                </div>
+                <button type="button" id="select-all-students" class="px-3 py-1.5 rounded-lg font-medium text-xs bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-[#7c3aed]/10 hover:text-[#7c3aed] transition-colors">
+                    Select all
+                </button>
+            </div>
+
+            <div class="relative">
+                <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2"></i>
+                <input type="text" id="student-search" name="student-search-@Guid.NewGuid()" placeholder="Search students by name or email…"
+                       autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false"
+                       class="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-[#7c3aed]/40" />
+            </div>
+
+            <div class="flex items-center gap-2 flex-wrap">
+                <span class="text-xs font-medium text-slate-500 dark:text-slate-400">Quick-apply type to all selected:</span>
+                @foreach (var t in types)
+                {
+                    <button type="button" class="apply-all-type-btn px-3 py-1.5 rounded-full text-xs font-medium bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-[#7c3aed] hover:text-white transition-colors inline-flex items-center gap-1" data-type-id="@t.TypeID">
+                        <i data-lucide="plus" class="w-3 h-3"></i> @t.TypeName
+                    </button>
+                }
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[32rem] overflow-y-auto pr-1" id="student-grid">
+                @foreach (var s in students)
+                {
+                    <div class="student-card rounded-2xl border border-slate-200 dark:border-slate-700 p-4 transition-all cursor-pointer hover:border-[#7c3aed]/40"
+                         data-student-id="@s.StudentID" data-student-name="@s.FullName.ToLower()" data-student-email="@s.Email.ToLower()"
+                         data-detail="@System.Text.Json.JsonSerializer.Serialize(new {
+                             name = s.FullName, email = s.Email, phone = s.Phone,
+                             dob = s.DateOfBirth?.ToString("MMM d, yyyy") ?? "—",
+                             gender = string.IsNullOrEmpty(s.Gender) ? "—" : s.Gender,
+                             nationality = string.IsNullOrEmpty(s.Nationality) ? "—" : s.Nationality,
+                             address = string.Join(", ", new[] { s.AddressLine1, s.AddressLine2, s.City, s.StateProvince, s.PostalCode, s.Country }.Where(x => !string.IsNullOrWhiteSpace(x))),
+                             registrationSource = s.RegistrationSource,
+                             accountStatus = s.AccountVerificationStatus,
+                             passportStatus = s.PassportVerificationStatus,
+                             passportNumber = string.IsNullOrEmpty(s.PassportNumber) ? "—" : s.PassportNumber
+                         })">
+                        <label class="flex items-center gap-3 cursor-pointer">
+                            <input type="checkbox" name="studentIds" value="@s.StudentID" class="student-checkbox sr-only" />
+                            <div class="w-9 h-9 rounded-full bg-[#7c3aed]/10 text-[#7c3aed] flex items-center justify-center font-semibold text-sm flex-shrink-0 select-none">
+                                @(s.FullName.Length > 0 ? s.FullName[0].ToString().ToUpper() : "?")
+                            </div>
+                            <div class="flex-1 min-w-0 select-none">
+                                <p class="text-sm font-medium text-slate-800 dark:text-slate-100 truncate">@s.FullName</p>
+                                <p class="text-xs text-slate-400 dark:text-slate-500 truncate">@s.Email</p>
+                            </div>
+                            <span class="check-indicator w-5 h-5 rounded-full border-2 border-slate-300 dark:border-slate-600 flex items-center justify-center flex-shrink-0 transition-colors">
+                                <i data-lucide="check" class="w-3 h-3 text-white hidden check-icon"></i>
+                            </span>
+                        </label>
+                        <div class="mt-2">
+                            <button type="button" class="view-details-btn text-xs font-medium text-[#7c3aed] hover:underline inline-flex items-center gap-1">
+                                <i data-lucide="info" class="w-3 h-3"></i> View Details
+                            </button>
+                        </div>
+                        <div class="type-chip-row mt-3 pt-3 border-t border-slate-100 dark:border-slate-700 flex flex-wrap gap-1.5 hidden">
+                            @foreach (var t in types)
+                            {
+                                <label class="type-chip pl-1.5 pr-2.5 py-1 rounded-full text-xs font-medium bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 cursor-pointer transition-colors select-none inline-flex items-center gap-1.5 border border-transparent">
+                                    <input type="checkbox" name="typesByStudent[@s.StudentID]" value="@t.TypeID" class="type-checkbox sr-only" />
+                                    <span class="type-chip-box w-4 h-4 rounded border-2 border-slate-300 dark:border-slate-600 flex items-center justify-center flex-shrink-0 transition-colors">
+                                        <i data-lucide="check" class="w-3 h-3 hidden type-chip-check"></i>
+                                    </span>
+                                    @t.TypeName
+                                </label>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+
+        <div class="flex justify-end gap-2">
+            <a asp-action="Index" class="px-5 py-2.5 rounded-xl font-medium text-sm bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">Cancel</a>
+            <button type="submit" class="px-5 py-2.5 rounded-xl font-medium text-sm bg-[#7c3aed] text-white hover:bg-[#6d28d9] shadow-sm transition-all">Send Request</button>
+        </div>
+    </form>
+</div>
+
+<style>
+    .student-card.is-selected { border-color: #7c3aed; background: rgba(124,58,237,0.05); }
+    .student-card.is-selected .check-indicator { background: #7c3aed; border-color: #7c3aed; }
+    .student-card.is-selected .check-icon { display: block !important; }
+    .type-chip.is-checked { background: #7c3aed; color: #fff; border-color: #7c3aed; }
+    .type-chip.is-checked .type-chip-box { background: #fff; border-color: #fff; }
+    .type-chip.is-checked .type-chip-check { display: block !important; }
+    .type-chip.is-checked .type-chip-check { color: #7c3aed; }
+</style>
+
+@* ---------- Student detail popup ---------- *@
+<div id="student-detail-modal" class="hidden fixed inset-0 z-[70] flex items-center justify-center bg-black/50 p-4" role="dialog" aria-modal="true">
+    <div class="bg-white dark:bg-slate-900 rounded-[20px] shadow-xl w-full max-w-md max-h-[85vh] overflow-y-auto">
+        <div class="p-6 space-y-4">
+            <div class="flex items-center justify-between">
+                <h3 class="font-semibold text-lg text-slate-800 dark:text-slate-100">Student Details</h3>
+                <button type="button" id="student-detail-close" class="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            <dl class="space-y-3 text-sm" id="student-detail-body"></dl>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        (function () {
+            function updateCount() {
+                const n = document.querySelectorAll('.student-checkbox:checked').length;
+                document.getElementById('selected-count').textContent = n;
+            }
+
+            document.querySelectorAll('.student-card').forEach(card => {
+                const studentCb = card.querySelector('.student-checkbox');
+                const typeRow = card.querySelector('.type-chip-row');
+
+                function syncCardState() {
+                    card.classList.toggle('is-selected', studentCb.checked);
+                    typeRow.classList.toggle('hidden', !studentCb.checked);
+                    if (!studentCb.checked) {
+                        card.querySelectorAll('.type-checkbox').forEach(cb => cb.checked = false);
+                        card.querySelectorAll('.type-chip').forEach(chip => chip.classList.remove('is-checked'));
+                    }
+                    updateCount();
+                }
+
+                card.querySelector('label').addEventListener('click', (e) => {
+                    if (e.target.closest('.type-chip')) return;
+                    e.preventDefault();
+                    studentCb.checked = !studentCb.checked;
+                    syncCardState();
+                });
+
+                card.querySelector('.view-details-btn').addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    openStudentDetail(JSON.parse(card.dataset.detail));
+                });
+
+                card.querySelectorAll('.type-chip').forEach(chip => {
+                    chip.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        if (!studentCb.checked) return;
+                        const cb = chip.querySelector('.type-checkbox');
+                        cb.checked = !cb.checked;
+                        chip.classList.toggle('is-checked', cb.checked);
+                    });
+                });
+            });
+
+            document.getElementById('select-all-students').addEventListener('click', () => {
+                const cards = Array.from(document.querySelectorAll('.student-card')).filter(c => c.style.display !== 'none');
+                const allChecked = cards.every(c => c.querySelector('.student-checkbox').checked);
+                cards.forEach(card => {
+                    const cb = card.querySelector('.student-checkbox');
+                    cb.checked = !allChecked;
+                    card.classList.toggle('is-selected', cb.checked);
+                    card.querySelector('.type-chip-row').classList.toggle('hidden', !cb.checked);
+                    if (!cb.checked) {
+                        card.querySelectorAll('.type-checkbox').forEach(t => t.checked = false);
+                        card.querySelectorAll('.type-chip').forEach(chip => chip.classList.remove('is-checked'));
+                    }
+                });
+                updateCount();
+            });
+
+            document.querySelectorAll('.apply-all-type-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const typeId = btn.dataset.typeId;
+                    document.querySelectorAll('.student-card').forEach(card => {
+                        if (!card.querySelector('.student-checkbox').checked) return;
+                        const chip = card.querySelector(`.type-checkbox[value="${typeId}"]`)?.closest('.type-chip');
+                        if (chip) {
+                            chip.querySelector('.type-checkbox').checked = true;
+                            chip.classList.add('is-checked');
+                        }
+                    });
+                });
+            });
+
+            document.getElementById('student-search').addEventListener('input', (e) => {
+                const q = e.target.value.trim().toLowerCase();
+                document.querySelectorAll('.student-card').forEach(card => {
+                    const matches = card.dataset.studentName.includes(q) || card.dataset.studentEmail.includes(q);
+                    card.style.display = matches ? '' : 'none';
+                });
+            });
+
+            // ---------- Student detail popup ----------
+            const detailModal = document.getElementById('student-detail-modal');
+            const detailBody = document.getElementById('student-detail-body');
+
+            // Escape any ancestor with backdrop-filter/transform/filter set
+            // (e.g. Admin's <main> wrapper), which would otherwise clip this
+            // "fixed" modal to that ancestor's box instead of the viewport.
+            if (detailModal.parentElement !== document.body) {
+                document.body.appendChild(detailModal);
+            }
+
+            function detailRow(label, value) {
+                return `<div><dt class="text-xs font-medium text-slate-400 dark:text-slate-500">${label}</dt><dd class="text-slate-800 dark:text-slate-100 mt-0.5">${value}</dd></div>`;
+            }
+
+            window.openStudentDetail = function (d) {
+                detailBody.innerHTML = [
+                    detailRow('Name', d.name),
+                    detailRow('Email', d.email),
+                    detailRow('Phone', d.phone || '—'),
+                    detailRow('Date of Birth', d.dob),
+                    detailRow('Gender', d.gender),
+                    detailRow('Nationality', d.nationality),
+                    detailRow('Address', d.address || '—'),
+                    detailRow('Registration Source', d.registrationSource),
+                    detailRow('Account Verification', d.accountStatus),
+                    detailRow('Passport Number', d.passportNumber),
+                    detailRow('Passport Verification', d.passportStatus),
+                ].join('');
+                detailModal.classList.remove('hidden');
+                if (window.lucide) lucide.createIcons();
+            };
+
+            function closeStudentDetail() { detailModal.classList.add('hidden'); }
+            document.getElementById('student-detail-close').addEventListener('click', closeStudentDetail);
+            detailModal.addEventListener('click', (e) => { if (e.target === detailModal) closeStudentDetail(); });
+            document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !detailModal.classList.contains('hidden')) closeStudentDetail(); });
+        })();
+    </script>
+}

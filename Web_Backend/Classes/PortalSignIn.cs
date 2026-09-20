@@ -134,7 +134,7 @@ namespace Web_Backend.Classes
                 Email = auth.Email,
                 Role = auth.UserTypeID,
                 Permissions = effective
-            }, rememberMe);
+            }, portal, rememberMe);
 
             return new SignInOutcome { Success = true };
         }

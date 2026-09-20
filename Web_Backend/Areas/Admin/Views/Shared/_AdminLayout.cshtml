@@ -19,6 +19,7 @@
     var canViewLectureSchedule = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.LectureSchedule, 'V');
     var canViewCourseVideos = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.CourseVideos, 'V');
     var canViewDocuments = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.Documents, 'V');
+    var canViewDocumentRequests = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.DocumentRequests, 'V');
 }
 <!DOCTYPE html>
 <html lang="en">
@@ -143,7 +144,7 @@ else
                     var coursesControllers = new[] { "Course", "CourseSchedule", "LectureSchedule", "LectureNote", "CourseVideo", "HolidayEvent" };
                     var examinationControllers = new[] { "Exam", "ExamSchedule", "ExamGrading" };
                     var communicationControllers = new[] { "EmailSettings", "EmailTemplate" };
-                    var administratorControllers = new[] { "User", "Lecturer", "Agent", "Document" };
+                    var administratorControllers = new[] { "User", "Lecturer", "Agent", "Document", "DocumentRequest" };
                     bool coursesOpen = coursesControllers.Contains(activeController);
                     bool examinationOpen = examinationControllers.Contains(activeController);
                     bool communicationOpen = communicationControllers.Contains(activeController);
@@ -320,7 +321,15 @@ else
                             <a asp-area="Admin" asp-controller="Document" asp-action="Index"
                                class="w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-200 group @(activeController == "Document" ? "bg-slate-50/80 dark:bg-slate-700/60 text-slate-900 dark:text-slate-100 font-semibold" : "text-slate-500 dark:text-slate-400 hover:bg-slate-50/50 dark:hover:bg-slate-700/40 hover:text-slate-900 dark:hover:text-slate-100")">
                                 <i data-lucide="file-text" class="w-5 h-5 @(activeController == "Document" ? "text-[#5a43f1] dark:text-[#a78bfa]" : "text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300")"></i>
-                                <span>Documents</span>
+                                <span>Agent Document</span>
+                            </a>
+                        }
+                        @if (canViewDocumentRequests)
+                        {
+                            <a asp-area="Admin" asp-controller="DocumentRequest" asp-action="Index"
+                               class="w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-200 group @(activeController == "DocumentRequest" ? "bg-slate-50/80 dark:bg-slate-700/60 text-slate-900 dark:text-slate-100 font-semibold" : "text-slate-500 dark:text-slate-400 hover:bg-slate-50/50 dark:hover:bg-slate-700/40 hover:text-slate-900 dark:hover:text-slate-100")">
+                                <i data-lucide="folder-up" class="w-5 h-5 @(activeController == "DocumentRequest" ? "text-[#5a43f1] dark:text-[#a78bfa]" : "text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300")"></i>
+                                <span>Document Requests</span>
                             </a>
                         }
                         </div>
@@ -448,39 +457,29 @@ else
 @RenderSection("Scripts", required: false)
 
 <script>
-    // ---------- Sidebar collapsible groups ----------
+    // ---------- Sidebar collapsible groups (accordion) ----------
     // Each .sidebar-group starts expanded/collapsed per data-open (server-
-    // rendered: open whenever the current page belongs to that group), then
-    // toggles freely from here on. Remembers the open/closed state per
-    // group in localStorage so it survives a page navigation instead of
-    // resetting to the server's default every time.
+    // rendered: open whenever the current page belongs to that group).
+    // Only one group is ever open at a time — opening one closes every
+    // other, so the sidebar never shows two expanded sections at once.
     (function () {
-        const groups = document.querySelectorAll('.sidebar-group');
-        groups.forEach((group, i) => {
-            const toggle = group.querySelector('.sidebar-group-toggle');
+        const groups = Array.from(document.querySelectorAll('.sidebar-group'));
+
+        function setOpen(group, open) {
             const items = group.querySelector('.sidebar-group-items');
             const chevron = group.querySelector('.sidebar-group-chevron');
-            if (!toggle || !items) return;
+            items?.classList.toggle('hidden', !open);
+            chevron?.classList.toggle('rotate-180', open);
+        }
 
-            const label = toggle.querySelector('span')?.textContent?.trim() || ('group-' + i);
-            const storageKey = 'adminSidebarGroup:' + label;
-            const stored = localStorage.getItem(storageKey);
-            // A stored preference overrides the server-rendered default,
-            // EXCEPT the group the current page belongs to always stays
-            // open (data-open="true") regardless of what was remembered —
-            // otherwise navigating to a page inside a collapsed group would
-            // hide its own active link.
-            if (stored !== null && group.dataset.open !== 'true') {
-                const open = stored === 'true';
-                items.classList.toggle('hidden', !open);
-                chevron?.classList.toggle('rotate-180', open);
-            }
+        groups.forEach((group) => {
+            const toggle = group.querySelector('.sidebar-group-toggle');
+            if (!toggle) return;
 
             toggle.addEventListener('click', () => {
-                const isOpen = !items.classList.contains('hidden');
-                items.classList.toggle('hidden', isOpen);
-                chevron?.classList.toggle('rotate-180', !isOpen);
-                localStorage.setItem(storageKey, String(!isOpen));
+                const items = group.querySelector('.sidebar-group-items');
+                const isOpen = items && !items.classList.contains('hidden');
+                groups.forEach((g) => setOpen(g, g === group && !isOpen));
             });
         });
     })();

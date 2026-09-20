@@ -67,7 +67,7 @@
                             var dayPayload = new
                             {
                                 dateLabel = day.Date.ToString("dddd, MMMM d, yyyy"),
-                                isToday = day.Date.Date == DateTime.Today,
+                                isToday = day.Date.Date == Web_Backend.Classes.SriLankaTime.Today,
                                 holidays = day.Holidays.Select(h => new { title = h.Title, description = h.Description }),
                                 classes = day.Classes.Select(seg => new
                                 {

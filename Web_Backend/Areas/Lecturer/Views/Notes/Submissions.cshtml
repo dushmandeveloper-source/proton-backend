@@ -1,0 +1,115 @@
+@model List<Web_Backend.Areas.Admin.Models.HomeworkSubmission>
+@{
+    var material = ViewBag.Material as Web_Backend.Areas.Admin.Models.LectureMaterial;
+    ViewData["Title"] = "Submissions";
+}
+
+<div class="max-w-4xl mx-auto space-y-8 page-enter">
+    <div class="flex items-center gap-3">
+        <a asp-action="Index" class="p-2 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors flex-shrink-0">
+            <i data-lucide="arrow-left" class="w-5 h-5"></i>
+        </a>
+        <div>
+            <p class="text-sm font-medium text-slate-500 dark:text-slate-400">@material?.CourseTitle &middot; @material?.ScheduleName</p>
+            <h1 class="text-2xl md:text-3xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">@material?.Title</h1>
+        </div>
+        <span class="ml-auto px-3 py-1 rounded-full text-xs font-semibold bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-300">
+            @Model.Count submission@(Model.Count == 1 ? "" : "s")
+        </span>
+    </div>
+
+    @if (Model.Count == 0)
+    {
+        <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 p-12 text-center">
+            <i data-lucide="inbox" class="w-10 h-10 text-slate-300 dark:text-slate-600 mx-auto mb-3"></i>
+            <p class="text-sm text-slate-400 dark:text-slate-500">No students have submitted this assignment yet.</p>
+        </div>
+    }
+    else
+    {
+        <div class="space-y-4">
+            @foreach (var s in Model)
+            {
+                <div class="bg-white dark:bg-slate-900/60 rounded-[20px] shadow-sm border border-slate-100 dark:border-slate-700 p-5 space-y-4">
+                    <div class="flex items-start justify-between gap-4 flex-wrap">
+                        <div class="flex items-center gap-3">
+                            <div class="w-9 h-9 rounded-full bg-[#7c3aed]/10 text-[#7c3aed] flex items-center justify-center font-semibold text-sm flex-shrink-0">
+                                @(s.StudentName.Length > 0 ? s.StudentName[0].ToString().ToUpper() : "?")
+                            </div>
+                            <div>
+                                <p class="text-sm font-semibold text-slate-800 dark:text-slate-100">@s.StudentName</p>
+                                <p class="text-xs text-slate-400 dark:text-slate-500">Submitted @s.SubmittedDate.ToString("MMM d, yyyy h:mm tt")</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            @if (s.IsGraded)
+                            {
+                                <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300">
+                                    <i data-lucide="check-circle-2" class="w-3.5 h-3.5"></i> Graded
+                                </span>
+                            }
+                            else if (s.ResubmissionRequested)
+                            {
+                                <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-orange-50 dark:bg-orange-950 text-orange-700 dark:text-orange-300">
+                                    <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i> Resubmission requested
+                                </span>
+                            }
+                            else
+                            {
+                                <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-300">
+                                    <i data-lucide="clock" class="w-3.5 h-3.5"></i> Pending review
+                                </span>
+                            }
+                            <a href="@s.FileURL" target="_blank" rel="noopener"
+                               class="px-3 py-1.5 rounded-lg font-medium text-xs bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors inline-flex items-center gap-1">
+                                <i data-lucide="external-link" class="w-3.5 h-3.5"></i> View file
+                            </a>
+                        </div>
+                    </div>
+
+                    <form asp-action="Grade" method="post" class="grid grid-cols-1 sm:grid-cols-[100px_1fr_auto] gap-3 items-end">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="submissionId" value="@s.SubmissionID" />
+                        <input type="hidden" name="materialId" value="@s.MaterialID" />
+                        <div>
+                            <label class="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Marks</label>
+                            <input type="number" step="0.01" name="marksAwarded" value="@s.MarksAwarded"
+                                   class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-[#7c3aed]/40" />
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Feedback</label>
+                            <input type="text" name="feedback" value="@s.Feedback" placeholder="Optional feedback for the student"
+                                   class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-[#7c3aed]/40" />
+                        </div>
+                        <button type="submit" class="px-4 py-2 rounded-xl font-medium text-xs bg-[#7c3aed] text-white hover:bg-[#6d28d9] transition-colors whitespace-nowrap">
+                            @(s.IsGraded ? "Update Grade" : "Save Grade")
+                        </button>
+                    </form>
+
+                    @if (s.IsGraded)
+                    {
+                        <details class="group">
+                            <summary class="text-xs font-medium text-slate-400 dark:text-slate-500 hover:text-orange-600 dark:hover:text-orange-400 cursor-pointer inline-flex items-center gap-1 select-none">
+                                <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i> Request resubmission
+                            </summary>
+                            <form asp-action="RequestResubmission" method="post" class="mt-2 flex items-center gap-2 flex-wrap">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="submissionId" value="@s.SubmissionID" />
+                                <input type="hidden" name="materialId" value="@s.MaterialID" />
+                                <input type="text" name="remark" placeholder="Reason (optional) — shown to the student"
+                                       class="flex-1 min-w-[220px] px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400/40" />
+                                <button type="submit" class="px-4 py-2 rounded-xl font-medium text-xs bg-orange-50 dark:bg-orange-950 text-orange-700 dark:text-orange-300 hover:bg-orange-100 dark:hover:bg-orange-900 transition-colors whitespace-nowrap">
+                                    Reopen for Resubmission
+                                </button>
+                            </form>
+                        </details>
+                    }
+                    else if (s.ResubmissionRequested && !string.IsNullOrEmpty(s.ResubmissionRemark))
+                    {
+                        <p class="text-xs text-orange-700 dark:text-orange-300 bg-orange-50 dark:bg-orange-950/50 rounded-lg px-3 py-2">@s.ResubmissionRemark</p>
+                    }
+                </div>
+            }
+        </div>
+    }
+</div>

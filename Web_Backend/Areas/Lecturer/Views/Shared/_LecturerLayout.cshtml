@@ -76,72 +76,100 @@ else
         </div>
 
         <nav class="flex-1 min-h-0 overflow-y-auto custom-scrollbar space-y-1 -mr-1 pr-1">
+            @{
+                var examReviewAction = ViewContext.RouteData.Values["action"]?.ToString() ?? "";
+                var examReviewCombinedActive = activeController == "ExamReview" && (examReviewAction == "Index" || examReviewAction == "GradingQueue" || examReviewAction == "Grade");
+                var examReviewHistoryActive = activeController == "ExamReview" && (examReviewAction == "History" || examReviewAction == "StudentHistory");
+
+                var scheduleControllers = new[] { "Schedule", "Reschedule" };
+                var courseWorkControllers = new[] { "Courses", "Notes", "CourseVideo" };
+                var examinationControllers = new[] { "ExamSchedule", "ExamWatch", "ExamReschedule", "ExamReview" };
+
+                bool scheduleOpen = scheduleControllers.Contains(activeController);
+                bool courseWorkOpen = courseWorkControllers.Contains(activeController);
+                bool examinationOpen = examinationControllers.Contains(activeController);
+            }
             <a asp-area="Lecturer" asp-controller="Dashboard" asp-action="Index"
                class="w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-200 group @(activeController == "Dashboard" ? "bg-slate-50/80 dark:bg-slate-700/60 text-slate-900 dark:text-slate-100 font-semibold" : "text-slate-500 dark:text-slate-400 hover:bg-slate-50/50 dark:hover:bg-slate-700/40 hover:text-slate-900 dark:hover:text-slate-100")">
                 <i data-lucide="home" class="w-5 h-5 @(activeController == "Dashboard" ? "text-[#5a43f1] dark:text-[#a78bfa]" : "text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300")"></i>
                 <span>Overview</span>
             </a>
 
-            <a asp-area="Lecturer" asp-controller="Schedule" asp-action="Index"
-               class="w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-200 group @(activeController == "Schedule" ? "bg-slate-50/80 dark:bg-slate-700/60 text-slate-900 dark:text-slate-100 font-semibold" : "text-slate-500 dark:text-slate-400 hover:bg-slate-50/50 dark:hover:bg-slate-700/40 hover:text-slate-900 dark:hover:text-slate-100")">
-                <i data-lucide="calendar-days" class="w-5 h-5 @(activeController == "Schedule" ? "text-[#5a43f1] dark:text-[#a78bfa]" : "text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300")"></i>
-                <span>My Schedule</span>
-            </a>
+            <div class="py-1 sidebar-group" data-open="@(scheduleOpen ? "true" : "false")">
+                <button type="button" class="sidebar-group-toggle w-full flex items-center justify-between px-4 py-2 mt-1 group">
+                    <span class="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Schedule</span>
+                    <i data-lucide="chevron-down" class="sidebar-group-chevron w-3.5 h-3.5 text-slate-400 dark:text-slate-500 transition-transform duration-200 @(scheduleOpen ? "rotate-180" : "")"></i>
+                </button>
+                <div class="sidebar-group-items space-y-1 @(scheduleOpen ? "" : "hidden")">
+                    <a asp-area="Lecturer" asp-controller="Schedule" asp-action="Index"
+                       class="w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-200 group @(activeController == "Schedule" ? "bg-slate-50/80 dark:bg-slate-700/60 text-slate-900 dark:text-slate-100 font-semibold" : "text-slate-500 dark:text-slate-400 hover:bg-slate-50/50 dark:hover:bg-slate-700/40 hover:text-slate-900 dark:hover:text-slate-100")">
+                        <i data-lucide="calendar-days" class="w-5 h-5 @(activeController == "Schedule" ? "text-[#5a43f1] dark:text-[#a78bfa]" : "text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300")"></i>
+                        <span>My Schedule</span>
+                    </a>
+                    <a asp-area="Lecturer" asp-controller="Reschedule" asp-action="Index"
+                       class="w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-200 group @(activeController == "Reschedule" ? "bg-slate-50/80 dark:bg-slate-700/60 text-slate-900 dark:text-slate-100 font-semibold" : "text-slate-500 dark:text-slate-400 hover:bg-slate-50/50 dark:hover:bg-slate-700/40 hover:text-slate-900 dark:hover:text-slate-100")">
+                        <i data-lucide="calendar-clock" class="w-5 h-5 @(activeController == "Reschedule" ? "text-[#5a43f1] dark:text-[#a78bfa]" : "text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300")"></i>
+                        <span>Reschedule Requests</span>
+                    </a>
+                </div>
+            </div>
 
-            <a asp-area="Lecturer" asp-controller="ExamSchedule" asp-action="Index"
-               class="w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-200 group @(activeController == "ExamSchedule" ? "bg-slate-50/80 dark:bg-slate-700/60 text-slate-900 dark:text-slate-100 font-semibold" : "text-slate-500 dark:text-slate-400 hover:bg-slate-50/50 dark:hover:bg-slate-700/40 hover:text-slate-900 dark:hover:text-slate-100")">
-                <i data-lucide="calendar-check-2" class="w-5 h-5 @(activeController == "ExamSchedule" ? "text-[#5a43f1] dark:text-[#a78bfa]" : "text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300")"></i>
-                <span>Examination Scheduling</span>
-            </a>
+            <div class="py-1 sidebar-group" data-open="@(courseWorkOpen ? "true" : "false")">
+                <button type="button" class="sidebar-group-toggle w-full flex items-center justify-between px-4 py-2 mt-1 group">
+                    <span class="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Course Work</span>
+                    <i data-lucide="chevron-down" class="sidebar-group-chevron w-3.5 h-3.5 text-slate-400 dark:text-slate-500 transition-transform duration-200 @(courseWorkOpen ? "rotate-180" : "")"></i>
+                </button>
+                <div class="sidebar-group-items space-y-1 @(courseWorkOpen ? "" : "hidden")">
+                    <a asp-area="Lecturer" asp-controller="Courses" asp-action="Index"
+                       class="w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-200 group @(activeController == "Courses" ? "bg-slate-50/80 dark:bg-slate-700/60 text-slate-900 dark:text-slate-100 font-semibold" : "text-slate-500 dark:text-slate-400 hover:bg-slate-50/50 dark:hover:bg-slate-700/40 hover:text-slate-900 dark:hover:text-slate-100")">
+                        <i data-lucide="graduation-cap" class="w-5 h-5 @(activeController == "Courses" ? "text-[#5a43f1] dark:text-[#a78bfa]" : "text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300")"></i>
+                        <span>My Batches</span>
+                    </a>
+                    <a asp-area="Lecturer" asp-controller="Notes" asp-action="Index"
+                       class="w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-200 group @(activeController == "Notes" ? "bg-slate-50/80 dark:bg-slate-700/60 text-slate-900 dark:text-slate-100 font-semibold" : "text-slate-500 dark:text-slate-400 hover:bg-slate-50/50 dark:hover:bg-slate-700/40 hover:text-slate-900 dark:hover:text-slate-100")">
+                        <i data-lucide="file-text" class="w-5 h-5 @(activeController == "Notes" ? "text-[#5a43f1] dark:text-[#a78bfa]" : "text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300")"></i>
+                        <span>Assignment / Homework / Lecture Notes</span>
+                    </a>
+                    <a asp-area="Lecturer" asp-controller="CourseVideo" asp-action="Index"
+                       class="w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-200 group @(activeController == "CourseVideo" ? "bg-slate-50/80 dark:bg-slate-700/60 text-slate-900 dark:text-slate-100 font-semibold" : "text-slate-500 dark:text-slate-400 hover:bg-slate-50/50 dark:hover:bg-slate-700/40 hover:text-slate-900 dark:hover:text-slate-100")">
+                        <i data-lucide="play-circle" class="w-5 h-5 @(activeController == "CourseVideo" ? "text-[#5a43f1] dark:text-[#a78bfa]" : "text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300")"></i>
+                        <span>Course Videos</span>
+                    </a>
+                </div>
+            </div>
 
-            <a asp-area="Lecturer" asp-controller="Courses" asp-action="Index"
-               class="w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-200 group @(activeController == "Courses" ? "bg-slate-50/80 dark:bg-slate-700/60 text-slate-900 dark:text-slate-100 font-semibold" : "text-slate-500 dark:text-slate-400 hover:bg-slate-50/50 dark:hover:bg-slate-700/40 hover:text-slate-900 dark:hover:text-slate-100")">
-                <i data-lucide="graduation-cap" class="w-5 h-5 @(activeController == "Courses" ? "text-[#5a43f1] dark:text-[#a78bfa]" : "text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300")"></i>
-                <span>My Batches</span>
-            </a>
-
-            <a asp-area="Lecturer" asp-controller="ExamWatch" asp-action="Index"
-               class="w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-200 group @(activeController == "ExamWatch" ? "bg-slate-50/80 dark:bg-slate-700/60 text-slate-900 dark:text-slate-100 font-semibold" : "text-slate-500 dark:text-slate-400 hover:bg-slate-50/50 dark:hover:bg-slate-700/40 hover:text-slate-900 dark:hover:text-slate-100")">
-                <i data-lucide="monitor" class="w-5 h-5 @(activeController == "ExamWatch" ? "text-[#5a43f1] dark:text-[#a78bfa]" : "text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300")"></i>
-                <span>Live Exam Viewing</span>
-            </a>
-
-            <div class="py-2">
-                <p class="px-4 text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2 mt-4">Class Management</p>
-                <a asp-area="Lecturer" asp-controller="Reschedule" asp-action="Index"
-                   class="w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-200 group @(activeController == "Reschedule" ? "bg-slate-50/80 dark:bg-slate-700/60 text-slate-900 dark:text-slate-100 font-semibold" : "text-slate-500 dark:text-slate-400 hover:bg-slate-50/50 dark:hover:bg-slate-700/40 hover:text-slate-900 dark:hover:text-slate-100")">
-                    <i data-lucide="calendar-clock" class="w-5 h-5 @(activeController == "Reschedule" ? "text-[#5a43f1] dark:text-[#a78bfa]" : "text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300")"></i>
-                    <span>Reschedule Requests</span>
-                </a>
-                <a asp-area="Lecturer" asp-controller="ExamReschedule" asp-action="Index"
-                   class="w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-200 group @(activeController == "ExamReschedule" ? "bg-slate-50/80 dark:bg-slate-700/60 text-slate-900 dark:text-slate-100 font-semibold" : "text-slate-500 dark:text-slate-400 hover:bg-slate-50/50 dark:hover:bg-slate-700/40 hover:text-slate-900 dark:hover:text-slate-100")">
-                    <i data-lucide="calendar-search" class="w-5 h-5 @(activeController == "ExamReschedule" ? "text-[#5a43f1] dark:text-[#a78bfa]" : "text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300")"></i>
-                    <span>Exam Reschedules</span>
-                </a>
-                @{
-                    var examReviewAction = ViewContext.RouteData.Values["action"]?.ToString() ?? "";
-                    var examReviewCombinedActive = activeController == "ExamReview" && (examReviewAction == "Index" || examReviewAction == "GradingQueue" || examReviewAction == "Grade");
-                }
-                <a asp-area="Lecturer" asp-controller="ExamReview" asp-action="Index"
-                   class="w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-200 group @(examReviewCombinedActive ? "bg-slate-50/80 dark:bg-slate-700/60 text-slate-900 dark:text-slate-100 font-semibold" : "text-slate-500 dark:text-slate-400 hover:bg-slate-50/50 dark:hover:bg-slate-700/40 hover:text-slate-900 dark:hover:text-slate-100")">
-                    <i data-lucide="clipboard-check" class="w-5 h-5 @(examReviewCombinedActive ? "text-[#5a43f1] dark:text-[#a78bfa]" : "text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300")"></i>
-                    <span>Exam Grading &amp; Review</span>
-                </a>
-                <a asp-area="Lecturer" asp-controller="ExamReview" asp-action="History"
-                   class="w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-200 group @(activeController == "ExamReview" && (examReviewAction == "History" || examReviewAction == "StudentHistory") ? "bg-slate-50/80 dark:bg-slate-700/60 text-slate-900 dark:text-slate-100 font-semibold" : "text-slate-500 dark:text-slate-400 hover:bg-slate-50/50 dark:hover:bg-slate-700/40 hover:text-slate-900 dark:hover:text-slate-100")">
-                    <i data-lucide="history" class="w-5 h-5 @(activeController == "ExamReview" && (examReviewAction == "History" || examReviewAction == "StudentHistory") ? "text-[#5a43f1] dark:text-[#a78bfa]" : "text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300")"></i>
-                    <span>Exam History</span>
-                </a>
-                <a asp-area="Lecturer" asp-controller="Notes" asp-action="Index"
-                   class="w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-200 group @(activeController == "Notes" ? "bg-slate-50/80 dark:bg-slate-700/60 text-slate-900 dark:text-slate-100 font-semibold" : "text-slate-500 dark:text-slate-400 hover:bg-slate-50/50 dark:hover:bg-slate-700/40 hover:text-slate-900 dark:hover:text-slate-100")">
-                    <i data-lucide="file-text" class="w-5 h-5 @(activeController == "Notes" ? "text-[#5a43f1] dark:text-[#a78bfa]" : "text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300")"></i>
-                    <span>Homework / Lecture Notes</span>
-                </a>
-                <a asp-area="Lecturer" asp-controller="CourseVideo" asp-action="Index"
-                   class="w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-200 group @(activeController == "CourseVideo" ? "bg-slate-50/80 dark:bg-slate-700/60 text-slate-900 dark:text-slate-100 font-semibold" : "text-slate-500 dark:text-slate-400 hover:bg-slate-50/50 dark:hover:bg-slate-700/40 hover:text-slate-900 dark:hover:text-slate-100")">
-                    <i data-lucide="play-circle" class="w-5 h-5 @(activeController == "CourseVideo" ? "text-[#5a43f1] dark:text-[#a78bfa]" : "text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300")"></i>
-                    <span>Course Videos</span>
-                </a>
+            <div class="py-1 sidebar-group" data-open="@(examinationOpen ? "true" : "false")">
+                <button type="button" class="sidebar-group-toggle w-full flex items-center justify-between px-4 py-2 mt-1 group">
+                    <span class="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Examination</span>
+                    <i data-lucide="chevron-down" class="sidebar-group-chevron w-3.5 h-3.5 text-slate-400 dark:text-slate-500 transition-transform duration-200 @(examinationOpen ? "rotate-180" : "")"></i>
+                </button>
+                <div class="sidebar-group-items space-y-1 @(examinationOpen ? "" : "hidden")">
+                    <a asp-area="Lecturer" asp-controller="ExamSchedule" asp-action="Index"
+                       class="w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-200 group @(activeController == "ExamSchedule" ? "bg-slate-50/80 dark:bg-slate-700/60 text-slate-900 dark:text-slate-100 font-semibold" : "text-slate-500 dark:text-slate-400 hover:bg-slate-50/50 dark:hover:bg-slate-700/40 hover:text-slate-900 dark:hover:text-slate-100")">
+                        <i data-lucide="calendar-check-2" class="w-5 h-5 @(activeController == "ExamSchedule" ? "text-[#5a43f1] dark:text-[#a78bfa]" : "text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300")"></i>
+                        <span>Examination Scheduling</span>
+                    </a>
+                    <a asp-area="Lecturer" asp-controller="ExamWatch" asp-action="Index"
+                       class="w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-200 group @(activeController == "ExamWatch" ? "bg-slate-50/80 dark:bg-slate-700/60 text-slate-900 dark:text-slate-100 font-semibold" : "text-slate-500 dark:text-slate-400 hover:bg-slate-50/50 dark:hover:bg-slate-700/40 hover:text-slate-900 dark:hover:text-slate-100")">
+                        <i data-lucide="monitor" class="w-5 h-5 @(activeController == "ExamWatch" ? "text-[#5a43f1] dark:text-[#a78bfa]" : "text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300")"></i>
+                        <span>Live Exam Viewing</span>
+                    </a>
+                    <a asp-area="Lecturer" asp-controller="ExamReschedule" asp-action="Index"
+                       class="w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-200 group @(activeController == "ExamReschedule" ? "bg-slate-50/80 dark:bg-slate-700/60 text-slate-900 dark:text-slate-100 font-semibold" : "text-slate-500 dark:text-slate-400 hover:bg-slate-50/50 dark:hover:bg-slate-700/40 hover:text-slate-900 dark:hover:text-slate-100")">
+                        <i data-lucide="calendar-search" class="w-5 h-5 @(activeController == "ExamReschedule" ? "text-[#5a43f1] dark:text-[#a78bfa]" : "text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300")"></i>
+                        <span>Exam Reschedules</span>
+                    </a>
+                    <a asp-area="Lecturer" asp-controller="ExamReview" asp-action="Index"
+                       class="w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-200 group @(examReviewCombinedActive ? "bg-slate-50/80 dark:bg-slate-700/60 text-slate-900 dark:text-slate-100 font-semibold" : "text-slate-500 dark:text-slate-400 hover:bg-slate-50/50 dark:hover:bg-slate-700/40 hover:text-slate-900 dark:hover:text-slate-100")">
+                        <i data-lucide="clipboard-check" class="w-5 h-5 @(examReviewCombinedActive ? "text-[#5a43f1] dark:text-[#a78bfa]" : "text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300")"></i>
+                        <span>Exam Grading &amp; Review</span>
+                    </a>
+                    <a asp-area="Lecturer" asp-controller="ExamReview" asp-action="History"
+                       class="w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-200 group @(examReviewHistoryActive ? "bg-slate-50/80 dark:bg-slate-700/60 text-slate-900 dark:text-slate-100 font-semibold" : "text-slate-500 dark:text-slate-400 hover:bg-slate-50/50 dark:hover:bg-slate-700/40 hover:text-slate-900 dark:hover:text-slate-100")">
+                        <i data-lucide="history" class="w-5 h-5 @(examReviewHistoryActive ? "text-[#5a43f1] dark:text-[#a78bfa]" : "text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300")"></i>
+                        <span>Exam History</span>
+                    </a>
+                </div>
             </div>
         </nav>
 
@@ -195,6 +223,32 @@ else
 @RenderSection("Scripts", required: false)
 
 <script>
+    // ---------- Sidebar collapsible groups (accordion) ----------
+    // Only one group is ever open at a time — opening one closes every
+    // other, so the sidebar never shows two expanded sections at once.
+    // Same behavior as Admin's sidebar (_AdminLayout.cshtml).
+    (function () {
+        const groups = Array.from(document.querySelectorAll('.sidebar-group'));
+
+        function setOpen(group, open) {
+            const items = group.querySelector('.sidebar-group-items');
+            const chevron = group.querySelector('.sidebar-group-chevron');
+            items?.classList.toggle('hidden', !open);
+            chevron?.classList.toggle('rotate-180', open);
+        }
+
+        groups.forEach((group) => {
+            const toggle = group.querySelector('.sidebar-group-toggle');
+            if (!toggle) return;
+
+            toggle.addEventListener('click', () => {
+                const items = group.querySelector('.sidebar-group-items');
+                const isOpen = items && !items.classList.contains('hidden');
+                groups.forEach((g) => setOpen(g, g === group && !isOpen));
+            });
+        });
+    })();
+
     // ---------- Mobile sidebar drawer ----------
     (function () {
         const sidebar = document.getElementById('sidebar');

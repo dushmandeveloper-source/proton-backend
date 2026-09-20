@@ -8,7 +8,7 @@
 <div class="max-w-5xl mx-auto space-y-8 page-enter">
 
     <div>
-        <p class="text-sm font-medium text-slate-500 dark:text-slate-400 mb-2">@DateTime.Now.ToString("ddd, MMMM d")</p>
+        <p class="text-sm font-medium text-slate-500 dark:text-slate-400 mb-2">@Web_Backend.Classes.SriLankaTime.Now.ToString("ddd, MMMM d") (Sri Lanka time)</p>
         <h1 class="text-3xl md:text-4xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">
             Hello, @Model.LecturerName
         </h1>
@@ -61,14 +61,14 @@
                                 // dot, so there's no auto-disable at EndTime) -- same
                                 // rule as the student dashboard's Join button.
                                 var joinAt = day.Date.Date.Add(seg.StartTime).AddMinutes(-15);
-                                var isToday = day.Date.Date == DateTime.Today;
+                                var isToday = day.Date.Date == Web_Backend.Classes.SriLankaTime.Today;
                                 var isExam = seg.Kind == "Exam";
                                 // Watch Exam only makes sense while the exam is actually
                                 // running -- gated to the real start/end window, not the
                                 // 15-min-early Join convenience above.
                                 var canWatchExam = isExam && isToday
-                                    && DateTime.Now >= day.Date.Date.Add(seg.StartTime)
-                                    && DateTime.Now <= day.Date.Date.Add(seg.EndTime);
+                                    && Web_Backend.Classes.SriLankaTime.Now >= day.Date.Date.Add(seg.StartTime)
+                                    && Web_Backend.Classes.SriLankaTime.Now <= day.Date.Date.Add(seg.EndTime);
                                 <div class="rounded-xl border px-4 py-3 @(isExam ? "bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-800" : "bg-slate-50 dark:bg-slate-800/60 border-slate-100 dark:border-slate-700")">
                                     <div class="flex items-start justify-between gap-3">
                                         <div class="min-w-0">
@@ -103,7 +103,7 @@
                                             {
                                                 @if (isToday)
                                                 {
-                                                    <a href="@seg.MeetingLink" target="_blank" rel="noopener" data-join-link data-join-at="@joinAt.ToString("yyyy-MM-ddTHH:mm:ss")"
+                                                    <a href="@seg.MeetingLink" target="_blank" rel="noopener" data-join-link data-join-at="@joinAt.ToString("yyyy-MM-ddTHH:mm:ss")+05:30"
                                                        class="join-link px-3 py-1.5 rounded-lg font-medium text-xs bg-[#7c3aed] text-white hover:bg-[#6d28d9] transition-colors flex items-center gap-1">
                                                         <i data-lucide="video" class="w-3.5 h-3.5"></i> <span class="join-label">Join</span>
                                                     </a>

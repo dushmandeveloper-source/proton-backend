@@ -26,6 +26,7 @@ namespace Web_Backend.Areas.Admin.Data
                 m.FileType,
                 m.FileURL,
                 m.Category,
+                m.AllowDownload,
                 m.UploadedByUserID,
                 m.UploadedByRole
             });

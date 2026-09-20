@@ -142,7 +142,7 @@ namespace Web_Backend.Controllers.Api
                 Name = fullName,
                 Email = request.Email,
                 Role = agentTypeId
-            });
+            }, Portal.Agent);
 
             var emailSent = true;
             try

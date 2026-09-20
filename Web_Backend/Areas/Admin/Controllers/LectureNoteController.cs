@@ -23,12 +23,14 @@ namespace Web_Backend.Areas.Admin.Controllers
 
         private readonly ILectureMaterialData materialRep;
         private readonly ICourseScheduleData scheduleRep;
+        private readonly IHomeworkSubmissionData submissionRep;
         private readonly IImageUploader uploader;
 
-        public LectureNoteController(ILectureMaterialData materialRep, ICourseScheduleData scheduleRep, IImageUploader uploader)
+        public LectureNoteController(ILectureMaterialData materialRep, ICourseScheduleData scheduleRep, IHomeworkSubmissionData submissionRep, IImageUploader uploader)
         {
             this.materialRep = materialRep;
             this.scheduleRep = scheduleRep;
+            this.submissionRep = submissionRep;
             this.uploader = uploader;
         }
 
@@ -45,7 +47,7 @@ namespace Web_Backend.Areas.Admin.Controllers
         [HttpPost, ValidateAntiForgeryToken]
         [RequestFormLimits(MultipartBodyLengthLimit = 110_000_000)]
         [RequestSizeLimit(110_000_000)]
-        public async Task<IActionResult> Upload(string scheduleId, string segmentId, DateTime materialDate, string title, string description, string category, IFormFile? file)
+        public async Task<IActionResult> Upload(string scheduleId, string segmentId, DateTime materialDate, string title, string description, string category, bool allowDownload, IFormFile? file)
         {
             Auth.CheckPermission(PermissionCode.LectureNotes, 'A');
 
@@ -84,6 +86,7 @@ namespace Web_Backend.Areas.Admin.Controllers
                     FileType = fileType,
                     FileURL = fileUrl,
                     Category = category,
+                    AllowDownload = allowDownload,
                     UploadedByUserID = Auth.GetUserId(),
                     UploadedByRole = "Admin"
                 });
@@ -100,6 +103,61 @@ namespace Web_Backend.Areas.Admin.Controllers
             }
 
             return RedirectToAction("Index");
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> Submissions(string materialId)
+        {
+            Auth.CheckPermission(PermissionCode.LectureNotes, 'V');
+
+            var all = await materialRep.ListAll();
+            var material = all.FirstOrDefault(m => m.MaterialID == materialId && m.Category == "Homework");
+            if (material == null)
+            {
+                TempData["ErrorMessage"] = "Homework item not found.";
+                return RedirectToAction("Index");
+            }
+
+            var submissions = await submissionRep.ListForMaterial(materialId);
+            ViewBag.Material = material;
+            ViewBag.CurrentUser = Auth.GetUser();
+            return View(submissions);
+        }
+
+        [HttpPost, ValidateAntiForgeryToken]
+        public async Task<IActionResult> Grade(string submissionId, string materialId, decimal? marksAwarded, string? feedback)
+        {
+            Auth.CheckPermission(PermissionCode.LectureNotes, 'E');
+
+            try
+            {
+                await submissionRep.Grade(submissionId, marksAwarded, feedback, Auth.GetUserId());
+                TempData["SuccessMessage"] = "Submission graded.";
+            }
+            catch (Exception ex)
+            {
+                TempData["ErrorMessage"] = "Could not save grade: " + ex.Message;
+            }
+
+            return RedirectToAction("Submissions", new { materialId });
+        }
+
+        [HttpPost, ValidateAntiForgeryToken]
+        public async Task<IActionResult> RequestResubmission(string submissionId, string materialId, string? remark)
+        {
+            Auth.CheckPermission(PermissionCode.LectureNotes, 'E');
+
+            try
+            {
+                await submissionRep.RequestResubmission(submissionId, remark);
+                TempData["SuccessMessage"] = "Resubmission requested.";
+            }
+            catch (Exception ex)
+            {
+                TempData["ErrorMessage"] = "Could not request resubmission: " + ex.Message;
+            }
+
+            return RedirectToAction("Submissions", new { materialId });
         }
 
         [HttpPost, ValidateAntiForgeryToken]

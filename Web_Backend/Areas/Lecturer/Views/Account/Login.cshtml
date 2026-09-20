@@ -70,9 +70,19 @@
             </button>
         </form>
 
-        <p class="text-center text-xs text-slate-400 dark:text-slate-500 mt-6 relative z-10">
-            Staff sign-in is at <a asp-area="Admin" asp-controller="Account" asp-action="Login" class="underline hover:text-slate-600 dark:hover:text-slate-300">the admin portal</a>.
-        </p>
+        <div class="mt-6 pt-5 border-t border-slate-100 dark:border-slate-700 relative z-10">
+            <p class="text-center text-xs text-slate-400 dark:text-slate-500 mb-3">Looking for a different portal?</p>
+            <div class="flex items-center justify-center gap-2">
+                <a asp-area="Admin" asp-controller="Account" asp-action="Login"
+                   class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-slate-50 dark:bg-slate-700/60 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+                    <i data-lucide="shield" class="w-3.5 h-3.5"></i> Admin Portal
+                </a>
+                <a asp-area="Agent" asp-controller="Account" asp-action="Login"
+                   class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-slate-50 dark:bg-slate-700/60 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+                    <i data-lucide="briefcase" class="w-3.5 h-3.5"></i> Agent Portal
+                </a>
+            </div>
+        </div>
     </div>
 </div>
 

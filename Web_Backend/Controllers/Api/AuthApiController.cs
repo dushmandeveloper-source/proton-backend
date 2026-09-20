@@ -65,6 +65,11 @@ namespace Web_Backend.Controllers.Api
 
             await authRep.RecordLoginResult(auth.AuthID, success: true);
 
+            var portal = auth.UserTypeName == "Student" ? Portal.Student
+                     : auth.UserTypeName == "Instructor" ? Portal.Lecturer
+                     : auth.UserTypeName == "Agent" ? Portal.Agent
+                     : Portal.Admin;
+
             await Auth.SignIn(new Areas.Admin.Models.SessionUser
             {
                 Id = auth.UserID,
@@ -75,12 +80,9 @@ namespace Web_Backend.Controllers.Api
                 // role ID (e.g. "MASTERADMIN"), same as AccountController's
                 // Razor login path.
                 Role = auth.UserTypeID
-            });
+            }, portal);
 
-            var area = auth.UserTypeName == "Student" ? "Student"
-                     : auth.UserTypeName == "Instructor" ? "Lecturer"
-                     : auth.UserTypeName == "Agent" ? "Agent"
-                     : "Admin";
+            var area = portal.ToString();
 
             // Same field shape as GET /me below (role = the opaque
             // UserTypeID, roleName = the readable name) — the frontend's

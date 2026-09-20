@@ -22,8 +22,9 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
         private readonly IExamScheduleData examScheduleRep;
         private readonly IExamAttemptData attemptRep;
         private readonly IExamData examRep;
+        private readonly IDocumentRequestData documentRequestRep;
 
-        public DashboardController(IStudentData studentRep, ICourseScheduleData scheduleRep, ICourseRegistrationData registrationRep, IExamScheduleData examScheduleRep, IExamAttemptData attemptRep, IExamData examRep)
+        public DashboardController(IStudentData studentRep, ICourseScheduleData scheduleRep, ICourseRegistrationData registrationRep, IExamScheduleData examScheduleRep, IExamAttemptData attemptRep, IExamData examRep, IDocumentRequestData documentRequestRep)
         {
             this.studentRep = studentRep;
             this.scheduleRep = scheduleRep;
@@ -31,6 +32,7 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
             this.examScheduleRep = examScheduleRep;
             this.attemptRep = attemptRep;
             this.examRep = examRep;
+            this.documentRequestRep = documentRequestRep;
         }
 
         [HttpGet]
@@ -42,7 +44,7 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
             if (student == null)
                 return RedirectToAction("Index", "Dashboard", new { area = "Admin" });
 
-            var today = DateTime.Today;
+            var today = Web_Backend.Classes.SriLankaTime.Today;
             var diff = (7 + (today.DayOfWeek - DayOfWeek.Monday)) % 7;
             var weekStart = today.AddDays(-diff);
             var weekEnd = weekStart.AddDays(6);
@@ -56,7 +58,7 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
             // does it (ExamScheduleInstructorSegment -> StudentScheduleSegment,
             // Kind = "Exam"), so one combined, time-sorted list renders instead
             // of a separate "Your Exams" card buried lower on the page.
-            var now = DateTime.Now;
+            var now = Web_Backend.Classes.SriLankaTime.Now;
             var examSegments = await examScheduleRep.GetSegmentsForStudent(student.StudentID, weekStart, weekEnd);
             var adaptedExamSegments = examSegments.Select(ToStudentScheduleSegment).ToList();
             var combinedSchedule = schedule.Concat(adaptedExamSegments).ToList();
@@ -78,6 +80,9 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
                 });
             }
 
+            var documentItems = await documentRequestRep.ListForStudent(student.StudentID);
+            var pendingDocumentCount = documentItems.Count(i => i.CanSubmit);
+
             var model = new StudentDashboardViewModel
             {
                 StudentID = student.StudentID,
@@ -86,7 +91,8 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
                 IsContentRestricted = student.IsContentRestricted,
                 WeekSchedule = weekSchedule,
                 Summary = summary,
-                Registrations = registrations
+                Registrations = registrations,
+                PendingDocumentRequestCount = pendingDocumentCount
             };
 
             // Exam Join gating (availability window + MaxAttempts), looked up by

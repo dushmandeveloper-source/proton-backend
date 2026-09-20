@@ -85,7 +85,7 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
             var course = await courseRep.Get(registration.CourseID);
             var payments = await registrationRep.GetPayments(registrationId);
 
-            var allSegments = await scheduleRep.GetSegmentsForStudent(student.StudentID, DateTime.Today.AddMonths(-1), DateTime.Today.AddYears(1));
+            var allSegments = await scheduleRep.GetSegmentsForStudent(student.StudentID, Web_Backend.Classes.SriLankaTime.Today.AddMonths(-1), Web_Backend.Classes.SriLankaTime.Today.AddYears(1));
             var segments = allSegments
                 .Where(s => s.CourseID == registration.CourseID && (string.IsNullOrEmpty(registration.ScheduleID) || s.ScheduleID == registration.ScheduleID))
                 .ToList();

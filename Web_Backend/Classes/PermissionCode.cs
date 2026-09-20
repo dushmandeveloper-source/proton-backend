@@ -21,6 +21,7 @@ namespace Web_Backend.Classes
         public const string Agents = "Agents";
         public const string CourseVideos = "CourseVideos";
         public const string Documents = "Documents";
+        public const string DocumentRequests = "DocumentRequests";
 
         public static readonly (string Code, string Label)[] All =
         {
@@ -34,11 +35,12 @@ namespace Web_Backend.Classes
             (HolidayCalendar, "Holiday & Events Calendar"),
             (Exams, "Exams"),
             (Enrollments, "Enrollments & Payments"),
-            (LectureNotes, "Homework / Lecture Notes"),
+            (LectureNotes, "Assignment / Homework / Lecture Notes"),
             (LectureSchedule, "Lecture Schedule"),
             (Agents, "Agents"),
             (CourseVideos, "Course Videos"),
             (Documents, "Documents"),
+            (DocumentRequests, "Document Requests"),
         };
     }
 }

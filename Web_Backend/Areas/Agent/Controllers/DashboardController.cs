@@ -16,11 +16,13 @@ namespace Web_Backend.Areas.AgentPortal.Controllers
     {
         private readonly IStudentData studentRep;
         private readonly IAgentData agentRep;
+        private readonly IDocumentRequestData documentRequestRep;
 
-        public DashboardController(IStudentData studentRep, IAgentData agentRep)
+        public DashboardController(IStudentData studentRep, IAgentData agentRep, IDocumentRequestData documentRequestRep)
         {
             this.studentRep = studentRep;
             this.agentRep = agentRep;
+            this.documentRequestRep = documentRequestRep;
         }
 
         [HttpGet]
@@ -33,12 +35,16 @@ namespace Web_Backend.Areas.AgentPortal.Controllers
             var students = await studentRep.GetList(new StudentSearchView { CreatedByUserID = userId, IsActive = "A" });
             var agent = await agentRep.GetByUserID(userId);
 
+            var documentItems = await documentRequestRep.ListForAgent(userId);
+            var pendingDocumentCount = documentItems.Count(i => i.CanSubmit);
+
             var model = new AgentDashboardViewModel
             {
                 AgentName = Auth.GetUser()?.Name ?? "",
                 TotalStudents = students.Count,
                 RecentStudents = students.Take(5).ToList(),
-                IsPendingApproval = agent?.IsContentRestricted ?? false
+                IsPendingApproval = agent?.IsContentRestricted ?? false,
+                PendingDocumentRequestCount = pendingDocumentCount
             };
 
             return View(model);

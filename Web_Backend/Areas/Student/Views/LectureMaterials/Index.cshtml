@@ -43,13 +43,42 @@
                                 <p class="text-xs text-slate-400 dark:text-slate-500 truncate">@m.CourseTitle &middot; @m.MaterialDate.ToString("MMM d, yyyy") &middot; @m.FileType</p>
                             </div>
                         </div>
-                        <a href="@m.FileURL" target="_blank" rel="noopener"
-                           class="px-3 py-1.5 rounded-lg font-medium text-xs bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors flex-shrink-0">
-                            View
-                        </a>
+                        <div class="flex items-center gap-2 flex-shrink-0">
+                            @if (m.FileType == "Video")
+                            {
+                                <button type="button" onclick="openCourseVideoPreview('@m.FileURL')"
+                                        class="px-3 py-1.5 rounded-lg font-medium text-xs bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+                                    Preview
+                                </button>
+                            }
+                            else if (m.FileType == "Image" || m.FileURL.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase))
+                            {
+                                <button type="button" onclick="openMaterialPreview('@m.FileURL', '@m.FileType')"
+                                        class="px-3 py-1.5 rounded-lg font-medium text-xs bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+                                    Preview
+                                </button>
+                            }
+                            else
+                            {
+                                <span class="px-3 py-1.5 rounded-lg font-medium text-xs bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 cursor-not-allowed"
+                                      title="No preview available for this file type">
+                                    No Preview
+                                </span>
+                            }
+                            @if (m.AllowDownload)
+                            {
+                                <a href="@m.FileURL" download
+                                   class="px-3 py-1.5 rounded-lg font-medium text-xs bg-[#7c3aed] text-white hover:bg-[#6d28d9] transition-colors">
+                                    Download
+                                </a>
+                            }
+                        </div>
                     </div>
                 }
             </div>
         }
     </div>
 </div>
+
+@await Html.PartialAsync("_CourseVideoPlayer")
+@await Html.PartialAsync("_MaterialPreviewModal")

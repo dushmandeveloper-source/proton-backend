@@ -225,7 +225,7 @@ namespace Web_Backend.Controllers.Api
                 Name = $"{request.FirstName} {request.LastName}".Trim(),
                 Email = request.Email,
                 Role = studentTypeId
-            });
+            }, Portal.Student);
 
             // Mandatory (not the admin flow's opt-in SendWelcomeEmail): the
             // visitor never typed a password, so this email is the only way
