@@ -35,8 +35,8 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
             if (student == null)
                 return RedirectToAction("Index", "Dashboard", new { area = "Admin" });
 
-            var targetYear = year ?? DateTime.Today.Year;
-            var targetMonth = month ?? DateTime.Today.Month;
+            var targetYear = year ?? Web_Backend.Classes.SriLankaTime.Today.Year;
+            var targetMonth = month ?? Web_Backend.Classes.SriLankaTime.Today.Month;
             if (targetMonth < 1) targetMonth = 1;
             if (targetMonth > 12) targetMonth = 12;
 
@@ -107,7 +107,7 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
                     {
                         Date = cursor,
                         IsCurrentMonth = cursor.Month == targetMonth && cursor.Year == targetYear,
-                        IsToday = cursor.Date == DateTime.Today,
+                        IsToday = cursor.Date == Web_Backend.Classes.SriLankaTime.Today,
                         Classes = classesForDay.Concat(makeupsForDay).ToList(),
                         Holidays = holidays.Where(h => h.HolidayDate.Date == day.Date).ToList()
                     });

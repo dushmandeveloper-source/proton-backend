@@ -6,7 +6,7 @@
 <div class="max-w-5xl mx-auto space-y-8 page-enter">
 
     <div>
-        <p class="text-sm font-medium text-slate-500 dark:text-slate-400 mb-2">@DateTime.Now.ToString("ddd, MMMM d")</p>
+        <p class="text-sm font-medium text-slate-500 dark:text-slate-400 mb-2">@Web_Backend.Classes.SriLankaTime.Now.ToString("ddd, MMMM d") (Sri Lanka time)</p>
         <h1 class="text-3xl md:text-4xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">
             Hello, @Model.StudentName
         </h1>
@@ -42,6 +42,19 @@
             <i data-lucide="clock" class="w-5 h-5 text-amber-600 dark:text-amber-300 flex-shrink-0"></i>
             <p class="text-sm text-amber-700 dark:text-amber-300"><strong>Your account is still being verified.</strong> You can browse and join courses and make payments — course materials and joining links unlock once an administrator verifies your account.</p>
         </div>
+    }
+
+    @if (Model.PendingDocumentRequestCount > 0)
+    {
+        <a asp-area="Student" asp-controller="DocumentRequest" asp-action="Index"
+           class="rounded-[20px] border border-orange-100 dark:border-orange-900 bg-orange-50 dark:bg-orange-950 p-4 flex items-center gap-3 hover:bg-orange-100 dark:hover:bg-orange-900 transition-colors">
+            <i data-lucide="folder-up" class="w-5 h-5 text-orange-600 dark:text-orange-300 flex-shrink-0"></i>
+            <p class="text-sm text-orange-700 dark:text-orange-300 flex-1">
+                <strong>@Model.PendingDocumentRequestCount document@(Model.PendingDocumentRequestCount == 1 ? "" : "s") need@(Model.PendingDocumentRequestCount == 1 ? "s" : "") your attention.</strong>
+                Administration has requested a document from you, or asked you to resubmit one.
+            </p>
+            <span class="text-sm font-medium text-orange-700 dark:text-orange-300 whitespace-nowrap">View &rarr;</span>
+        </a>
     }
 
     @* A student with no enrolments has an empty dashboard — surface the next
@@ -103,7 +116,7 @@
                                 Web_Backend.Areas.Admin.Models.ExamJoinRow? examJoin = null;
                                 if (isExam && examJoinRows != null)
                                     examJoinRows.TryGetValue(seg.CourseID, out examJoin);
-                                var isToday = day.Date.Date == DateTime.Today;
+                                var isToday = day.Date.Date == Web_Backend.Classes.SriLankaTime.Today;
                                 var canJoinToday = isExam && isToday && examJoin != null && examJoin.CanJoin;
 
                                 <div class="rounded-xl border px-4 py-3 flex items-start justify-between gap-3 @(isExam ? "bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-800" : "bg-slate-50 dark:bg-slate-800/60 border-slate-100 dark:border-slate-700")">
@@ -156,7 +169,7 @@
                                     {
                                         @if (isToday)
                                         {
-                                            <a href="@seg.MeetingLink" target="_blank" rel="noopener" data-join-link data-join-at="@joinAt.ToString("yyyy-MM-ddTHH:mm:ss")"
+                                            <a href="@seg.MeetingLink" target="_blank" rel="noopener" data-join-link data-join-at="@joinAt.ToString("yyyy-MM-ddTHH:mm:ss")+05:30"
                                                class="join-link px-3 py-1.5 rounded-lg font-medium text-xs bg-[#7c3aed] text-white hover:bg-[#6d28d9] transition-colors flex items-center gap-1 flex-shrink-0">
                                                 <i data-lucide="video" class="w-3.5 h-3.5"></i> <span class="join-label">Join</span>
                                             </a>

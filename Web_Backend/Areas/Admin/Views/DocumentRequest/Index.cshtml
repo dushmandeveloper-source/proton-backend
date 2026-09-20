@@ -1,0 +1,57 @@
+@model List<Web_Backend.Areas.Admin.Models.DocumentRequest>
+@{
+    ViewData["Title"] = "Document Requests";
+    bool canAdd = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.DocumentRequests, 'A');
+}
+
+<div class="max-w-5xl mx-auto page-enter">
+    <div class="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
+        <div>
+            <h2 class="text-3xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">Document Requests</h2>
+            <p class="text-slate-500 dark:text-slate-400 mt-2">Ask students for specific documents, review submissions, and manage document types.</p>
+        </div>
+        <div class="flex items-center gap-2">
+            <a asp-action="Types" class="px-4 py-2 rounded-xl font-medium bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 text-sm flex items-center gap-2 w-fit">
+                <i data-lucide="tags" class="w-4 h-4"></i> Document Types
+            </a>
+            @if (canAdd)
+            {
+                <a asp-action="New" class="px-4 py-2 rounded-xl font-medium bg-[#7c3aed] text-white hover:bg-[#6d28d9] shadow-sm text-sm flex items-center gap-2 w-fit">
+                    <i data-lucide="send" class="w-4 h-4"></i> New Request
+                </a>
+            }
+        </div>
+    </div>
+
+    <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
+        @if (!Model.Any())
+        {
+            <div class="p-12 text-center">
+                <i data-lucide="folder-search" class="w-10 h-10 text-slate-300 dark:text-slate-600 mx-auto mb-3"></i>
+                <p class="text-sm text-slate-400 dark:text-slate-500">No document requests yet.</p>
+            </div>
+        }
+        else
+        {
+            <div class="divide-y divide-slate-100 dark:divide-slate-700">
+                @foreach (var r in Model)
+                {
+                    <a asp-action="Details" asp-route-requestId="@r.RequestID" class="p-5 px-6 flex items-center justify-between gap-4 hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition-colors">
+                        <div class="min-w-0">
+                            <p class="text-sm font-semibold text-slate-800 dark:text-slate-100 truncate">@r.Title</p>
+                            <p class="text-xs text-slate-400 dark:text-slate-500 mt-0.5">By @r.RequestedByName &middot; @r.CreatedDate.ToString("MMM d, yyyy")</p>
+                        </div>
+                        <div class="flex items-center gap-2 flex-shrink-0">
+                            @if (r.PendingReviewCount > 0)
+                            {
+                                <span class="px-2.5 py-1 rounded-full text-xs font-semibold bg-orange-50 dark:bg-orange-950 text-orange-700 dark:text-orange-300">@r.PendingReviewCount to review</span>
+                            }
+                            <span class="px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300">@r.ApprovedCount / @r.TotalItems approved</span>
+                            <i data-lucide="chevron-right" class="w-4 h-4 text-slate-300 dark:text-slate-600"></i>
+                        </div>
+                    </a>
+                }
+            </div>
+        }
+    </div>
+</div>

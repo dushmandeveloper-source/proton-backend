@@ -65,7 +65,7 @@
                     <div class="grid grid-cols-7 divide-x divide-slate-100 dark:divide-slate-700 border-b border-slate-100 dark:border-slate-700 last:border-b-0">
                         @foreach (var day in week.Days)
                         {
-                            var isToday = day.Date.Date == DateTime.Today;
+                            var isToday = day.Date.Date == Web_Backend.Classes.SriLankaTime.Today;
                             var dayPayload = new
                             {
                                 dateLabel = day.Date.ToString("dddd, MMMM d, yyyy"),

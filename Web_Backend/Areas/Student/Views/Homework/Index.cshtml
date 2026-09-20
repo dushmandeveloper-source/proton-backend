@@ -1,26 +1,27 @@
 @model List<Web_Backend.Areas.Admin.Models.LectureMaterial>
 @{
-    ViewData["Title"] = "Homework";
+    ViewData["Title"] = "Assignment / Homework";
     bool restricted = ViewBag.Restricted as bool? ?? false;
+    var submissions = ViewBag.Submissions as Dictionary<string, Web_Backend.Areas.Admin.Models.HomeworkSubmission> ?? new();
 }
 
 <div class="max-w-4xl mx-auto space-y-6 page-enter">
     <div>
-        <h2 class="text-2xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">Homework</h2>
-        <p class="text-slate-500 dark:text-slate-400 text-sm mt-1">Homework files your lecturers have posted, across all your enrolled courses.</p>
+        <h2 class="text-2xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">Assignment / Homework</h2>
+        <p class="text-slate-500 dark:text-slate-400 text-sm mt-1">Assignment / homework files your lecturers have posted, across all your enrolled courses.</p>
     </div>
 
     <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
         @if (restricted)
         {
             <div class="p-10 text-center">
-                <p class="text-sm text-slate-400 dark:text-slate-500">Your account is still being verified. Homework unlocks once an administrator verifies your account.</p>
+                <p class="text-sm text-slate-400 dark:text-slate-500">Your account is still being verified. Assignment / Homework unlocks once an administrator verifies your account.</p>
             </div>
         }
         else if (Model.Count == 0)
         {
             <div class="p-10 text-center">
-                <p class="text-sm text-slate-400 dark:text-slate-500">No homework has been posted for your courses yet.</p>
+                <p class="text-sm text-slate-400 dark:text-slate-500">No assignment / homework has been posted for your courses yet.</p>
             </div>
         }
         else
@@ -28,28 +29,125 @@
             <div class="divide-y divide-slate-100 dark:divide-slate-700">
                 @foreach (var m in Model)
                 {
-                    <div class="p-4 px-6 flex items-center justify-between gap-4">
-                        <div class="flex items-center gap-3 min-w-0">
-                            <div class="p-2 rounded-lg bg-slate-50 dark:bg-slate-800 flex-shrink-0">
-                                <i data-lucide="@(m.FileType == "Video" ? "video" : m.FileType == "Image" ? "image" : "file-text")" class="w-4 h-4 text-slate-500 dark:text-slate-400"></i>
-                            </div>
-                            <div class="min-w-0">
-                                <div class="flex items-center gap-2 flex-wrap">
-                                    <p class="text-sm font-medium text-slate-800 dark:text-slate-100 truncate">@m.Title</p>
-                                    <span class="px-2 py-0.5 rounded-full text-xs font-medium bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-300 flex-shrink-0">
-                                        Homework
-                                    </span>
+                    submissions.TryGetValue(m.MaterialID, out var submission);
+                    var canSubmit = submission == null || submission.CanSubmit;
+                    <div class="p-5 space-y-4">
+                        <div class="flex items-start justify-between gap-4 flex-wrap">
+                            <div class="flex items-center gap-3 min-w-0">
+                                <div class="p-2.5 rounded-xl bg-amber-50 dark:bg-amber-950 flex-shrink-0">
+                                    <i data-lucide="@(m.FileType == "Video" ? "video" : m.FileType == "Image" ? "image" : "file-text")" class="w-4 h-4 text-amber-600 dark:text-amber-300"></i>
                                 </div>
-                                <p class="text-xs text-slate-400 dark:text-slate-500 truncate">@m.CourseTitle &middot; @m.MaterialDate.ToString("MMM d, yyyy") &middot; @m.FileType</p>
+                                <div class="min-w-0">
+                                    <div class="flex items-center gap-2 flex-wrap">
+                                        <p class="text-sm font-semibold text-slate-800 dark:text-slate-100 truncate">@m.Title</p>
+                                        <span class="px-2 py-0.5 rounded-full text-xs font-medium bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-300 flex-shrink-0">
+                                            Assignment / Homework
+                                        </span>
+                                    </div>
+                                    <p class="text-xs text-slate-400 dark:text-slate-500 truncate">@m.CourseTitle &middot; @m.MaterialDate.ToString("MMM d, yyyy") &middot; @m.FileType</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-2 flex-shrink-0">
+                                @if (m.FileType == "Video")
+                                {
+                                    <button type="button" onclick="openCourseVideoPreview('@m.FileURL')"
+                                            class="px-3 py-1.5 rounded-lg font-medium text-xs bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+                                        Preview
+                                    </button>
+                                }
+                                else if (m.FileType == "Image" || m.FileURL.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    <button type="button" onclick="openMaterialPreview('@m.FileURL', '@m.FileType')"
+                                            class="px-3 py-1.5 rounded-lg font-medium text-xs bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+                                        Preview
+                                    </button>
+                                }
+                                else
+                                {
+                                    <span class="px-3 py-1.5 rounded-lg font-medium text-xs bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 cursor-not-allowed"
+                                          title="No preview available for this file type">
+                                        No Preview
+                                    </span>
+                                }
+                                @if (m.AllowDownload)
+                                {
+                                    <a href="@m.FileURL" download
+                                       class="px-3 py-1.5 rounded-lg font-medium text-xs bg-[#7c3aed] text-white hover:bg-[#6d28d9] transition-colors">
+                                        Download
+                                    </a>
+                                }
                             </div>
                         </div>
-                        <a href="@m.FileURL" target="_blank" rel="noopener"
-                           class="px-3 py-1.5 rounded-lg font-medium text-xs bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors flex-shrink-0">
-                            View
-                        </a>
+
+                        @* ---------- Submission status / form ---------- *@
+                        <div class="ml-12 rounded-2xl border border-slate-100 dark:border-slate-700 bg-slate-50/60 dark:bg-slate-800/40 p-4 space-y-3">
+                            @if (submission != null)
+                            {
+                                <div class="flex items-start justify-between gap-3 flex-wrap">
+                                    <div class="flex items-center gap-2 flex-wrap">
+                                        @if (submission.IsGraded)
+                                        {
+                                            <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300">
+                                                <i data-lucide="check-circle-2" class="w-3.5 h-3.5"></i> Graded &middot; @(submission.MarksAwarded?.ToString("0.##") ?? "—")
+                                            </span>
+                                        }
+                                        else if (submission.ResubmissionRequested)
+                                        {
+                                            <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-orange-50 dark:bg-orange-950 text-orange-700 dark:text-orange-300">
+                                                <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i> Resubmission requested
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-300">
+                                                <i data-lucide="clock" class="w-3.5 h-3.5"></i> Awaiting grading
+                                            </span>
+                                        }
+                                        <span class="text-xs text-slate-400 dark:text-slate-500">Submitted @submission.SubmittedDate.ToString("MMM d, yyyy h:mm tt")</span>
+                                    </div>
+                                    <a href="@submission.FileURL" target="_blank" rel="noopener" class="text-xs font-medium text-[#7c3aed] hover:underline flex-shrink-0 inline-flex items-center gap-1">
+                                        <i data-lucide="external-link" class="w-3.5 h-3.5"></i> My submission
+                                    </a>
+                                </div>
+
+                                @if (!string.IsNullOrEmpty(submission.ResubmissionRemark))
+                                {
+                                    <p class="text-xs text-orange-700 dark:text-orange-300 bg-orange-50 dark:bg-orange-950/50 rounded-lg px-3 py-2">@submission.ResubmissionRemark</p>
+                                }
+                                @if (submission.IsGraded && !string.IsNullOrEmpty(submission.Feedback))
+                                {
+                                    <p class="text-xs text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-900 rounded-lg px-3 py-2 border border-slate-100 dark:border-slate-700">@submission.Feedback</p>
+                                }
+                            }
+
+                            @if (canSubmit)
+                            {
+                                <form asp-action="Submit" method="post" enctype="multipart/form-data" class="flex items-center gap-2">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="materialId" value="@m.MaterialID" />
+                                    <label class="flex-1 flex items-center gap-2 px-3 py-2 rounded-xl border border-dashed border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-xs text-slate-500 dark:text-slate-400 cursor-pointer hover:border-[#7c3aed]/50 transition-colors">
+                                        <i data-lucide="paperclip" class="w-4 h-4 flex-shrink-0"></i>
+                                        <span class="file-label truncate">Choose your answer file&hellip;</span>
+                                        <input type="file" name="file" required class="hidden" onchange="this.closest('label').querySelector('.file-label').textContent = this.files[0]?.name || 'Choose your answer file…'" />
+                                    </label>
+                                    <button type="submit" class="px-4 py-2 rounded-xl font-medium text-xs bg-[#7c3aed] text-white hover:bg-[#6d28d9] transition-colors flex-shrink-0 inline-flex items-center gap-1.5">
+                                        <i data-lucide="upload" class="w-3.5 h-3.5"></i> @(submission == null ? "Submit Answer" : "Resubmit")
+                                    </button>
+                                </form>
+                            }
+                            else
+                            {
+                                <p class="text-xs text-slate-400 dark:text-slate-500 flex items-center gap-1.5">
+                                    <i data-lucide="lock" class="w-3.5 h-3.5"></i> This submission is graded and locked. Ask your lecturer if you need to resubmit.
+                                </p>
+                            }
+                        </div>
                     </div>
                 }
             </div>
         }
     </div>
 </div>
+
+@await Html.PartialAsync("_CourseVideoPlayer")
+@await Html.PartialAsync("_MaterialPreviewModal")

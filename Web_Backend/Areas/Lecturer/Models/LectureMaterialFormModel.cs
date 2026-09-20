@@ -25,6 +25,9 @@ namespace Web_Backend.Areas.LecturerPortal.Models
         [Required]
         public string Category { get; set; } = "LectureNote";
 
+        // Whether students can download the raw file, or only preview it.
+        public bool AllowDownload { get; set; } = true;
+
         // Display-only, populated by the controller for the upload form.
         public string ScheduleName { get; set; } = "";
         public string CourseTitle { get; set; } = "";

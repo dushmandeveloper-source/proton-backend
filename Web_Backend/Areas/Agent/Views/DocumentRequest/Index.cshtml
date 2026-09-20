@@ -1,0 +1,105 @@
+@model List<Web_Backend.Areas.Admin.Models.DocumentRequestItem>
+@{
+    ViewData["Title"] = "Document Requests";
+}
+
+<div class="max-w-4xl mx-auto space-y-6 page-enter">
+    <div>
+        <h2 class="text-2xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">Document Requests</h2>
+        <p class="text-slate-500 dark:text-slate-400 text-sm mt-1">Documents admin has requested from students you registered — submit on their behalf.</p>
+    </div>
+
+    <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
+        @if (Model.Count == 0)
+        {
+            <div class="p-10 text-center">
+                <p class="text-sm text-slate-400 dark:text-slate-500">No documents have been requested from your students.</p>
+            </div>
+        }
+        else
+        {
+            <div class="divide-y divide-slate-100 dark:divide-slate-700">
+                @foreach (var i in Model)
+                {
+                    <div class="p-5 space-y-3">
+                        <div class="flex items-start justify-between gap-4 flex-wrap">
+                            <div>
+                                <p class="text-sm font-semibold text-slate-800 dark:text-slate-100">@i.StudentName &middot; @i.TypeName</p>
+                                <p class="text-xs text-slate-400 dark:text-slate-500">@i.RequestTitle</p>
+                                @if (!string.IsNullOrEmpty(i.RequestInstructions))
+                                {
+                                    <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">@i.RequestInstructions</p>
+                                }
+                            </div>
+                            @switch (i.Status)
+                            {
+                                case "Approved":
+                                    <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 flex-shrink-0"><i data-lucide="check-circle-2" class="w-3.5 h-3.5"></i> Approved</span>
+                                    break;
+                                case "Rejected":
+                                    <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-300 flex-shrink-0"><i data-lucide="x-circle" class="w-3.5 h-3.5"></i> Rejected</span>
+                                    break;
+                                case "Submitted":
+                                    <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-orange-50 dark:bg-orange-950 text-orange-700 dark:text-orange-300 flex-shrink-0"><i data-lucide="clock" class="w-3.5 h-3.5"></i> Awaiting review</span>
+                                    break;
+                                default:
+                                    <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-300 flex-shrink-0"><i data-lucide="hourglass" class="w-3.5 h-3.5"></i> Not submitted</span>
+                                    break;
+                            }
+                        </div>
+
+                        @if (!string.IsNullOrEmpty(i.OriginalFileName))
+                        {
+                            var isPreviewable = (i.ContentType?.StartsWith("image/") ?? false) || (i.ContentType == "application/pdf");
+                            <div class="flex items-center gap-2">
+                                @if (isPreviewable)
+                                {
+                                    <button type="button" onclick="openMaterialPreview('@Url.Action("Preview", new { itemId = i.ItemID })', '@(i.ContentType == "application/pdf" ? "Document" : "Image")')"
+                                            class="text-xs font-medium text-red-600 dark:text-red-400 hover:underline inline-flex items-center gap-1">
+                                        <i data-lucide="eye" class="w-3.5 h-3.5"></i> Preview submission
+                                    </button>
+                                }
+                                <a asp-action="Download" asp-route-itemId="@i.ItemID" download class="text-xs font-medium text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 inline-flex items-center gap-1">
+                                    <i data-lucide="download" class="w-3.5 h-3.5"></i> Download
+                                </a>
+                            </div>
+                        }
+
+                        @if (i.ResubmissionRequested && !string.IsNullOrEmpty(i.ResubmissionRemark))
+                        {
+                            <p class="text-xs text-orange-700 dark:text-orange-300 bg-orange-50 dark:bg-orange-950/50 rounded-lg px-3 py-2">@i.ResubmissionRemark</p>
+                        }
+                        @if (i.Status == "Rejected" && !string.IsNullOrEmpty(i.ReviewRemark))
+                        {
+                            <p class="text-xs text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-950/50 rounded-lg px-3 py-2">@i.ReviewRemark</p>
+                        }
+
+                        @if (i.CanSubmit)
+                        {
+                            <form asp-action="Submit" method="post" enctype="multipart/form-data" class="flex items-center gap-2">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="itemId" value="@i.ItemID" />
+                                <label class="flex-1 flex items-center gap-2 px-3 py-2 rounded-xl border border-dashed border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-xs text-slate-500 dark:text-slate-400 cursor-pointer hover:border-red-400/50 transition-colors">
+                                    <i data-lucide="paperclip" class="w-4 h-4 flex-shrink-0"></i>
+                                    <span class="file-label truncate">Choose file&hellip; (PDF, JPG, PNG)</span>
+                                    <input type="file" name="file" accept=".pdf,.jpg,.jpeg,.png,.webp" required class="hidden" onchange="this.closest('label').querySelector('.file-label').textContent = this.files[0]?.name || 'Choose file…'" />
+                                </label>
+                                <button type="submit" class="px-4 py-2 rounded-xl font-medium text-xs bg-red-500 text-white hover:bg-red-600 transition-colors flex-shrink-0 inline-flex items-center gap-1.5">
+                                    <i data-lucide="upload" class="w-3.5 h-3.5"></i> @(i.Status == "Pending" ? "Submit" : "Resubmit")
+                                </button>
+                            </form>
+                        }
+                        else
+                        {
+                            <p class="text-xs text-slate-400 dark:text-slate-500 flex items-center gap-1.5">
+                                <i data-lucide="lock" class="w-3.5 h-3.5"></i> This document has been reviewed and is locked. Contact administration if a resubmission is needed.
+                            </p>
+                        }
+                    </div>
+                }
+            </div>
+        }
+    </div>
+</div>
+
+@await Html.PartialAsync("_MaterialPreviewModal")

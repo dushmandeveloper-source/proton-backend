@@ -119,7 +119,7 @@ namespace Web_Backend.Areas.Admin.Controllers
                 // Refresh the session copy so the sidebar/header reflect the new name/email immediately.
                 var current = Auth.GetUser()!;
                 current.Name = $"{form.FirstName} {form.LastName}".Trim();
-                await Auth.SignIn(current);
+                await Auth.SignIn(current, Portal.Admin);
 
                 if (TempData["ErrorMessage"] == null)
                     TempData["SuccessMessage"] = "Profile updated.";

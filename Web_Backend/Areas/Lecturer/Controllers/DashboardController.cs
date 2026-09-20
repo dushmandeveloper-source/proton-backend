@@ -37,7 +37,7 @@ namespace Web_Backend.Areas.LecturerPortal.Controllers
             Auth.CheckUser();
             var userId = Auth.GetUserId();
 
-            var today = DateTime.Today;
+            var today = Web_Backend.Classes.SriLankaTime.Today;
             var diff = (7 + (today.DayOfWeek - DayOfWeek.Monday)) % 7;
             var weekStart = today.AddDays(-diff);
             var weekEnd = weekStart.AddDays(6);

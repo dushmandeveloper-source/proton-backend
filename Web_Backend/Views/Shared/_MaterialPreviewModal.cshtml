@@ -1,0 +1,63 @@
+@* ---------- Lecture material / homework preview modal ----------
+   Shared across Admin, Lecturer and Student areas — call
+   openMaterialPreview(url, fileType) from any "Preview"/"View" button.
+   Images render as <img>, PDFs render in an embedded <iframe> viewer.
+   Other document types (Word/PowerPoint/Excel) have no reliable in-browser
+   preview, so callers should not offer a Preview button for those — only a
+   Download link (when allowed) or a disabled placeholder. *@
+<div id="material-preview-modal" class="hidden fixed inset-0 z-[60] flex items-center justify-center bg-black/90 p-4" role="dialog" aria-modal="true">
+    <button type="button" id="material-preview-modal-close" aria-label="Close"
+            class="absolute top-4 right-4 z-10 p-2 rounded-lg text-white/80 hover:text-white hover:bg-white/10">
+        <i data-lucide="x" class="w-7 h-7"></i>
+    </button>
+    <div id="material-preview-modal-body" class="w-full h-full max-w-4xl flex items-center justify-center overflow-auto"></div>
+</div>
+
+<script>
+    (function () {
+        const modal = document.getElementById('material-preview-modal');
+        const body = document.getElementById('material-preview-modal-body');
+
+        // Move the modal to the end of <body> -- if this partial renders
+        // inside a container that has backdrop-filter/transform/filter set
+        // (e.g. Admin's <main class="... backdrop-blur-3xl ... overflow-hidden">),
+        // that container becomes the containing block for this "fixed"
+        // element per the CSS spec, clipping it to that container's bounds
+        // instead of the real viewport. Re-parenting to <body> escapes any
+        // such ancestor regardless of which page includes this partial.
+        if (modal.parentElement !== document.body) {
+            document.body.appendChild(modal);
+        }
+
+        window.openMaterialPreview = function (url, fileType) {
+            if (!url) return;
+            body.innerHTML = '';
+
+            if (fileType === 'Image') {
+                const img = document.createElement('img');
+                img.src = url;
+                img.className = 'max-w-full max-h-full object-contain rounded-lg';
+                img.oncontextmenu = () => false;
+                body.appendChild(img);
+            } else {
+                // PDF (and anything else the browser can render natively).
+                const iframe = document.createElement('iframe');
+                iframe.src = url + '#toolbar=0';
+                iframe.className = 'w-full h-full bg-white rounded-lg';
+                iframe.title = 'Document preview';
+                body.appendChild(iframe);
+            }
+
+            modal.classList.remove('hidden');
+            if (window.lucide) lucide.createIcons();
+        };
+
+        function closePreview() {
+            modal.classList.add('hidden');
+            body.innerHTML = '';
+        }
+        document.getElementById('material-preview-modal-close').addEventListener('click', closePreview);
+        modal.addEventListener('click', (e) => { if (e.target === modal) closePreview(); });
+        document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !modal.classList.contains('hidden')) closePreview(); });
+    })();
+</script>

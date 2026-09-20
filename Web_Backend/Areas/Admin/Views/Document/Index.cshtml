@@ -1,13 +1,13 @@
 @model List<Document>
 @{
-    ViewData["Title"] = "Documents";
+    ViewData["Title"] = "Agent Document";
     bool canAdd = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.Documents, 'A');
 }
 
 <div class="max-w-5xl mx-auto page-enter">
     <div class="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
         <div>
-            <h2 class="text-3xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">Documents</h2>
+            <h2 class="text-3xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">Agent Document</h2>
             <p class="text-slate-500 dark:text-slate-400 mt-2">Files shared with agents — visible to all agents, or restricted to a hand-picked subset. Agents can preview these but never download them.</p>
         </div>
         @if (canAdd)

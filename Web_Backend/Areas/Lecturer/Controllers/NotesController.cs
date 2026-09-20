@@ -27,12 +27,14 @@ namespace Web_Backend.Areas.LecturerPortal.Controllers
 
         private readonly ICourseScheduleData scheduleRep;
         private readonly ILectureMaterialData materialRep;
+        private readonly IHomeworkSubmissionData submissionRep;
         private readonly IImageUploader uploader;
 
-        public NotesController(ICourseScheduleData scheduleRep, ILectureMaterialData materialRep, IImageUploader uploader)
+        public NotesController(ICourseScheduleData scheduleRep, ILectureMaterialData materialRep, IHomeworkSubmissionData submissionRep, IImageUploader uploader)
         {
             this.scheduleRep = scheduleRep;
             this.materialRep = materialRep;
+            this.submissionRep = submissionRep;
             this.uploader = uploader;
         }
 
@@ -49,24 +51,28 @@ namespace Web_Backend.Areas.LecturerPortal.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> Upload(string scheduleId)
+        public async Task<IActionResult> Upload(string? scheduleId)
         {
             Auth.CheckUser();
             var userId = Auth.GetUserId();
 
             var batches = await scheduleRep.GetListForInstructor(userId);
-            var batch = batches.FirstOrDefault(b => b.ScheduleID == scheduleId);
-            if (batch == null)
+            if (batches.Count == 0)
             {
-                TempData["ErrorMessage"] = "Batch not found, or you are not assigned to it.";
-                return RedirectToAction("Index", "Courses");
+                TempData["ErrorMessage"] = "You are not assigned to any batches yet.";
+                return RedirectToAction("Index");
             }
+
+            // No batch pre-selected (e.g. "Upload New" from the Notes list) —
+            // default to the lecturer's first batch; the form itself has a
+            // batch picker so they can switch without leaving the page.
+            var batch = batches.FirstOrDefault(b => b.ScheduleID == scheduleId) ?? batches[0];
 
             ViewBag.CurrentUser = Auth.GetUser();
             ViewBag.Batches = batches;
             return View(new LectureMaterialFormModel
             {
-                ScheduleID = scheduleId,
+                ScheduleID = batch.ScheduleID,
                 ScheduleName = batch.ScheduleName,
                 CourseTitle = batch.CourseTitle
             });
@@ -124,6 +130,7 @@ namespace Web_Backend.Areas.LecturerPortal.Controllers
                     FileType = fileType,
                     FileURL = fileUrl,
                     Category = form.Category == "Homework" ? "Homework" : "LectureNote",
+                    AllowDownload = form.AllowDownload,
                     UploadedByUserID = userId,
                     UploadedByRole = "Lecturer"
                 });
@@ -144,6 +151,83 @@ namespace Web_Backend.Areas.LecturerPortal.Controllers
                 ViewBag.Batches = batches;
                 return View(form);
             }
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> Submissions(string materialId)
+        {
+            Auth.CheckUser();
+            var userId = Auth.GetUserId();
+
+            // Ownership check: the lecturer can only view submissions for a
+            // homework item on a batch they're actually assigned to — same
+            // scoping ListForLecturer already applies for the Index list.
+            var assigned = await materialRep.ListForLecturer(userId);
+            var material = assigned.FirstOrDefault(m => m.MaterialID == materialId && m.Category == "Homework");
+            if (material == null)
+            {
+                TempData["ErrorMessage"] = "Homework item not found, or you are not assigned to its batch.";
+                return RedirectToAction("Index");
+            }
+
+            var submissions = await submissionRep.ListForMaterial(materialId);
+            ViewBag.Material = material;
+            ViewBag.CurrentUser = Auth.GetUser();
+            return View(submissions);
+        }
+
+        [HttpPost, ValidateAntiForgeryToken]
+        public async Task<IActionResult> Grade(string submissionId, string materialId, decimal? marksAwarded, string? feedback)
+        {
+            Auth.CheckUser();
+            var userId = Auth.GetUserId();
+
+            var assigned = await materialRep.ListForLecturer(userId);
+            var material = assigned.FirstOrDefault(m => m.MaterialID == materialId && m.Category == "Homework");
+            if (material == null)
+            {
+                TempData["ErrorMessage"] = "Homework item not found, or you are not assigned to its batch.";
+                return RedirectToAction("Index");
+            }
+
+            try
+            {
+                await submissionRep.Grade(submissionId, marksAwarded, feedback, userId);
+                TempData["SuccessMessage"] = "Submission graded.";
+            }
+            catch (Exception ex)
+            {
+                TempData["ErrorMessage"] = "Could not save grade: " + ex.Message;
+            }
+
+            return RedirectToAction("Submissions", new { materialId });
+        }
+
+        [HttpPost, ValidateAntiForgeryToken]
+        public async Task<IActionResult> RequestResubmission(string submissionId, string materialId, string? remark)
+        {
+            Auth.CheckUser();
+            var userId = Auth.GetUserId();
+
+            var assigned = await materialRep.ListForLecturer(userId);
+            var material = assigned.FirstOrDefault(m => m.MaterialID == materialId && m.Category == "Homework");
+            if (material == null)
+            {
+                TempData["ErrorMessage"] = "Homework item not found, or you are not assigned to its batch.";
+                return RedirectToAction("Index");
+            }
+
+            try
+            {
+                await submissionRep.RequestResubmission(submissionId, remark);
+                TempData["SuccessMessage"] = "Resubmission requested.";
+            }
+            catch (Exception ex)
+            {
+                TempData["ErrorMessage"] = "Could not request resubmission: " + ex.Message;
+            }
+
+            return RedirectToAction("Submissions", new { materialId });
         }
 
         [HttpPost, ValidateAntiForgeryToken]

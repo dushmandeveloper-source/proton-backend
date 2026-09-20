@@ -166,7 +166,7 @@
     <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
         <div class="p-6 border-b border-slate-100 dark:border-slate-700 flex items-center gap-3">
             <div class="bg-emerald-50 dark:bg-emerald-950 p-2 rounded-lg"><i data-lucide="file-text" class="w-5 h-5 text-emerald-600 dark:text-emerald-300"></i></div>
-            <h3 class="font-semibold text-lg text-slate-800 dark:text-slate-100">Homework / Lecture Materials</h3>
+            <h3 class="font-semibold text-lg text-slate-800 dark:text-slate-100">Assignment / Homework / Lecture Materials</h3>
         </div>
         @if (Model.IsContentRestricted)
         {
@@ -195,7 +195,7 @@
                                 <div class="flex items-center gap-2">
                                     <p class="text-sm font-medium text-slate-800 dark:text-slate-100">@m.Title</p>
                                     <span class="px-2 py-0.5 rounded-full text-xs font-medium @(m.Category == "Homework" ? "bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-300" : "bg-purple-50 dark:bg-purple-950 text-[#7c3aed] dark:text-purple-300")">
-                                        @(m.Category == "Homework" ? "Homework" : "Lecture Note")
+                                        @(m.Category == "Homework" ? "Assignment / Homework" : "Lecture Note")
                                     </span>
                                 </div>
                                 <p class="text-xs text-slate-400 dark:text-slate-500">@m.MaterialDate.ToString("MMM d, yyyy") &middot; @m.FileType</p>

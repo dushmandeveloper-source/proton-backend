@@ -1,0 +1,74 @@
+@model List<Web_Backend.Areas.Admin.Models.DocumentType>
+@{
+    ViewData["Title"] = "Document Types";
+    bool canAdd = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.DocumentRequests, 'A');
+    bool canDelete = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.DocumentRequests, 'D');
+}
+
+<div class="max-w-3xl mx-auto space-y-8 page-enter">
+    <div class="flex items-center gap-3">
+        <a asp-action="Index" class="p-2 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors flex-shrink-0">
+            <i data-lucide="arrow-left" class="w-5 h-5"></i>
+        </a>
+        <div>
+            <p class="text-sm font-medium text-slate-500 dark:text-slate-400">Document Requests</p>
+            <h1 class="text-2xl md:text-3xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">Document Types</h1>
+        </div>
+    </div>
+
+    @if (canAdd)
+    {
+        <form asp-action="SaveType" method="post" class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 p-6 flex items-end gap-3 flex-wrap">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="typeId" value="" />
+            <div class="flex-1 min-w-[200px]">
+                <label class="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Type name</label>
+                <input type="text" name="typeName" required placeholder="e.g. Passport Copy"
+                       class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-[#7c3aed]/40" />
+            </div>
+            <div class="flex-1 min-w-[200px]">
+                <label class="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Description (optional)</label>
+                <input type="text" name="description"
+                       class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-[#7c3aed]/40" />
+            </div>
+            <input type="hidden" name="sortOrder" value="@(Model.Count)" />
+            <button type="submit" class="px-4 py-2 rounded-xl font-medium text-sm bg-[#7c3aed] text-white hover:bg-[#6d28d9] transition-colors whitespace-nowrap">Add Type</button>
+        </form>
+    }
+
+    <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
+        @if (!Model.Any())
+        {
+            <div class="p-10 text-center">
+                <p class="text-sm text-slate-400 dark:text-slate-500">No document types yet.</p>
+            </div>
+        }
+        else
+        {
+            <div class="divide-y divide-slate-100 dark:divide-slate-700">
+                @foreach (var t in Model)
+                {
+                    <div class="p-4 px-6 flex items-center justify-between gap-4">
+                        <div>
+                            <p class="text-sm font-medium text-slate-800 dark:text-slate-100">@t.TypeName</p>
+                            @if (!string.IsNullOrEmpty(t.Description))
+                            {
+                                <p class="text-xs text-slate-400 dark:text-slate-500 mt-0.5">@t.Description</p>
+                            }
+                        </div>
+                        @if (canDelete)
+                        {
+                            <form asp-action="DeleteType" asp-route-id="@t.TypeID" method="post"
+                                  data-confirm="Delete this document type?" data-confirm-title="Delete type" data-confirm-label="Delete">
+                                @Html.AntiForgeryToken()
+                                <button type="submit" title="Delete" class="p-2 rounded-xl text-slate-400 dark:text-slate-500 hover:text-red-600 dark:hover:text-red-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+                                    <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                </button>
+                            </form>
+                        }
+                    </div>
+                }
+            </div>
+        }
+    </div>
+</div>

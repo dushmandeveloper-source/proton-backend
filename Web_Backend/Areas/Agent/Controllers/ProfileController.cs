@@ -111,7 +111,7 @@ namespace Web_Backend.Areas.AgentPortal.Controllers
                 // Refresh the session copy so the header reflects the new name immediately.
                 var current = Auth.GetUser()!;
                 current.Name = $"{form.FirstName} {form.LastName}".Trim();
-                await Auth.SignIn(current);
+                await Auth.SignIn(current, Portal.Agent);
 
                 TempData["SuccessMessage"] = "Profile updated.";
             }

@@ -1,10 +1,26 @@
+using System.Security.Claims;
+using System.Text.Json;
+using Microsoft.AspNetCore.Authentication;
 using Web_Backend.Areas.Admin.Models;
 
 namespace Web_Backend.Classes
 {
-    // Session-based auth helper, checked at the top of each controller action.
-    // Mirrors the LMS reference project's static Auth.CheckUser()/CheckUserRole()
-    // pattern instead of [Authorize]/cookie authentication middleware.
+    // Cookie-backed auth helper, checked at the top of each controller
+    // action. Public API (CheckUser/CheckPermission/HasPermission/GetUser/
+    // GetUserId/IsLoggedIn/SignIn/SignOut) is unchanged from the previous
+    // ISession-based implementation on purpose -- ~90 controllers and ~20
+    // Razor views call these directly, so keeping the surface identical
+    // means only this file and PortalSignIn's sign-in call needed to change.
+    //
+    // Why this replaced ISession: sessions were held in
+    // IDistributedMemoryCache (Program.cs's AddSession, in-process memory),
+    // which is wiped on every IIS app pool recycle. "Remember Me" re-issued
+    // the session cookie with a 30-day Expires, but the server-side session
+    // data it pointed at routinely didn't survive that long on shared
+    // hosting -- so the cookie lived, the session didn't, and the user got
+    // silently bounced back to login. A real auth cookie carries the
+    // signed-in identity (as encrypted claims) inside the cookie itself, so
+    // there is no server-side store to lose.
     public static class Auth
     {
         // Matches the seeded UserTypeID in Database/migrations/0002_role_permissions.sql.
@@ -12,8 +28,17 @@ namespace Web_Backend.Classes
         // can never be revoked by editing the database directly.
         public const string MasterAdminRoleId = "MASTERADMIN";
 
-        // ASP.NET Core's default session cookie name; must match to override its Expires below.
-        private const string SessionCookieName = ".AspNetCore.Session";
+        // One cookie authentication scheme per portal (Admin/Student/
+        // Lecturer/Agent) -- each portal's login is otherwise entirely
+        // independent, so signing into Admin must not also authenticate the
+        // same browser against Lecturer/Agent/Student. Program.cs registers
+        // one AddCookie(...) per name below.
+        public const string AdminScheme = "AdminAuth";
+        public const string StudentScheme = "StudentAuth";
+        public const string LecturerScheme = "LecturerAuth";
+        public const string AgentScheme = "AgentAuth";
+
+        private const string UserClaimType = "ProtonSessionUser";
 
         private static IHttpContextAccessor _accessor = null!;
 
@@ -22,47 +47,88 @@ namespace Web_Backend.Classes
             _accessor = accessor;
         }
 
-        private static ISession Session => _accessor.HttpContext!.Session;
+        private static HttpContext HttpContext => _accessor.HttpContext!;
 
-        // rememberMe controls whether the session cookie survives browser close.
-        // The session's server-side lifetime (IdleTimeout, see Program.cs) is the
-        // same either way; unchecked, the cookie itself expires with the browser
-        // session so the user is effectively signed out once it closes.
-        public static async Task SignIn(SessionUser user, bool rememberMe = false)
+        // The whole SessionUser (including its per-module Permissions grid --
+        // dozens of modules x 4 flags, awkward to flatten into individual
+        // claims) is serialized as one JSON claim. Slightly more to decode
+        // per request than a flat role claim, but keeps GetUser()'s shape
+        // and every caller's `.Permissions[...]` access untouched.
+        //
+        // `portal` picks which of the four cookie schemes signs this user
+        // in -- callers already know this (it's the login page the request
+        // came through / PortalSignIn.GetPortalForUserType's DB-driven
+        // classification), and Auth.cs can't re-derive it from user.Role
+        // itself: UserTypeID is an opaque generated ID (e.g. "UT00003" for
+        // Student) for some roles and a literal ("INSTRUCTOR"/"AGENT") for
+        // others, not a stable value this static class can pattern-match on
+        // without its own DB lookup.
+        public static async Task SignIn(SessionUser user, Portal portal, bool rememberMe = false)
         {
-            Session.SetObject("CurrentUser", user);
-
-            if (rememberMe)
+            var scheme = SchemeFor(portal);
+            var claims = new List<Claim>
             {
-                // The session middleware only persists the store (and thus
-                // finalizes Session.Id) when the response commits — normally
-                // at the very end of the request. Appending our own cookie
-                // with Session.Id here, before that commit, could copy an ID
-                // the middleware then never saves, leaving the next request's
-                // cookie pointing at nothing (symptom: first login attempt
-                // silently "fails" and a second click is needed). Committing
-                // explicitly first guarantees the ID we copy is real.
-                await Session.CommitAsync();
+                new(ClaimTypes.NameIdentifier, user.Id),
+                new(ClaimTypes.Name, user.Name),
+                new(ClaimTypes.Email, user.Email),
+                new(ClaimTypes.Role, user.Role),
+                new(UserClaimType, JsonSerializer.Serialize(user))
+            };
+            var identity = new ClaimsIdentity(claims, scheme);
+            var principal = new ClaimsPrincipal(identity);
 
-                _accessor.HttpContext!.Response.Cookies.Append(
-                    SessionCookieName,
-                    Session.Id,
-                    new CookieOptions
-                    {
-                        HttpOnly = true,
-                        IsEssential = true,
-                        Expires = DateTimeOffset.UtcNow.AddDays(30),
-                        SameSite = SameSiteMode.Lax
-                    });
-            }
+            await HttpContext.SignInAsync(scheme, principal, new AuthenticationProperties
+            {
+                IsPersistent = rememberMe,
+                ExpiresUtc = rememberMe ? DateTimeOffset.UtcNow.AddDays(30) : null
+            });
         }
 
         public static void SignOut()
         {
-            Session.Clear();
+            // Fire-and-forget is fine here: every existing call site treats
+            // SignOut() as synchronous (Logout actions immediately redirect),
+            // and SignOutAsync only clears the response cookie -- no I/O to
+            // await that the redirect depends on.
+            HttpContext.SignOutAsync(CurrentScheme() ?? AdminScheme).GetAwaiter().GetResult();
         }
 
-        public static SessionUser? GetUser() => Session.GetObject<SessionUser>("CurrentUser");
+        // No single "default" authentication scheme applies here — four
+        // independent portal cookies can coexist in the same browser (e.g.
+        // an admin who is also a lecturer, in two different tabs), so
+        // ASP.NET Core's automatic HttpContext.User population (which
+        // assumes one default scheme) doesn't apply. Each scheme's cookie
+        // is checked explicitly instead, cached per-request so a
+        // controller action calling GetUser() several times doesn't
+        // re-authenticate against all four schemes every time.
+        private const string CachedPrincipalKey = "ProtonAuthPrincipal";
+
+        private static ClaimsPrincipal? ResolvePrincipal()
+        {
+            if (HttpContext.Items.TryGetValue(CachedPrincipalKey, out var cached))
+                return cached as ClaimsPrincipal;
+
+            ClaimsPrincipal? result = null;
+            foreach (var scheme in new[] { AdminScheme, StudentScheme, LecturerScheme, AgentScheme })
+            {
+                var authResult = HttpContext.AuthenticateAsync(scheme).GetAwaiter().GetResult();
+                if (authResult.Succeeded && authResult.Principal != null)
+                {
+                    result = authResult.Principal;
+                    break;
+                }
+            }
+
+            HttpContext.Items[CachedPrincipalKey] = result;
+            return result;
+        }
+
+        public static SessionUser? GetUser()
+        {
+            var json = ResolvePrincipal()?.FindFirst(UserClaimType)?.Value;
+            if (string.IsNullOrEmpty(json)) return null;
+            return JsonSerializer.Deserialize<SessionUser>(json);
+        }
 
         public static string GetUserId() => GetUser()?.Id ?? "";
 
@@ -112,5 +178,18 @@ namespace Web_Backend.Classes
             if (!HasPermission(moduleCode, action))
                 throw new PermissionDeniedException($"Missing '{action}' permission for module '{moduleCode}'.");
         }
+
+        private static string SchemeFor(Portal portal) => portal switch
+        {
+            Portal.Student => StudentScheme,
+            Portal.Lecturer => LecturerScheme,
+            Portal.Agent => AgentScheme,
+            _ => AdminScheme
+        };
+
+        // Which of the four schemes actually authenticated the current
+        // request, if any -- needed so SignOut() clears the right cookie
+        // instead of always assuming Admin.
+        private static string? CurrentScheme() => ResolvePrincipal()?.Identity?.AuthenticationType;
     }
 }

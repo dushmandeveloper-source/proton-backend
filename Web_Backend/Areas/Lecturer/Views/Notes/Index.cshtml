@@ -1,6 +1,6 @@
 @model List<Web_Backend.Areas.Admin.Models.LectureMaterial>
 @{
-    ViewData["Title"] = "Homework / Lecture Notes";
+    ViewData["Title"] = "Assignment / Homework / Lecture Notes";
 }
 
 <div class="max-w-5xl mx-auto space-y-8 page-enter">
@@ -8,9 +8,9 @@
     <div class="flex items-center justify-between flex-wrap gap-4">
         <div>
             <p class="text-sm font-medium text-slate-500 dark:text-slate-400 mb-2">Class Management</p>
-            <h1 class="text-3xl md:text-4xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">Homework / Lecture Notes</h1>
+            <h1 class="text-3xl md:text-4xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">Assignment / Homework / Lecture Notes</h1>
         </div>
-        <a asp-area="Lecturer" asp-controller="Courses" asp-action="Index"
+        <a asp-area="Lecturer" asp-controller="Notes" asp-action="Upload"
            class="px-4 py-2 rounded-xl font-medium text-sm bg-[#7c3aed] text-white hover:bg-[#6d28d9] shadow-sm transition-all flex items-center gap-2 w-fit">
             <i data-lucide="upload" class="w-4 h-4"></i> Upload New
         </a>
@@ -33,7 +33,7 @@
                             <div class="flex items-center gap-2">
                                 <p class="text-sm font-medium text-slate-800 dark:text-slate-100">@m.Title</p>
                                 <span class="px-2 py-0.5 rounded-full text-xs font-medium @(m.Category == "Homework" ? "bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-300" : "bg-purple-50 dark:bg-purple-950 text-[#7c3aed] dark:text-purple-300")">
-                                    @(m.Category == "Homework" ? "Homework" : "Lecture Note")
+                                    @(m.Category == "Homework" ? "Assignment / Homework" : "Lecture Note")
                                 </span>
                             </div>
                             <p class="text-xs text-slate-400 dark:text-slate-500 mt-0.5">@m.CourseTitle &middot; @m.ScheduleName &middot; @m.MaterialDate.ToString("MMM d, yyyy") &middot; @m.FileType</p>
@@ -47,6 +47,13 @@
                                class="px-3 py-1.5 rounded-lg font-medium text-xs bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
                                 View
                             </a>
+                            @if (m.Category == "Homework")
+                            {
+                                <a asp-action="Submissions" asp-route-materialId="@m.MaterialID"
+                                   class="px-3 py-1.5 rounded-lg font-medium text-xs bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900 transition-colors">
+                                    Submissions
+                                </a>
+                            }
                             @if (m.UploadedByRole == "Lecturer")
                             {
                                 <form asp-action="Delete" asp-route-id="@m.MaterialID" method="post" onsubmit="return confirm('Delete this material?');">

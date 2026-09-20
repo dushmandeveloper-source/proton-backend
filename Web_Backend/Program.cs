@@ -20,15 +20,62 @@ builder.Services.AddControllersWithViews(options =>
 });
 
 builder.Services.AddHttpContextAccessor();
-builder.Services.AddSession(options =>
-{
-    // Server-side expiry is capped at the "Remember Me" ceiling (30 days);
-    // the default, shorter-lived experience comes from the session cookie
-    // itself not persisting past browser close (see Auth.SignIn).
-    options.IdleTimeout = TimeSpan.FromDays(30);
-    options.Cookie.HttpOnly = true;
-    options.Cookie.IsEssential = true;
-});
+
+// Four independent cookie-auth schemes, one per portal (Admin/Student/
+// Lecturer/Agent) -- see Classes/Auth.cs's header comment for why this
+// replaced session-based auth (in-memory session data didn't survive an
+// IIS app pool recycle, so "Remember Me"'s 30-day cookie outlived the
+// session it pointed at). Each scheme's cookie carries its own signed-in
+// identity as encrypted claims, so there's no server-side store to lose,
+// and no default scheme is set here on purpose -- Auth.GetUser() checks
+// all four explicitly, since a browser can hold more than one of these
+// cookies at once (e.g. an Admin who is also a Lecturer, in two tabs).
+// LoginPath/AccessDeniedPath are set for completeness but never actually
+// exercised — this app never calls ChallengeAsync/ForbidAsync (no
+// [Authorize] attributes anywhere); access is instead gated manually via
+// Auth.CheckUser()/Auth.CheckPermission(), whose exceptions
+// UnauthorizedRedirectFilter catches and redirects from directly.
+builder.Services.AddAuthentication()
+    .AddCookie(Auth.AdminScheme, options =>
+    {
+        options.Cookie.Name = ".Proton.Admin";
+        options.Cookie.HttpOnly = true;
+        options.Cookie.IsEssential = true;
+        options.Cookie.SameSite = SameSiteMode.Lax;
+        options.ExpireTimeSpan = TimeSpan.FromDays(30);
+        options.SlidingExpiration = true;
+        options.LoginPath = "/Admin/Account/Login";
+    })
+    .AddCookie(Auth.StudentScheme, options =>
+    {
+        options.Cookie.Name = ".Proton.Student";
+        options.Cookie.HttpOnly = true;
+        options.Cookie.IsEssential = true;
+        options.Cookie.SameSite = SameSiteMode.Lax;
+        options.ExpireTimeSpan = TimeSpan.FromDays(30);
+        options.SlidingExpiration = true;
+        options.LoginPath = "/Student/Account/Login";
+    })
+    .AddCookie(Auth.LecturerScheme, options =>
+    {
+        options.Cookie.Name = ".Proton.Lecturer";
+        options.Cookie.HttpOnly = true;
+        options.Cookie.IsEssential = true;
+        options.Cookie.SameSite = SameSiteMode.Lax;
+        options.ExpireTimeSpan = TimeSpan.FromDays(30);
+        options.SlidingExpiration = true;
+        options.LoginPath = "/Lecturer/Account/Login";
+    })
+    .AddCookie(Auth.AgentScheme, options =>
+    {
+        options.Cookie.Name = ".Proton.Agent";
+        options.Cookie.HttpOnly = true;
+        options.Cookie.IsEssential = true;
+        options.Cookie.SameSite = SameSiteMode.Lax;
+        options.ExpireTimeSpan = TimeSpan.FromDays(30);
+        options.SlidingExpiration = true;
+        options.LoginPath = "/Agent/Account/Login";
+    });
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
@@ -83,6 +130,9 @@ builder.Services.AddTransient<IUserPermissionOverrideData, UserPermissionOverrid
 builder.Services.AddTransient<ICourseScheduleRescheduleData, CourseScheduleRescheduleData>();
 builder.Services.AddTransient<IExamScheduleRescheduleData, ExamScheduleRescheduleData>();
 builder.Services.AddTransient<ILectureMaterialData, LectureMaterialData>();
+builder.Services.AddTransient<IHomeworkSubmissionData, HomeworkSubmissionData>();
+builder.Services.AddTransient<IDocumentTypeData, DocumentTypeData>();
+builder.Services.AddTransient<IDocumentRequestData, DocumentRequestData>();
 builder.Services.AddTransient<ICourseVideoData, CourseVideoData>();
 builder.Services.AddTransient<IDocumentData, DocumentData>();
 builder.Services.AddSingleton<IImageUploader, ImageUploader>();
@@ -110,7 +160,7 @@ app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseRouting();
 app.UseCors(PublicSiteCors);
-app.UseSession();
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllerRoute(

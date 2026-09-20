@@ -332,6 +332,15 @@
     (function () {
         const modal = document.getElementById('course-video-modal');
         const body = document.getElementById('course-video-modal-body');
+
+        // Escape any ancestor with backdrop-filter/transform/filter set
+        // (e.g. Admin's <main> wrapper) -- such a property makes that
+        // ancestor the containing block for this "fixed" modal per the CSS
+        // spec, clipping it to that box instead of the real viewport.
+        if (modal.parentElement !== document.body) {
+            document.body.appendChild(modal);
+        }
+
         function closeVideoModal() {
             modal.classList.add('hidden');
             if (activeCourseVideoPlayer) { activeCourseVideoPlayer.destroy(); activeCourseVideoPlayer = null; }

@@ -156,7 +156,7 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
                 // Refresh the session copy so the header reflects the new name immediately.
                 var current = Auth.GetUser()!;
                 current.Name = $"{form.FirstName} {form.LastName}".Trim();
-                await Auth.SignIn(current);
+                await Auth.SignIn(current, Portal.Student);
 
                 if (TempData["ErrorMessage"] == null)
                     TempData["SuccessMessage"] = "Profile updated.";

@@ -24,5 +24,9 @@ namespace Web_Backend.Areas.StudentPortal.Models
 
         public CourseRegistrationStudentSummary? Summary { get; set; }
         public List<CourseRegistration> Registrations { get; set; } = new();
+
+        // Document requests needing the student's attention -- never
+        // submitted yet, or explicitly reopened by admin for resubmission.
+        public int PendingDocumentRequestCount { get; set; }
     }
 }

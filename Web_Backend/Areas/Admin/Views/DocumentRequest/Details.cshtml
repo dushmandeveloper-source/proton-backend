@@ -1,0 +1,309 @@
+@model List<Web_Backend.Areas.Admin.Models.DocumentRequestItem>
+@{
+    ViewData["Title"] = "Document Request";
+    var requestId = ViewBag.RequestID as string ?? "";
+    var title = Model.FirstOrDefault()?.RequestTitle ?? "";
+    var instructions = Model.FirstOrDefault()?.RequestInstructions;
+
+    int CountFor(string status) => status == "" ? Model.Count : Model.Count(m => m.Status == status);
+}
+
+<div class="max-w-5xl mx-auto space-y-6 page-enter">
+    <div class="flex items-center gap-3">
+        <a asp-action="Index" class="p-2 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors flex-shrink-0">
+            <i data-lucide="arrow-left" class="w-5 h-5"></i>
+        </a>
+        <div>
+            <p class="text-sm font-medium text-slate-500 dark:text-slate-400">Document Requests</p>
+            <h1 class="text-2xl md:text-3xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">@title</h1>
+            @if (!string.IsNullOrEmpty(instructions))
+            {
+                <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">@instructions</p>
+            }
+        </div>
+    </div>
+
+    @if (Model.Count == 0)
+    {
+        <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 p-12 text-center">
+            <p class="text-sm text-slate-400 dark:text-slate-500">No items in this request.</p>
+        </div>
+    }
+    else
+    {
+        <div class="bg-white dark:bg-slate-900/60 rounded-[20px] shadow-sm border border-slate-100 dark:border-slate-700 p-4 space-y-3">
+            <div class="relative">
+                <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2"></i>
+                <input type="text" id="item-search" name="item-search-@Guid.NewGuid()" placeholder="Search by student name or document type…"
+                       autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false"
+                       class="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-[#7c3aed]/40" />
+            </div>
+            <div class="flex items-center gap-2 flex-wrap">
+                <button type="button" class="status-filter-btn is-active px-3 py-1.5 rounded-full text-xs font-medium bg-[#7c3aed] text-white transition-colors" data-status="">All (@CountFor(""))</button>
+                <button type="button" class="status-filter-btn px-3 py-1.5 rounded-full text-xs font-medium bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors" data-status="Pending">Pending upload (@CountFor("Pending"))</button>
+                <button type="button" class="status-filter-btn px-3 py-1.5 rounded-full text-xs font-medium bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors" data-status="Submitted">Awaiting review (@CountFor("Submitted"))</button>
+                <button type="button" class="status-filter-btn px-3 py-1.5 rounded-full text-xs font-medium bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors" data-status="Approved">Approved (@CountFor("Approved"))</button>
+                <button type="button" class="status-filter-btn px-3 py-1.5 rounded-full text-xs font-medium bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors" data-status="Rejected">Rejected (@CountFor("Rejected"))</button>
+            </div>
+        </div>
+
+        <div class="space-y-3" id="item-list">
+            @foreach (var i in Model)
+            {
+                <div class="document-item-card bg-white dark:bg-slate-900/60 rounded-[20px] shadow-sm border border-slate-100 dark:border-slate-700 p-5 space-y-3"
+                     data-status="@i.Status" data-search="@($"{i.StudentName} {i.TypeName}".ToLower())">
+                    <div class="flex items-start justify-between gap-4 flex-wrap">
+                        <div>
+                            <p class="text-sm font-semibold text-slate-800 dark:text-slate-100">@i.StudentName</p>
+                            <p class="text-xs text-slate-400 dark:text-slate-500">@i.TypeName</p>
+                            @if (!string.IsNullOrEmpty(i.SubmittedByRole))
+                            {
+                                <p class="text-xs text-slate-400 dark:text-slate-500 mt-0.5 inline-flex items-center gap-1">
+                                    <i data-lucide="@(i.SubmittedByRole == "Agent" ? "briefcase" : "user")" class="w-3 h-3"></i>
+                                    Submitted by @i.SubmittedByRole @(i.SubmittedDate.HasValue ? $"· {i.SubmittedDate.Value:MMM d, yyyy h:mm tt}" : "")
+                                </p>
+                            }
+                        </div>
+                        <div class="flex items-center gap-2">
+                            @switch (i.Status)
+                            {
+                                case "Approved":
+                                    <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300"><i data-lucide="check-circle-2" class="w-3.5 h-3.5"></i> Approved</span>
+                                    break;
+                                case "Rejected":
+                                    <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-300"><i data-lucide="x-circle" class="w-3.5 h-3.5"></i> Rejected</span>
+                                    break;
+                                case "Submitted":
+                                    <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-orange-50 dark:bg-orange-950 text-orange-700 dark:text-orange-300"><i data-lucide="clock" class="w-3.5 h-3.5"></i> Awaiting review</span>
+                                    break;
+                                default:
+                                    <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-300"><i data-lucide="hourglass" class="w-3.5 h-3.5"></i> Pending upload</span>
+                                    break;
+                            }
+                            @if (i.ResubmissionRequested)
+                            {
+                                <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-orange-50 dark:bg-orange-950 text-orange-700 dark:text-orange-300"><i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i> Resubmission requested</span>
+                            }
+                            @if (!string.IsNullOrEmpty(i.StoredFileName))
+                            {
+                                var isPreviewable = (i.ContentType?.StartsWith("image/") ?? false) || (i.ContentType == "application/pdf");
+                                if (isPreviewable)
+                                {
+                                    <button type="button" onclick="openMaterialPreview('@Url.Action("Preview", new { itemId = i.ItemID })', '@(i.ContentType == "application/pdf" ? "Document" : "Image")')"
+                                            class="px-3 py-1.5 rounded-lg font-medium text-xs bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors inline-flex items-center gap-1">
+                                        <i data-lucide="eye" class="w-3.5 h-3.5"></i> Preview
+                                    </button>
+                                }
+                                <a asp-action="Download" asp-route-itemId="@i.ItemID" target="_blank"
+                                   class="px-3 py-1.5 rounded-lg font-medium text-xs bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors inline-flex items-center gap-1">
+                                    <i data-lucide="download" class="w-3.5 h-3.5"></i> Download
+                                </a>
+                            }
+                        </div>
+                    </div>
+
+                    @if (i.Status == "Submitted")
+                    {
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <button type="button" onclick="openReasonModal('Approve Document', 'Remark (optional, shown to the student):', true, function(remark){ submitReview('@i.ItemID', '@requestId', true, remark); })"
+                                    class="px-4 py-2 rounded-xl font-medium text-xs bg-emerald-500 text-white hover:bg-emerald-600 transition-colors whitespace-nowrap inline-flex items-center gap-1.5">
+                                <i data-lucide="check" class="w-3.5 h-3.5"></i> Approve
+                            </button>
+                            <button type="button" onclick="openReasonModal('Reject Document', 'Reason for rejection (shown to the student):', false, function(remark){ submitReview('@i.ItemID', '@requestId', false, remark); })"
+                                    class="px-4 py-2 rounded-xl font-medium text-xs bg-red-50 dark:bg-red-950 text-red-600 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-900 transition-colors whitespace-nowrap inline-flex items-center gap-1.5">
+                                <i data-lucide="x" class="w-3.5 h-3.5"></i> Reject
+                            </button>
+                            @if (!i.ResubmissionRequested)
+                            {
+                                <button type="button" onclick="openReasonModal('Request Resubmission', 'Reason (optional, shown to the student):', true, function(remark){ submitResubmissionRequest('@i.ItemID', '@requestId', remark); })"
+                                        class="px-4 py-2 rounded-xl font-medium text-xs bg-orange-50 dark:bg-orange-950 text-orange-700 dark:text-orange-300 hover:bg-orange-100 dark:hover:bg-orange-900 transition-colors whitespace-nowrap inline-flex items-center gap-1.5">
+                                    <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i> Request Resubmission
+                                </button>
+                            }
+                        </div>
+                    }
+                    else if (i.Status == "Approved" || i.Status == "Rejected")
+                    {
+                        @if (!string.IsNullOrEmpty(i.ReviewRemark))
+                        {
+                            <p class="text-xs text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800 rounded-lg px-3 py-2">@i.ReviewRemark</p>
+                        }
+                        @if (!i.ResubmissionRequested)
+                        {
+                            <button type="button" onclick="openReasonModal('Request Resubmission', 'Reason (optional, shown to the student):', true, function(remark){ submitResubmissionRequest('@i.ItemID', '@requestId', remark); })"
+                                    class="text-xs font-medium text-slate-400 dark:text-slate-500 hover:text-orange-600 dark:hover:text-orange-400 cursor-pointer inline-flex items-center gap-1">
+                                <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i> Request resubmission
+                            </button>
+                        }
+                    }
+
+                    @if (i.CanSubmit)
+                    {
+                        <form asp-action="Submit" method="post" enctype="multipart/form-data" class="flex items-center gap-2 mt-1">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="itemId" value="@i.ItemID" />
+                            <input type="hidden" name="requestId" value="@requestId" />
+                            <label class="flex-1 flex items-center gap-2 px-3 py-2 rounded-xl border border-dashed border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 text-xs text-slate-500 dark:text-slate-400 cursor-pointer hover:border-[#7c3aed]/50 transition-colors">
+                                <i data-lucide="paperclip" class="w-4 h-4 flex-shrink-0"></i>
+                                <span class="file-label truncate">Upload on their behalf&hellip; (PDF, JPG, PNG)</span>
+                                <input type="file" name="file" accept=".pdf,.jpg,.jpeg,.png,.webp" required class="hidden" onchange="this.closest('label').querySelector('.file-label').textContent = this.files[0]?.name || 'Upload on their behalf…'" />
+                            </label>
+                            <button type="submit" class="px-4 py-2 rounded-xl font-medium text-xs bg-slate-700 dark:bg-slate-600 text-white hover:bg-slate-800 dark:hover:bg-slate-500 transition-colors flex-shrink-0 inline-flex items-center gap-1.5">
+                                <i data-lucide="upload" class="w-3.5 h-3.5"></i> Submit
+                            </button>
+                        </form>
+                    }
+                </div>
+            }
+        </div>
+
+        <div id="no-results-row" class="hidden bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 p-12 text-center">
+            <p class="text-sm text-slate-400 dark:text-slate-500">No items match your search/filter.</p>
+        </div>
+    }
+</div>
+
+@await Html.PartialAsync("_MaterialPreviewModal")
+
+@* ---------- Hidden forms the reason modal actually submits ---------- *@
+<form asp-action="Review" method="post" id="review-form" class="hidden">
+    @Html.AntiForgeryToken()
+    <input type="hidden" name="itemId" id="review-itemId" />
+    <input type="hidden" name="requestId" id="review-requestId" />
+    <input type="hidden" name="approve" id="review-approve" />
+    <input type="hidden" name="remark" id="review-remark" />
+</form>
+<form asp-action="RequestResubmission" method="post" id="resubmit-form" class="hidden">
+    @Html.AntiForgeryToken()
+    <input type="hidden" name="itemId" id="resubmit-itemId" />
+    <input type="hidden" name="requestId" id="resubmit-requestId" />
+    <input type="hidden" name="remark" id="resubmit-remark" />
+</form>
+
+@* ---------- Reason modal: replaces window.prompt() for Approve/Reject/
+   Request Resubmission remarks with an in-app dialog matching the rest of
+   the app's modal styling. ---------- *@
+<div id="reason-modal" class="hidden fixed inset-0 z-[70] flex items-center justify-center bg-black/50 p-4" role="dialog" aria-modal="true">
+    <div class="bg-white dark:bg-slate-900 rounded-[20px] shadow-xl w-full max-w-md p-6 space-y-4">
+        <h3 id="reason-modal-title" class="font-semibold text-slate-800 dark:text-slate-100"></h3>
+        <div>
+            <label id="reason-modal-label" class="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1.5"></label>
+            <textarea id="reason-modal-input" rows="3"
+                      class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-[#7c3aed]/40"></textarea>
+            <p id="reason-modal-error" class="hidden text-xs text-red-600 dark:text-red-400 mt-1">A reason is required.</p>
+        </div>
+        <div class="flex justify-end gap-2">
+            <button type="button" id="reason-modal-cancel" class="px-4 py-2 rounded-xl font-medium text-sm bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">Cancel</button>
+            <button type="button" id="reason-modal-confirm" class="px-4 py-2 rounded-xl font-medium text-sm bg-[#7c3aed] text-white hover:bg-[#6d28d9] transition-colors">Confirm</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    (function () {
+        const modal = document.getElementById('reason-modal');
+
+        // Escape any ancestor with backdrop-filter/transform/filter set
+        // (e.g. Admin's <main> wrapper) -- see _MaterialPreviewModal.cshtml
+        // for the full explanation of why this is needed.
+        if (modal.parentElement !== document.body) {
+            document.body.appendChild(modal);
+        }
+
+        const titleEl = document.getElementById('reason-modal-title');
+        const labelEl = document.getElementById('reason-modal-label');
+        const inputEl = document.getElementById('reason-modal-input');
+        const errorEl = document.getElementById('reason-modal-error');
+        const confirmBtn = document.getElementById('reason-modal-confirm');
+        const cancelBtn = document.getElementById('reason-modal-cancel');
+        let pendingCallback = null;
+        let pendingOptional = true;
+
+        window.openReasonModal = function (title, label, optional, onConfirm) {
+            titleEl.textContent = title;
+            labelEl.textContent = label;
+            inputEl.value = '';
+            errorEl.classList.add('hidden');
+            pendingCallback = onConfirm;
+            pendingOptional = optional;
+            modal.classList.remove('hidden');
+            inputEl.focus();
+        };
+
+        function close() {
+            modal.classList.add('hidden');
+            pendingCallback = null;
+        }
+
+        confirmBtn.addEventListener('click', () => {
+            const value = inputEl.value.trim();
+            if (!pendingOptional && value === '') {
+                errorEl.classList.remove('hidden');
+                return;
+            }
+            const cb = pendingCallback;
+            close();
+            if (cb) cb(value);
+        });
+        cancelBtn.addEventListener('click', close);
+        modal.addEventListener('click', (e) => { if (e.target === modal) close(); });
+        document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !modal.classList.contains('hidden')) close(); });
+
+        window.submitReview = function (itemId, requestId, approve, remark) {
+            document.getElementById('review-itemId').value = itemId;
+            document.getElementById('review-requestId').value = requestId;
+            document.getElementById('review-approve').value = approve;
+            document.getElementById('review-remark').value = remark;
+            document.getElementById('review-form').submit();
+        };
+
+        window.submitResubmissionRequest = function (itemId, requestId, remark) {
+            document.getElementById('resubmit-itemId').value = itemId;
+            document.getElementById('resubmit-requestId').value = requestId;
+            document.getElementById('resubmit-remark').value = remark;
+            document.getElementById('resubmit-form').submit();
+        };
+    })();
+
+    // ---------- Search + status filter ----------
+    (function () {
+        const searchInput = document.getElementById('item-search');
+        const filterBtns = document.querySelectorAll('.status-filter-btn');
+        const cards = document.querySelectorAll('.document-item-card');
+        const noResults = document.getElementById('no-results-row');
+        if (!searchInput) return;
+
+        let activeStatus = '';
+
+        function applyFilters() {
+            const q = searchInput.value.trim().toLowerCase();
+            let visibleCount = 0;
+            cards.forEach((card) => {
+                const matchesStatus = activeStatus === '' || card.dataset.status === activeStatus;
+                const matchesSearch = q === '' || card.dataset.search.includes(q);
+                const visible = matchesStatus && matchesSearch;
+                card.style.display = visible ? '' : 'none';
+                if (visible) visibleCount++;
+            });
+            noResults.classList.toggle('hidden', visibleCount > 0);
+        }
+
+        searchInput.addEventListener('input', applyFilters);
+
+        filterBtns.forEach((btn) => {
+            btn.addEventListener('click', () => {
+                activeStatus = btn.dataset.status;
+                filterBtns.forEach((b) => {
+                    b.classList.toggle('is-active', b === btn);
+                    b.classList.toggle('bg-[#7c3aed]', b === btn);
+                    b.classList.toggle('text-white', b === btn);
+                    b.classList.toggle('bg-slate-50', b !== btn);
+                    b.classList.toggle('dark:bg-slate-800', b !== btn);
+                    b.classList.toggle('text-slate-600', b !== btn);
+                    b.classList.toggle('dark:text-slate-300', b !== btn);
+                });
+                applyFilters();
+            });
+        });
+    })();
+</script>
