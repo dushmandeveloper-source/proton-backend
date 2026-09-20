@@ -17,13 +17,15 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
         private readonly ICourseScheduleData scheduleRep;
         private readonly IHolidayEventData holidayRep;
         private readonly ICourseScheduleRescheduleData rescheduleRep;
+        private readonly ICourseRegistrationData registrationRep;
 
-        public ScheduleController(IStudentData studentRep, ICourseScheduleData scheduleRep, IHolidayEventData holidayRep, ICourseScheduleRescheduleData rescheduleRep)
+        public ScheduleController(IStudentData studentRep, ICourseScheduleData scheduleRep, IHolidayEventData holidayRep, ICourseScheduleRescheduleData rescheduleRep, ICourseRegistrationData registrationRep)
         {
             this.studentRep = studentRep;
             this.scheduleRep = scheduleRep;
             this.holidayRep = holidayRep;
             this.rescheduleRep = rescheduleRep;
+            this.registrationRep = registrationRep;
         }
 
         [HttpGet]
@@ -131,6 +133,18 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
                 NextMonth = nextMonthDate.Month,
                 IsContentRestricted = student.IsContentRestricted
             };
+
+            // Course IDs where this student's registration has FullAccess = 0
+            // -- a separate, per-course gate from IsContentRestricted (an
+            // account-wide verification flag). Views/Schedule/Index.cshtml
+            // nulls out a course segment's meeting link for any CourseID in
+            // this set.
+            var registrations = await registrationRep.GetByStudent(student.StudentID);
+            var lockedCourseIds = registrations
+                .Where(r => r.IsActive == "A" && !r.FullAccess)
+                .Select(r => r.CourseID)
+                .ToHashSet();
+            ViewBag.LockedCourseIds = lockedCourseIds;
 
             ViewBag.CurrentUser = Auth.GetUser();
             return View(model);

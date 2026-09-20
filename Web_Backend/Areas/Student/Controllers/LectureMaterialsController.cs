@@ -14,11 +14,13 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
     {
         private readonly IStudentData studentRep;
         private readonly ILectureMaterialData materialRep;
+        private readonly ICourseRegistrationData registrationRep;
 
-        public LectureMaterialsController(IStudentData studentRep, ILectureMaterialData materialRep)
+        public LectureMaterialsController(IStudentData studentRep, ILectureMaterialData materialRep, ICourseRegistrationData registrationRep)
         {
             this.studentRep = studentRep;
             this.materialRep = materialRep;
+            this.registrationRep = registrationRep;
         }
 
         [HttpGet]
@@ -40,6 +42,12 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
 
             var all = await materialRep.ListForStudent(student.StudentID);
             var notes = all.Where(m => m.Category != "Homework").OrderByDescending(m => m.MaterialDate).ToList();
+
+            var registrations = await registrationRep.GetByStudent(student.StudentID);
+            var lockedCourses = registrations.Where(r => r.IsActive == "A" && !r.FullAccess).ToList();
+            ViewBag.HasLockedCourse = lockedCourses.Count > 0;
+            ViewBag.LockedCourseTitles = lockedCourses.Select(r => r.CourseTitle).ToList();
+
             return View(notes);
         }
     }

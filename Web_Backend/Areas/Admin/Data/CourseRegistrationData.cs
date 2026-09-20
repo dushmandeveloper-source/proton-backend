@@ -33,7 +33,8 @@ namespace Web_Backend.Areas.Admin.Data
                 reg.OriginalFee,
                 reg.DiscountAmount,
                 reg.DiscountLabel,
-                reg.FeeChargesTotal
+                reg.FeeChargesTotal,
+                reg.FullAccess
             });
 
         public Task<CourseDiscountResolution?> ResolveDiscount(string courseId, string currencyCode, decimal fee) =>
@@ -104,5 +105,8 @@ namespace Web_Backend.Areas.Admin.Data
 
         public Task Delete(string id) =>
             db.ExecuteNonQuery("mst.CourseRegistration_Delete", new { APIKey = AppData.GetAPIKey(), ID = id });
+
+        public Task SetFullAccess(string registrationId, bool fullAccess) =>
+            db.ExecuteNonQuery("mst.CourseRegistration_SetFullAccess", new { APIKey = AppData.GetAPIKey(), RegistrationID = registrationId, FullAccess = fullAccess });
     }
 }

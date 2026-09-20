@@ -129,6 +129,11 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
                     a.Status != "InProgress" &&
                     !a.ResultReleasedDate.HasValue);
 
+                var examReg = string.IsNullOrEmpty(exam.CourseID)
+                    ? null
+                    : registrations.FirstOrDefault(r => r.CourseID == exam.CourseID && r.IsActive == "A");
+                var hasFullAccess = examReg == null || examReg.FullAccess;
+
                 joinRows[seg.ExamID] = new Web_Backend.Areas.Admin.Models.ExamJoinRow
                 {
                     ExamID = seg.ExamID,
@@ -138,7 +143,8 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
                     IsWithinWindow = withinWindow,
                     AttemptsUsed = attemptsUsed,
                     MaxAttempts = exam.MaxAttempts,
-                    HasPendingReview = hasPendingReview
+                    HasPendingReview = hasPendingReview,
+                    HasFullAccess = hasFullAccess
                 };
             }
 

@@ -798,6 +798,24 @@ namespace Web_Backend.Areas.Admin.Controllers
         }
 
         [HttpPost, ValidateAntiForgeryToken]
+        public async Task<IActionResult> SetFullAccess(string studentId, string registrationId, bool fullAccess)
+        {
+            Auth.CheckPermission(PermissionCode.Enrollments, 'E');
+            try
+            {
+                await registrationRep.SetFullAccess(registrationId, fullAccess);
+                TempData["SuccessMessage"] = fullAccess
+                    ? "Full access granted for this course."
+                    : "Full access revoked for this course.";
+            }
+            catch (Exception ex)
+            {
+                TempData["ErrorMessage"] = "Could not update access: " + ex.Message;
+            }
+            return RedirectToAction("Details", new { id = studentId });
+        }
+
+        [HttpPost, ValidateAntiForgeryToken]
         public async Task<IActionResult> CancelCourseRegistration(string studentId, string registrationId)
         {
             Auth.CheckPermission(PermissionCode.Enrollments, 'D');

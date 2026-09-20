@@ -1,6 +1,7 @@
 @model Web_Backend.Areas.StudentPortal.Models.StudentCalendarViewModel
 @{
     ViewData["Title"] = "Schedule";
+    var currentUser = ViewBag.CurrentUser as Web_Backend.Areas.Admin.Models.SessionUser;
 }
 
 <div class="max-w-6xl mx-auto space-y-8 page-enter">
@@ -51,6 +52,9 @@
                     }
                 </div>
 
+                @{
+                    var lockedCourseIds = ViewBag.LockedCourseIds as HashSet<string> ?? new HashSet<string>();
+                }
                 @foreach (var week in Model.Weeks)
                 {
                     <div class="grid grid-cols-7 divide-x divide-slate-100 dark:divide-slate-700 border-b border-slate-100 dark:border-slate-700 last:border-b-0">
@@ -69,8 +73,11 @@
                                     startTime = seg.StartTime.ToString(@"hh\:mm\:ss"),
                                     location = seg.Location,
                                     instructorNames = seg.InstructorNames,
-                                    meetingLink = Model.IsContentRestricted ? null : seg.MeetingLink,
-                                    isMakeup = seg.CourseTitle.EndsWith("(Makeup Class)")
+                                    meetingLink = (Model.IsContentRestricted || lockedCourseIds.Contains(seg.CourseID)) ? null : seg.MeetingLink,
+                                    isMakeup = seg.CourseTitle.EndsWith("(Makeup Class)"),
+                                    whatsappRequestLink = (!Model.IsContentRestricted && lockedCourseIds.Contains(seg.CourseID))
+                                        ? Web_Backend.Classes.WhatsAppLink.RequestAccess(currentUser != null ? currentUser.Name : "", currentUser != null ? currentUser.Email : "", seg.CourseTitle)
+                                        : null
                                 })
                             };
                             <button type="button" class="cal-day-cell text-left min-h-[110px] p-2 flex flex-col gap-1.5 @(day.IsCurrentMonth ? "" : "opacity-50") @(day.Holidays.Count > 0 ? "bg-amber-50/60 dark:bg-amber-950/30" : day.IsToday ? "bg-indigo-50/60 dark:bg-indigo-950/40" : "") hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors"
@@ -138,7 +145,9 @@
                     joinAt.setMinutes(joinAt.getMinutes() - 15);
                     canJoin = now >= joinAt;
                 }
-                var joinBtn = !e.meetingLink ? '' : canJoin
+                var joinBtn = e.whatsappRequestLink
+                    ? `<a href="${e.whatsappRequestLink}" target="_blank" rel="noopener" class="px-3 py-1.5 rounded-lg font-medium text-xs bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900 transition-colors flex items-center gap-1 flex-shrink-0" title="Request access from admin via WhatsApp"><i data-lucide="message-circle" class="w-3.5 h-3.5"></i> Request Access</a>`
+                    : !e.meetingLink ? '' : canJoin
                     ? `<a href="${e.meetingLink}" target="_blank" rel="noopener" class="px-3 py-1.5 rounded-lg font-medium text-xs bg-[#7c3aed] text-white hover:bg-[#6d28d9] transition-colors flex items-center gap-1 flex-shrink-0"><i data-lucide="video" class="w-3.5 h-3.5"></i> Join</a>`
                     : `<span class="px-3 py-1.5 rounded-lg font-medium text-xs bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 cursor-not-allowed flex-shrink-0" title="${!isToday ? 'Only available on the scheduled day' : 'Available 15 minutes before start'}">Join</span>`;
                 return `

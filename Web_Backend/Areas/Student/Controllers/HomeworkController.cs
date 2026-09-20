@@ -27,13 +27,15 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
         private readonly ILectureMaterialData materialRep;
         private readonly IHomeworkSubmissionData submissionRep;
         private readonly IImageUploader uploader;
+        private readonly ICourseRegistrationData registrationRep;
 
-        public HomeworkController(IStudentData studentRep, ILectureMaterialData materialRep, IHomeworkSubmissionData submissionRep, IImageUploader uploader)
+        public HomeworkController(IStudentData studentRep, ILectureMaterialData materialRep, IHomeworkSubmissionData submissionRep, IImageUploader uploader, ICourseRegistrationData registrationRep)
         {
             this.studentRep = studentRep;
             this.materialRep = materialRep;
             this.submissionRep = submissionRep;
             this.uploader = uploader;
+            this.registrationRep = registrationRep;
         }
 
         [HttpGet]
@@ -61,6 +63,11 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
 
             var submissions = await submissionRep.ListForStudent(student.StudentID);
             ViewBag.Submissions = submissions.ToDictionary(s => s.MaterialID);
+
+            var registrations = await registrationRep.GetByStudent(student.StudentID);
+            var lockedCourses = registrations.Where(r => r.IsActive == "A" && !r.FullAccess).ToList();
+            ViewBag.HasLockedCourse = lockedCourses.Count > 0;
+            ViewBag.LockedCourseTitles = lockedCourses.Select(r => r.CourseTitle).ToList();
 
             return View(homework);
         }

@@ -36,8 +36,9 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
         private readonly IExamScheduleRescheduleData rescheduleRep;
         private readonly IExamAttemptData attemptRep;
         private readonly IExamData examRep;
+        private readonly ICourseRegistrationData registrationRep;
 
-        public ExamScheduleController(IStudentData studentRep, IExamScheduleData scheduleRep, IHolidayEventData holidayRep, IExamScheduleRescheduleData rescheduleRep, IExamAttemptData attemptRep, IExamData examRep)
+        public ExamScheduleController(IStudentData studentRep, IExamScheduleData scheduleRep, IHolidayEventData holidayRep, IExamScheduleRescheduleData rescheduleRep, IExamAttemptData attemptRep, IExamData examRep, ICourseRegistrationData registrationRep)
         {
             this.studentRep = studentRep;
             this.scheduleRep = scheduleRep;
@@ -45,6 +46,7 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
             this.rescheduleRep = rescheduleRep;
             this.attemptRep = attemptRep;
             this.examRep = examRep;
+            this.registrationRep = registrationRep;
         }
 
         [HttpGet]
@@ -164,6 +166,7 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
             // awaiting grading/approval" check as DashboardController's
             // "This Week" list -- see ExamJoinRow.HasPendingReview.
             var studentAttempts = await attemptRep.ListForStudent(student.StudentID);
+            var registrations = await registrationRep.GetByStudent(student.StudentID);
 
             foreach (var seg in examSegments)
             {
@@ -184,6 +187,11 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
                     a.Status != "InProgress" &&
                     !a.ResultReleasedDate.HasValue);
 
+                var examReg = string.IsNullOrEmpty(exam.CourseID)
+                    ? null
+                    : registrations.FirstOrDefault(r => r.CourseID == exam.CourseID && r.IsActive == "A");
+                var hasFullAccess = examReg == null || examReg.FullAccess;
+
                 joinRows[seg.ExamID] = new ExamJoinRow
                 {
                     ExamID = seg.ExamID,
@@ -193,7 +201,8 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
                     IsWithinWindow = withinWindow,
                     AttemptsUsed = attemptsUsed,
                     MaxAttempts = exam.MaxAttempts,
-                    HasPendingReview = hasPendingReview
+                    HasPendingReview = hasPendingReview,
+                    HasFullAccess = hasFullAccess
                 };
             }
 

@@ -121,7 +121,12 @@ namespace Web_Backend.Areas.Admin.Models
         // generic "Maximum attempts reached" when that's specifically why.
         public bool HasPendingReview { get; set; }
 
-        public bool CanJoin => IsWithinWindow && AttemptsUsed < MaxAttempts;
+        // True unless the exam is tied to a course (Exam.CourseID non-blank)
+        // whose registration has FullAccess = 0. A standalone exam (no
+        // CourseID) is always true here -- nothing to gate against.
+        public bool HasFullAccess { get; set; } = true;
+
+        public bool CanJoin => IsWithinWindow && AttemptsUsed < MaxAttempts && HasFullAccess;
 
         // Only meaningful when CanJoin is false -- see HasPendingReview.
         public bool ShowPendingReviewInstead => !CanJoin && HasPendingReview;

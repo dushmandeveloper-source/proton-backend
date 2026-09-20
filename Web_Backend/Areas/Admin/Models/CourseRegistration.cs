@@ -48,6 +48,13 @@ namespace Web_Backend.Areas.Admin.Models
         // sprocs, never set directly by app code.
         public string PaymentStatus { get; set; } = "Unpaid";
 
+        // Admin-controlled gate for Course Videos, Lecture Materials,
+        // Homework, joining a live lecture, and joining an exam for this
+        // registration — deliberately NOT auto-computed from PaymentStatus.
+        // Defaults true (every registration starts fully accessible); admin
+        // flips it off per-registration from the Student Details page.
+        public bool FullAccess { get; set; } = true;
+
         // Populated only by mst.CourseRegistration_ListByStudent (0020_student_dashboard.sql).
         // Other sprocs (Get/List/AddEdit) leave these at their 0 default —
         // use CourseRegistrationDetailViewModel's computed AmountPaid/BalanceDue instead.

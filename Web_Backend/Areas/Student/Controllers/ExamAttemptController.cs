@@ -14,12 +14,28 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
         private readonly IStudentData studentRep;
         private readonly IExamAttemptData attemptRep;
         private readonly IExamData examRep;
+        private readonly ICourseRegistrationData registrationRep;
 
-        public ExamAttemptController(IStudentData studentRep, IExamAttemptData attemptRep, IExamData examRep)
+        public ExamAttemptController(IStudentData studentRep, IExamAttemptData attemptRep, IExamData examRep, ICourseRegistrationData registrationRep)
         {
             this.studentRep = studentRep;
             this.attemptRep = attemptRep;
             this.examRep = examRep;
+            this.registrationRep = registrationRep;
+        }
+
+        // An exam tied to a course (Exam.CourseID non-blank) is only
+        // attemptable while that course's registration has FullAccess -- a
+        // standalone exam (no CourseID) has nothing to check against and is
+        // never gated this way. Shared by Start/ConfirmStart so the check
+        // can't be bypassed by skipping straight to ConfirmStart.
+        private async Task<bool> HasFullAccessForExam(Exam exam, string studentId)
+        {
+            if (string.IsNullOrEmpty(exam.CourseID)) return true;
+
+            var registrations = await registrationRep.GetByStudent(studentId);
+            var reg = registrations.FirstOrDefault(r => r.CourseID == exam.CourseID && r.IsActive == "A");
+            return reg == null || reg.FullAccess;
         }
 
         // Rules + email-confirmation gate, shown BEFORE edu.ExamAttempt_Start
@@ -38,6 +54,12 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
             var exam = await examRep.Get(examId);
             if (exam == null)
                 return RedirectToAction("Index", "Dashboard");
+
+            if (!await HasFullAccessForExam(exam, student.StudentID))
+            {
+                TempData["ErrorMessage"] = "This exam is locked until full access is granted for its course.";
+                return RedirectToAction("Index", "Dashboard");
+            }
 
             ViewBag.CurrentUser = Auth.GetUser();
             ViewBag.Exam = exam;
@@ -58,6 +80,13 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
             {
                 TempData["ErrorMessage"] = "The email you entered doesn't match your account email.";
                 return RedirectToAction("Start", new { examId });
+            }
+
+            var exam = await examRep.Get(examId);
+            if (exam == null || !await HasFullAccessForExam(exam, student.StudentID))
+            {
+                TempData["ErrorMessage"] = "This exam is locked until full access is granted for its course.";
+                return RedirectToAction("Index", "Dashboard");
             }
 
             string attemptId;
