@@ -111,7 +111,7 @@ namespace Web_Backend.Areas.Admin.Controllers
             Auth.CheckPermission(PermissionCode.LectureNotes, 'V');
 
             var all = await materialRep.ListAll();
-            var material = all.FirstOrDefault(m => m.MaterialID == materialId && m.Category == "Homework");
+            var material = all.FirstOrDefault(m => m.MaterialID == materialId && m.IsSubmittable);
             if (material == null)
             {
                 TempData["ErrorMessage"] = "Homework item not found.";

@@ -38,6 +38,17 @@ namespace Web_Backend.Areas.Admin.Models
         public DateTime CreatedDate { get; set; }
         public DateTime? UpdatedDate { get; set; }
 
+        // Classroom (0079): optional module/topic within the batch, and a due
+        // date / max marks for submittable items. Category may also be
+        // 'Assignment' | 'Video', FileType may also be 'Link' (FileURL is
+        // then an external URL, e.g. YouTube).
+        public string? ModuleID { get; set; }
+        public DateTime? DueDate { get; set; }
+        public decimal? MaxMarks { get; set; }
+
+        public bool IsSubmittable => Category == "Homework" || Category == "Assignment";
+        public bool IsLink => FileType == "Link";
+
         // Joined display fields.
         public string UploadedByName { get; set; } = "";
         public string ScheduleName { get; set; } = "";

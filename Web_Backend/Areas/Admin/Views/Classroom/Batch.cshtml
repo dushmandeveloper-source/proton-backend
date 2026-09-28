@@ -1,0 +1,3 @@
+@model Web_Backend.Areas.Admin.Models.ClassroomViewModel
+@{ ViewData["Title"] = "Classroom - " + Model.Batch.ScheduleName; }
+<partial name="~/Views/Shared/Classroom/_StaffBatch.cshtml" model="Model" />

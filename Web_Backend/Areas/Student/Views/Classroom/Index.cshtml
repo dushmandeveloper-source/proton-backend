@@ -1,0 +1,45 @@
+@model List<(Web_Backend.Areas.Admin.Models.CourseSchedule Batch, bool FullAccess)>
+@{
+    ViewData["Title"] = "Classroom";
+    bool restricted = ViewBag.Restricted as bool? ?? false;
+}
+
+<div class="max-w-6xl mx-auto space-y-6 page-enter">
+    <div>
+        <h2 class="text-2xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">Classroom</h2>
+        <p class="text-slate-500 dark:text-slate-400 text-sm mt-1">Pick your batch to see every lesson's notes, videos, homework and assignments &mdash; and submit your work.</p>
+    </div>
+
+    @if (restricted || Model.Count == 0)
+    {
+        <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 p-10 text-center">
+            <p class="text-sm text-slate-400 dark:text-slate-500">
+                @(restricted ? "Your account is still being verified. Classroom unlocks once an administrator verifies your account." : "You are not enrolled in any batch yet.")
+            </p>
+        </div>
+    }
+    else
+    {
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            @foreach (var (b, fullAccess) in Model)
+            {
+                <a asp-action="Batch" asp-route-id="@b.ScheduleID"
+                   class="group bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 p-5 hover:border-[#7c3aed]/40 hover:shadow-md transition-all">
+                    <div class="flex items-start gap-3">
+                        <div class="p-3 rounded-2xl bg-purple-50 dark:bg-purple-950 flex-shrink-0">
+                            <i data-lucide="@(fullAccess ? "school" : "lock")" class="w-5 h-5 text-[#7c3aed] dark:text-purple-300"></i>
+                        </div>
+                        <div class="min-w-0">
+                            <p class="text-sm font-semibold text-slate-800 dark:text-slate-100 truncate group-hover:text-[#7c3aed]">@b.ScheduleName</p>
+                            <p class="text-xs text-slate-500 dark:text-slate-400 truncate">@b.CourseTitle</p>
+                            @if (!fullAccess)
+                            {
+                                <p class="text-[11px] text-amber-600 dark:text-amber-300 mt-1">Content locked until full access is granted</p>
+                            }
+                        </div>
+                    </div>
+                </a>
+            }
+        </div>
+    }
+</div>

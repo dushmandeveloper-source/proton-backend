@@ -1,0 +1,25 @@
+@model Web_Backend.Areas.Admin.Models.LectureMaterial
+@* Preview / play / open button for one Classroom item. The URL goes through
+   a data- attribute (HTML-encoded by Razor) rather than being spliced into
+   the onclick JS string, so a crafted link can't break out of it. *@
+@{
+    var url = Model.FileURL;
+    var isVideoLink = Model.IsLink && System.Text.RegularExpressions.Regex.IsMatch(url, @"(youtube\.com|youtu\.be|vimeo\.com)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+    const string btn = "px-3 py-1.5 rounded-lg font-medium text-xs bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors inline-flex items-center gap-1";
+}
+@if (Model.FileType == "Video" || isVideoLink)
+{
+    <button type="button" data-url="@url" onclick="openCourseVideoPreview(this.dataset.url)" class="@btn"><i data-lucide="play" class="w-3.5 h-3.5"></i> Play</button>
+}
+else if (Model.IsLink)
+{
+    <a href="@url" target="_blank" rel="noopener noreferrer" class="@btn"><i data-lucide="external-link" class="w-3.5 h-3.5"></i> Open</a>
+}
+else if (Model.FileType == "Image" || url.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase))
+{
+    <button type="button" data-url="@url" data-type="@Model.FileType" onclick="openMaterialPreview(this.dataset.url, this.dataset.type)" class="@btn"><i data-lucide="eye" class="w-3.5 h-3.5"></i> Preview</button>
+}
+@if (!Model.IsLink && Model.AllowDownload)
+{
+    <a href="@url" download class="px-3 py-1.5 rounded-lg font-medium text-xs bg-[#7c3aed] text-white hover:bg-[#6d28d9] transition-colors">Download</a>
+}

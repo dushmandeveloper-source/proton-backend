@@ -1,0 +1,23 @@
+@model Web_Backend.Areas.Admin.Models.BatchModule
+@* Name / date / icon / description inputs, used by both the "New module"
+   and "Edit module" forms. Icon picker is a row of radio buttons. *@
+@{
+    var groupId = "icon-" + Guid.NewGuid().ToString("N")[..8];
+}
+<input type="text" name="moduleName" value="@Model.ModuleName" required maxlength="150" placeholder="Module name (e.g. Sets)"
+       class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 text-sm" />
+<input type="date" name="moduleDate" value="@Model.ModuleDate?.ToString("yyyy-MM-dd")"
+       class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 text-sm" />
+<textarea name="description" rows="2" maxlength="1000" placeholder="Short description (optional)"
+          class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 text-sm">@Model.Description</textarea>
+<div class="grid grid-cols-8 gap-1" role="radiogroup" aria-label="Icon">
+    @foreach (var icon in Web_Backend.Areas.Admin.Models.BatchModule.IconChoices)
+    {
+        <label class="cursor-pointer" title="@icon">
+            <input type="radio" name="icon" value="@icon" class="peer hidden" id="@groupId-@icon" @(icon == Model.Icon ? "checked" : "") />
+            <span class="flex items-center justify-center p-1.5 rounded-lg border border-transparent text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 peer-checked:border-[#7c3aed] peer-checked:bg-purple-50 dark:peer-checked:bg-purple-950 peer-checked:text-[#7c3aed]">
+                <i data-lucide="@icon" class="w-4 h-4"></i>
+            </span>
+        </label>
+    }
+</div>

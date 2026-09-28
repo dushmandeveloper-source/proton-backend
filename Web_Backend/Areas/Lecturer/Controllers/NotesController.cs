@@ -163,7 +163,7 @@ namespace Web_Backend.Areas.LecturerPortal.Controllers
             // homework item on a batch they're actually assigned to — same
             // scoping ListForLecturer already applies for the Index list.
             var assigned = await materialRep.ListForLecturer(userId);
-            var material = assigned.FirstOrDefault(m => m.MaterialID == materialId && m.Category == "Homework");
+            var material = assigned.FirstOrDefault(m => m.MaterialID == materialId && m.IsSubmittable);
             if (material == null)
             {
                 TempData["ErrorMessage"] = "Homework item not found, or you are not assigned to its batch.";
@@ -183,7 +183,7 @@ namespace Web_Backend.Areas.LecturerPortal.Controllers
             var userId = Auth.GetUserId();
 
             var assigned = await materialRep.ListForLecturer(userId);
-            var material = assigned.FirstOrDefault(m => m.MaterialID == materialId && m.Category == "Homework");
+            var material = assigned.FirstOrDefault(m => m.MaterialID == materialId && m.IsSubmittable);
             if (material == null)
             {
                 TempData["ErrorMessage"] = "Homework item not found, or you are not assigned to its batch.";
@@ -210,7 +210,7 @@ namespace Web_Backend.Areas.LecturerPortal.Controllers
             var userId = Auth.GetUserId();
 
             var assigned = await materialRep.ListForLecturer(userId);
-            var material = assigned.FirstOrDefault(m => m.MaterialID == materialId && m.Category == "Homework");
+            var material = assigned.FirstOrDefault(m => m.MaterialID == materialId && m.IsSubmittable);
             if (material == null)
             {
                 TempData["ErrorMessage"] = "Homework item not found, or you are not assigned to its batch.";

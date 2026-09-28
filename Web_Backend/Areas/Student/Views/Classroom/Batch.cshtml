@@ -1,0 +1,197 @@
+@model Web_Backend.Areas.Admin.Models.ClassroomViewModel
+@{
+    ViewData["Title"] = "Classroom - " + Model.Batch.ScheduleName;
+    bool locked = ViewBag.Locked as bool? ?? false;
+    var currentUser = ViewBag.CurrentUser as Web_Backend.Areas.Admin.Models.SessionUser;
+    var selected = Model.SelectedModule;
+    var returnUrl = Context.Request.Path + Context.Request.QueryString;
+    var now = Web_Backend.Classes.SriLankaTime.Now;
+    var categories = new[]
+    {
+        (Key: "LectureNote", Label: "Lecture Notes", Icon: "file-text"),
+        (Key: "Video", Label: "Videos", Icon: "play-circle"),
+        (Key: "Homework", Label: "Homework", Icon: "clipboard-check"),
+        (Key: "Assignment", Label: "Assignments", Icon: "clipboard-list"),
+    };
+}
+
+<div class="max-w-7xl mx-auto space-y-6 page-enter">
+    <div>
+        <a asp-action="Index" class="text-xs text-slate-500 hover:text-[#7c3aed] inline-flex items-center gap-1"><i data-lucide="arrow-left" class="w-3.5 h-3.5"></i> My batches</a>
+        <h2 class="text-2xl font-bold text-slate-800 dark:text-slate-100 tracking-tight mt-1">@Model.Batch.ScheduleName</h2>
+        <p class="text-slate-500 dark:text-slate-400 text-sm">@Model.Batch.CourseTitle</p>
+    </div>
+
+    @if (locked)
+    {
+        <div class="rounded-2xl border border-amber-100 dark:border-amber-900 bg-amber-50 dark:bg-amber-950/40 p-4 flex items-start gap-3 flex-wrap">
+            <i data-lucide="lock" class="w-5 h-5 text-amber-600 dark:text-amber-300 flex-shrink-0 mt-0.5"></i>
+            <p class="text-sm text-amber-700 dark:text-amber-300 flex-1">
+                This batch's content is hidden because full access hasn't been granted yet.
+                <a asp-area="Student" asp-controller="Courses" asp-action="Index" class="font-medium underline">Pay the full course fee to unlock</a>, or request access from admin.
+            </p>
+            <a href="@Web_Backend.Classes.WhatsAppLink.RequestAccess(currentUser?.Name ?? "", currentUser?.Email ?? "", Model.Batch.CourseTitle)" target="_blank" rel="noopener"
+               class="px-3 py-1.5 rounded-lg font-medium text-xs bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 inline-flex items-center gap-1.5">
+                <i data-lucide="message-circle" class="w-3.5 h-3.5"></i> Request access
+            </a>
+        </div>
+    }
+
+    <div class="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-6">
+        <aside class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 p-3 space-y-1 h-fit">
+            <p class="px-3 pt-2 pb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-400">Modules</p>
+            @foreach (var m in Model.Modules)
+            {
+                var active = m.ModuleID == Model.SelectedModuleID;
+                <a asp-action="Batch" asp-route-id="@Model.Batch.ScheduleID" asp-route-module="@m.ModuleID"
+                   class="flex items-center gap-3 px-3 py-2.5 rounded-2xl transition-colors @(active ? "bg-purple-50 dark:bg-purple-950/60 text-[#7c3aed] dark:text-purple-200 font-semibold" : "text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800")">
+                    <i data-lucide="@m.Icon" class="w-4 h-4 flex-shrink-0"></i>
+                    <span class="flex-1 min-w-0">
+                        <span class="block text-sm truncate">@m.ModuleName</span>
+                        @if (m.ModuleDate.HasValue)
+                        {
+                            <span class="block text-[11px] text-slate-400 font-normal">@m.ModuleDate.Value.ToString("MMM d, yyyy")</span>
+                        }
+                    </span>
+                    <span class="text-[11px] text-slate-400 font-normal">@m.ItemCount</span>
+                </a>
+            }
+            @if (Model.GeneralCount > 0 || Model.Modules.Count == 0)
+            {
+                <a asp-action="Batch" asp-route-id="@Model.Batch.ScheduleID" asp-route-module="general"
+                   class="flex items-center gap-3 px-3 py-2.5 rounded-2xl transition-colors @(Model.SelectedModuleID == null ? "bg-purple-50 dark:bg-purple-950/60 text-[#7c3aed] dark:text-purple-200 font-semibold" : "text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800")">
+                    <i data-lucide="folder" class="w-4 h-4 flex-shrink-0"></i>
+                    <span class="flex-1 text-sm">General</span>
+                    <span class="text-[11px] text-slate-400 font-normal">@Model.GeneralCount</span>
+                </a>
+            }
+        </aside>
+
+        <section class="space-y-5 min-w-0">
+            <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 p-5 flex items-center gap-3">
+                <div class="p-3 rounded-2xl bg-purple-50 dark:bg-purple-950 flex-shrink-0">
+                    <i data-lucide="@(selected?.Icon ?? "folder")" class="w-5 h-5 text-[#7c3aed] dark:text-purple-300"></i>
+                </div>
+                <div class="min-w-0">
+                    <h3 class="text-lg font-semibold text-slate-800 dark:text-slate-100 truncate">@(selected?.ModuleName ?? "General")</h3>
+                    <p class="text-xs text-slate-500 dark:text-slate-400">
+                        @(selected?.ModuleDate?.ToString("dddd, MMM d, yyyy") ?? "")
+                        @if (!string.IsNullOrEmpty(selected?.Description)) { <text> &middot; @selected.Description</text> }
+                    </p>
+                </div>
+            </div>
+
+            @if (Model.Items.Count == 0)
+            {
+                <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 p-10 text-center">
+                    <p class="text-sm text-slate-400 dark:text-slate-500">Nothing posted here yet.</p>
+                </div>
+            }
+
+            @foreach (var c in categories)
+            {
+                var items = Model.Items.Where(i => i.Category == c.Key).ToList();
+                if (items.Count == 0) { continue; }
+                <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
+                    <div class="px-5 py-3 border-b border-slate-100 dark:border-slate-700 flex items-center gap-2">
+                        <i data-lucide="@c.Icon" class="w-4 h-4 text-slate-400"></i>
+                        <h4 class="text-sm font-semibold text-slate-700 dark:text-slate-200">@c.Label</h4>
+                        <span class="text-xs text-slate-400">@items.Count</span>
+                    </div>
+                    <div class="divide-y divide-slate-100 dark:divide-slate-700">
+                        @foreach (var m in items)
+                        {
+                            Model.Submissions.TryGetValue(m.MaterialID, out var submission);
+                            var overdue = m.DueDate.HasValue && m.DueDate.Value < now && submission == null;
+                            <div class="p-4 space-y-3">
+                                <div class="flex items-start justify-between gap-4 flex-wrap">
+                                    <div class="min-w-0">
+                                        <p class="text-sm font-semibold text-slate-800 dark:text-slate-100">@m.Title</p>
+                                        <p class="text-xs text-slate-400 dark:text-slate-500">
+                                            @m.MaterialDate.ToString("MMM d, yyyy") &middot; @m.UploadedByName
+                                            @if (m.DueDate.HasValue) { <text> &middot; <span class="@(overdue ? "text-red-600 dark:text-red-300 font-semibold" : "text-rose-600 dark:text-rose-300")">Due @m.DueDate.Value.ToString("MMM d, h:mm tt")@(overdue ? " (overdue)" : "")</span></text> }
+                                            @if (m.MaxMarks.HasValue) { <text> &middot; @m.MaxMarks.Value.ToString("0.##") marks</text> }
+                                        </p>
+                                        @if (!string.IsNullOrEmpty(m.Description))
+                                        {
+                                            <p class="text-xs text-slate-600 dark:text-slate-300 mt-1 whitespace-pre-line">@m.Description</p>
+                                        }
+                                    </div>
+                                    <div class="flex items-center gap-2 flex-shrink-0">
+                                        @await Html.PartialAsync("~/Views/Shared/Classroom/_ItemOpenButton.cshtml", m)
+                                    </div>
+                                </div>
+
+                                @if (m.IsSubmittable)
+                                {
+                                    var canSubmit = submission == null || submission.CanSubmit;
+                                    <div class="rounded-2xl border border-slate-100 dark:border-slate-700 bg-slate-50/60 dark:bg-slate-800/40 p-3 space-y-2">
+                                        @if (submission != null)
+                                        {
+                                            <div class="flex items-center justify-between gap-3 flex-wrap">
+                                                <div class="flex items-center gap-2 flex-wrap">
+                                                    @if (submission.IsGraded)
+                                                    {
+                                                        <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300">
+                                                            <i data-lucide="check-circle-2" class="w-3.5 h-3.5"></i> Graded &middot; @(submission.MarksAwarded?.ToString("0.##") ?? "—")@(m.MaxMarks.HasValue ? " / " + m.MaxMarks.Value.ToString("0.##") : "")
+                                                        </span>
+                                                    }
+                                                    else if (submission.ResubmissionRequested)
+                                                    {
+                                                        <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-orange-50 dark:bg-orange-950 text-orange-700 dark:text-orange-300"><i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i> Resubmission requested</span>
+                                                    }
+                                                    else
+                                                    {
+                                                        <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-300"><i data-lucide="clock" class="w-3.5 h-3.5"></i> Awaiting grading</span>
+                                                    }
+                                                    <span class="text-xs text-slate-400">Submitted @submission.SubmittedDate.ToString("MMM d, yyyy h:mm tt")</span>
+                                                </div>
+                                                <a href="@submission.FileURL" target="_blank" rel="noopener" class="text-xs font-medium text-[#7c3aed] hover:underline inline-flex items-center gap-1"><i data-lucide="external-link" class="w-3.5 h-3.5"></i> My submission</a>
+                                            </div>
+                                            @if (!string.IsNullOrEmpty(submission.ResubmissionRemark))
+                                            {
+                                                <p class="text-xs text-orange-700 dark:text-orange-300 bg-orange-50 dark:bg-orange-950/50 rounded-lg px-3 py-2">@submission.ResubmissionRemark</p>
+                                            }
+                                            @if (submission.IsGraded && !string.IsNullOrEmpty(submission.Feedback))
+                                            {
+                                                <p class="text-xs text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-900 rounded-lg px-3 py-2 border border-slate-100 dark:border-slate-700">@submission.Feedback</p>
+                                            }
+                                        }
+                                        else
+                                        {
+                                            <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-white dark:bg-slate-900 text-slate-500 border border-slate-200 dark:border-slate-600"><i data-lucide="circle-dashed" class="w-3.5 h-3.5"></i> Not submitted</span>
+                                        }
+
+                                        @if (canSubmit)
+                                        {
+                                            <form asp-controller="Homework" asp-action="Submit" method="post" enctype="multipart/form-data" class="flex items-center gap-2">
+                                                @Html.AntiForgeryToken()
+                                                <input type="hidden" name="materialId" value="@m.MaterialID" />
+                                                <input type="hidden" name="returnUrl" value="@returnUrl" />
+                                                <label class="flex-1 flex items-center gap-2 px-3 py-2 rounded-xl border border-dashed border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-xs text-slate-500 dark:text-slate-400 cursor-pointer hover:border-[#7c3aed]/50">
+                                                    <i data-lucide="paperclip" class="w-4 h-4 flex-shrink-0"></i>
+                                                    <span class="file-label truncate">Choose your answer file&hellip;</span>
+                                                    <input type="file" name="file" required class="hidden" onchange="this.closest('label').querySelector('.file-label').textContent = this.files[0]?.name || 'Choose your answer file…'" />
+                                                </label>
+                                                <button type="submit" class="px-4 py-2 rounded-xl font-medium text-xs bg-[#7c3aed] text-white hover:bg-[#6d28d9] flex-shrink-0 inline-flex items-center gap-1.5">
+                                                    <i data-lucide="upload" class="w-3.5 h-3.5"></i> @(submission == null ? "Submit" : "Resubmit")
+                                                </button>
+                                            </form>
+                                        }
+                                        else
+                                        {
+                                            <p class="text-xs text-slate-400 flex items-center gap-1.5"><i data-lucide="lock" class="w-3.5 h-3.5"></i> Graded and locked. Ask your lecturer if you need to resubmit.</p>
+                                        }
+                                    </div>
+                                }
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+        </section>
+    </div>
+</div>
+
+@await Html.PartialAsync("_CourseVideoPlayer")
+@await Html.PartialAsync("_MaterialPreviewModal")
