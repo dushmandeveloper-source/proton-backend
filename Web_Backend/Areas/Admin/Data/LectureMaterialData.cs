@@ -28,7 +28,10 @@ namespace Web_Backend.Areas.Admin.Data
                 m.Category,
                 m.AllowDownload,
                 m.UploadedByUserID,
-                m.UploadedByRole
+                m.UploadedByRole,
+                ModuleID = m.ModuleID ?? "",
+                m.DueDate,
+                m.MaxMarks
             });
 
         public Task<List<LectureMaterial>> ListForSchedule(string scheduleId, DateTime? materialDate = null) =>

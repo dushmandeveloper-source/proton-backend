@@ -694,7 +694,33 @@
                                 return;
                             }
 
-                            if (!startISO || rangeComplete) {
+                            // Range already set and this day falls outside it:
+                            // extend the range to include just this one day,
+                            // keeping every existing selection. Class days in
+                            // the newly covered gap are marked off so only the
+                            // clicked day is added. (Use "Clear dates" to
+                            // start a fresh range.)
+                            if (rangeComplete && !inRange(iso)) {
+                                const gapFrom = iso < startISO ? iso : endISO;
+                                const gapTo = iso < startISO ? startISO : iso;
+                                if (iso < startISO) startISO = iso; else endISO = iso;
+                                const d = new Date(gapFrom + 'T00:00:00');
+                                d.setDate(d.getDate() + 1);
+                                const stop = new Date(gapTo + 'T00:00:00');
+                                for (; d < stop; d.setDate(d.getDate() + 1)) {
+                                    const gIso = toISO(d.getFullYear(), d.getMonth(), d.getDate());
+                                    if (isClassDay(gIso, d.getDay())) offDates.add(gIso);
+                                }
+                                updateLabel();
+                                render();
+                                return;
+                            }
+
+                            // In range but not on an active weekday — nothing
+                            // to toggle; don't wipe the existing range.
+                            if (rangeComplete) return;
+
+                            if (!startISO) {
                                 startISO = iso;
                                 endISO = null;
                                 offDates.clear();
@@ -721,6 +747,12 @@
                 });
                 row.querySelectorAll('.period-day-label').forEach(label => {
                     label.addEventListener('click', () => render());
+                });
+                row.querySelector('.period-clear-dates').addEventListener('click', () => {
+                    startISO = null;
+                    endISO = null;
+                    offDates.clear();
+                    render();
                 });
 
                 render();
@@ -755,7 +787,10 @@
                                 ${['S', 'M', 'T', 'W', 'T', 'F', 'S'].map(d => `<div class="text-[9px] font-semibold text-slate-400 dark:text-slate-500 uppercase">${d}</div>`).join('')}
                             </div>
                             <div class="period-cal-grid grid grid-cols-7 gap-0.5"></div>
-                            <p class="period-range-label text-[11px] text-slate-500 dark:text-slate-400 mt-1.5"></p>
+                            <div class="flex items-center justify-between mt-1.5">
+                                <p class="period-range-label text-[11px] text-slate-500 dark:text-slate-400"></p>
+                                <button type="button" class="period-clear-dates text-[11px] text-slate-500 hover:text-red-500 hover:underline">Clear dates</button>
+                            </div>
                         </div>
                         <div class="space-y-3">
                             <div>

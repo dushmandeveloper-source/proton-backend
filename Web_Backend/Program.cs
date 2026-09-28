@@ -131,6 +131,7 @@ builder.Services.AddTransient<ICourseScheduleRescheduleData, CourseScheduleResch
 builder.Services.AddTransient<IExamScheduleRescheduleData, ExamScheduleRescheduleData>();
 builder.Services.AddTransient<ILectureMaterialData, LectureMaterialData>();
 builder.Services.AddTransient<IHomeworkSubmissionData, HomeworkSubmissionData>();
+builder.Services.AddTransient<IBatchModuleData, BatchModuleData>();
 builder.Services.AddTransient<IDocumentTypeData, DocumentTypeData>();
 builder.Services.AddTransient<IDocumentRequestData, DocumentRequestData>();
 builder.Services.AddTransient<ICourseVideoData, CourseVideoData>();

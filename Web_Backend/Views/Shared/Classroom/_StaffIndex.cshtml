@@ -1,0 +1,40 @@
+@model List<Web_Backend.Areas.Admin.Models.CourseSchedule>
+@* Shared by Admin/Classroom/Index and Lecturer/Classroom/Index. *@
+
+<div class="max-w-6xl mx-auto space-y-6 page-enter">
+    <div>
+        <h2 class="text-2xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">Classroom</h2>
+        <p class="text-slate-500 dark:text-slate-400 text-sm mt-1">Pick a batch to manage its modules &mdash; lecture notes, homework, assignments and videos in one place.</p>
+    </div>
+
+    @if (Model.Count == 0)
+    {
+        <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 p-10 text-center">
+            <p class="text-sm text-slate-400 dark:text-slate-500">No batches available.</p>
+        </div>
+    }
+    else
+    {
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            @foreach (var b in Model)
+            {
+                <a href="@Url.Action("Batch", new { id = b.ScheduleID })"
+                   class="group bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 p-5 hover:border-[#7c3aed]/40 hover:shadow-md transition-all">
+                    <div class="flex items-start gap-3">
+                        <div class="p-3 rounded-2xl bg-purple-50 dark:bg-purple-950 flex-shrink-0">
+                            <i data-lucide="school" class="w-5 h-5 text-[#7c3aed] dark:text-purple-300"></i>
+                        </div>
+                        <div class="min-w-0">
+                            <p class="text-sm font-semibold text-slate-800 dark:text-slate-100 truncate group-hover:text-[#7c3aed]">@b.ScheduleName</p>
+                            <p class="text-xs text-slate-500 dark:text-slate-400 truncate">@b.CourseTitle</p>
+                            @if (b.EarliestStartDate.HasValue)
+                            {
+                                <p class="text-[11px] text-slate-400 dark:text-slate-500 mt-1">@b.EarliestStartDate.Value.ToString("MMM d, yyyy") &ndash; @b.LatestEndDate?.ToString("MMM d, yyyy")</p>
+                            }
+                        </div>
+                    </div>
+                </a>
+            }
+        </div>
+    }
+</div>

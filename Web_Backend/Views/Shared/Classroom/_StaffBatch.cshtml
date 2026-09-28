@@ -1,0 +1,243 @@
+@model Web_Backend.Areas.Admin.Models.ClassroomViewModel
+@using Web_Backend.Areas.Admin.Models
+@* Shared by Admin/Classroom/Batch and Lecturer/Classroom/Batch. *@
+@{
+    var submissionsController = ViewBag.SubmissionsController as string ?? "";
+    var canDeleteItem = ViewBag.CanDeleteItem as Func<LectureMaterial, bool> ?? (_ => false);
+    var selected = Model.SelectedModule;
+    var moduleKey = Model.SelectedModuleID ?? "general";
+    var categories = new[]
+    {
+        (Key: "LectureNote", Label: "Lecture Notes", Icon: "file-text", Tone: "purple"),
+        (Key: "Video", Label: "Videos", Icon: "play-circle", Tone: "sky"),
+        (Key: "Homework", Label: "Homework", Icon: "clipboard-check", Tone: "amber"),
+        (Key: "Assignment", Label: "Assignments", Icon: "clipboard-list", Tone: "rose"),
+    };
+}
+
+<div class="max-w-7xl mx-auto space-y-6 page-enter">
+    <div class="flex items-start justify-between gap-4 flex-wrap">
+        <div>
+            <a href="@Url.Action("Index")" class="text-xs text-slate-500 hover:text-[#7c3aed] inline-flex items-center gap-1"><i data-lucide="arrow-left" class="w-3.5 h-3.5"></i> All batches</a>
+            <h2 class="text-2xl font-bold text-slate-800 dark:text-slate-100 tracking-tight mt-1">@Model.Batch.ScheduleName</h2>
+            <p class="text-slate-500 dark:text-slate-400 text-sm">@Model.Batch.CourseTitle</p>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-6">
+        @* ---------- Module list ---------- *@
+        <aside class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 p-3 space-y-1 h-fit">
+            <p class="px-3 pt-2 pb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-400">Modules</p>
+            @foreach (var m in Model.Modules)
+            {
+                var active = m.ModuleID == Model.SelectedModuleID;
+                <a href="@Url.Action("Batch", new { id = Model.Batch.ScheduleID, module = m.ModuleID })"
+                   class="flex items-center gap-3 px-3 py-2.5 rounded-2xl transition-colors @(active ? "bg-purple-50 dark:bg-purple-950/60 text-[#7c3aed] dark:text-purple-200 font-semibold" : "text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800")">
+                    <i data-lucide="@m.Icon" class="w-4 h-4 flex-shrink-0"></i>
+                    <span class="flex-1 min-w-0">
+                        <span class="block text-sm truncate">@m.ModuleName</span>
+                        @if (m.ModuleDate.HasValue)
+                        {
+                            <span class="block text-[11px] text-slate-400 font-normal">@m.ModuleDate.Value.ToString("MMM d, yyyy")</span>
+                        }
+                    </span>
+                    <span class="text-[11px] text-slate-400 font-normal">@m.ItemCount</span>
+                </a>
+            }
+            @if (Model.GeneralCount > 0 || Model.Modules.Count == 0 || Model.SelectedModuleID == null)
+            {
+                <a href="@Url.Action("Batch", new { id = Model.Batch.ScheduleID, module = "general" })"
+                   class="flex items-center gap-3 px-3 py-2.5 rounded-2xl transition-colors @(Model.SelectedModuleID == null ? "bg-purple-50 dark:bg-purple-950/60 text-[#7c3aed] dark:text-purple-200 font-semibold" : "text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800")">
+                    <i data-lucide="folder" class="w-4 h-4 flex-shrink-0"></i>
+                    <span class="flex-1 text-sm">General</span>
+                    <span class="text-[11px] text-slate-400 font-normal">@Model.GeneralCount</span>
+                </a>
+            }
+
+            @if (Model.CanEdit)
+            {
+                <details class="mt-2 border-t border-slate-100 dark:border-slate-700 pt-2" @(Model.Modules.Count == 0 ? "open" : "")>
+                    <summary class="px-3 py-2 text-sm font-medium text-[#7c3aed] cursor-pointer list-none flex items-center gap-2"><i data-lucide="plus" class="w-4 h-4"></i> New module</summary>
+                    <form asp-action="SaveModule" method="post" class="px-3 pb-3 space-y-2">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="scheduleId" value="@Model.Batch.ScheduleID" />
+                        @await Html.PartialAsync("~/Views/Shared/Classroom/_ModuleFields.cshtml", new BatchModule { ModuleDate = Web_Backend.Classes.SriLankaTime.Today })
+                        <button type="submit" class="w-full px-3 py-2 rounded-xl text-xs font-medium bg-[#7c3aed] text-white hover:bg-[#6d28d9]">Add module</button>
+                    </form>
+                </details>
+            }
+        </aside>
+
+        @* ---------- Selected module ---------- *@
+        <section class="space-y-5 min-w-0">
+            <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 p-5">
+                <div class="flex items-start justify-between gap-4 flex-wrap">
+                    <div class="flex items-center gap-3 min-w-0">
+                        <div class="p-3 rounded-2xl bg-purple-50 dark:bg-purple-950 flex-shrink-0">
+                            <i data-lucide="@(selected?.Icon ?? "folder")" class="w-5 h-5 text-[#7c3aed] dark:text-purple-300"></i>
+                        </div>
+                        <div class="min-w-0">
+                            <h3 class="text-lg font-semibold text-slate-800 dark:text-slate-100 truncate">@(selected?.ModuleName ?? "General")</h3>
+                            <p class="text-xs text-slate-500 dark:text-slate-400">
+                                @if (selected == null) { <text>Items not placed in any module (including everything uploaded before modules existed).</text> }
+                                else { @(selected.ModuleDate?.ToString("dddd, MMM d, yyyy") ?? "") @if (!string.IsNullOrEmpty(selected.Description)) { <text> &middot; @selected.Description</text> } }
+                            </p>
+                        </div>
+                    </div>
+                    @if (Model.CanEdit && selected != null)
+                    {
+                        <div class="flex items-center gap-2">
+                            <details class="relative">
+                                <summary class="list-none px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 cursor-pointer">Edit</summary>
+                                <form asp-action="SaveModule" method="post" class="absolute right-0 z-20 mt-2 w-72 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-lg p-3 space-y-2">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="scheduleId" value="@Model.Batch.ScheduleID" />
+                                    <input type="hidden" name="moduleId" value="@selected.ModuleID" />
+                                    @await Html.PartialAsync("~/Views/Shared/Classroom/_ModuleFields.cshtml", selected)
+                                    <button type="submit" class="w-full px-3 py-2 rounded-xl text-xs font-medium bg-[#7c3aed] text-white hover:bg-[#6d28d9]">Save</button>
+                                </form>
+                            </details>
+                            <form asp-action="DeleteModule" method="post" onsubmit="return confirm('Remove this module? Its items will move to General, nothing is deleted.');">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="scheduleId" value="@Model.Batch.ScheduleID" />
+                                <input type="hidden" name="moduleId" value="@selected.ModuleID" />
+                                <button type="submit" class="px-3 py-1.5 rounded-lg text-xs font-medium bg-red-50 dark:bg-red-950 text-red-600 dark:text-red-300 hover:bg-red-100">Remove</button>
+                            </form>
+                        </div>
+                    }
+                </div>
+
+                @if (Model.CanEdit)
+                {
+                    <details class="mt-4 border-t border-slate-100 dark:border-slate-700 pt-4" @(Model.Items.Count == 0 ? "open" : "")>
+                        <summary class="text-sm font-medium text-[#7c3aed] cursor-pointer list-none flex items-center gap-2"><i data-lucide="plus-circle" class="w-4 h-4"></i> Add to this module</summary>
+                        <form asp-action="AddItem" method="post" enctype="multipart/form-data" class="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3" id="classroom-add-form">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="scheduleId" value="@Model.Batch.ScheduleID" />
+                            <input type="hidden" name="moduleId" value="@Model.SelectedModuleID" />
+
+                            <div class="md:col-span-2 flex flex-wrap gap-2">
+                                @foreach (var c in categories)
+                                {
+                                    <label class="cursor-pointer">
+                                        <input type="radio" name="category" value="@c.Key" class="peer hidden" @(c.Key == "LectureNote" ? "checked" : "") />
+                                        <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-600 text-xs text-slate-600 dark:text-slate-300 peer-checked:border-[#7c3aed] peer-checked:bg-purple-50 dark:peer-checked:bg-purple-950 peer-checked:text-[#7c3aed]">
+                                            <i data-lucide="@c.Icon" class="w-3.5 h-3.5"></i> @c.Label.TrimEnd('s')
+                                        </span>
+                                    </label>
+                                }
+                            </div>
+
+                            <input type="text" name="title" required maxlength="200" placeholder="Title (e.g. Sets - Intro notes)" class="md:col-span-2 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 text-sm" />
+                            <textarea name="description" rows="2" maxlength="1000" placeholder="Description / instructions (optional)" class="md:col-span-2 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 text-sm"></textarea>
+
+                            <label class="text-xs text-slate-500 dark:text-slate-400">Lecture date
+                                <input type="date" name="materialDate" value="@((selected?.ModuleDate ?? Web_Backend.Classes.SriLankaTime.Today).ToString("yyyy-MM-dd"))" class="mt-1 w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 text-sm" />
+                            </label>
+                            <div class="classroom-submit-fields hidden grid grid-cols-2 gap-3">
+                                <label class="text-xs text-slate-500 dark:text-slate-400">Due date
+                                    <input type="datetime-local" name="dueDate" class="mt-1 w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 text-sm" />
+                                </label>
+                                <label class="text-xs text-slate-500 dark:text-slate-400">Max marks
+                                    <input type="number" name="maxMarks" min="0" step="0.5" class="mt-1 w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 text-sm" />
+                                </label>
+                            </div>
+
+                            <div class="md:col-span-2 flex items-center gap-4 text-xs text-slate-600 dark:text-slate-300">
+                                <label class="inline-flex items-center gap-1.5"><input type="radio" name="sourceType" value="Upload" checked /> Upload file</label>
+                                <label class="inline-flex items-center gap-1.5"><input type="radio" name="sourceType" value="Link" /> Link (YouTube / Drive / Zoom recording&hellip;)</label>
+                                <label class="inline-flex items-center gap-1.5 ml-auto"><input type="checkbox" name="allowDownload" value="true" checked /> Allow download</label>
+                            </div>
+                            <input type="file" name="file" class="classroom-file md:col-span-2 text-xs" />
+                            <input type="url" name="linkUrl" placeholder="https://..." class="classroom-link hidden md:col-span-2 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 text-sm" />
+
+                            <div class="md:col-span-2">
+                                <button type="submit" class="px-4 py-2 rounded-xl text-sm font-medium bg-[#7c3aed] text-white hover:bg-[#6d28d9] inline-flex items-center gap-1.5"><i data-lucide="upload" class="w-4 h-4"></i> Add</button>
+                            </div>
+                        </form>
+                    </details>
+                }
+            </div>
+
+            @if (Model.Items.Count == 0)
+            {
+                <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 p-10 text-center">
+                    <p class="text-sm text-slate-400 dark:text-slate-500">Nothing in this module yet.</p>
+                </div>
+            }
+
+            @foreach (var c in categories)
+            {
+                var items = Model.Items.Where(i => i.Category == c.Key).ToList();
+                if (items.Count == 0) { continue; }
+                <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
+                    <div class="px-5 py-3 border-b border-slate-100 dark:border-slate-700 flex items-center gap-2">
+                        <i data-lucide="@c.Icon" class="w-4 h-4 text-slate-400"></i>
+                        <h4 class="text-sm font-semibold text-slate-700 dark:text-slate-200">@c.Label</h4>
+                        <span class="text-xs text-slate-400">@items.Count</span>
+                    </div>
+                    <div class="divide-y divide-slate-100 dark:divide-slate-700">
+                        @foreach (var m in items)
+                        {
+                            <div class="p-4 flex items-start justify-between gap-4 flex-wrap">
+                                <div class="min-w-0">
+                                    <p class="text-sm font-semibold text-slate-800 dark:text-slate-100">@m.Title</p>
+                                    <p class="text-xs text-slate-400 dark:text-slate-500">
+                                        @m.MaterialDate.ToString("MMM d, yyyy") &middot; @(m.IsLink ? "Link" : m.FileType) &middot; @m.UploadedByName (@m.UploadedByRole)
+                                        @if (m.DueDate.HasValue) { <text> &middot; <span class="text-rose-600 dark:text-rose-300">Due @m.DueDate.Value.ToString("MMM d, h:mm tt")</span></text> }
+                                        @if (m.MaxMarks.HasValue) { <text> &middot; @m.MaxMarks.Value.ToString("0.##") marks</text> }
+                                    </p>
+                                    @if (!string.IsNullOrEmpty(m.Description))
+                                    {
+                                        <p class="text-xs text-slate-600 dark:text-slate-300 mt-1 whitespace-pre-line">@m.Description</p>
+                                    }
+                                </div>
+                                <div class="flex items-center gap-2 flex-shrink-0">
+                                    @await Html.PartialAsync("~/Views/Shared/Classroom/_ItemOpenButton.cshtml", m)
+                                    @if (m.IsSubmittable)
+                                    {
+                                        <a href="@Url.Action("Submissions", submissionsController, new { materialId = m.MaterialID })"
+                                           class="px-3 py-1.5 rounded-lg font-medium text-xs bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-300 hover:bg-amber-100">Submissions</a>
+                                    }
+                                    @if (Model.CanEdit && canDeleteItem(m))
+                                    {
+                                        <form asp-action="DeleteItem" method="post" onsubmit="return confirm('Delete this item?');">
+                                            @Html.AntiForgeryToken()
+                                            <input type="hidden" name="scheduleId" value="@Model.Batch.ScheduleID" />
+                                            <input type="hidden" name="moduleId" value="@Model.SelectedModuleID" />
+                                            <input type="hidden" name="id" value="@m.MaterialID" />
+                                            <button type="submit" class="p-1.5 rounded-lg text-red-500 hover:bg-red-50 dark:hover:bg-red-950" title="Delete"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                                        </form>
+                                    }
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+        </section>
+    </div>
+</div>
+
+@await Html.PartialAsync("_CourseVideoPlayer")
+@await Html.PartialAsync("_MaterialPreviewModal")
+
+<script>
+    (function () {
+        const form = document.getElementById('classroom-add-form');
+        if (!form) return;
+        const submitFields = form.querySelector('.classroom-submit-fields');
+        const fileInput = form.querySelector('.classroom-file');
+        const linkInput = form.querySelector('.classroom-link');
+        function sync() {
+            const cat = form.querySelector('input[name=category]:checked')?.value;
+            submitFields.classList.toggle('hidden', !(cat === 'Homework' || cat === 'Assignment'));
+            const isLink = form.querySelector('input[name=sourceType]:checked')?.value === 'Link';
+            fileInput.classList.toggle('hidden', isLink);
+            linkInput.classList.toggle('hidden', !isLink);
+            linkInput.required = isLink;
+        }
+        form.addEventListener('change', sync);
+        sync();
+    })();
+</script>

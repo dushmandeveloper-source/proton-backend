@@ -59,7 +59,7 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
             // ownership — only materials for courses this student is
             // actually enrolled in are ever returned.
             var all = await materialRep.ListForStudent(student.StudentID);
-            var homework = all.Where(m => m.Category == "Homework").OrderByDescending(m => m.MaterialDate).ToList();
+            var homework = all.Where(m => m.IsSubmittable).OrderByDescending(m => m.MaterialDate).ToList();
 
             var submissions = await submissionRep.ListForStudent(student.StudentID);
             ViewBag.Submissions = submissions.ToDictionary(s => s.MaterialID);
@@ -75,7 +75,7 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
         [HttpPost, ValidateAntiForgeryToken]
         [RequestFormLimits(MultipartBodyLengthLimit = 110_000_000)]
         [RequestSizeLimit(110_000_000)]
-        public async Task<IActionResult> Submit(string materialId, IFormFile? file)
+        public async Task<IActionResult> Submit(string materialId, IFormFile? file, string? returnUrl = null)
         {
             Auth.CheckUser();
             var student = await studentRep.GetByUserID(Auth.GetUserId());
@@ -85,7 +85,7 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
             if (string.IsNullOrWhiteSpace(materialId) || file == null)
             {
                 TempData["ErrorMessage"] = "Please choose a file to submit.";
-                return RedirectToAction("Index");
+                return BackTo(returnUrl);
             }
 
             try
@@ -94,11 +94,11 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
                 if (fileUrl == null)
                 {
                     TempData["ErrorMessage"] = "Please choose a file to submit.";
-                    return RedirectToAction("Index");
+                    return BackTo(returnUrl);
                 }
 
                 await submissionRep.Upsert(materialId, student.StudentID, fileUrl);
-                TempData["SuccessMessage"] = "Homework submitted.";
+                TempData["SuccessMessage"] = "Submitted.";
             }
             catch (InvalidOperationException ex)
             {
@@ -109,7 +109,12 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
                 TempData["ErrorMessage"] = "Could not submit: " + ex.Message;
             }
 
-            return RedirectToAction("Index");
+            return BackTo(returnUrl);
         }
+
+        // Classroom posts here too, passing its own URL so the student lands
+        // back on the module they submitted from.
+        private IActionResult BackTo(string? returnUrl) =>
+            !string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl) ? LocalRedirect(returnUrl) : RedirectToAction("Index");
     }
 }
