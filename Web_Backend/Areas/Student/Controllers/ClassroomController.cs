@@ -66,7 +66,35 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
                 return View(new List<(CourseSchedule, bool)>());
             }
 
-            return View(await GetBatches(student.StudentID));
+            var batches = await GetBatches(student.StudentID);
+
+            // Locked batches get a "pay the course fee" link to that
+            // registration's PayBalance page instead of opening the classroom.
+            var regs = (await registrationRep.GetByStudent(student.StudentID)).Where(r => r.IsActive == "A").ToList();
+            ViewBag.PayRegistrationIds = batches.Where(x => !x.FullAccess).ToDictionary(
+                x => x.Batch.ScheduleID,
+                x => regs.FirstOrDefault(r => r.CourseID == x.Batch.CourseID && (string.IsNullOrEmpty(r.ScheduleID) || r.ScheduleID == x.Batch.ScheduleID))?.RegistrationID ?? "");
+            return View(batches);
+        }
+
+        // Every student-portal "Request access" button points here: records
+        // the request on the student's own locked registration for that
+        // course (shown on the Admin dashboard), then opens the WhatsApp
+        // message to admin exactly as before.
+        [HttpGet]
+        public async Task<IActionResult> RequestAccess(string course)
+        {
+            Auth.CheckUser();
+            var user = Auth.GetUser();
+            var student = await studentRep.GetByUserID(Auth.GetUserId());
+            if (student != null && !string.IsNullOrEmpty(course))
+            {
+                var reg = (await registrationRep.GetByStudent(student.StudentID))
+                    .FirstOrDefault(r => r.IsActive == "A" && !r.FullAccess && r.CourseTitle == course);
+                if (reg != null)
+                    await registrationRep.RequestAccess(reg.RegistrationID, student.StudentID);
+            }
+            return Redirect(Web_Backend.Classes.WhatsAppLink.RequestAccess(user?.Name ?? "", user?.Email ?? "", course ?? ""));
         }
 
         [HttpGet]
@@ -83,6 +111,15 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
             if (entry.Batch == null)
             {
                 TempData["ErrorMessage"] = "Batch not found, or you are not enrolled in it.";
+                return RedirectToAction("Index");
+            }
+
+            // No full access (fee not settled / not granted by admin): the
+            // student can't enter the classroom at all — send them back to
+            // the batch list, which offers Pay / Request access.
+            if (!entry.FullAccess)
+            {
+                TempData["ErrorMessage"] = "This classroom unlocks once your course fee is paid or an administrator grants full access.";
                 return RedirectToAction("Index");
             }
 

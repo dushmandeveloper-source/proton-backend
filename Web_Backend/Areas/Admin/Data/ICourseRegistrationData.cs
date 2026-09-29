@@ -24,5 +24,7 @@ namespace Web_Backend.Areas.Admin.Data
         Task<CourseRegistrationStudentSummary?> GetSummaryForStudent(string studentId);
         Task Delete(string id);
         Task SetFullAccess(string registrationId, bool fullAccess);
+        Task SetPersonalDiscount(string registrationId, decimal amount, string reason, string userId);
+        Task RequestAccess(string registrationId, string studentId);
     }
 }

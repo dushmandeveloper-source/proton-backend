@@ -76,14 +76,14 @@
                                     meetingLink = (Model.IsContentRestricted || lockedCourseIds.Contains(seg.CourseID)) ? null : seg.MeetingLink,
                                     isMakeup = seg.CourseTitle.EndsWith("(Makeup Class)"),
                                     whatsappRequestLink = (!Model.IsContentRestricted && lockedCourseIds.Contains(seg.CourseID))
-                                        ? Web_Backend.Classes.WhatsAppLink.RequestAccess(currentUser != null ? currentUser.Name : "", currentUser != null ? currentUser.Email : "", seg.CourseTitle)
+                                        ? Url.Action("RequestAccess", "Classroom", new { area = "Student", course = seg.CourseTitle })
                                         : null
                                 })
                             };
-                            <button type="button" class="cal-day-cell text-left min-h-[110px] p-2 flex flex-col gap-1.5 @(day.IsCurrentMonth ? "" : "opacity-50") @(day.Holidays.Count > 0 ? "bg-amber-50/60 dark:bg-amber-950/30" : day.IsToday ? "bg-indigo-50/60 dark:bg-indigo-950/40" : "") hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors"
+                            <button type="button" class="cal-day-cell text-left min-h-[110px] p-2 flex flex-col gap-1.5 @(day.IsCurrentMonth ? "" : "opacity-50") @(day.Holidays.Count > 0 ? "bg-amber-50/60 dark:bg-amber-950/30" : (day.IsToday && day.IsCurrentMonth) ? "bg-indigo-50/60 dark:bg-indigo-950/40" : "") hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors"
                                     data-day='@Html.Raw(System.Text.Json.JsonSerializer.Serialize(dayPayload))'>
                                 <div class="flex items-center justify-between">
-                                    <span class="text-xs font-semibold inline-flex items-center justify-center w-6 h-6 rounded-full @(day.IsToday ? "bg-[#7c3aed] text-white" : day.IsCurrentMonth ? "text-slate-700 dark:text-slate-200" : "text-slate-300 dark:text-slate-600")">
+                                    <span class="text-xs font-semibold inline-flex items-center justify-center w-6 h-6 rounded-full @((day.IsToday && day.IsCurrentMonth) ? "bg-[#7c3aed] text-white" : day.IsCurrentMonth ? "text-slate-700 dark:text-slate-200" : "text-slate-300 dark:text-slate-600")">
                                         @day.Date.Day
                                     </span>
                                     @if (day.Holidays.Count > 0)

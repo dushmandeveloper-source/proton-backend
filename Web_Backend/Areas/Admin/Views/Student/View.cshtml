@@ -234,6 +234,12 @@
                                 <div class="flex items-center gap-2 flex-wrap">
                                     <h4 class="font-semibold text-slate-800 dark:text-slate-100">@reg.CourseTitle</h4>
                                     <span class="px-2 py-1 rounded-lg text-[11px] font-medium @badgeCls">@badgeLabel</span>
+                                    @if (!reg.FullAccess && reg.AccessRequestedDate.HasValue)
+                                    {
+                                        <span class="px-2 py-1 rounded-lg text-[11px] font-medium bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-300 inline-flex items-center gap-1">
+                                            <i data-lucide="hand" class="w-3 h-3"></i> Access requested @reg.AccessRequestedDate.Value.ToString("dd MMM, HH:mm")
+                                        </span>
+                                    }
                                     @if (reg.FullAccess)
                                     {
                                         <span class="px-2 py-1 rounded-lg text-[11px] font-medium bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 inline-flex items-center gap-1">
@@ -288,17 +294,21 @@
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
                             <div class="rounded-xl bg-slate-50 dark:bg-slate-800/60 px-4 py-3">
                                 <p class="@LabelCls">Course Fee</p>
-                                @if (reg.HasDiscount || reg.HasFeeCharges)
+                                @if (reg.HasDiscount || reg.HasFeeCharges || reg.HasPersonalDiscount)
                                 {
                                     <div class="mt-1">
-                                        @if (reg.HasDiscount)
+                                        @if (reg.HasDiscount || reg.HasPersonalDiscount)
                                         {
-                                            <span class="line-through text-slate-400 dark:text-slate-500 text-sm mr-1.5">@reg.CurrencyCode @reg.OriginalFee.ToString("N2")</span>
+                                            <span class="line-through text-slate-400 dark:text-slate-500 text-sm mr-1.5">@reg.CurrencyCode @((reg.HasDiscount ? reg.OriginalFee + reg.FeeChargesTotal : reg.FeeBeforePersonalDiscount).ToString("N2"))</span>
                                         }
                                         <span class="text-lg font-bold text-slate-800 dark:text-slate-100">@reg.CurrencyCode @reg.CourseFee.ToString("N2")</span>
                                         @if (reg.HasDiscount)
                                         {
                                             <span class="block text-xs text-emerald-600 dark:text-emerald-400">@reg.DiscountLabel</span>
+                                        }
+                                        @if (reg.HasPersonalDiscount)
+                                        {
+                                            <span class="block text-xs text-emerald-600 dark:text-emerald-400">Personal discount &minus;@reg.CurrencyCode @reg.PersonalDiscountAmount.ToString("N2")@(string.IsNullOrEmpty(reg.PersonalDiscountReason) ? "" : " · " + reg.PersonalDiscountReason)</span>
                                         }
                                         @if (reg.HasFeeCharges)
                                         {
@@ -318,11 +328,49 @@
                             <div class="rounded-xl bg-slate-50 dark:bg-slate-800/60 px-4 py-3">
                                 <p class="@LabelCls">Balance Due</p>
                                 <p class="text-lg font-bold text-slate-800 dark:text-slate-100 mt-1">@reg.CurrencyCode @item.BalanceDue.ToString("N2")</p>
+                                @if (item.BalanceDue <= 0)
+                                {
+                                    <span class="inline-block mt-1 px-2 py-0.5 rounded-lg text-[11px] font-medium bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300">Fully paid</span>
+                                }
+                                else
+                                {
+                                    <span class="inline-block mt-1 px-2 py-0.5 rounded-lg text-[11px] font-medium bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-300">Pending</span>
+                                }
                             </div>
                         </div>
 
                         @if (canEditEnrollment && reg.IsActive == "A")
                         {
+                            <div class="pt-2 border-t border-slate-100 dark:border-slate-700 flex flex-wrap items-end gap-3">
+                                <form method="post" asp-action="SetPersonalDiscount" class="flex flex-wrap items-end gap-3 flex-1 min-w-[280px]">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="studentId" value="@Model_Student.StudentID" />
+                                    <input type="hidden" name="registrationId" value="@reg.RegistrationID" />
+                                    <div class="space-y-1">
+                                        <label class="@LabelCls">Personal discount (@reg.CurrencyCode)</label>
+                                        <input type="number" name="amount" min="0" step="0.01" value="@reg.PersonalDiscountAmount.ToString("0.##")" class="@InputCls w-32" />
+                                    </div>
+                                    <div class="space-y-1 flex-1 min-w-[160px]">
+                                        <label class="@LabelCls">Reason</label>
+                                        <input type="text" name="reason" maxlength="200" value="@reg.PersonalDiscountReason" placeholder="e.g. Sibling discount" class="@InputCls w-full" />
+                                    </div>
+                                    <button type="submit" class="px-3 py-2 rounded-xl text-xs font-medium bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900 transition-colors">
+                                        @(reg.HasPersonalDiscount ? "Update Discount" : "Apply Discount")
+                                    </button>
+                                </form>
+                                @if (item.BalanceDue > 0)
+                                {
+                                    <form method="post" asp-action="MarkFullyPaidCash"
+                                          data-confirm="Record a cash payment of @reg.CurrencyCode @item.BalanceDue.ToString("N2") and mark @reg.CourseTitle as fully paid?" data-confirm-title="Mark fully paid" data-confirm-label="Mark Fully Paid">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="studentId" value="@Model_Student.StudentID" />
+                                        <input type="hidden" name="registrationId" value="@reg.RegistrationID" />
+                                        <button type="submit" class="px-3 py-2 rounded-xl text-xs font-medium bg-[#7c3aed] text-white hover:bg-[#6d28d9] transition-colors flex items-center gap-1.5">
+                                            <i data-lucide="banknote" class="w-3.5 h-3.5"></i> Mark fully paid (cash)
+                                        </button>
+                                    </form>
+                                }
+                            </div>
                             <div class="pt-2 border-t border-slate-100 dark:border-slate-700">
                                 <form method="post" asp-action="ChangeCourseSchedule" class="flex flex-wrap items-end gap-3">
                                     @Html.AntiForgeryToken()

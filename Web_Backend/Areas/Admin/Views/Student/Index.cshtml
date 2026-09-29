@@ -82,7 +82,7 @@
                             <th class="px-6 py-3">Passport</th>
                             <th class="px-6 py-3">Source</th>
                             <th class="px-6 py-3">Courses</th>
-                            <th class="px-6 py-3">Balance</th>
+                            <th class="px-6 py-3">Payment</th>
                             <th class="px-6 py-3">Status</th>
                             <th class="px-6 py-3">Registered</th>
                             <th class="px-6 py-3"></th>
@@ -156,13 +156,13 @@
                                     else if (balance > 0)
                                     {
                                         <span class="px-2 py-1 rounded-lg text-[11px] font-medium bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-300">
-                                            @balance.ToString("N2") due
+                                            Pending &middot; @balance.ToString("N2") due
                                         </span>
                                     }
                                     else
                                     {
                                         <span class="px-2 py-1 rounded-lg text-[11px] font-medium bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300">
-                                            Paid up
+                                            Fully paid
                                         </span>
                                     }
                                 </td>

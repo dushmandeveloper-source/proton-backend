@@ -174,6 +174,7 @@ namespace Web_Backend.Areas.LecturerPortal.Controllers
                 EndTime = seg.EndTime ?? TimeSpan.Zero,
                 InstructorNames = seg.InstructorNames,
                 ExceptionDates = seg.ExceptionDates,
+                TimeOverrides = seg.TimeOverrides,
                 MeetingLink = seg.MeetingLink,
                 Kind = "Exam"
             };
