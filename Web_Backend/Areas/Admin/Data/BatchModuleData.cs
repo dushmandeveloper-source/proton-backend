@@ -29,6 +29,14 @@ namespace Web_Backend.Areas.Admin.Data
         public Task<List<BatchModule>> List(string scheduleId) =>
             db.GetList<BatchModule, object>("edu.BatchModule_List", new { APIKey = AppData.GetAPIKey(), ScheduleID = scheduleId });
 
+        public Task Reorder(string scheduleId, List<string> moduleIds) =>
+            db.ExecuteNonQuery("edu.BatchModule_Reorder", new
+            {
+                APIKey = AppData.GetAPIKey(),
+                ScheduleID = scheduleId,
+                ModuleIDsJSON = System.Text.Json.JsonSerializer.Serialize(moduleIds)
+            });
+
         public Task Delete(string id) =>
             db.ExecuteNonQuery("edu.BatchModule_Delete", new { APIKey = AppData.GetAPIKey(), ID = id });
     }

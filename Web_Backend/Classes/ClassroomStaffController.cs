@@ -136,6 +136,26 @@ namespace Web_Backend.Classes
             }
         }
 
+        // Drag-and-drop / up-down ordering of the batch's modules (AJAX from
+        // _StaffBatch). Students see modules in this same SortOrder.
+        [HttpPost, ValidateAntiForgeryToken]
+        public async Task<IActionResult> ReorderModules(string scheduleId, [FromForm] List<string> moduleIds)
+        {
+            CheckEdit();
+            if (await FindBatch(scheduleId) == null)
+                return Json(new { ok = false, error = "Batch not found, or you don't have access to it." });
+
+            try
+            {
+                await moduleRep.Reorder(scheduleId, moduleIds ?? new List<string>());
+                return Json(new { ok = true });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { ok = false, error = ex.Message });
+            }
+        }
+
         [HttpPost, ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteModule(string scheduleId, string moduleId)
         {
