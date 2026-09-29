@@ -1232,7 +1232,8 @@
                                     const message = hitTitles.length === 1
                                         ? `This date is marked as a holiday: ${hitTitles[0]}. Schedule anyway?`
                                         : `This date range includes marked holidays: ${hitTitles.join(', ')}. Schedule anyway?`;
-                                    if (window.confirm(message)) {
+                                    window.showConfirmModal({ title: 'Holiday warning', message, confirmLabel: 'OK, schedule anyway' }).then(ok => {
+                                        if (!ok) return;
                                         form.dataset.holidayConfirmed = '1';
                                         jsonField.value = JSON.stringify(segments);
                                         const picker = form.querySelector('.instructor-picker');
@@ -1240,7 +1241,7 @@
                                             instructorJsonField.value = JSON.stringify(picker._picker.getSelectedIds());
                                         }
                                         form.requestSubmit ? form.requestSubmit() : form.submit();
-                                    }
+                                    });
                                     return;
                                 }
                             }

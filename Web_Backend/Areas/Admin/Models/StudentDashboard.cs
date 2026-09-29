@@ -127,6 +127,13 @@ namespace Web_Backend.Areas.Admin.Models
         // this specific period — see edu.CourseScheduleSegment.MeetingLink.
         public string MeetingLink { get; set; } = "";
 
+        // Per-date time overrides — see SegmentTimeOverrides (CourseSchedule.cs).
+        // Applied by ScheduleExpansion.ForDay, so per-day consumers see the
+        // overridden StartTime/EndTime directly.
+        public string TimeOverrides { get; set; } = "";
+
+        public StudentScheduleSegment ShallowCopy() => (StudentScheduleSegment)MemberwiseClone();
+
         // Discriminator distinguishing an ordinary course-schedule segment
         // ("Course") from an exam-schedule segment adapted into this same
         // shape ("Exam") — see ExamScheduleInstructorSegment.Kind.

@@ -122,6 +122,10 @@
                                     {
                                         <p class="text-xs text-amber-600 dark:text-amber-300 mt-0.5">@seg.ExceptionCount day(s) skipped</p>
                                     }
+                                    @if (!string.IsNullOrWhiteSpace(seg.TimeOverrides))
+                                    {
+                                        <p class="text-xs text-sky-600 dark:text-sky-300 mt-0.5">Different time on: @Web_Backend.Areas.Admin.Models.SegmentTimeOverrides.Describe(seg.TimeOverrides)</p>
+                                    }
                                     @if (!string.IsNullOrEmpty(seg.MeetingLink))
                                     {
                                         <a href="@seg.MeetingLink" target="_blank" rel="noopener" class="text-xs text-[#7c3aed] hover:underline mt-0.5 inline-flex items-center gap-1">

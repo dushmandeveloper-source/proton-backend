@@ -569,11 +569,27 @@ else
         const detailsTitleEl = document.getElementById('confirm-modal-details-title');
         const detailsListEl = document.getElementById('confirm-modal-details-list');
         let pendingForm = null;
+        let pendingResolve = null;
 
-        function closeModal() {
+        function closeModal(result = false) {
             modal.classList.add('hidden');
             pendingForm = null;
+            if (pendingResolve) { const r = pendingResolve; pendingResolve = null; r(result); }
         }
+
+        // Programmatic use (no form): resolves true on Confirm, false on
+        // Cancel/backdrop — e.g. the course-schedule holiday warning.
+        window.showConfirmModal = function ({ title, message, confirmLabel } = {}) {
+            if (pendingResolve) pendingResolve(false);
+            pendingForm = null;
+            titleEl.textContent = title || 'Are you sure?';
+            msgEl.textContent = message || '';
+            confirmBtn.textContent = confirmLabel || 'Confirm';
+            blockedEl.classList.add('hidden');
+            detailsEl.classList.add('hidden');
+            modal.classList.remove('hidden');
+            return new Promise(resolve => { pendingResolve = resolve; });
+        };
 
         document.addEventListener('submit', (e) => {
             const form = e.target;
@@ -607,11 +623,11 @@ else
             }
         });
 
-        cancelBtn.addEventListener('click', closeModal);
-        modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
+        cancelBtn.addEventListener('click', () => closeModal(false));
+        modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(false); });
         confirmBtn.addEventListener('click', () => {
             const form = pendingForm;
-            closeModal();
+            closeModal(true);
             if (form) form.submit();
         });
     })();

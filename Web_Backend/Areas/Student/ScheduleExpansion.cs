@@ -61,10 +61,23 @@ namespace Web_Backend.Areas.StudentPortal
             return AppliesOn(segment, date, CodeFor(date.DayOfWeek));
         }
 
-        // All segments (from `segments`) applicable on `date`.
+        // All segments (from `segments`) applicable on `date`. A segment with
+        // a time override for `date` is returned as a copy carrying that
+        // date's StartTime/EndTime, so callers never see the period's
+        // default time on an overridden date.
         public static List<StudentScheduleSegment> ForDay(List<StudentScheduleSegment> segments, DateTime date, string dayCode)
         {
-            return segments.Where(s => AppliesOn(s, date, dayCode)).ToList();
+            var iso = date.ToString("yyyy-MM-dd");
+            return segments.Where(s => AppliesOn(s, date, dayCode)).Select(s =>
+            {
+                if (string.IsNullOrWhiteSpace(s.TimeOverrides)
+                    || !SegmentTimeOverrides.Parse(s.TimeOverrides).TryGetValue(iso, out var t))
+                    return s;
+                var copy = s.ShallowCopy();
+                copy.StartTime = t.Start;
+                copy.EndTime = t.End;
+                return copy;
+            }).ToList();
         }
     }
 }
