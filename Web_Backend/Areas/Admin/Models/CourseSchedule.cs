@@ -93,6 +93,16 @@ namespace Web_Backend.Areas.Admin.Models
         // several selected periods, or set per-period.
         public string MeetingLink { get; set; } = "";
 
+        // Per-date time overrides — see SegmentTimeOverrides for the format.
+        public string TimeOverrides { get; set; } = "";
+
+        // "18:00 - 20:00" for `date` — the override if one exists, else the
+        // period's own TimeRangeText.
+        public string TimeRangeTextOn(DateTime date) =>
+            SegmentTimeOverrides.Parse(TimeOverrides).TryGetValue(date.ToString("yyyy-MM-dd"), out var t)
+                ? $"{t.Start:hh\\:mm} - {t.End:hh\\:mm}"
+                : TimeRangeText;
+
         public string DateRangeText => $"{StartDate:dd MMM yyyy} - {EndDate:dd MMM yyyy}";
         public string DaysOfWeekLabel => string.Join(", ", DaysOfWeek.Split(',', StringSplitOptions.RemoveEmptyEntries));
         public string TimeRangeText => StartTime.HasValue && EndTime.HasValue
@@ -100,6 +110,33 @@ namespace Web_Backend.Areas.Admin.Models
             : "";
 
         public int ExceptionCount => ExceptionDates.Split(',', StringSplitOptions.RemoveEmptyEntries).Length;
+    }
+
+    // edu.CourseScheduleSegment.TimeOverrides (0081): CSV of
+    // "yyyy-MM-dd@HH:mm-HH:mm" — a single date within a period that runs at
+    // a different time from the period's own StartTime/EndTime.
+    public static class SegmentTimeOverrides
+    {
+        public static Dictionary<string, (TimeSpan Start, TimeSpan End)> Parse(string? csv)
+        {
+            var result = new Dictionary<string, (TimeSpan, TimeSpan)>();
+            foreach (var entry in (csv ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries))
+            {
+                var parts = entry.Trim().Split('@');
+                if (parts.Length != 2) continue;
+                var times = parts[1].Split('-');
+                if (times.Length == 2 && TimeSpan.TryParse(times[0], out var start) && TimeSpan.TryParse(times[1], out var end))
+                    result[parts[0]] = (start, end);
+            }
+            return result;
+        }
+
+        // "22 Sep 18:00-20:00, 29 Sep 17:00-19:00" for list/summary views.
+        public static string Describe(string? csv) => string.Join(", ", Parse(csv)
+            .OrderBy(kv => kv.Key)
+            .Select(kv => DateTime.TryParse(kv.Key, out var d)
+                ? $"{d:dd MMM} {kv.Value.Start:hh\\:mm}-{kv.Value.End:hh\\:mm}"
+                : ""));
     }
 
     public class CourseScheduleSearchView

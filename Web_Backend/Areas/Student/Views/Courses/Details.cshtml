@@ -286,6 +286,10 @@
                         {
                             <p class="text-xs text-slate-400 dark:text-slate-500 mt-0.5">Instructor(s): @seg.InstructorNames</p>
                         }
+                        @if (!string.IsNullOrWhiteSpace(seg.TimeOverrides))
+                        {
+                            <p class="text-xs text-sky-600 dark:text-sky-300 mt-0.5">Different time on: @Web_Backend.Areas.Admin.Models.SegmentTimeOverrides.Describe(seg.TimeOverrides)</p>
+                        }
                     </div>
                 }
             </div>
