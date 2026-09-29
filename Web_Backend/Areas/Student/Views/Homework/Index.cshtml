@@ -27,7 +27,7 @@
             <div class="flex flex-wrap gap-2 ml-8">
                 @foreach (var courseTitle in lockedCourseTitles)
                 {
-                    <a href="@Web_Backend.Classes.WhatsAppLink.RequestAccess(currentUser?.Name ?? "", currentUser?.Email ?? "", courseTitle)" target="_blank" rel="noopener"
+                    <a href="@Url.Action("RequestAccess", "Classroom", new { area = "Student", course = courseTitle })" target="_blank" rel="noopener"
                        class="px-3 py-1.5 rounded-lg font-medium text-xs bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900 transition-colors flex items-center gap-1.5">
                         <i data-lucide="message-circle" class="w-3.5 h-3.5"></i> Request access for @courseTitle
                     </a>

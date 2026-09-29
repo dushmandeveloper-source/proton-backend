@@ -90,6 +90,14 @@ namespace Web_Backend.Areas.Admin.Models
         // self-service link editing — read-only Lecturer calendar).
         public string MeetingLink { get; set; } = "";
 
+        // Per-date time overrides — see SegmentTimeOverrides (CourseSchedule.cs, 0082).
+        public string TimeOverrides { get; set; } = "";
+
+        public string TimeRangeTextOn(DateTime date) =>
+            SegmentTimeOverrides.Parse(TimeOverrides).TryGetValue(date.ToString("yyyy-MM-dd"), out var t)
+                ? $"{t.Start:hh\\:mm} - {t.End:hh\\:mm}"
+                : TimeRangeText;
+
         public string DateRangeText => $"{StartDate:dd MMM yyyy} - {EndDate:dd MMM yyyy}";
         public string DaysOfWeekLabel => string.Join(", ", DaysOfWeek.Split(',', StringSplitOptions.RemoveEmptyEntries));
         public string TimeRangeText => StartTime.HasValue && EndTime.HasValue
@@ -129,8 +137,11 @@ namespace Web_Backend.Areas.Admin.Models
         public TimeSpan? StartTime { get; set; }
         public TimeSpan? EndTime { get; set; }
         public string ExceptionDates { get; set; } = "";
+        public string TimeOverrides { get; set; } = "";
         public string MeetingLink { get; set; } = "";
         public string InstructorNames { get; set; } = "";
+
+        public ExamScheduleInstructorSegment ShallowCopy() => (ExamScheduleInstructorSegment)MemberwiseClone();
 
         // Discriminator distinguishing this exam-schedule segment from an
         // ordinary course-schedule segment — see StudentScheduleSegment.Kind.

@@ -798,7 +798,48 @@ namespace Web_Backend.Areas.Admin.Controllers
         }
 
         [HttpPost, ValidateAntiForgeryToken]
-        public async Task<IActionResult> SetFullAccess(string studentId, string registrationId, bool fullAccess)
+        public async Task<IActionResult> SetPersonalDiscount(string studentId, string registrationId, decimal amount, string? reason)
+        {
+            Auth.CheckPermission(PermissionCode.Enrollments, 'E');
+            try
+            {
+                await registrationRep.SetPersonalDiscount(registrationId, amount, reason ?? "", Auth.GetUserId());
+                TempData["SuccessMessage"] = amount > 0 ? "Personal discount saved." : "Personal discount removed.";
+            }
+            catch (Exception ex)
+            {
+                TempData["ErrorMessage"] = "Could not save discount: " + ex.Message;
+            }
+            return RedirectToAction("Details", new { id = studentId });
+        }
+
+        // One-click "student paid the rest in cash": records a Cash payment
+        // for exactly the remaining balance, which flips PaymentStatus to Paid.
+        [HttpPost, ValidateAntiForgeryToken]
+        public async Task<IActionResult> MarkFullyPaidCash(string studentId, string registrationId, string? notes)
+        {
+            Auth.CheckPermission(PermissionCode.Enrollments, 'E');
+            try
+            {
+                var registration = await registrationRep.Get(registrationId);
+                if (registration == null) throw new Exception("Registration not found.");
+                var paid = (await registrationRep.GetPayments(registrationId)).Where(p => p.IsActive == "A").Sum(p => p.Amount);
+                var balance = registration.CourseFee - paid;
+                if (balance <= 0) throw new Exception("This registration has no balance left.");
+
+                await registrationRep.AddPayment(registrationId, balance, "Cash", "",
+                    string.IsNullOrWhiteSpace(notes) ? "Paid in full (cash)" : notes, Auth.GetUserId());
+                TempData["SuccessMessage"] = $"Cash payment of {registration.CurrencyCode} {balance:N2} recorded — marked fully paid.";
+            }
+            catch (Exception ex)
+            {
+                TempData["ErrorMessage"] = "Could not mark as fully paid: " + ex.Message;
+            }
+            return RedirectToAction("Details", new { id = studentId });
+        }
+
+        [HttpPost, ValidateAntiForgeryToken]
+        public async Task<IActionResult> SetFullAccess(string studentId, string registrationId, bool fullAccess, string? returnUrl = null)
         {
             Auth.CheckPermission(PermissionCode.Enrollments, 'E');
             try
@@ -812,6 +853,7 @@ namespace Web_Backend.Areas.Admin.Controllers
             {
                 TempData["ErrorMessage"] = "Could not update access: " + ex.Message;
             }
+            if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl)) return LocalRedirect(returnUrl);
             return RedirectToAction("Details", new { id = studentId });
         }
 

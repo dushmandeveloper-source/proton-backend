@@ -106,6 +106,19 @@ namespace Web_Backend.Areas.Admin.Data
         public Task Delete(string id) =>
             db.ExecuteNonQuery("mst.CourseRegistration_Delete", new { APIKey = AppData.GetAPIKey(), ID = id });
 
+        public Task SetPersonalDiscount(string registrationId, decimal amount, string reason, string userId) =>
+            db.ExecuteNonQuery("mst.CourseRegistration_SetPersonalDiscount", new
+            {
+                APIKey = AppData.GetAPIKey(),
+                RegistrationID = registrationId,
+                Amount = amount,
+                Reason = reason ?? "",
+                LogUserID = userId
+            });
+
+        public Task RequestAccess(string registrationId, string studentId) =>
+            db.ExecuteNonQuery("mst.CourseRegistration_RequestAccess", new { APIKey = AppData.GetAPIKey(), RegistrationID = registrationId, StudentID = studentId });
+
         public Task SetFullAccess(string registrationId, bool fullAccess) =>
             db.ExecuteNonQuery("mst.CourseRegistration_SetFullAccess", new { APIKey = AppData.GetAPIKey(), RegistrationID = registrationId, FullAccess = fullAccess });
     }

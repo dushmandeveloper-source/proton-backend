@@ -52,6 +52,10 @@
                                 Paid: @reg.CurrencyCode @reg.AmountPaid.ToString("N2") &middot;
                                 Balance: @reg.CurrencyCode @reg.BalanceDue.ToString("N2")
                             </p>
+                            @if (reg.HasPersonalDiscount)
+                            {
+                                <p class="text-xs text-emerald-600 dark:text-emerald-300 mt-0.5">Personal discount of @reg.CurrencyCode @reg.PersonalDiscountAmount.ToString("N2") applied</p>
+                            }
                         </div>
                         <a asp-action="Details" asp-route-registrationId="@reg.RegistrationID"
                            class="px-4 py-2 rounded-xl font-medium text-sm bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors flex items-center gap-2 w-fit">

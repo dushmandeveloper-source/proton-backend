@@ -30,7 +30,7 @@
                 This batch's content is hidden because full access hasn't been granted yet.
                 <a asp-area="Student" asp-controller="Courses" asp-action="Index" class="font-medium underline">Pay the full course fee to unlock</a>, or request access from admin.
             </p>
-            <a href="@Web_Backend.Classes.WhatsAppLink.RequestAccess(currentUser?.Name ?? "", currentUser?.Email ?? "", Model.Batch.CourseTitle)" target="_blank" rel="noopener"
+            <a href="@Url.Action("RequestAccess", "Classroom", new { area = "Student", course = Model.Batch.CourseTitle })" target="_blank" rel="noopener"
                class="px-3 py-1.5 rounded-lg font-medium text-xs bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 inline-flex items-center gap-1.5">
                 <i data-lucide="message-circle" class="w-3.5 h-3.5"></i> Request access
             </a>

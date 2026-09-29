@@ -2,9 +2,40 @@
 @{
     ViewData["Title"] = "Dashboard";
     var currentUser = ViewBag.CurrentUser as Web_Backend.Areas.Admin.Models.SessionUser;
+
+    // Currency with the most collected money leads the KPI tiles; any other
+    // currencies are listed under it (amounts are never summed across currencies).
+    var primaryIncome = Model.Income.FirstOrDefault();
+    var otherIncome = Model.Income.Skip(1).ToList();
+    string Money(decimal v) => v.ToString("#,##0.00");
+
+    // Last 12 months as yyyy-MM, oldest first, so months with no payments show as 0.
+    var monthStart = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1);
+    var months = Enumerable.Range(0, 12).Select(i => monthStart.AddMonths(i - 11)).ToList();
+    var incomeSeries = Model.Income.Select(i => i.CurrencyCode).Distinct().ToDictionary(
+        cur => cur,
+        cur => months.Select(m => Model.IncomeMonthly
+            .Where(x => x.CurrencyCode == cur && x.YearMonth == m.ToString("yyyy-MM"))
+            .Sum(x => x.Amount)).ToList());
+    var enrollmentTop = Model.Enrollment.Take(10).ToList();
+    var ep = Model.ExamProgress;
+    var requestedCount = Model.PendingAccess.Count(a => a.AccessRequestedDate.HasValue);
+
+    string StageClass(string label) => label switch
+    {
+        "Awaiting grading" => "bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-300",
+        "Awaiting teacher review" => "bg-sky-50 dark:bg-sky-950 text-sky-700 dark:text-sky-300",
+        _ => "bg-purple-50 dark:bg-purple-950 text-purple-700 dark:text-purple-300"
+    };
+    string SubmissionClass(string label) => label switch
+    {
+        "Graded" => "bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300",
+        "Resubmission requested" => "bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-300",
+        _ => "bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-300"
+    };
 }
 
-<div class="max-w-5xl mx-auto space-y-10 page-enter">
+<div class="max-w-7xl mx-auto space-y-8 page-enter">
 
     <div class="relative">
         <div class="absolute -top-10 right-10 w-32 h-32 bg-cyan-400/20 rounded-full blur-[40px]"></div>
@@ -19,32 +50,376 @@
         </h2>
     </div>
 
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div class="bg-white dark:bg-slate-900/60 p-6 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 hover:shadow-md transition-shadow">
-            <div class="p-3 rounded-2xl bg-purple-50 dark:bg-purple-950 text-purple-600 dark:text-purple-300 w-fit mb-4"><i data-lucide="users" class="w-5 h-5"></i></div>
-            <h3 class="text-3xl font-bold text-slate-800 dark:text-slate-100 mb-1">@Model.TotalUsers</h3>
-            <p class="text-sm text-slate-500 dark:text-slate-400 font-medium">Total Users</p>
+    @* ---------- KPI tiles ---------- *@
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+        <div class="bg-white dark:bg-slate-900/60 p-6 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700">
+            <div class="p-3 rounded-2xl bg-emerald-50 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-300 w-fit mb-4"><i data-lucide="wallet" class="w-5 h-5"></i></div>
+            <p class="text-sm text-slate-500 dark:text-slate-400 font-medium">Income collected</p>
+            <h3 class="text-2xl font-bold text-slate-800 dark:text-slate-100 mt-1">
+                @(primaryIncome == null ? "0.00" : $"{primaryIncome.CurrencyCode} {Money(primaryIncome.Collected)}")
+            </h3>
+            @foreach (var i in otherIncome)
+            {
+                <p class="text-sm font-semibold text-slate-600 dark:text-slate-300">@i.CurrencyCode @Money(i.Collected)</p>
+            }
+            <a asp-controller="Student" asp-action="Index" asp-route-paymentStatusFilter="Paid" class="text-xs font-medium text-[#7c3aed] dark:text-purple-300 hover:underline inline-flex items-center gap-1 mt-3">View paid students <i data-lucide="arrow-right" class="w-3 h-3"></i></a>
         </div>
-        <div class="bg-white dark:bg-slate-900/60 p-6 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 hover:shadow-md transition-shadow">
-            <div class="p-3 rounded-2xl bg-emerald-50 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-300 w-fit mb-4"><i data-lucide="user-check" class="w-5 h-5"></i></div>
-            <h3 class="text-3xl font-bold text-slate-800 dark:text-slate-100 mb-1">@Model.ActiveUsers</h3>
-            <p class="text-sm text-slate-500 dark:text-slate-400 font-medium">Active Users</p>
+        <div class="bg-white dark:bg-slate-900/60 p-6 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700">
+            <div class="p-3 rounded-2xl bg-amber-50 dark:bg-amber-950 text-amber-600 dark:text-amber-300 w-fit mb-4"><i data-lucide="hourglass" class="w-5 h-5"></i></div>
+            <p class="text-sm text-slate-500 dark:text-slate-400 font-medium">Pending payments</p>
+            <h3 class="text-2xl font-bold text-slate-800 dark:text-slate-100 mt-1">
+                @(primaryIncome == null ? "0.00" : $"{primaryIncome.CurrencyCode} {Money(primaryIncome.Outstanding)}")
+            </h3>
+            @foreach (var i in otherIncome)
+            {
+                <p class="text-sm font-semibold text-slate-600 dark:text-slate-300">@i.CurrencyCode @Money(i.Outstanding)</p>
+            }
+            <a asp-controller="Student" asp-action="Index" asp-route-paymentStatusFilter="Unpaid" class="text-xs font-medium text-[#7c3aed] dark:text-purple-300 hover:underline inline-flex items-center gap-1 mt-3">View unpaid students <i data-lucide="arrow-right" class="w-3 h-3"></i></a>
         </div>
-        <div class="bg-white dark:bg-slate-900/60 p-6 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 hover:shadow-md transition-shadow">
-            <div class="p-3 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 w-fit mb-4"><i data-lucide="user-x" class="w-5 h-5"></i></div>
-            <h3 class="text-3xl font-bold text-slate-800 dark:text-slate-100 mb-1">@Model.InactiveUsers</h3>
-            <p class="text-sm text-slate-500 dark:text-slate-400 font-medium">Inactive Users</p>
+        <div class="bg-white dark:bg-slate-900/60 p-6 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700">
+            <div class="p-3 rounded-2xl bg-purple-50 dark:bg-purple-950 text-purple-600 dark:text-purple-300 w-fit mb-4"><i data-lucide="graduation-cap" class="w-5 h-5"></i></div>
+            <p class="text-sm text-slate-500 dark:text-slate-400 font-medium">Students enrolled</p>
+            <h3 class="text-2xl font-bold text-slate-800 dark:text-slate-100 mt-1">@Model.TotalEnrolled</h3>
+            <p class="text-xs text-slate-400 dark:text-slate-500">across @Model.Enrollment.Count(e => e.EnrolledCount > 0) course(s) · @Model.ActiveUsers active users</p>
+            <a asp-controller="Student" asp-action="Index" asp-route-enrollmentFilter="Enrolled" class="text-xs font-medium text-[#7c3aed] dark:text-purple-300 hover:underline inline-flex items-center gap-1 mt-3">View students <i data-lucide="arrow-right" class="w-3 h-3"></i></a>
+        </div>
+        <div class="bg-white dark:bg-slate-900/60 p-6 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700">
+            <div class="p-3 rounded-2xl bg-sky-50 dark:bg-sky-950 text-sky-600 dark:text-sky-300 w-fit mb-4"><i data-lucide="clipboard-check" class="w-5 h-5"></i></div>
+            <p class="text-sm text-slate-500 dark:text-slate-400 font-medium">Exams awaiting review</p>
+            <h3 class="text-2xl font-bold text-slate-800 dark:text-slate-100 mt-1">@ep.PendingTotal</h3>
+            <p class="text-xs text-slate-400 dark:text-slate-500">@ep.Released released of @ep.TotalAttempts attempts</p>
+            <a asp-controller="ExamGrading" asp-action="Index" class="text-xs font-medium text-[#7c3aed] dark:text-purple-300 hover:underline inline-flex items-center gap-1 mt-3">Open exam grading <i data-lucide="arrow-right" class="w-3 h-3"></i></a>
         </div>
     </div>
 
-    <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
-        <div class="p-6 border-b border-slate-100 dark:border-slate-700 flex items-center gap-3">
-            <div class="bg-indigo-50 dark:bg-indigo-950 p-2 rounded-lg"><i data-lucide="bell" class="w-5 h-5 text-indigo-600 dark:text-indigo-300"></i></div>
-            <h3 class="font-semibold text-lg text-slate-800 dark:text-slate-100">Recent Platform Activity</h3>
+    @* ---------- Charts: income + enrollment ---------- *@
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 p-6">
+            <div class="flex items-center justify-between gap-3 mb-4">
+                <div>
+                    <h3 class="font-semibold text-slate-800 dark:text-slate-100">Income by month</h3>
+                    <p class="text-xs text-slate-400 dark:text-slate-500">Payments received, last 12 months &middot; <a asp-controller="Student" asp-action="Index" class="text-[#7c3aed] hover:underline">students &amp; payments</a></p>
+                </div>
+                @if (incomeSeries.Count > 1)
+                {
+                    <select id="income-currency" class="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 text-sm">
+                        @foreach (var cur in incomeSeries.Keys)
+                        {
+                            <option value="@cur">@cur</option>
+                        }
+                    </select>
+                }
+            </div>
+            @if (incomeSeries.Count == 0)
+            {
+                <p class="text-sm text-slate-400 dark:text-slate-500 py-16 text-center">No payments yet.</p>
+            }
+            else
+            {
+                <div class="relative h-64"><canvas id="income-chart" aria-label="Income by month"></canvas></div>
+            }
         </div>
 
-        <div class="p-10 text-center">
-            <p class="text-sm text-slate-400 dark:text-slate-500">No activity log yet — this will populate once activity tracking is added.</p>
+        <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 p-6">
+            <div class="flex items-start justify-between gap-3 mb-4">
+                <div>
+                    <h3 class="font-semibold text-slate-800 dark:text-slate-100">Enrollment by course</h3>
+                    <p class="text-xs text-slate-400 dark:text-slate-500">Active students per course (top 10) &middot; click a bar to open the course</p>
+                </div>
+                <a asp-controller="Course" asp-action="Index" class="text-sm text-[#7c3aed] hover:underline whitespace-nowrap">All courses</a>
+            </div>
+            @if (enrollmentTop.Count == 0)
+            {
+                <p class="text-sm text-slate-400 dark:text-slate-500 py-16 text-center">No courses yet.</p>
+            }
+            else
+            {
+                <div class="relative" style="height:@(Math.Max(160, enrollmentTop.Count * 34))px"><canvas id="enrollment-chart" aria-label="Enrollment by course"></canvas></div>
+            }
         </div>
+    </div>
+
+    @* ---------- Exam progress + pending review ---------- *@
+    <div class="grid grid-cols-1 lg:grid-cols-5 gap-5">
+        <div class="lg:col-span-2 bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 p-6">
+            <h3 class="font-semibold text-slate-800 dark:text-slate-100">Examination progress</h3>
+            <p class="text-xs text-slate-400 dark:text-slate-500 mb-4">Exam attempts by stage</p>
+            <div class="relative h-56"><canvas id="exam-chart" aria-label="Examination progress"></canvas></div>
+        </div>
+
+        <div class="lg:col-span-3 bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
+            <div class="p-6 pb-3 flex items-center justify-between">
+                <div>
+                    <h3 class="font-semibold text-slate-800 dark:text-slate-100">Students with pending review</h3>
+                    <p class="text-xs text-slate-400 dark:text-slate-500">Oldest first</p>
+                </div>
+                <a asp-controller="ExamGrading" asp-action="Index" class="text-sm text-[#7c3aed] hover:underline">Open grading</a>
+            </div>
+            @if (Model.PendingReview.Count == 0)
+            {
+                <p class="text-sm text-slate-400 dark:text-slate-500 px-6 pb-8 pt-4 text-center">Nothing waiting for review.</p>
+            }
+            else
+            {
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead class="text-left text-xs text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/60">
+                            <tr><th class="px-6 py-2 font-medium">Student</th><th class="px-6 py-2 font-medium">Exam</th><th class="px-6 py-2 font-medium">Submitted</th><th class="px-6 py-2 font-medium">Stage</th><th class="px-6 py-2"></th></tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100 dark:divide-slate-700">
+                            @foreach (var r in Model.PendingReview)
+                            {
+                                <tr>
+                                    <td class="px-6 py-2.5"><a asp-controller="Student" asp-action="Details" asp-route-id="@r.StudentID" class="font-medium text-slate-800 dark:text-slate-100 hover:text-[#7c3aed]">@r.FullName</a></td>
+                                    <td class="px-6 py-2.5 text-slate-600 dark:text-slate-300">@r.ExamTitle <span class="text-xs text-slate-400">#@r.AttemptNumber</span></td>
+                                    <td class="px-6 py-2.5 text-slate-500 dark:text-slate-400 whitespace-nowrap">@(r.SubmittedDate?.ToString("dd MMM yyyy HH:mm") ?? "—")</td>
+                                    <td class="px-6 py-2.5"><span class="px-2 py-0.5 rounded-lg text-xs font-medium whitespace-nowrap @StageClass(r.StageLabel)">@r.StageLabel</span></td>
+                                    <td class="px-6 py-2.5 text-right"><a asp-controller="ExamGrading" asp-action="Grade" asp-route-attemptId="@r.AttemptID" class="px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-purple-50 hover:text-[#7c3aed] dark:hover:bg-slate-700 transition-colors whitespace-nowrap">View attempt</a></td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </div>
+
+    @* ---------- Pending full access / access requests ---------- *@
+    <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
+        <div class="p-6 pb-3 flex items-center justify-between gap-3 flex-wrap">
+            <div>
+                <h3 class="font-semibold text-slate-800 dark:text-slate-100">Pending full access</h3>
+                <p class="text-xs text-slate-400 dark:text-slate-500">Students locked out of a course classroom &middot; access requests first</p>
+            </div>
+            <div class="flex gap-2 text-xs">
+                <span class="px-2 py-1 rounded-lg bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-300 font-medium">@requestedCount requested</span>
+                <span class="px-2 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-medium">@Model.PendingAccess.Count pending</span>
+            </div>
+        </div>
+        @if (Model.PendingAccess.Count == 0)
+        {
+            <p class="text-sm text-slate-400 dark:text-slate-500 px-6 pb-8 pt-4 text-center">Every enrolled student has full access.</p>
+        }
+        else
+        {
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead class="text-left text-xs text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/60">
+                        <tr>
+                            <th class="px-6 py-2 font-medium">Student</th><th class="px-6 py-2 font-medium">Course</th><th class="px-6 py-2 font-medium">Payment</th>
+                            <th class="px-6 py-2 font-medium">Request</th><th class="px-6 py-2"></th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100 dark:divide-slate-700">
+                        @foreach (var a in Model.PendingAccess)
+                        {
+                            <tr>
+                                <td class="px-6 py-2.5">
+                                    <a asp-controller="Student" asp-action="Details" asp-route-id="@a.StudentID" class="font-medium text-slate-800 dark:text-slate-100 hover:text-[#7c3aed]">@a.FullName</a>
+                                    <p class="text-xs text-slate-400 dark:text-slate-500">@a.Email</p>
+                                </td>
+                                <td class="px-6 py-2.5 text-slate-600 dark:text-slate-300">@a.CourseTitle</td>
+                                <td class="px-6 py-2.5 whitespace-nowrap">
+                                    @if (a.Balance <= 0)
+                                    {
+                                        <span class="px-2 py-0.5 rounded-lg text-xs font-medium bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300">Fully paid</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="px-2 py-0.5 rounded-lg text-xs font-medium bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-300">Pending &middot; @a.CurrencyCode @Money(a.Balance) due</span>
+                                    }
+                                </td>
+                                <td class="px-6 py-2.5 whitespace-nowrap">
+                                    @if (a.AccessRequestedDate.HasValue)
+                                    {
+                                        <span class="px-2 py-0.5 rounded-lg text-xs font-medium bg-sky-50 dark:bg-sky-950 text-sky-700 dark:text-sky-300">Requested @a.AccessRequestedDate.Value.ToString("dd MMM, HH:mm")</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-xs text-slate-400">&mdash;</span>
+                                    }
+                                </td>
+                                <td class="px-6 py-2.5 text-right whitespace-nowrap">
+                                    <form method="post" asp-controller="Student" asp-action="SetFullAccess" class="inline"
+                                          data-confirm="Grant @a.FullName full access to @a.CourseTitle?" data-confirm-title="Grant full access" data-confirm-label="Grant Access">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="studentId" value="@a.StudentID" />
+                                        <input type="hidden" name="registrationId" value="@a.RegistrationID" />
+                                        <input type="hidden" name="fullAccess" value="true" />
+                                        <input type="hidden" name="returnUrl" value="@Url.Action("Index", "Dashboard")" />
+                                        <button type="submit" class="px-2.5 py-1 rounded-lg text-xs font-medium bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 whitespace-nowrap">Grant access</button>
+                                    </form>
+                                    <a asp-controller="Student" asp-action="Details" asp-route-id="@a.StudentID" class="px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-purple-50 hover:text-[#7c3aed] dark:hover:bg-slate-700 transition-colors whitespace-nowrap">View student</a>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+
+    @* ---------- Top 10 pending payments ---------- *@
+    <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
+        <div class="p-6 pb-3">
+            <h3 class="font-semibold text-slate-800 dark:text-slate-100">Top 10 pending payments</h3>
+            <p class="text-xs text-slate-400 dark:text-slate-500">Students with the largest unpaid balance</p>
+        </div>
+        @if (Model.PendingPayments.Count == 0)
+        {
+            <p class="text-sm text-slate-400 dark:text-slate-500 px-6 pb-8 pt-4 text-center">No pending payments.</p>
+        }
+        else
+        {
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead class="text-left text-xs text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/60">
+                        <tr>
+                            <th class="px-6 py-2 font-medium">#</th><th class="px-6 py-2 font-medium">Student</th><th class="px-6 py-2 font-medium">Courses</th>
+                            <th class="px-6 py-2 font-medium text-right">Total fee</th><th class="px-6 py-2 font-medium text-right">Paid</th><th class="px-6 py-2 font-medium text-right">Balance</th><th class="px-6 py-2"></th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100 dark:divide-slate-700">
+                        @{ var rank = 0; }
+                        @foreach (var p in Model.PendingPayments)
+                        {
+                            rank++;
+                            <tr>
+                                <td class="px-6 py-2.5 text-slate-400">@rank</td>
+                                <td class="px-6 py-2.5">
+                                    <a asp-controller="Student" asp-action="Details" asp-route-id="@p.StudentID" class="font-medium text-slate-800 dark:text-slate-100 hover:text-[#7c3aed]">@p.FullName</a>
+                                    <p class="text-xs text-slate-400 dark:text-slate-500">@p.Email</p>
+                                </td>
+                                <td class="px-6 py-2.5 text-slate-600 dark:text-slate-300">@p.CourseCount</td>
+                                <td class="px-6 py-2.5 text-right text-slate-600 dark:text-slate-300 whitespace-nowrap">@p.CurrencyCode @Money(p.TotalFee)</td>
+                                <td class="px-6 py-2.5 text-right text-slate-600 dark:text-slate-300 whitespace-nowrap">@p.CurrencyCode @Money(p.Paid)</td>
+                                <td class="px-6 py-2.5 text-right font-semibold text-slate-800 dark:text-slate-100 whitespace-nowrap">@p.CurrencyCode @Money(p.Balance)</td>
+                                <td class="px-6 py-2.5 text-right"><a asp-controller="Student" asp-action="Details" asp-route-id="@p.StudentID" class="px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-purple-50 hover:text-[#7c3aed] dark:hover:bg-slate-700 transition-colors whitespace-nowrap">View payments</a></td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+
+    @* ---------- Latest submissions ---------- *@
+    <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
+        <div class="p-6 pb-3">
+            <h3 class="font-semibold text-slate-800 dark:text-slate-100">Latest student submissions</h3>
+            <p class="text-xs text-slate-400 dark:text-slate-500">Most recent homework uploads</p>
+        </div>
+        @if (Model.LatestSubmissions.Count == 0)
+        {
+            <p class="text-sm text-slate-400 dark:text-slate-500 px-6 pb-8 pt-4 text-center">No submissions yet.</p>
+        }
+        else
+        {
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead class="text-left text-xs text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/60">
+                        <tr>
+                            <th class="px-6 py-2 font-medium">Student</th><th class="px-6 py-2 font-medium">Homework</th><th class="px-6 py-2 font-medium">Course</th>
+                            <th class="px-6 py-2 font-medium">Submitted</th><th class="px-6 py-2 font-medium">Status</th><th class="px-6 py-2 font-medium text-right">Marks</th><th class="px-6 py-2"></th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100 dark:divide-slate-700">
+                        @foreach (var s in Model.LatestSubmissions)
+                        {
+                            <tr>
+                                <td class="px-6 py-2.5"><a asp-controller="Student" asp-action="Details" asp-route-id="@s.StudentID" class="font-medium text-slate-800 dark:text-slate-100 hover:text-[#7c3aed]">@s.FullName</a></td>
+                                <td class="px-6 py-2.5 text-slate-600 dark:text-slate-300">@s.MaterialTitle</td>
+                                <td class="px-6 py-2.5 text-slate-600 dark:text-slate-300">@s.CourseTitle</td>
+                                <td class="px-6 py-2.5 text-slate-500 dark:text-slate-400 whitespace-nowrap">@s.SubmittedDate.ToString("dd MMM yyyy HH:mm")</td>
+                                <td class="px-6 py-2.5"><span class="px-2 py-0.5 rounded-lg text-xs font-medium whitespace-nowrap @SubmissionClass(s.StatusLabel)">@s.StatusLabel</span></td>
+                                <td class="px-6 py-2.5 text-right text-slate-700 dark:text-slate-200">@(s.MarksAwarded?.ToString("0.##") ?? "—")</td>
+                                <td class="px-6 py-2.5 text-right"><a asp-controller="LectureNote" asp-action="Submissions" asp-route-materialId="@s.MaterialID" class="px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-purple-50 hover:text-[#7c3aed] dark:hover:bg-slate-700 transition-colors whitespace-nowrap">View submission</a></td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
     </div>
 </div>
+
+@section Scripts {
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+    <script>
+        (function () {
+            if (!window.Chart) return;
+            const dark = document.documentElement.classList.contains('dark');
+            const ink = dark ? '#cbd5e1' : '#475569';
+            const grid = dark ? 'rgba(148,163,184,0.15)' : 'rgba(148,163,184,0.25)';
+            const brand = dark ? '#a78bfa' : '#7c3aed';
+            Chart.defaults.color = ink;
+            Chart.defaults.font.family = 'inherit';
+            Chart.defaults.plugins.legend.display = false;
+            const bar = { backgroundColor: brand, borderRadius: 4, borderSkipped: 'start', maxBarThickness: 28 };
+            const fmt = v => Number(v).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+
+            // Income by month — one currency at a time (never mixed).
+            const incomeCanvas = document.getElementById('income-chart');
+            if (incomeCanvas) {
+                const labels = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(months.Select(m => m.ToString("MMM yy"))));
+                const series = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(incomeSeries));
+                const currencies = Object.keys(series);
+                const incomeChart = new Chart(incomeCanvas, {
+                    type: 'bar',
+                    data: { labels, datasets: [{ label: currencies[0], data: series[currencies[0]], ...bar }] },
+                    options: {
+                        responsive: true, maintainAspectRatio: false,
+                        scales: { x: { grid: { display: false } }, y: { beginAtZero: true, grid: { color: grid }, ticks: { callback: fmt } } },
+                        plugins: { tooltip: { callbacks: { label: ctx => `${ctx.dataset.label} ${fmt(ctx.parsed.y)}` } } }
+                    }
+                });
+                const picker = document.getElementById('income-currency');
+                if (picker) picker.addEventListener('change', () => {
+                    incomeChart.data.datasets[0].label = picker.value;
+                    incomeChart.data.datasets[0].data = series[picker.value];
+                    incomeChart.update();
+                });
+            }
+
+            // Enrollment by course — horizontal bars.
+            const enrollCanvas = document.getElementById('enrollment-chart');
+            const courseUrl = '@Url.Action("Details", "Course")/';
+            if (enrollCanvas) {
+                const rows = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(enrollmentTop.Select(e => new { e.CourseID, e.CourseTitle, e.EnrolledCount })));
+                new Chart(enrollCanvas, {
+                    type: 'bar',
+                    data: {
+                        labels: rows.map(r => r.CourseTitle.length > 34 ? r.CourseTitle.slice(0, 33) + '…' : r.CourseTitle),
+                        datasets: [{ label: 'Students', data: rows.map(r => r.EnrolledCount), ...bar }]
+                    },
+                    options: {
+                        indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+                        scales: { x: { beginAtZero: true, grid: { color: grid }, ticks: { precision: 0 } }, y: { grid: { display: false } } },
+                        plugins: { tooltip: { callbacks: { title: items => rows[items[0].dataIndex].CourseTitle, label: ctx => `${ctx.parsed.x} student(s) — click to open` } } },
+                        onHover: (evt, els) => { evt.native.target.style.cursor = els.length ? 'pointer' : 'default'; },
+                        onClick: (evt, els) => { if (els.length) window.location = courseUrl + encodeURIComponent(rows[els[0].index].CourseID); }
+                    }
+                });
+            }
+
+            // Examination progress — attempts per stage.
+            const examCanvas = document.getElementById('exam-chart');
+            if (examCanvas) {
+                new Chart(examCanvas, {
+                    type: 'bar',
+                    data: {
+                        labels: ['In progress', 'Awaiting grading', 'Teacher review', 'Admin approval', 'Released'],
+                        datasets: [{ label: 'Attempts', data: [@ep.InProgress, @ep.AwaitingGrading, @ep.AwaitingTeacher, @ep.AwaitingAdmin, @ep.Released], ...bar }]
+                    },
+                    options: {
+                        indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+                        scales: { x: { beginAtZero: true, grid: { color: grid }, ticks: { precision: 0 } }, y: { grid: { display: false } } },
+                        plugins: { tooltip: { callbacks: { label: ctx => `${ctx.parsed.x} attempt(s)` } } },
+                        onHover: (evt, els) => { evt.native.target.style.cursor = els.length ? 'pointer' : 'default'; },
+                        onClick: (evt, els) => { if (els.length) window.location = '@Url.Action("Index", "ExamGrading")' + (els[0].index === 3 ? '?tab=review' : ''); }
+                    }
+                });
+            }
+        })();
+    </script>
+}

@@ -115,7 +115,7 @@ namespace Web_Backend.Areas.Admin.Controllers
             if (material == null)
             {
                 TempData["ErrorMessage"] = "Homework item not found.";
-                return RedirectToAction("Index");
+                return RedirectToAction("Index", "Classroom");
             }
 
             var submissions = await submissionRep.ListForMaterial(materialId);

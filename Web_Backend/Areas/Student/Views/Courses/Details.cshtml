@@ -91,7 +91,17 @@
         <div class="p-6 grid grid-cols-1 md:grid-cols-3 gap-6">
             <div>
                 <p class="text-xs text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">Course Fee</p>
+                @if (Model.Registration.HasPersonalDiscount)
+                {
+                    <p class="text-sm line-through text-slate-400 dark:text-slate-500">@Model.Registration.CurrencyCode @Model.Registration.FeeBeforePersonalDiscount.ToString("N2")</p>
+                }
                 <p class="text-xl font-bold text-slate-800 dark:text-slate-100">@Model.Registration.CurrencyCode @Model.Registration.CourseFee.ToString("N2")</p>
+                @if (Model.Registration.HasPersonalDiscount)
+                {
+                    <p class="mt-1 inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs font-medium bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300">
+                        <i data-lucide="badge-percent" class="w-3.5 h-3.5"></i> Personal discount &minus;@Model.Registration.CurrencyCode @Model.Registration.PersonalDiscountAmount.ToString("N2")@(string.IsNullOrEmpty(Model.Registration.PersonalDiscountReason) ? "" : " · " + Model.Registration.PersonalDiscountReason)
+                    </p>
+                }
             </div>
             <div>
                 <p class="text-xs text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">Amount Paid</p>
@@ -211,55 +221,7 @@
         }
     </div>
 
-    @* ---------- Course videos (payment-gated) ---------- *@
-    <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
-        <div class="p-6 border-b border-slate-100 dark:border-slate-700 flex items-center gap-3">
-            <div class="bg-purple-50 dark:bg-purple-950 p-2 rounded-lg"><i data-lucide="play-circle" class="w-5 h-5 text-purple-600 dark:text-purple-300"></i></div>
-            <h3 class="font-semibold text-lg text-slate-800 dark:text-slate-100">Course Videos</h3>
-        </div>
-        @if (Model.Videos.Count == 0)
-        {
-            <div class="p-10 text-center">
-                <p class="text-sm text-slate-400 dark:text-slate-500">No videos have been added for this course yet.</p>
-            </div>
-        }
-        else
-        {
-            <div class="divide-y divide-slate-100 dark:divide-slate-700">
-                @foreach (var v in Model.Videos)
-                {
-                    <div class="p-4 px-6 flex items-center justify-between gap-4">
-                        <div class="flex items-center gap-3">
-                            <div class="p-2 rounded-lg bg-slate-50 dark:bg-slate-800 flex-shrink-0">
-                                <i data-lucide="@(v.IsUnlocked ? "play-circle" : "lock")" class="w-4 h-4 text-slate-500 dark:text-slate-400"></i>
-                            </div>
-                            <div>
-                                <p class="text-sm font-medium text-slate-800 dark:text-slate-100">@v.Title</p>
-                                @if (!string.IsNullOrEmpty(v.Description))
-                                {
-                                    <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">@v.Description</p>
-                                }
-                            </div>
-                        </div>
-                        @if (v.IsUnlocked)
-                        {
-                            <button type="button" data-video-url="@v.PlayableUrl" onclick="openCourseVideoPreview(this.dataset.videoUrl)"
-                                    class="px-3 py-1.5 rounded-lg font-medium text-xs bg-purple-50 dark:bg-purple-950 text-[#7c3aed] dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900 transition-colors flex-shrink-0 flex items-center gap-1.5">
-                                <i data-lucide="play" class="w-3.5 h-3.5"></i> Watch
-                            </button>
-                        }
-                        else
-                        {
-                            <a asp-action="PayBalance" asp-route-registrationId="@Model.Registration.RegistrationID"
-                               class="px-3 py-1.5 rounded-lg font-medium text-xs bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900 transition-colors flex-shrink-0 flex items-center gap-1.5">
-                                <i data-lucide="lock" class="w-3.5 h-3.5"></i> Pay full amount to unlock
-                            </a>
-                        }
-                    </div>
-                }
-            </div>
-        }
-    </div>
+
 
     @* ---------- Schedule segments ---------- *@
     <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">

@@ -166,7 +166,7 @@
                                         }
                                         else if (examJoin != null && !examJoin.HasFullAccess)
                                         {
-                                            <a href="@Web_Backend.Classes.WhatsAppLink.RequestAccess(currentUser?.Name ?? "", currentUser?.Email ?? "", seg.CourseTitle)" target="_blank" rel="noopener"
+                                            <a href="@Url.Action("RequestAccess", "Classroom", new { area = "Student", course = seg.CourseTitle })" target="_blank" rel="noopener"
                                                class="px-3 py-1.5 rounded-lg font-medium text-xs bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900 transition-colors flex items-center gap-1.5 flex-shrink-0"
                                                title="Pay the full course fee to unlock, or request access from admin">
                                                 <i data-lucide="message-circle" class="w-3.5 h-3.5"></i> Request Access
@@ -199,7 +199,7 @@
                                     }
                                     else if (!Model.IsContentRestricted && !string.IsNullOrEmpty(seg.MeetingLink) && !HasCourseFullAccess(seg.CourseID))
                                     {
-                                        <a href="@Web_Backend.Classes.WhatsAppLink.RequestAccess(currentUser?.Name ?? "", currentUser?.Email ?? "", seg.CourseTitle)" target="_blank" rel="noopener"
+                                        <a href="@Url.Action("RequestAccess", "Classroom", new { area = "Student", course = seg.CourseTitle })" target="_blank" rel="noopener"
                                            class="px-3 py-1.5 rounded-lg font-medium text-xs bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900 transition-colors flex items-center gap-1.5 flex-shrink-0"
                                            title="Pay the full course fee to unlock, or request access from admin">
                                             <i data-lucide="message-circle" class="w-3.5 h-3.5"></i> Request Access

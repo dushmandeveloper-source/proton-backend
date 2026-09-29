@@ -44,6 +44,17 @@ namespace Web_Backend.Areas.Admin.Models
         public bool HasDiscount => DiscountAmount > 0;
         public bool HasFeeCharges => FeeChargesTotal > 0;
 
+        // Per-student discount set by Admin (0084). Already subtracted from
+        // CourseFee; FeeBeforePersonalDiscount is what CourseFee was before it.
+        public decimal PersonalDiscountAmount { get; set; }
+        public string PersonalDiscountReason { get; set; } = "";
+        public DateTime? PersonalDiscountDate { get; set; }
+        public bool HasPersonalDiscount => PersonalDiscountAmount > 0;
+
+        // Last time the student pressed "Request access" (0085); cleared on grant.
+        public DateTime? AccessRequestedDate { get; set; }
+        public decimal FeeBeforePersonalDiscount => CourseFee + PersonalDiscountAmount;
+
         // "Unpaid" | "PartiallyPaid" | "Paid" — maintained by the payment
         // sprocs, never set directly by app code.
         public string PaymentStatus { get; set; } = "Unpaid";

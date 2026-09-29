@@ -40,7 +40,7 @@
                     date = d.ToString("yyyy-MM-dd"),
                     title = string.IsNullOrEmpty(s.ScheduleName) ? s.ExamTitle : s.ScheduleName,
                     examTitle = s.ExamTitle,
-                    time = seg.TimeRangeText,
+                    time = seg.TimeRangeTextOn(d),
                     location = s.Location,
                     capacity = s.Capacity,
                     trainer = s.InstructorsLabel,
@@ -267,6 +267,7 @@
                                                             startDate = seg.StartDate.ToString("yyyy-MM-dd"), endDate = seg.EndDate.ToString("yyyy-MM-dd"),
                                                             daysOfWeek = seg.DaysOfWeek, startTime = seg.StartTime.HasValue ? seg.StartTime.Value.ToString("hh\\:mm") : "",
                                                             endTime = seg.EndTime.HasValue ? seg.EndTime.Value.ToString("hh\\:mm") : "", exceptionDates = seg.ExceptionDates,
+                                                            timeOverrides = seg.TimeOverrides,
                                                             meetingLink = seg.MeetingLink
                                                         }),
                                                         instructorIDs = s.Instructors.Select(i => i.UserID)
@@ -503,8 +504,16 @@
                 let startISO = null;
                 let endISO = null;
                 const offDates = new Set();
+                // iso -> { start: 'HH:mm', end: 'HH:mm' } — dates in this
+                // period that run at a different time (TimeOverrides, 0081).
+                const timeOverrides = new Map();
 
                 if (initialData) {
+                    (initialData.timeOverrides || '').split(',').filter(Boolean).forEach(entry => {
+                        const [iso, range] = entry.split('@@');
+                        const [start, end] = (range || '').split('-');
+                        if (iso && start && end) timeOverrides.set(iso, { start, end });
+                    });
                     startISO = initialData.startDate;
                     endISO = initialData.endDate;
                     (initialData.exceptionDates || '').split(',').filter(Boolean).forEach(d => offDates.add(d));
@@ -579,12 +588,13 @@
                         const off = isOffDay(iso, jsDay);
                         const shaded = !isOtherMonth && inRange(iso) && !selected && !off;
                         const isEndpoint = iso === startISO || iso === endISO;
+                        const hasOverride = selected && timeOverrides.has(iso);
 
                         const dayHolidays = (window.protonHolidaysByDate || {})[iso] || [];
                         const isHoliday = dayHolidays.length > 0 && !isOtherMonth;
                         const holidayTitle = isHoliday ? dayHolidays.map(h => h.title).join(', ') : '';
 
-                        cells += `<button type="button" data-iso="${iso}" title="${holidayTitle ? `Holiday: ${holidayTitle}` : ''}${off ? ' — Click to restore this class day' : (selected ? ' — Click to mark this day off' : '')}"
+                        cells += `<button type="button" data-iso="${iso}" title="${holidayTitle ? `Holiday: ${holidayTitle}` : ''}${hasOverride ? `Custom time ${timeOverrides.get(iso).start}-${timeOverrides.get(iso).end}` : ''}${off ? ' — Click to restore this class day' : (selected ? ' — Click to mark this day off' : '')}"
                             class="period-cal-day relative text-xs rounded-lg py-1.5 transition-colors
                                 ${isOtherMonth ? 'text-slate-300 dark:text-slate-700 cursor-default' : 'cursor-pointer'}
                                 ${selected ? 'bg-[#7c3aed] text-white font-semibold' : ''}
@@ -594,9 +604,10 @@
                                 ${!selected && !off && !shaded && !isHoliday && !isOtherMonth ? 'hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200' : ''}
                                 ${isEndpoint ? 'ring-2 ring-[#7c3aed]' : ''}
                                 ${isHoliday ? 'ring-1 ring-yellow-400 dark:ring-yellow-600' : ''}"
-                            ${isOtherMonth ? 'disabled' : ''}>${dayNum}${isHoliday ? '<span class="absolute top-0.5 right-0.5 w-1.5 h-1.5 rounded-full bg-yellow-400"></span>' : ''}</button>`;
+                            ${isOtherMonth ? 'disabled' : ''}>${dayNum}${isHoliday ? '<span class="absolute top-0.5 right-0.5 w-1.5 h-1.5 rounded-full bg-yellow-400"></span>' : ''}${hasOverride ? '<span class="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-sky-300"></span>' : ''}</button>`;
                     }
                     calGrid.innerHTML = cells;
+                    renderOverrides();
 
                     calGrid.querySelectorAll('.period-cal-day:not([disabled])').forEach(btn => {
                         btn.addEventListener('click', () => {
@@ -612,7 +623,54 @@
                                 return;
                             }
 
-                            if (!startISO || rangeComplete) {
+                            // Range already set and this day falls outside it:
+                            // extend the range to include just this one day,
+                            // keeping every existing selection. Class days in
+                            // the newly covered gap are marked off so only the
+                            // clicked day is added. (Use "Clear dates" to
+                            // start a fresh range.)
+                            if (rangeComplete && !inRange(iso)) {
+                                const gapFrom = iso < startISO ? iso : endISO;
+                                const gapTo = iso < startISO ? startISO : iso;
+                                if (iso < startISO) startISO = iso; else endISO = iso;
+                                const d = new Date(gapFrom + 'T00:00:00');
+                                d.setDate(d.getDate() + 1);
+                                const stop = new Date(gapTo + 'T00:00:00');
+                                for (; d < stop; d.setDate(d.getDate() + 1)) {
+                                    const gIso = toISO(d.getFullYear(), d.getMonth(), d.getDate());
+                                    if (isClassDay(gIso, d.getDay())) offDates.add(gIso);
+                                }
+                                updateLabel();
+                                render();
+                                return;
+                            }
+
+                            // In range but not on an active weekday: add just
+                            // this one date to THIS period (instead of forcing
+                            // a new period) by activating its weekday and
+                            // marking every other in-range date of that
+                            // weekday off. E.g. a Tue/Sat period + click Thu 24
+                            // → Thu enabled, only Thu 24 is a class day.
+                            if (rangeComplete) {
+                                const code = dowCode(jsDay);
+                                const dayLabel = Array.from(row.querySelectorAll('.period-day-label'))
+                                    .find(l => l.querySelector('input').value === code);
+                                if (!dayLabel || activeDays().length === 0) return;
+                                const d = new Date(startISO + 'T00:00:00');
+                                const stop = new Date(endISO + 'T00:00:00');
+                                for (; d <= stop; d.setDate(d.getDate() + 1)) {
+                                    if (d.getDay() !== jsDay) continue;
+                                    const gIso = toISO(d.getFullYear(), d.getMonth(), d.getDate());
+                                    if (gIso !== iso) offDates.add(gIso);
+                                }
+                                offDates.delete(iso);
+                                setDayChecked(dayLabel, true);
+                                updateLabel();
+                                render();
+                                return;
+                            }
+
+                            if (!startISO) {
                                 startISO = iso;
                                 endISO = null;
                                 offDates.clear();
@@ -628,6 +686,74 @@
                     });
                     updateLabel();
                 }
+
+                // ---------- Per-date time overrides ----------
+                const ovDate = row.querySelector('.ov-date');
+                const ovStart = row.querySelector('.ov-start');
+                const ovEnd = row.querySelector('.ov-end');
+                const ovList = row.querySelector('.ov-list');
+
+                function classDates() {
+                    if (!startISO || !endISO) return [];
+                    const out = [];
+                    const d = new Date(startISO + 'T00:00:00');
+                    const stop = new Date(endISO + 'T00:00:00');
+                    for (; d <= stop; d.setDate(d.getDate() + 1)) {
+                        const iso = toISO(d.getFullYear(), d.getMonth(), d.getDate());
+                        if (isClassDay(iso, d.getDay())) out.push(iso);
+                    }
+                    return out;
+                }
+
+                function shortDate(iso) {
+                    return new Date(iso + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'short' });
+                }
+
+                function renderOverrides() {
+                    const dates = classDates();
+                    const prev = ovDate.value;
+                    ovDate.innerHTML = '<option value="">Pick a date</option>' +
+                        dates.map(iso => `<option value="${iso}">${shortDate(iso)}</option>`).join('');
+                    if (dates.includes(prev)) ovDate.value = prev;
+
+                    // Only overrides on dates that are still class days are
+                    // shown/saved — one on a date since marked off or moved
+                    // out of range is dropped.
+                    const live = Array.from(timeOverrides.keys()).filter(iso => dates.includes(iso)).sort();
+                    ovList.innerHTML = live.map(iso => {
+                        const t = timeOverrides.get(iso);
+                        return `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-sky-100 dark:bg-sky-950 text-sky-800 dark:text-sky-300 text-[11px]">
+                            ${shortDate(iso)} · ${formatAmPm(t.start)} - ${formatAmPm(t.end)}
+                            <button type="button" class="ov-remove hover:text-red-500" data-iso="${iso}" title="Use the period's normal time">&times;</button>
+                        </span>`;
+                    }).join('');
+                    ovList.querySelectorAll('.ov-remove').forEach(btn => btn.addEventListener('click', () => {
+                        timeOverrides.delete(btn.dataset.iso);
+                        render();
+                    }));
+                }
+
+                function overridesCsv() {
+                    const dates = classDates();
+                    return Array.from(timeOverrides.entries())
+                        .filter(([iso]) => dates.includes(iso))
+                        .sort(([a], [b]) => a.localeCompare(b))
+                        .map(([iso, t]) => `${iso}@@${t.start}-${t.end}`).join(',');
+                }
+
+                ovDate.addEventListener('change', () => {
+                    const t = timeOverrides.get(ovDate.value);
+                    ovStart.value = t ? t.start : row.querySelector('.period-start-time').value;
+                    ovEnd.value = t ? t.end : row.querySelector('.period-end-time').value;
+                });
+                row.querySelector('.ov-add').addEventListener('click', () => {
+                    if (!ovDate.value) { showToast('Pick a date for the different time.', 'error'); return; }
+                    if (!ovStart.value || !ovEnd.value) { showToast('Enter a start and end time.', 'error'); return; }
+                    if (ovEnd.value <= ovStart.value) { showToast('End time must be after start time.', 'error'); return; }
+                    timeOverrides.set(ovDate.value, { start: ovStart.value, end: ovEnd.value });
+                    ovDate.value = '';
+                    render();
+                });
 
                 row.querySelector('.period-cal-prev').addEventListener('click', () => {
                     viewDate.setMonth(viewDate.getMonth() - 1);
@@ -647,7 +773,8 @@
                     getRange: () => ({
                         startDate: startISO,
                         endDate: endISO || startISO,
-                        exceptionDates: Array.from(offDates).sort().join(',')
+                        exceptionDates: Array.from(offDates).sort().join(','),
+                        timeOverrides: overridesCsv()
                     })
                 };
             }
@@ -698,6 +825,17 @@
                             <div>
                                 <input type="url" class="period-meeting-link w-full px-2 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 text-sm"
                                        placeholder="Meeting link (Zoom / VooV / Teams, optional)" />
+                            </div>
+                            <div>
+                                <p class="text-xs font-medium text-slate-600 dark:text-slate-300 mb-1.5">Different time on a specific date <span class="text-slate-400 font-normal">(optional)</span></p>
+                                <div class="flex flex-wrap gap-1.5 items-center">
+                                    <select class="ov-date px-2 py-1.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 text-xs"></select>
+                                    <input type="time" class="ov-start px-2 py-1 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 text-xs" />
+                                    <span class="text-xs text-slate-400">to</span>
+                                    <input type="time" class="ov-end px-2 py-1 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 text-xs" />
+                                    <button type="button" class="ov-add px-2 py-1 rounded-lg bg-[#7c3aed] text-white text-xs hover:bg-[#6d28d9]">Set time</button>
+                                </div>
+                                <div class="ov-list flex flex-wrap gap-1 mt-1.5"></div>
                             </div>
                             <button type="button" class="remove-period-btn text-xs text-red-500 hover:underline">Remove period</button>
                         </div>
@@ -786,7 +924,8 @@
                         endTime: row.querySelector('.period-end-time').value,
                         sortOrder: i,
                         exceptionDates: range.exceptionDates,
-                        meetingLink: row.querySelector('.period-meeting-link').value.trim()
+                        meetingLink: row.querySelector('.period-meeting-link').value.trim(),
+                        timeOverrides: range.timeOverrides
                     });
                 });
                 if (segments.some(s => !s.daysOfWeek)) {
