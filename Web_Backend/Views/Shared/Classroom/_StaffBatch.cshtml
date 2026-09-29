@@ -27,22 +27,102 @@
     <div class="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-6">
         @* ---------- Module list ---------- *@
         <aside class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 p-3 space-y-1 h-fit">
-            <p class="px-3 pt-2 pb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-400">Modules</p>
+            <div class="px-3 pt-2 pb-1 flex items-center justify-between">
+                <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Modules</p>
+                @if (Model.CanEdit && Model.Modules.Count > 1)
+                {
+                    <span id="module-order-status" class="text-[10px] text-slate-400">Drag to reorder</span>
+                }
+            </div>
+            <div id="module-list" class="space-y-1" data-schedule-id="@Model.Batch.ScheduleID">
             @foreach (var m in Model.Modules)
             {
                 var active = m.ModuleID == Model.SelectedModuleID;
-                <a href="@Url.Action("Batch", new { id = Model.Batch.ScheduleID, module = m.ModuleID })"
-                   class="flex items-center gap-3 px-3 py-2.5 rounded-2xl transition-colors @(active ? "bg-purple-50 dark:bg-purple-950/60 text-[#7c3aed] dark:text-purple-200 font-semibold" : "text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800")">
-                    <i data-lucide="@m.Icon" class="w-4 h-4 flex-shrink-0"></i>
-                    <span class="flex-1 min-w-0">
-                        <span class="block text-sm truncate">@m.ModuleName</span>
-                        @if (m.ModuleDate.HasValue)
-                        {
-                            <span class="block text-[11px] text-slate-400 font-normal">@m.ModuleDate.Value.ToString("MMM d, yyyy")</span>
+                <div class="module-row group/mod relative flex items-center rounded-2xl" data-module-id="@m.ModuleID" draggable="@(Model.CanEdit && Model.Modules.Count > 1 ? "true" : "false")">
+                    @if (Model.CanEdit && Model.Modules.Count > 1)
+                    {
+                        <span class="module-drag pl-1 text-slate-300 dark:text-slate-600 cursor-grab active:cursor-grabbing" title="Drag to reorder"><i data-lucide="grip-vertical" class="w-4 h-4"></i></span>
+                    }
+                    <a href="@Url.Action("Batch", new { id = Model.Batch.ScheduleID, module = m.ModuleID })" draggable="false"
+                       class="flex-1 min-w-0 flex items-center gap-3 px-3 py-2.5 rounded-2xl transition-colors @(active ? "bg-purple-50 dark:bg-purple-950/60 text-[#7c3aed] dark:text-purple-200 font-semibold" : "text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800")">
+                        <i data-lucide="@m.Icon" class="w-4 h-4 flex-shrink-0"></i>
+                        <span class="flex-1 min-w-0">
+                            <span class="block text-sm truncate">@m.ModuleName</span>
+                            @if (m.ModuleDate.HasValue)
+                            {
+                                <span class="block text-[11px] text-slate-400 font-normal">@m.ModuleDate.Value.ToString("MMM d, yyyy")</span>
+                            }
+                        </span>
+                        <span class="text-[11px] text-slate-400 font-normal group-hover/mod:hidden">@m.ItemCount</span>
+                    </a>
+                    @if (Model.CanEdit && Model.Modules.Count > 1)
+                    {
+                        <span class="absolute right-2 top-1/2 -translate-y-1/2 hidden group-hover/mod:flex flex-col">
+                            <button type="button" class="module-up p-0.5 rounded text-slate-400 hover:text-[#7c3aed] hover:bg-white dark:hover:bg-slate-700" title="Move up"><i data-lucide="chevron-up" class="w-3.5 h-3.5"></i></button>
+                            <button type="button" class="module-down p-0.5 rounded text-slate-400 hover:text-[#7c3aed] hover:bg-white dark:hover:bg-slate-700" title="Move down"><i data-lucide="chevron-down" class="w-3.5 h-3.5"></i></button>
+                        </span>
+                    }
+                </div>
+            }
+            </div>
+            @if (Model.CanEdit && Model.Modules.Count > 1)
+            {
+                <form id="module-order-form" asp-action="ReorderModules" method="post" class="hidden">@Html.AntiForgeryToken()</form>
+                <script>
+                    (function () {
+                        const list = document.getElementById('module-list');
+                        const status = document.getElementById('module-order-status');
+                        const form = document.getElementById('module-order-form');
+                        let dragging = null;
+
+                        function save() {
+                            const body = new URLSearchParams();
+                            body.append('scheduleId', list.dataset.scheduleId);
+                            body.append('__RequestVerificationToken', form.querySelector('input[name="__RequestVerificationToken"]').value);
+                            list.querySelectorAll('.module-row').forEach(r => body.append('moduleIds', r.dataset.moduleId));
+                            status.textContent = 'Saving…';
+                            fetch(form.action, { method: 'POST', body })
+                                .then(r => r.json())
+                                .then(d => {
+                                    status.textContent = d.ok ? 'Order saved' : 'Could not save';
+                                    if (!d.ok && window.showToast) showToast(d.error || 'Could not save module order.', 'error');
+                                    setTimeout(() => { status.textContent = 'Drag to reorder'; }, 1800);
+                                })
+                                .catch(() => { status.textContent = 'Could not save'; });
                         }
-                    </span>
-                    <span class="text-[11px] text-slate-400 font-normal">@m.ItemCount</span>
-                </a>
+
+                        list.addEventListener('dragstart', e => {
+                            dragging = e.target.closest('.module-row');
+                            if (!dragging) return;
+                            e.dataTransfer.effectAllowed = 'move';
+                            setTimeout(() => dragging && dragging.classList.add('opacity-40'), 0);
+                        });
+                        list.addEventListener('dragover', e => {
+                            if (!dragging) return;
+                            e.preventDefault();
+                            const over = e.target.closest('.module-row');
+                            if (!over || over === dragging) return;
+                            const rect = over.getBoundingClientRect();
+                            list.insertBefore(dragging, e.clientY < rect.top + rect.height / 2 ? over : over.nextSibling);
+                        });
+                        list.addEventListener('dragend', () => {
+                            if (!dragging) return;
+                            dragging.classList.remove('opacity-40');
+                            dragging = null;
+                            save();
+                        });
+                        list.addEventListener('click', e => {
+                            const up = e.target.closest('.module-up'), down = e.target.closest('.module-down');
+                            if (!up && !down) return;
+                            e.preventDefault();
+                            const row = e.target.closest('.module-row');
+                            if (up && row.previousElementSibling) list.insertBefore(row, row.previousElementSibling);
+                            else if (down && row.nextElementSibling) list.insertBefore(row.nextElementSibling, row);
+                            else return;
+                            save();
+                        });
+                    })();
+                </script>
             }
             @if (Model.GeneralCount > 0 || Model.Modules.Count == 0 || Model.SelectedModuleID == null)
             {
