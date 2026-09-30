@@ -389,8 +389,13 @@ namespace Web_Backend.Controllers.Api
             var withBalance = (await registrationRep.GetByStudent(student.StudentID)).FirstOrDefault(r => r.RegistrationID == registrationId);
             if (withBalance != null)
             {
-                var options = PaymentOptions.For(withBalance, await registrationRep.GetInstallments(registrationId), SriLankaTime.Today);
-                if (PaymentOptions.Match(options, null, request.Amount) == null)
+                var plan = await registrationRep.GetInstallments(registrationId);
+                var options = PaymentOptions.For(withBalance, plan, SriLankaTime.Today);
+                // The website's enrollment flow registers first, then sends the
+                // student's first (deposit) payment here -- any amount up to the
+                // fee is fine for that very first payment when there's no plan.
+                var isInitialDeposit = alreadyPaid <= 0 && plan.Count == 0 && request.Amount <= withBalance.BalanceDue;
+                if (!isInitialDeposit && PaymentOptions.Match(options, null, request.Amount) == null)
                     return BadRequest(new
                     {
                         message = "Please pay one of the allowed amounts: " +
