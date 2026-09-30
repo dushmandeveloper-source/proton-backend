@@ -11,7 +11,7 @@
     var accountPending = Model.AccountVerificationStatus != "Verified";
     var passportRejected = Model.PassportVerificationStatus == "Rejected";
     var today = Web_Backend.Classes.SriLankaTime.Today;
-    var itemCount = (accountPending || passportRejected ? 1 : 0) + Model.PendingPayments.Count + Model.Discounts.Count
+    var itemCount = (accountPending || passportRejected ? 1 : 0) + Model.DueInstallments.Count + Model.Discounts.Count
         + Model.HomeworkDue.Count + Model.ReleasedResults.Count + Model.GradedHomework.Count + Model.LockedCourses.Count
         + (Model.UnreadMessages > 0 ? 1 : 0) + (Model.PendingDocumentRequests > 0 ? 1 : 0) + (Model.UnreadNotifications > 0 ? 1 : 0);
 }
@@ -44,15 +44,16 @@
                 </a>
             }
 
-            @foreach (var r in Model.PendingPayments)
+            @foreach (var (r, inst, total) in Model.DueInstallments)
             {
-                <a href="/Student/Courses/Details?registrationId=@Uri.EscapeDataString(r.RegistrationID)" class="ls-item">
-                    <span class="ls-ic ls-red"><i data-lucide="wallet"></i></span>
+                var overdue = inst.DueDate.Date < today;
+                <a href="/Student/Courses/Details?registrationId=@Uri.EscapeDataString(r.RegistrationID)#hl-@inst.InstallmentID" class="ls-item">
+                    <span class="ls-ic @(overdue ? "ls-red" : "ls-amber")"><i data-lucide="calendar-clock"></i></span>
                     <span class="ls-txt">
-                        <span class="ls-t">Payment due</span>
+                        <span class="ls-t">@(overdue ? "Overdue" : "Due " + inst.DueDate.ToString("d MMM")) · installment @inst.SeqNo of @total</span>
                         <span class="ls-s">@r.CourseTitle</span>
                     </span>
-                    <span class="ls-val ls-val-red">@r.CurrencyCode @r.BalanceDue.ToString("N2")</span>
+                    <span class="ls-val @(overdue ? "ls-val-red" : "")">@r.CurrencyCode @inst.Remaining.ToString("N2")</span>
                 </a>
             }
 

@@ -1,0 +1,366 @@
+@model Web_Backend.Areas.Admin.Models.CourseRegistrationDetailViewModel
+@using Web_Backend.Areas.Admin.Models
+@{
+    // Installment plan block inside a registration card on Student/View.
+    // Payments are applied oldest-first (mst.vw_PaymentInstallmentStatus),
+    // so this only defines the schedule; see migration 0091. Scoped .ip-*
+    // CSS because css/tailwind.css is prebuilt.
+    var reg = Model.Registration;
+    var studentId = ViewData["StudentID"] as string ?? "";
+    var canEdit = ViewData["CanEdit"] as bool? ?? false;
+    var today = Web_Backend.Classes.SriLankaTime.Today;
+    var rows = Model.Installments;
+    var statuses = rows.Select(i => i.StatusOn(today)).ToList();
+    var paidCount = statuses.Count(s => s == "Paid");
+    var dueCount = statuses.Count(s => s is "Overdue" or "DueThisMonth" or "PartlyPaid");
+    var upcomingCount = statuses.Count(s => s == "Upcoming");
+    var rid = reg.RegistrationID;
+    var target = Model.InstallmentGrossTarget;
+}
+
+<div class="ip-block" id="ip-@rid">
+    <div class="ip-head">
+        <div>
+            <div class="ip-title"><i data-lucide="calendar-clock"></i> Installment plan</div>
+            @if (Model.HasInstallmentPlan)
+            {
+                <div class="ip-sub">@rows.Count installments · <b class="ip-c-green">@paidCount paid</b> · <b class="ip-c-amber">@dueCount due</b> · @upcomingCount upcoming</div>
+            }
+            else
+            {
+                <div class="ip-sub">No plan: the full balance is due at once.</div>
+            }
+        </div>
+        <div class="ip-head-actions">
+        @if (canEdit)
+        {
+            <form method="post" asp-action="SetPaymentReminders" class="ip-remind">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="studentId" value="@studentId" />
+                <input type="hidden" name="registrationId" value="@rid" />
+                <input type="hidden" name="enabled" value="@(Model.PaymentReminders ? "false" : "true")" />
+                <button type="submit" class="ip-switch @(Model.PaymentReminders ? "on" : "")" role="switch" aria-checked="@(Model.PaymentReminders ? "true" : "false")"
+                        title="@(Model.PaymentReminders ? "Student is reminded about due payments for this course (popup + notification). Click to turn off." : "Reminders are off: due payments for this course are not shown to the student. Click to turn on.")">
+                    <span class="ip-switch-track"><span class="ip-switch-knob"></span></span>
+                    Payment reminders @(Model.PaymentReminders ? "on" : "off")
+                </button>
+            </form>
+        }
+        else if (!Model.PaymentReminders)
+        {
+            <span class="ip-muted ip-note">Payment reminders off</span>
+        }
+        @if (canEdit)
+        {
+            <button type="button" class="ip-btn" data-ip-toggle="ip-edit-@rid">
+                <i data-lucide="@(Model.HasInstallmentPlan ? "pencil" : "plus")"></i> @(Model.HasInstallmentPlan ? "Edit plan" : "Set up installments")
+            </button>
+        }
+        </div>
+    </div>
+
+    @if (Model.InstallmentPlanMismatch)
+    {
+        <div class="ip-warn">
+            <i data-lucide="triangle-alert"></i>
+            Plan total (@reg.CurrencyCode @rows.Sum(i => i.Amount).ToString("N2")) doesn't match the course fee (@reg.CurrencyCode @target.ToString("N2")). The fee changed after the plan was made; edit the plan to fix it.
+        </div>
+    }
+
+    @if (Model.HasInstallmentPlan)
+    {
+        <div class="ip-table-wrap">
+            <table class="ip-table">
+                <thead>
+                    <tr><th>#</th><th>Due date</th><th class="ip-r">Amount</th><th class="ip-r">Discount</th><th class="ip-r">Paid</th><th class="ip-r">Left</th><th>Status</th><th></th></tr>
+                </thead>
+                <tbody>
+                    @for (var n = 0; n < rows.Count; n++)
+                    {
+                        var i = rows[n];
+                        var (label, cls) = PaymentInstallment.Badge(statuses[n]);
+                        <tr id="hl-@i.InstallmentID">
+                            <td>@i.SeqNo</td>
+                            <td class="ip-nowrap">@i.DueDate.ToString("d MMM yyyy")</td>
+                            <td class="ip-r ip-nowrap">@reg.CurrencyCode @i.Amount.ToString("N2")</td>
+                            <td class="ip-r ip-nowrap">
+                                @if (i.HasDiscount)
+                                {
+                                    <span class="ip-c-green">− @i.DiscountAmount.ToString("N2")</span>
+                                    @if (!string.IsNullOrEmpty(i.DiscountReason))
+                                    {
+                                        <span class="ip-reason">@i.DiscountReason</span>
+                                    }
+                                }
+                                else
+                                {
+                                    <span class="ip-muted">—</span>
+                                }
+                            </td>
+                            <td class="ip-r ip-nowrap">@i.PaidAmount.ToString("N2")</td>
+                            <td class="ip-r ip-nowrap"><b>@i.Remaining.ToString("N2")</b></td>
+                            <td><span class="px-2 py-0.5 rounded-lg text-[11px] font-medium @cls">@label</span></td>
+                            <td class="ip-r">
+                                @if (canEdit)
+                                {
+                                    <button type="button" class="ip-link" data-ip-toggle="ip-disc-@i.InstallmentID">@(i.HasDiscount ? "Edit discount" : "Discount")</button>
+                                }
+                            </td>
+                        </tr>
+                        @if (canEdit)
+                        {
+                            <tr id="ip-disc-@i.InstallmentID" hidden>
+                                <td colspan="8">
+                                    <form method="post" asp-action="SetInstallmentDiscount" class="ip-inline-form">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="studentId" value="@studentId" />
+                                        <input type="hidden" name="registrationId" value="@rid" />
+                                        <input type="hidden" name="installmentId" value="@i.InstallmentID" />
+                                        <label>Discount (@reg.CurrencyCode)
+                                            <input type="number" name="amount" step="0.01" min="0" max="@i.Amount" value="@i.DiscountAmount" class="ip-input" />
+                                        </label>
+                                        <label class="ip-grow">Reason (optional)
+                                            <input name="reason" value="@i.DiscountReason" maxlength="200" class="ip-input" placeholder="e.g. Early payment" />
+                                        </label>
+                                        <button type="submit" class="ip-btn ip-btn-primary">Save</button>
+                                        <span class="ip-muted ip-note">Set 0 to remove. Lowers the course fee by the same amount.</span>
+                                    </form>
+                                </td>
+                            </tr>
+                        }
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+
+    @if (canEdit)
+    {
+        <form method="post" asp-action="SaveInstallmentPlan" id="ip-edit-@rid" class="ip-editor" hidden
+              data-target="@target.ToString(System.Globalization.CultureInfo.InvariantCulture)" data-currency="@reg.CurrencyCode">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="studentId" value="@studentId" />
+            <input type="hidden" name="registrationId" value="@rid" />
+
+            <div class="ip-gen">
+                <span class="ip-gen-label">Quick split</span>
+                <label>Installments <input type="number" min="1" max="36" value="@(Math.Max(rows.Count, 3))" class="ip-input ip-w-sm" data-ip-count /></label>
+                <label>First due <input type="date" value="@((rows.FirstOrDefault()?.DueDate ?? today.AddDays(7)).ToString("yyyy-MM-dd"))" class="ip-input" data-ip-first /></label>
+                <label>Every
+                    <select class="ip-input" data-ip-every>
+                        <option value="1">month</option><option value="2">2 months</option><option value="3">3 months</option>
+                    </select>
+                </label>
+                <button type="button" class="ip-btn" data-ip-generate><i data-lucide="wand-sparkles"></i> Split equally</button>
+            </div>
+
+            <div class="ip-rows" data-ip-rows>
+                @foreach (var i in rows)
+                {
+                    <div class="ip-row">
+                        <input type="date" name="dueDate" value="@i.DueDate.ToString("yyyy-MM-dd")" required class="ip-input" />
+                        <input type="number" name="amount" step="0.01" min="0.01" value="@i.Amount.ToString(System.Globalization.CultureInfo.InvariantCulture)" required class="ip-input" />
+                        <input type="hidden" name="discount" value="@i.DiscountAmount.ToString(System.Globalization.CultureInfo.InvariantCulture)" />
+                        <input type="hidden" name="discountReason" value="@i.DiscountReason" />
+                        @if (i.HasDiscount)
+                        {
+                            <span class="ip-c-green ip-note">− @i.DiscountAmount.ToString("N2") discount kept</span>
+                        }
+                        <button type="button" class="ip-lock" data-ip-lock title="Fixed amount. Click to let it auto-adjust" aria-label="Unlock amount"><i data-lucide="lock"></i></button>
+                        <button type="button" class="ip-x" data-ip-remove aria-label="Remove"><i data-lucide="x"></i></button>
+                    </div>
+                }
+            </div>
+
+            <div class="ip-foot">
+                <span>
+                    <button type="button" class="ip-link" data-ip-add><i data-lucide="plus"></i> Add installment</button>
+                    <button type="button" class="ip-btn ip-btn-soft" data-ip-rest><i data-lucide="split"></i> Split the rest equally</button>
+                    <span class="ip-hint">Amounts you type stay fixed (🔒); the rest of the fee is shared across the other installments.</span>
+                </span>
+                <span class="ip-total" data-ip-total></span>
+            </div>
+            <div class="ip-actions">
+                <button type="submit" class="ip-btn ip-btn-primary">Save plan</button>
+                @if (Model.HasInstallmentPlan)
+                {
+                    <button type="submit" class="ip-btn ip-btn-danger" data-ip-clear
+                            onclick="return confirm('Remove this installment plan? The full balance will show as due again, and installment discounts are given back to the fee.')">Remove plan</button>
+                }
+                <button type="button" class="ip-btn" data-ip-toggle="ip-edit-@rid">Cancel</button>
+            </div>
+        </form>
+    }
+</div>
+
+@* Styles + script once per page (each partial gets its own ViewData copy). *@
+@if (!Context.Items.ContainsKey("__ipAssets"))
+{
+    Context.Items["__ipAssets"] = true;
+    <style>
+        .ip-block { border-top: 1px solid #f1f5f9; padding-top: 14px; display: flex; flex-direction: column; gap: 10px; }
+        .dark .ip-block { border-color: #334155; }
+        .ip-block svg { width: 15px; height: 15px; }
+        .ip-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
+        .ip-title { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 700; color: #334155; }
+        .dark .ip-title { color: #e2e8f0; }
+        .ip-sub { font-size: 12px; color: #64748b; margin-top: 2px; }
+        .ip-c-green { color: #059669; } .ip-c-amber { color: #d97706; } .ip-muted { color: #94a3b8; }
+        .ip-btn { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 10px; font-size: 12px; font-weight: 600; border: 1px solid #e2e8f0; background: #fff; color: #334155; cursor: pointer; }
+        .ip-btn:hover { background: #f8fafc; }
+        .dark .ip-btn { background: #1e293b; border-color: #334155; color: #e2e8f0; }
+        .ip-btn-primary { background: #7c3aed; border-color: #7c3aed; color: #fff; } .ip-btn-primary:hover { background: #6d28d9; }
+        .ip-btn-danger { color: #b91c1c; border-color: #fecaca; background: #fef2f2; }
+        .ip-link { display: inline-flex; align-items: center; gap: 4px; border: 0; background: transparent; color: #7c3aed; font-size: 12px; font-weight: 600; cursor: pointer; padding: 2px 0; }
+        .ip-link:hover { text-decoration: underline; }
+        .ip-warn { display: flex; gap: 8px; align-items: flex-start; font-size: 12.5px; color: #92400e; background: #fffbeb; border: 1px solid #fde68a; border-radius: 12px; padding: 10px 12px; }
+        .ip-warn svg { flex-shrink: 0; margin-top: 1px; }
+        .ip-table-wrap { overflow-x: auto; border: 1px solid #f1f5f9; border-radius: 14px; }
+        .dark .ip-table-wrap { border-color: #334155; }
+        .ip-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+        .ip-table th { text-align: left; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: #94a3b8; padding: 8px 10px; background: #f8fafc; }
+        .dark .ip-table th { background: #1e293b; }
+        .ip-table td { padding: 9px 10px; border-top: 1px solid #f1f5f9; color: #334155; }
+        .dark .ip-table td { border-color: #1e293b; color: #e2e8f0; }
+        .ip-r { text-align: right; } .ip-nowrap { white-space: nowrap; }
+        .ip-inline-form { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px; background: #f8fafc; border-radius: 12px; padding: 10px 12px; }
+        .dark .ip-inline-form { background: #1e293b; }
+        .ip-inline-form label { display: flex; flex-direction: column; gap: 4px; font-size: 11px; font-weight: 600; color: #64748b; }
+        .ip-grow { flex: 1; min-width: 180px; }
+        .ip-input { border: 1px solid #e2e8f0; border-radius: 10px; padding: 6px 9px; font-size: 13px; background: #fff; color: #1e293b; outline: 0; }
+        .ip-input:focus { border-color: #7c3aed; box-shadow: 0 0 0 2px rgba(124, 58, 237, .15); }
+        .dark .ip-input { background: #0f172a; border-color: #334155; color: #f1f5f9; }
+        .ip-w-sm { width: 70px; }
+        .ip-note { font-size: 11.5px; }
+        .ip-editor { display: flex; flex-direction: column; gap: 10px; background: #faf8ff; border: 1px solid #ede9fe; border-radius: 14px; padding: 12px; }
+        .dark .ip-editor { background: rgba(124, 58, 237, .08); border-color: #3b2a6b; }
+        .ip-editor[hidden], .ip-table tr[hidden] { display: none; }
+        .ip-gen { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px; padding-bottom: 10px; border-bottom: 1px dashed #ddd6fe; }
+        .ip-gen label { display: flex; flex-direction: column; gap: 4px; font-size: 11px; font-weight: 600; color: #64748b; }
+        .ip-gen-label { font-size: 12px; font-weight: 700; color: #6d28d9; align-self: center; }
+        .ip-rows { display: flex; flex-direction: column; gap: 6px; }
+        .ip-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+        .ip-row::before { content: counter(ip) "."; counter-increment: ip; width: 20px; font-size: 12px; font-weight: 700; color: #94a3b8; }
+        .ip-rows { counter-reset: ip; }
+        .ip-x { width: 28px; height: 28px; border-radius: 8px; border: 0; background: transparent; color: #94a3b8; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
+        .ip-x:hover { background: #fee2e2; color: #b91c1c; }
+        .ip-lock { display: none; width: 28px; height: 28px; border-radius: 8px; border: 0; background: #ede9fe; color: #7c3aed; cursor: pointer; align-items: center; justify-content: center; }
+        .ip-lock:hover { background: #ddd6fe; }
+        .ip-fixed .ip-lock { display: inline-flex; }
+        .ip-fixed input[name="amount"] { border-color: #a78bfa; background: #faf5ff; font-weight: 600; }
+        .dark .ip-fixed input[name="amount"] { background: rgba(124, 58, 237, .15); }
+        .ip-hint { font-size: 11.5px; color: #64748b; }
+        .ip-head-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+        .ip-remind { margin: 0; }
+        .ip-switch { display: inline-flex; align-items: center; gap: 8px; border: 0; background: transparent; font-size: 12px; font-weight: 600; color: #64748b; cursor: pointer; padding: 4px 2px; }
+        .ip-switch.on { color: #6d28d9; }
+        .ip-switch-track { position: relative; width: 34px; height: 20px; border-radius: 999px; background: #cbd5e1; transition: background-color .2s; flex-shrink: 0; }
+        .ip-switch.on .ip-switch-track { background: #7c3aed; }
+        .ip-switch-knob { position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 999px; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.2); transition: transform .2s; }
+        .ip-switch.on .ip-switch-knob { transform: translateX(14px); }
+        .ip-reason { display: block; font-size: 11px; color: #64748b; white-space: normal; max-width: 200px; margin-left: auto; }
+        .ip-btn-soft { margin-left: 10px; background: #f5f3ff; border-color: #ddd6fe; color: #6d28d9; }
+        .ip-btn-soft:hover { background: #ede9fe; }
+        .ip-foot { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+        .ip-total { font-size: 12.5px; font-weight: 600; }
+        .ip-total.ok { color: #059669; } .ip-total.bad { color: #dc2626; }
+        .ip-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    </style>
+    <script>
+        (function () {
+            function fmt(n) { return n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+            function rowHtml(date, amount) {
+                return '<div class="ip-row">' +
+                    '<input type="date" name="dueDate" value="' + date + '" required class="ip-input" />' +
+                    '<input type="number" name="amount" step="0.01" min="0.01" value="' + amount + '" required class="ip-input" />' +
+                    '<input type="hidden" name="discount" value="0" /><input type="hidden" name="discountReason" value="" />' +
+                    '<button type="button" class="ip-lock" data-ip-lock title="Fixed amount. Click to let it auto-adjust" aria-label="Unlock amount"><i data-lucide="lock"></i></button>' +
+                    '<button type="button" class="ip-x" data-ip-remove aria-label="Remove"><i data-lucide="x"></i></button></div>';
+            }
+            function refresh(form) {
+                var target = parseFloat(form.dataset.target) || 0;
+                var sum = 0;
+                form.querySelectorAll('input[name="amount"]').forEach(function (i) { sum += parseFloat(i.value) || 0; });
+                sum = Math.round(sum * 100) / 100;
+                var el = form.querySelector('[data-ip-total]');
+                var diff = Math.round((target - sum) * 100) / 100;
+                el.className = 'ip-total ' + (diff === 0 ? 'ok' : 'bad');
+                el.textContent = 'Total ' + form.dataset.currency + ' ' + fmt(sum) + ' of ' + fmt(target) +
+                    (diff === 0 ? ' ✓' : (diff > 0 ? ' · ' + fmt(diff) + ' left to assign' : ' · ' + fmt(-diff) + ' too much'));
+            }
+            function icons() { if (window.lucide && lucide.createIcons) lucide.createIcons(); }
+
+            // Rows the admin typed an amount into are "fixed"; whatever is left
+            // of the fee is shared equally across the other rows (rounding
+            // remainder on the last one). Nothing to share into -> just totals.
+            function rebalance(form) {
+                var target = Math.round((parseFloat(form.dataset.target) || 0) * 100);
+                var rows = Array.prototype.slice.call(form.querySelectorAll('.ip-row'));
+                var fixed = 0, free = [];
+                rows.forEach(function (r) {
+                    var inp = r.querySelector('input[name="amount"]');
+                    if (r.classList.contains('ip-fixed')) fixed += Math.round((parseFloat(inp.value) || 0) * 100);
+                    else free.push(inp);
+                });
+                var left = target - fixed;
+                if (free.length && left >= free.length) {
+                    var base = Math.floor(left / free.length), extra = left - base * free.length;
+                    free.forEach(function (inp, k) { inp.value = ((base + (k === free.length - 1 ? extra : 0)) / 100).toFixed(2); });
+                }
+                refresh(form);
+            }
+            function addMonths(iso, m) {
+                var p = iso.split('-').map(Number);
+                var d = new Date(Date.UTC(p[0], p[1] - 1 + m, 1));
+                var last = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0)).getUTCDate();
+                d.setUTCDate(Math.min(p[2], last));
+                return d.toISOString().slice(0, 10);
+            }
+
+            document.addEventListener('click', function (e) {
+                var t = e.target.closest('[data-ip-toggle]');
+                if (t) { var el = document.getElementById(t.dataset.ipToggle); if (el) el.hidden = !el.hidden; return; }
+                var form = e.target.closest('.ip-editor');
+                if (!form) return;
+                if (e.target.closest('[data-ip-remove]')) { e.target.closest('.ip-row').remove(); refresh(form); return; }
+                var lock = e.target.closest('[data-ip-lock]');
+                if (lock) { lock.closest('.ip-row').classList.remove('ip-fixed'); refresh(form); return; }
+                if (e.target.closest('[data-ip-rest]')) { rebalance(form); return; }
+                if (e.target.closest('[data-ip-add]')) {
+                    var rows = form.querySelector('[data-ip-rows]');
+                    var dates = form.querySelectorAll('input[name="dueDate"]');
+                    var last = dates.length ? dates[dates.length - 1].value : form.querySelector('[data-ip-first]').value;
+                    rows.insertAdjacentHTML('beforeend', rowHtml(dates.length ? addMonths(last, 1) : last, ''));
+                    icons(); refresh(form); return;
+                }
+                if (e.target.closest('[data-ip-generate]')) {
+                    var n = Math.max(1, Math.min(36, parseInt(form.querySelector('[data-ip-count]').value, 10) || 1));
+                    var first = form.querySelector('[data-ip-first]').value;
+                    var every = parseInt(form.querySelector('[data-ip-every]').value, 10) || 1;
+                    if (!first) { alert('Choose the first due date.'); return; }
+                    var cents = Math.round((parseFloat(form.dataset.target) || 0) * 100);
+                    var base = Math.floor(cents / n), extra = cents - base * n;
+                    var html = '';
+                    for (var i = 0; i < n; i++) {
+                        // Rounding remainder goes on the last installment.
+                        var c = base + (i === n - 1 ? extra : 0);
+                        html += rowHtml(addMonths(first, i * every), (c / 100).toFixed(2));
+                    }
+                    form.querySelector('[data-ip-rows]').innerHTML = html;
+                    icons(); refresh(form);
+                }
+            });
+            document.addEventListener('input', function (e) {
+                var form = e.target.closest('.ip-editor'); if (!form) return;
+                if (e.target.name === 'amount') e.target.closest('.ip-row').classList.add('ip-fixed');
+                refresh(form);
+            });
+            // "Remove plan" submits the same form with no rows.
+            document.addEventListener('submit', function (e) {
+                var form = e.target.closest('.ip-editor'); if (!form) return;
+                if (e.submitter && e.submitter.hasAttribute('data-ip-clear')) form.querySelector('[data-ip-rows]').innerHTML = '';
+            }, true);
+            document.querySelectorAll('.ip-editor').forEach(refresh);
+        })();
+    </script>
+}

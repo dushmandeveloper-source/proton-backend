@@ -120,6 +120,12 @@ namespace Web_Backend.Areas.Admin.Models
         public DateTime CreatedDate { get; set; }
 
         public bool IsVerified => IsSlipVerified == "Y";
+        // Rejected by an admin (0096): IsActive 'R'; excluded from every total.
+        public string? RejectReason { get; set; }
+        public DateTime? RejectedDate { get; set; }
+        public bool IsRejected => IsActive == "R";
+        // Pending | Approved | Rejected | Voided
+        public string ApprovalStatus => IsActive == "R" ? "Rejected" : IsActive != "A" ? "Voided" : IsVerified ? "Approved" : "Pending";
     }
 
     // Result of edu.Course_ResolveDiscount — resolved ONCE at enrollment
@@ -194,6 +200,13 @@ namespace Web_Backend.Areas.Admin.Models
     {
         public CourseRegistration Registration { get; set; } = new();
         public List<CourseRegistrationPayment> Payments { get; set; } = new();
+        public List<PaymentInstallment> Installments { get; set; } = new();
+        public bool HasInstallmentPlan => Installments.Count > 0;
+        // Payment reminders to the student (0092); on unless an admin turned them off.
+        public bool PaymentReminders { get; set; } = true;
+        // Gross total the plan's Amounts must add up to (0091 invariant).
+        public decimal InstallmentGrossTarget => Registration.CourseFee + Installments.Sum(i => i.DiscountAmount);
+        public bool InstallmentPlanMismatch => HasInstallmentPlan && Installments.Sum(i => i.Amount) != InstallmentGrossTarget;
 
         public decimal AmountPaid => Payments.Where(p => p.IsActive == "A").Sum(p => p.Amount);
         public decimal BalanceDue => Registration.CourseFee - AmountPaid;

@@ -1,0 +1,239 @@
+@model Web_Backend.Areas.Admin.Models.FinEntriesViewModel
+@{
+    // Expenses and Other income share this page (Model.Kind).
+    var isExp = Model.IsExpense;
+    var noun = isExp ? "expense" : "income";
+    var canAdd = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.Finance, 'A');
+    var canEdit = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.Finance, 'E');
+    var canDelete = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.Finance, 'D');
+    var action = isExp ? "Expenses" : "Income";
+    var returnUrl = Context.Request.Path + Context.Request.QueryString;
+    var activeCats = Model.Categories.Where(c => c.IsActive == "A").ToList();
+    string CatsJson(IEnumerable<Web_Backend.Areas.Admin.Models.FinCategory> cs) => System.Text.Json.JsonSerializer.Serialize(
+        cs.OrderBy(c => c.CategoryName).Select(c => new { id = c.CategoryID, name = c.CategoryName + (c.IsActive == "A" ? "" : " (inactive)"), icon = c.IconKey, color = c.Color, group = c.CategoryGroup }));
+    var iconsJson = System.Text.Json.JsonSerializer.Serialize(Web_Backend.Classes.FinanceIcons.Keys);
+    var totals = Model.Entries.GroupBy(e => e.CurrencyCode).Select(g => (Cur: g.Key, Sum: g.Sum(e => e.Amount), Count: g.Count())).ToList();
+    var today = Web_Backend.Classes.SriLankaTime.Today;
+    string Q(DateTime f, DateTime t) => Url.Action(action, new { from = f.ToString("yyyy-MM-dd"), to = t.ToString("yyyy-MM-dd"), categoryId = Model.CategoryID, currency = Model.CurrencyCode })!;
+    var monthStart = new DateTime(today.Year, today.Month, 1);
+}
+<link rel="stylesheet" href="~/css/finance.css" asp-append-version="true" />
+<script src="~/js/fin-catpicker.js" asp-append-version="true" defer></script>
+
+<div class="fn">
+    <div class="fn-head">
+        <div>
+            <div class="fn-eyebrow">Finance</div>
+            <h1 class="fn-title">@(isExp ? "Expenses" : "Other income")</h1>
+            @if (!isExp)
+            {
+                <div class="fn-muted">Course fees are counted automatically from student payments. Add anything else here, like commissions received.</div>
+            }
+        </div>
+        <div class="fn-actions">
+            <a class="fn-btn" href="@Url.Action("Categories", new { kind = Model.Kind })"><i data-lucide="shapes"></i> Categories</a>
+            <a class="fn-btn" href="@Url.Action("ExportEntries", new { kind = Model.Kind, from = Model.From.ToString("yyyy-MM-dd"), to = Model.To.ToString("yyyy-MM-dd"), categoryId = Model.CategoryID, currency = Model.CurrencyCode })"><i data-lucide="download"></i> Export CSV</a>
+            @if (canAdd)
+            {
+                <button type="button" class="fn-btn fn-btn-primary" data-fn-new><i data-lucide="plus"></i> Add @noun</button>
+            }
+        </div>
+    </div>
+
+    <div class="fn-card fn-card-pad">
+        <form method="get" class="fn-filters">
+            <label class="fn-field">From <input type="date" name="from" value="@Model.From.ToString("yyyy-MM-dd")" class="fn-input" /></label>
+            <label class="fn-field">To <input type="date" name="to" value="@Model.To.ToString("yyyy-MM-dd")" class="fn-input" /></label>
+            <div class="fn-field" style="min-width:230px">Category
+                <input type="hidden" name="categoryId" id="fn-filter-cat" value="@Model.CategoryID" />
+                <div data-catpicker data-kind="@Model.Kind" data-input="#fn-filter-cat" data-allow-empty="All categories" data-can-create="0"
+                     data-icons='@Html.Raw(iconsJson)' data-cats='@Html.Raw(CatsJson(Model.Categories))'></div>
+            </div>
+            <label class="fn-field">Currency
+                <select name="currency" class="fn-select">
+                    <option value="">All</option>
+                    @foreach (var cur in Model.Currencies)
+                    {
+                        <option value="@cur" selected="@(cur == Model.CurrencyCode)">@cur</option>
+                    }
+                </select>
+            </label>
+            <button type="submit" class="fn-btn fn-btn-primary"><i data-lucide="filter"></i> Apply</button>
+            <div class="fn-pills" style="margin-left:auto">
+                <a class="fn-pill" href="@Q(today, today)">Today</a>
+                <a class="fn-pill" href="@Q(today.AddDays(-6), today)">7 days</a>
+                <a class="fn-pill" href="@Q(monthStart, today)">This month</a>
+                <a class="fn-pill" href="@Q(monthStart.AddMonths(-1), monthStart.AddDays(-1))">Last month</a>
+                <a class="fn-pill" href="@Q(new DateTime(today.Year, 1, 1), today)">This year</a>
+            </div>
+        </form>
+    </div>
+
+    <div class="fn-stats">
+        @if (totals.Count == 0)
+        {
+            <div class="fn-stat"><div class="fn-stat-label"><i data-lucide="sigma"></i> Total this period</div><div class="fn-stat-value">0.00</div><div class="fn-stat-sub">No entries</div></div>
+        }
+        @foreach (var t in totals)
+        {
+            <div class="fn-stat">
+                <div class="fn-stat-label"><i data-lucide="@(isExp ? "trending-down" : "trending-up")"></i> Total · @t.Cur</div>
+                <div class="fn-stat-value @(isExp ? "fn-down" : "fn-up")">@t.Sum.ToString("N2")</div>
+                <div class="fn-stat-sub">@t.Count @(t.Count == 1 ? "entry" : "entries") · @Model.From.ToString("d MMM") – @Model.To.ToString("d MMM yyyy")</div>
+            </div>
+        }
+    </div>
+
+    <div class="fn-card">
+        <div class="fn-card-head">
+            <div class="fn-card-title"><i data-lucide="list"></i> @Model.Entries.Count @(Model.Entries.Count == 1 ? noun : noun + (isExp ? "s" : " entries"))</div>
+            <input type="search" class="fn-input" placeholder="Search…" data-fn-search style="width:220px" />
+        </div>
+        @if (Model.Entries.Count == 0)
+        {
+            <div class="fn-empty">No @(isExp ? "expenses" : "income entries") in this period.</div>
+        }
+        else
+        {
+            <div class="fn-table-wrap">
+                <table class="fn-table" data-fn-table>
+                    <thead><tr><th>Date</th><th>Category</th><th>Description</th><th>Method</th><th class="fn-r">Amount</th><th></th></tr></thead>
+                    <tbody>
+                        @foreach (var e in Model.Entries)
+                        {
+                            <tr id="hl-@e.EntryID" data-search="@($"{e.CategoryName} {e.Description} {e.PaymentMethod} {e.CreatedByName} {e.Amount}".ToLowerInvariant())">
+                                <td class="fn-nowrap">@e.EntryDate.ToString("d MMM yyyy")</td>
+                                <td>
+                                    <div class="fn-cat">
+                                        <partial name="_Icon" model="(e.IconKey, e.Color, true)" />
+                                        <div><div class="fn-cat-name">@e.CategoryName</div>@if (isExp) {<span class="fn-badge">@e.CategoryGroup</span>}</div>
+                                    </div>
+                                </td>
+                                <td>
+                                    @(string.IsNullOrEmpty(e.Description) ? "—" : e.Description)
+                                    @if (!string.IsNullOrEmpty(e.ReceiptUrl))
+                                    {
+                                        <a href="@e.ReceiptUrl" target="_blank" class="fn-muted" style="margin-left:6px"><i data-lucide="paperclip" style="width:13px;height:13px;vertical-align:-2px"></i> receipt</a>
+                                    }
+                                    <div class="fn-muted">@(string.IsNullOrEmpty(e.CreatedByName) ? "" : "by " + e.CreatedByName)</div>
+                                </td>
+                                <td class="fn-nowrap">@e.PaymentMethod</td>
+                                <td class="fn-r fn-nowrap"><b class="@(isExp ? "fn-down" : "fn-up")">@e.CurrencyCode @e.Amount.ToString("N2")</b></td>
+                                <td class="fn-r fn-nowrap">
+                                    @if (canEdit)
+                                    {
+                                        <button type="button" class="fn-btn fn-btn-sm" data-fn-edit
+                                                data-id="@e.EntryID" data-category="@e.CategoryID" data-date="@e.EntryDate.ToString("yyyy-MM-dd")"
+                                                data-amount="@e.Amount.ToString(System.Globalization.CultureInfo.InvariantCulture)" data-currency="@e.CurrencyCode"
+                                                data-method="@e.PaymentMethod" data-description="@e.Description" data-receipt="@e.ReceiptUrl">Edit</button>
+                                    }
+                                    @if (canDelete)
+                                    {
+                                        <form method="post" asp-action="DeleteEntry" style="display:inline"
+                                              data-confirm="Delete this @noun of @e.CurrencyCode @e.Amount.ToString("N2") (@e.CategoryName, @e.EntryDate.ToString("d MMM"))?" data-confirm-title="Delete @noun" data-confirm-label="Delete">
+                                            @Html.AntiForgeryToken()
+                                            <input type="hidden" name="entryId" value="@e.EntryID" />
+                                            <input type="hidden" name="kind" value="@Model.Kind" />
+                                            <input type="hidden" name="returnUrl" value="@returnUrl" />
+                                            <button type="submit" class="fn-btn fn-btn-sm fn-btn-danger">Delete</button>
+                                        </form>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+</div>
+
+@* Add / edit modal *@
+<div class="fn-modal" id="fn-modal" hidden role="dialog" aria-modal="true">
+    <div class="fn-modal-bg" data-fn-close></div>
+    <form method="post" asp-action="SaveEntry" enctype="multipart/form-data" class="fn-modal-panel">
+        @Html.AntiForgeryToken()
+        <input type="hidden" name="EntryID" id="fn-id" />
+        <input type="hidden" name="Kind" value="@Model.Kind" />
+        <input type="hidden" name="returnUrl" value="@returnUrl" />
+        <div class="fn-modal-head">
+            <h3 id="fn-modal-title">Add @noun</h3>
+            <button type="button" class="fn-x" data-fn-close aria-label="Close"><i data-lucide="x"></i></button>
+        </div>
+        <div class="fn-modal-body">
+            <div class="fn-field fn-span2">
+                <span style="display:flex;justify-content:space-between;align-items:center">Category
+                    <a href="@Url.Action("Categories", new { kind = Model.Kind })" class="fn-muted" style="font-weight:500">Manage categories</a>
+                </span>
+                <input type="hidden" name="CategoryID" id="fn-category" value="@activeCats.FirstOrDefault()?.CategoryID" />
+                <div data-catpicker data-kind="@Model.Kind" data-input="#fn-category" data-can-create="@(canAdd ? "1" : "0")"
+                     data-create-url="@Url.Action("CreateCategory")" data-icons='@Html.Raw(iconsJson)' data-cats='@Html.Raw(CatsJson(activeCats))'></div>
+            </div>
+            <label class="fn-field">Date <input type="date" name="EntryDate" id="fn-date" class="fn-input" required value="@today.ToString("yyyy-MM-dd")" /></label>
+            <label class="fn-field">Payment method
+                <select name="PaymentMethod" id="fn-method" class="fn-select">
+                    <option>Cash</option><option>Bank</option><option>Card</option><option>Other</option>
+                </select>
+            </label>
+            <label class="fn-field">Amount <input type="number" name="Amount" id="fn-amount" step="0.01" min="0.01" class="fn-input" required /></label>
+            <label class="fn-field">Currency
+                <select name="CurrencyCode" id="fn-currency" class="fn-select">
+                    @foreach (var cur in Model.Currencies)
+                    {
+                        <option value="@cur">@cur</option>
+                    }
+                </select>
+            </label>
+            <label class="fn-field fn-span2">Description <textarea name="Description" id="fn-description" rows="2" maxlength="500" class="fn-textarea" placeholder="What was it for?"></textarea></label>
+            <label class="fn-field fn-span2">Receipt (optional)
+                <input type="file" name="receipt" accept="image/*,.pdf" class="fn-input" />
+                <span id="fn-receipt-current" class="fn-muted" hidden>
+                    Current: <a id="fn-receipt-link" href="#" target="_blank">view</a> ·
+                    <label style="display:inline-flex;gap:4px;align-items:center"><input type="checkbox" name="removeReceipt" value="true" /> remove</label>
+                </span>
+            </label>
+        </div>
+        <div class="fn-modal-foot">
+            <button type="button" class="fn-btn" data-fn-close>Cancel</button>
+            <button type="submit" class="fn-btn fn-btn-primary">Save</button>
+        </div>
+    </form>
+</div>
+
+<script>
+    (function () {
+        var modal = document.getElementById('fn-modal');
+        document.body.appendChild(modal); // escape the layout's blurred <main>
+        function $(id) { return document.getElementById(id); }
+        function open(d) {
+            $('fn-modal-title').textContent = d ? 'Edit @noun' : 'Add @noun';
+            $('fn-id').value = d ? d.id : '';
+            pickCat(d ? d.category : '@activeCats.FirstOrDefault()?.CategoryID');
+            if (d) {
+                $('fn-date').value = d.date; $('fn-amount').value = d.amount;
+                $('fn-currency').value = d.currency; $('fn-method').value = d.method; $('fn-description').value = d.description || '';
+            } else { $('fn-amount').value = ''; $('fn-description').value = ''; }
+            var hasReceipt = d && d.receipt;
+            $('fn-receipt-current').hidden = !hasReceipt;
+            if (hasReceipt) $('fn-receipt-link').href = d.receipt;
+            modal.hidden = false; $('fn-amount').focus();
+        }
+        function close() { modal.hidden = true; }
+        function pickCat(id) {
+            var p = modal.querySelector('[data-catpicker]');
+            if (p && p.__cp) p.__cp.set(id); else $('fn-category').value = id || '';
+        }
+        document.querySelectorAll('[data-fn-new]').forEach(function (b) { b.addEventListener('click', function () { open(null); }); });
+        document.querySelectorAll('[data-fn-edit]').forEach(function (b) { b.addEventListener('click', function () { open(b.dataset); }); });
+        modal.querySelectorAll('[data-fn-close]').forEach(function (b) { b.addEventListener('click', close); });
+        modal.querySelector('form').addEventListener('submit', function (e) {
+            if (!$('fn-category').value) { e.preventDefault(); if (window.showToast) window.showToast('Choose a category.', 'error'); }
+        });
+        document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !modal.hidden) close(); });
+        var search = document.querySelector('[data-fn-search]');
+        if (search) search.addEventListener('input', function () {
+            var q = search.value.toLowerCase();
+            document.querySelectorAll('[data-fn-table] tbody tr').forEach(function (tr) { tr.hidden = q && tr.dataset.search.indexOf(q) < 0; });
+        });
+    })();
+</script>

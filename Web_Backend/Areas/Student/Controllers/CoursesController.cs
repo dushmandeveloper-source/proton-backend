@@ -47,6 +47,8 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
                 return RedirectToAction("Index", "Dashboard", new { area = "Admin" });
 
             var registrations = await registrationRep.GetByStudent(student.StudentID);
+            ViewBag.Installments = (await registrationRep.GetInstallmentsByStudent(student.StudentID))
+                .GroupBy(i => i.RegistrationID).ToDictionary(g => g.Key, g => g.OrderBy(i => i.SeqNo).ToList());
 
             ViewBag.CurrentUser = Auth.GetUser();
             return View(registrations);
@@ -86,6 +88,7 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
 
             var course = await courseRep.Get(registration.CourseID);
             var payments = await registrationRep.GetPayments(registrationId);
+            var installments = await registrationRep.GetInstallments(registrationId);
 
             var allSegments = await scheduleRep.GetSegmentsForStudent(student.StudentID, Web_Backend.Classes.SriLankaTime.Today.AddMonths(-1), Web_Backend.Classes.SriLankaTime.Today.AddYears(1));
             var segments = allSegments
@@ -111,6 +114,7 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
                 Registration = registration,
                 Course = course,
                 Payments = payments,
+                Installments = installments,
                 Segments = segments,
                 Materials = materials,
                 Videos = videos,
@@ -132,6 +136,9 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
             return registrations.FirstOrDefault(r => r.RegistrationID == registrationId);
         }
 
+        private async Task<List<PaymentOption>> OptionsFor(Web_Backend.Areas.Admin.Models.CourseRegistration registration) =>
+            PaymentOptions.For(registration, await registrationRep.GetInstallments(registration.RegistrationID), SriLankaTime.Today);
+
         [HttpGet]
         public async Task<IActionResult> PayBalance(string registrationId)
         {
@@ -151,13 +158,16 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
             }
 
             var course = await courseRep.Get(registration.CourseID);
+            var options = await OptionsFor(registration);
             ViewBag.Registration = registration;
             ViewBag.Course = course;
+            ViewBag.PaymentOptions = options;
 
             return View(new PayBalanceFormModel
             {
                 RegistrationID = registrationId,
-                Amount = registration.BalanceDue
+                Option = options.FirstOrDefault()?.Key ?? "",
+                Amount = options.FirstOrDefault()?.Amount ?? registration.BalanceDue
             });
         }
 
@@ -177,16 +187,24 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
             // A payment (Cash or BankDeposit) always needs a receipt/slip
             // attached — same rule as the initial enrollment payment
             // (Areas/Student/EnrollmentController.Enroll POST).
-            if (string.IsNullOrEmpty(form.PaymentMethod) || form.Amount <= 0 || form.PaymentSlip == null)
+            // Only the fixed amounts from PaymentOptions are accepted --
+            // recomputed here, never trusted from the form.
+            var options = await OptionsFor(registration);
+            var picked = PaymentOptions.Match(options, form.Option, form.Amount);
+            if (string.IsNullOrEmpty(form.PaymentMethod) || picked == null || form.PaymentSlip == null)
             {
                 TempData["ErrorMessage"] = form.PaymentSlip == null
                     ? "Please attach a receipt for your payment."
-                    : "Please choose a payment method and an amount greater than 0.";
+                    : picked == null
+                        ? "Please choose one of the payment options shown."
+                        : "Please choose a payment method.";
                 var course = await courseRep.Get(registration.CourseID);
                 ViewBag.Registration = registration;
                 ViewBag.Course = course;
+                ViewBag.PaymentOptions = options;
                 return View(form);
             }
+            form.Amount = picked.Amount;
 
             try
             {

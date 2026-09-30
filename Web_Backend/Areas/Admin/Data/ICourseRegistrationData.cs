@@ -17,6 +17,16 @@ namespace Web_Backend.Areas.Admin.Data
         Task VerifySlip(string paymentId, string verifiedByUserId);
         Task<string> EditPayment(string paymentId, decimal amount, string method, string slipUrl, string notes, string logUserId);
         Task DeletePayment(string paymentId, string logUserId);
+        Task RejectPayment(string paymentId, string reason, string logUserId);
+        Task<List<PaymentInstallment>> GetInstallments(string registrationId);
+        Task<List<PaymentInstallment>> GetInstallmentsByStudent(string studentId);
+        Task<List<PaymentInstallment>> GetDueInstallments(DateTime asOf);
+        Task SaveInstallmentPlan(string registrationId, List<InstallmentPlanRow> rows, string logUserId);
+        Task SetInstallmentDiscount(string installmentId, decimal amount, string reason, string logUserId);
+        Task SetPaymentReminders(string registrationId, bool enabled);
+        Task<HashSet<string>> GetRemindersOff(string studentId);
+        Task<List<RosterPaymentSummary>> GetPaymentSummaryForSchedule(string scheduleId, string instructorUserId, DateTime asOf);
+        Task<List<DiscountIncomeRow>> GetDiscountIncome();
         Task<CourseRegistration?> Get(string id);
         Task<List<CourseRegistrationPayment>> GetPayments(string registrationId);
         Task<List<CourseRegistration>> GetByStudent(string studentId);

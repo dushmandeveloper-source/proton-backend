@@ -22,7 +22,7 @@ namespace Web_Backend.Classes
 
         // linkUrl is app-relative; "#hl-{refId}" is appended so the target
         // page can scroll to and highlight the related row (highlight.js).
-        public async Task NotifyUsers(IEnumerable<string?> userIds, string eventType, string title, string body, string linkUrl, string refId = "")
+        public async Task NotifyUsers(IEnumerable<string?> userIds, string eventType, string title, string body, string linkUrl, string refId = "", bool includeSelf = false)
         {
             try
             {
@@ -31,7 +31,7 @@ namespace Web_Backend.Classes
                 foreach (var userId in userIds.Where(u => !string.IsNullOrEmpty(u)).Distinct())
                 {
                     // Don't notify people about their own actions.
-                    if (userId == actor) continue;
+                    if (userId == actor && !includeSelf) continue;
                     var id = await rep.Add(userId!, eventType, title, body, link, refId);
                     await hub.Clients.Group(NotificationHub.GroupFor(userId!)).SendAsync("notify", new
                     {
@@ -49,8 +49,8 @@ namespace Web_Backend.Classes
             }
         }
 
-        public Task NotifyUser(string? userId, string eventType, string title, string body, string linkUrl, string refId = "") =>
-            NotifyUsers(new[] { userId }, eventType, title, body, linkUrl, refId);
+        public Task NotifyUser(string? userId, string eventType, string title, string body, string linkUrl, string refId = "", bool includeSelf = false) =>
+            NotifyUsers(new[] { userId }, eventType, title, body, linkUrl, refId, includeSelf);
 
         // Every active staff user who can View the given PermissionCode module.
         public async Task NotifyStaff(string moduleCode, string eventType, string title, string body, string linkUrl, string refId = "")

@@ -13,5 +13,9 @@ namespace Web_Backend.Areas.AgentPortal.Models
         // registered students -- never submitted yet, or reopened by admin
         // for resubmission.
         public int PendingDocumentRequestCount { get; set; }
+
+        // Unpaid installments of this agent's students due by the end of
+        // this month, including overdue ones (0091).
+        public List<PaymentInstallment> DueInstallments { get; set; } = new();
     }
 }

@@ -295,12 +295,16 @@
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
                             <div class="rounded-xl bg-slate-50 dark:bg-slate-800/60 px-4 py-3">
                                 <p class="@LabelCls">Course Fee</p>
-                                @if (reg.HasDiscount || reg.HasFeeCharges || reg.HasPersonalDiscount)
+                                @{
+                                    // Installment discounts (0091) already came off CourseFee too.
+                                    var instDiscount = item.Installments.Sum(i => i.DiscountAmount);
+                                }
+                                @if (reg.HasDiscount || reg.HasFeeCharges || reg.HasPersonalDiscount || instDiscount > 0)
                                 {
                                     <div class="mt-1">
-                                        @if (reg.HasDiscount || reg.HasPersonalDiscount)
+                                        @if (reg.HasDiscount || reg.HasPersonalDiscount || instDiscount > 0)
                                         {
-                                            <span class="line-through text-slate-400 dark:text-slate-500 text-sm mr-1.5">@reg.CurrencyCode @((reg.HasDiscount ? reg.OriginalFee + reg.FeeChargesTotal : reg.FeeBeforePersonalDiscount).ToString("N2"))</span>
+                                            <span class="line-through text-slate-400 dark:text-slate-500 text-sm mr-1.5">@reg.CurrencyCode @((reg.HasDiscount ? reg.OriginalFee + reg.FeeChargesTotal : reg.FeeBeforePersonalDiscount + instDiscount).ToString("N2"))</span>
                                         }
                                         <span class="text-lg font-bold text-slate-800 dark:text-slate-100">@reg.CurrencyCode @reg.CourseFee.ToString("N2")</span>
                                         @if (reg.HasDiscount)
@@ -310,6 +314,13 @@
                                         @if (reg.HasPersonalDiscount)
                                         {
                                             <span class="block text-xs text-emerald-600 dark:text-emerald-400">Personal discount &minus;@reg.CurrencyCode @reg.PersonalDiscountAmount.ToString("N2")@(string.IsNullOrEmpty(reg.PersonalDiscountReason) ? "" : " · " + reg.PersonalDiscountReason)</span>
+                                        }
+                                        @if (instDiscount > 0)
+                                        {
+                                            @foreach (var d in item.Installments.Where(i => i.HasDiscount))
+                                            {
+                                                <span class="block text-xs text-emerald-600 dark:text-emerald-400">Installment @d.SeqNo discount &minus;@reg.CurrencyCode @d.DiscountAmount.ToString("N2")@(string.IsNullOrEmpty(d.DiscountReason) ? "" : " · " + d.DiscountReason)</span>
+                                            }
                                         }
                                         @if (reg.HasFeeCharges)
                                         {
@@ -456,16 +467,24 @@
                                                     <td class="px-3 py-2.5 text-slate-500 dark:text-slate-400">@(string.IsNullOrEmpty(p.Notes) ? "—" : p.Notes)</td>
                                                     <td class="px-3 py-2.5 text-right whitespace-nowrap">
                                                         <div class="flex items-center justify-end gap-1.5">
-                                                            @if (canEditEnrollment && p.PaymentMethod == "BankDeposit" && !p.IsVerified && p.IsActive == "A")
+                                                            @if (p.IsRejected)
                                                             {
-                                                                <form method="post" asp-action="VerifyCoursePaymentSlip">
+                                                                <span class="px-2 py-0.5 rounded-lg text-[11px] font-medium bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-300" title="@p.RejectReason">Rejected</span>
+                                                            }
+                                                            else if (canEditEnrollment && !p.IsVerified && p.IsActive == "A")
+                                                            {
+                                                                <form method="post" asp-action="VerifyCoursePaymentSlip"
+                                                                      data-confirm="Approve this payment of @reg.CurrencyCode @p.Amount.ToString("N2")? Check the receipt first." data-confirm-title="Approve payment" data-confirm-label="Approve">
                                                                     @Html.AntiForgeryToken()
                                                                     <input type="hidden" name="studentId" value="@Model_Student.StudentID" />
                                                                     <input type="hidden" name="paymentId" value="@p.PaymentID" />
-                                                                    <button type="submit" class="px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
-                                                                        Verify
+                                                                    <button type="submit" class="px-2.5 py-1 rounded-lg text-xs font-medium bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 transition-colors">
+                                                                        Approve
                                                                     </button>
                                                                 </form>
+                                                                <button type="button" class="edit-payment-toggle px-2.5 py-1 rounded-lg text-xs font-medium bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-300 hover:bg-red-100 transition-colors" data-target="reject-payment-@p.PaymentID">
+                                                                    Reject
+                                                                </button>
                                                             }
                                                             @if (canEditEnrollment && p.IsActive == "A")
                                                             {
@@ -489,6 +508,31 @@
                                                         </div>
                                                     </td>
                                                 </tr>
+                                                @if (p.IsRejected)
+                                                {
+                                                    <tr>
+                                                        <td colspan="6" class="px-3 pb-2 text-xs text-red-700 dark:text-red-300">
+                                                            Rejected@(p.RejectedDate.HasValue ? " on " + p.RejectedDate.Value.ToString("d MMM yyyy") : ""): @p.RejectReason · not counted in the balance
+                                                        </td>
+                                                    </tr>
+                                                }
+                                                @if (canEditEnrollment && p.IsActive == "A" && !p.IsVerified)
+                                                {
+                                                    <tr id="reject-payment-@p.PaymentID" class="hidden">
+                                                        <td colspan="6" class="px-3 pb-3">
+                                                            <form method="post" asp-action="RejectCoursePayment" class="bg-red-50 dark:bg-red-950/40 rounded-xl p-3 flex flex-wrap items-end gap-3">
+                                                                @Html.AntiForgeryToken()
+                                                                <input type="hidden" name="studentId" value="@Model_Student.StudentID" />
+                                                                <input type="hidden" name="paymentId" value="@p.PaymentID" />
+                                                                <div class="space-y-1 flex-1" style="min-width:220px">
+                                                                    <label class="@LabelCls">Reason (shown to the student)</label>
+                                                                    <input name="reason" required maxlength="300" class="@InputCls" placeholder="e.g. Slip is unreadable / amount doesn't match the bank" />
+                                                                </div>
+                                                                <button type="submit" class="px-3 py-2 rounded-xl text-xs font-medium bg-red-600 text-white hover:bg-red-700 transition-colors">Reject payment</button>
+                                                            </form>
+                                                        </td>
+                                                    </tr>
+                                                }
                                                 @if (canEditEnrollment && p.IsActive == "A")
                                                 {
                                                     <tr id="edit-payment-@p.PaymentID" class="hidden">
@@ -539,6 +583,8 @@
                             }
                         </div>
 
+                        <partial name="_InstallmentPlan" model="item" view-data='new ViewDataDictionary(ViewData) { ["StudentID"] = Model_Student.StudentID, ["CanEdit"] = canEditEnrollment && reg.IsActive == "A" }' />
+
                         @if (canEditEnrollment && reg.IsActive == "A")
                         {
                             <div class="pt-2 border-t border-slate-100 dark:border-slate-700">
@@ -549,10 +595,35 @@
                                     @Html.AntiForgeryToken()
                                     <input type="hidden" name="studentId" value="@Model_Student.StudentID" />
                                     <input type="hidden" name="registrationId" value="@reg.RegistrationID" />
+                                    @{
+                                        // Quick-pick amounts + live allocation preview (installments 0091).
+                                        var qpToday = Web_Backend.Classes.SriLankaTime.Today;
+                                        var qpBalance = Math.Max(0, item.BalanceDue);
+                                        var qpDue = item.Installments.Where(i => i.IsDueBy(qpToday)).ToList();
+                                        var qpDueAmount = qpDue.Sum(i => i.Remaining);
+                                        var qpNext = item.Installments.FirstOrDefault(i => i.Remaining > 0 && !i.IsDueBy(qpToday));
+                                        var qpPicks = new List<(string Label, decimal Amount)>();
+                                        if (qpDueAmount > 0) qpPicks.Add(($"{(qpDue.Count == 1 ? $"Installment {qpDue[0].SeqNo}" : $"{qpDue.Count} installments")} due{(qpDue.Any(i => i.DueDate.Date < qpToday) ? " (overdue)" : "")}", Math.Min(qpDueAmount, qpBalance)));
+                                        if (qpNext != null) qpPicks.Add(($"{(qpDueAmount > 0 ? "Due + next" : "Next installment")} ({qpNext.SeqNo}, {qpNext.DueDate:d MMM})", Math.Min(qpDueAmount + qpNext.Remaining, qpBalance)));
+                                        if (qpBalance > 0 && !qpPicks.Any(p => p.Amount == qpBalance)) qpPicks.Add(("Full balance", qpBalance));
+                                        var qpPlanJson = System.Text.Json.JsonSerializer.Serialize(item.Installments.Select(i => new { n = i.SeqNo, due = i.DueDate.ToString("d MMM"), left = i.Remaining }));
+                                    }
+                                    <div class="qp" data-qp data-balance="@qpBalance.ToString(System.Globalization.CultureInfo.InvariantCulture)" data-currency="@reg.CurrencyCode" data-plan='@Html.Raw(qpPlanJson)'>
+                                        <label class="@LabelCls">Quick pick</label>
+                                        <div class="qp-chips">
+                                            @foreach (var p in qpPicks)
+                                            {
+                                                <button type="button" class="qp-chip" data-qp-amount="@p.Amount.ToString(System.Globalization.CultureInfo.InvariantCulture)">
+                                                    <span>@p.Label</span><b>@reg.CurrencyCode @p.Amount.ToString("N2")</b>
+                                                </button>
+                                            }
+                                            <button type="button" class="qp-chip qp-custom" data-qp-custom><span>Custom amount</span><b>Type below</b></button>
+                                        </div>
+                                    </div>
                                     <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
                                         <div class="space-y-1">
                                             <label class="@LabelCls">Amount</label>
-                                            <input type="number" name="amount" step="0.01" min="0.01" required class="@InputCls" />
+                                            <input type="number" name="amount" step="0.01" min="0.01" max="@qpBalance.ToString(System.Globalization.CultureInfo.InvariantCulture)" required class="@InputCls" data-qp-input />
                                         </div>
                                         <div class="space-y-1">
                                             <label class="@LabelCls block mb-1">Method</label>
@@ -572,6 +643,7 @@
                                             <input type="file" name="paymentSlip" accept="image/*,.pdf" class="block w-full text-xs text-slate-500 dark:text-slate-400" />
                                         </div>
                                     </div>
+                                    <div class="qp-preview" data-qp-preview hidden></div>
                                     <div class="space-y-1">
                                         <label class="@LabelCls">Notes</label>
                                         <input name="notes" class="@InputCls" />
@@ -716,3 +788,86 @@
         })();
     </script>
 }
+
+<style>
+    .qp-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+    .qp-chip { display: inline-flex; flex-direction: column; align-items: flex-start; gap: 1px; padding: 8px 12px; border-radius: 12px; border: 1.5px solid #e2e8f0; background: #fff; cursor: pointer; font: inherit; text-align: left; transition: border-color .15s, background-color .15s; }
+    .qp-chip span { font-size: 11px; color: #64748b; font-weight: 600; }
+    .qp-chip b { font-size: 13px; color: #1e293b; }
+    .qp-chip:hover { border-color: #c4b5fd; }
+    .qp-chip.on { border-color: #7c3aed; background: #f5f3ff; box-shadow: 0 0 0 3px rgba(124,58,237,.12); }
+    .qp-chip.on b { color: #6d28d9; }
+    .dark .qp-chip { background: #1e293b; border-color: #334155; }
+    .dark .qp-chip b { color: #f1f5f9; }
+    .dark .qp-chip.on { background: rgba(124,58,237,.16); }
+    .qp-preview { font-size: 12.5px; line-height: 1.5; border-radius: 12px; padding: 10px 12px; background: #f5f3ff; color: #4c1d95; border: 1px solid #ede9fe; }
+    .qp-preview.warn { background: #fef2f2; color: #991b1b; border-color: #fecaca; }
+    .qp-preview.done { background: #ecfdf5; color: #065f46; border-color: #a7f3d0; }
+    .dark .qp-preview { background: rgba(124,58,237,.12); color: #ddd6fe; border-color: #3b2a6b; }
+    .qp-preview ul { margin: 4px 0 0; padding-left: 18px; }
+</style>
+<script>
+    (function () {
+        function fmt(n) { return n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+        function esc(s) { var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+        document.querySelectorAll('[data-qp]').forEach(function (box) {
+            var form = box.closest('form');
+            var input = form.querySelector('[data-qp-input]');
+            var preview = form.querySelector('[data-qp-preview]');
+            var balance = parseFloat(box.dataset.balance) || 0;
+            var cur = box.dataset.currency;
+            var plan = []; try { plan = JSON.parse(box.dataset.plan || '[]'); } catch (e) { }
+            var chips = box.querySelectorAll('.qp-chip');
+
+            function mark() {
+                var v = Math.round((parseFloat(input.value) || 0) * 100);
+                var matched = false;
+                chips.forEach(function (c) {
+                    var on = c.dataset.qpAmount != null && Math.round(parseFloat(c.dataset.qpAmount) * 100) === v && v > 0;
+                    if (on) matched = true;
+                    c.classList.toggle('on', on);
+                });
+                var custom = box.querySelector('[data-qp-custom]');
+                if (custom) custom.classList.toggle('on', !matched && v > 0);
+            }
+
+            // Where the money goes: payments fill installments oldest-first.
+            function render() {
+                var amt = Math.round((parseFloat(input.value) || 0) * 100) / 100;
+                preview.className = 'qp-preview';
+                if (!amt || amt <= 0) { preview.hidden = true; return; }
+                preview.hidden = false;
+                if (amt > balance + 0.004) {
+                    preview.classList.add('warn');
+                    preview.innerHTML = '⚠ More than the balance of ' + cur + ' ' + fmt(balance) + ' by ' + fmt(amt - balance) + '. This will be rejected.';
+                    return;
+                }
+                var left = Math.round((balance - amt) * 100) / 100;
+                var lines = [];
+                if (plan.length) {
+                    var rest = amt;
+                    plan.forEach(function (i) {
+                        if (rest <= 0 || i.left <= 0) return;
+                        var take = Math.min(rest, i.left);
+                        rest = Math.round((rest - take) * 100) / 100;
+                        lines.push(take >= i.left - 0.004
+                            ? 'Installment ' + i.n + ' (' + i.due + ') <b>fully paid</b>'
+                            : 'Installment ' + i.n + ' (' + i.due + ') by ' + cur + ' ' + fmt(take) + ' · ' + fmt(i.left - take) + ' still owed');
+                    });
+                }
+                if (left <= 0) preview.classList.add('done');
+                preview.innerHTML = (lines.length ? 'This payment covers:<ul><li>' + lines.join('</li><li>') + '</li></ul>' : '') +
+                    (left <= 0 ? '<b>✓ Clears the course. It will be marked fully paid.</b>' : 'Balance after this payment: <b>' + cur + ' ' + fmt(left) + '</b>');
+            }
+
+            chips.forEach(function (c) {
+                c.addEventListener('click', function () {
+                    if (c.hasAttribute('data-qp-custom')) { input.value = ''; input.focus(); }
+                    else input.value = c.dataset.qpAmount;
+                    mark(); render();
+                });
+            });
+            input.addEventListener('input', function () { mark(); render(); });
+        });
+    })();
+</script>

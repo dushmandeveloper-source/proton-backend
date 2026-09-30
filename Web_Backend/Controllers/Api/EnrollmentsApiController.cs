@@ -384,6 +384,21 @@ namespace Web_Backend.Controllers.Api
             if (registration.CourseFee > 0 && (alreadyPaid + request.Amount) > registration.CourseFee)
                 return BadRequest(new { message = $"Payment amount exceeds the remaining balance of {registration.CourseFee - alreadyPaid} for this course." });
 
+            // Students pay fixed amounts only (installment due / full
+            // balance), same rule as Student/Courses/PayBalance.
+            var withBalance = (await registrationRep.GetByStudent(student.StudentID)).FirstOrDefault(r => r.RegistrationID == registrationId);
+            if (withBalance != null)
+            {
+                var options = PaymentOptions.For(withBalance, await registrationRep.GetInstallments(registrationId), SriLankaTime.Today);
+                if (PaymentOptions.Match(options, null, request.Amount) == null)
+                    return BadRequest(new
+                    {
+                        message = "Please pay one of the allowed amounts: " +
+                                  string.Join(" or ", options.Select(o => $"{o.Label.ToLower()} {registration.CurrencyCode} {o.Amount:N2}")) + ".",
+                        options = options.Select(o => new { o.Key, o.Label, o.Detail, o.Amount })
+                    });
+            }
+
             // Both Cash and BankDeposit require a receipt/slip on this
             // form (Cash has no bank record to fall back on for
             // verification, so it needs one just as much) — upload

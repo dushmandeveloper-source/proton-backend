@@ -3,6 +3,8 @@
     ViewData["Title"] = "Pay Balance";
     var registration = ViewBag.Registration as Web_Backend.Areas.Admin.Models.CourseRegistration;
     var course = ViewBag.Course as Web_Backend.Areas.Admin.Models.Course;
+    var options = ViewBag.PaymentOptions as List<Web_Backend.Classes.PaymentOption> ?? new();
+    var selectedKey = options.Any(o => o.Key == Model.Option) ? Model.Option : options.FirstOrDefault()?.Key;
 }
 
 <div class="max-w-xl mx-auto page-enter">
@@ -47,11 +49,35 @@
             </select>
         </div>
 
-        <div class="space-y-1">
-            <label class="text-sm font-medium text-slate-700 dark:text-slate-300">Amount</label>
-            <input asp-for="Amount" type="number" step="0.01" min="0.01" max="@registration?.BalanceDue" class="w-full rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 px-4 py-2.5 text-sm outline-none focus:border-[#7c3aed] focus:ring-1 focus:ring-[#7c3aed]" />
-            <p class="text-xs text-slate-400 dark:text-slate-500">Defaults to the full remaining balance — reduce it to pay partially.</p>
+        <div class="space-y-2">
+            <label class="text-sm font-medium text-slate-700 dark:text-slate-300">What are you paying?</label>
+            <input type="hidden" name="Amount" id="pbAmount" value="@(options.FirstOrDefault(o => o.Key == selectedKey)?.Amount.ToString(System.Globalization.CultureInfo.InvariantCulture))" />
+            @foreach (var o in options)
+            {
+                <label class="pb-opt">
+                    <input type="radio" name="Option" value="@o.Key" data-amount="@o.Amount.ToString(System.Globalization.CultureInfo.InvariantCulture)" @(o.Key == selectedKey ? "checked" : "") />
+                    <span class="pb-opt-body">
+                        <span class="pb-opt-title">@o.Label</span>
+                        <span class="pb-opt-detail">@o.Detail</span>
+                    </span>
+                    <span class="pb-opt-amount">@registration?.CurrencyCode @o.Amount.ToString("N2")</span>
+                </label>
+            }
+            <p class="text-xs text-slate-400 dark:text-slate-500">Amounts are fixed by your payment plan. Contact Proton Support if you need a different arrangement.</p>
         </div>
+        <style>
+            .pb-opt { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border: 1.5px solid #e2e8f0; border-radius: 16px; cursor: pointer; transition: border-color .15s, background-color .15s; }
+            .pb-opt:hover { border-color: #c4b5fd; }
+            .pb-opt:has(input:checked) { border-color: #7c3aed; background: #faf5ff; box-shadow: 0 0 0 3px rgba(124, 58, 237, .12); }
+            .dark .pb-opt { border-color: #334155; }
+            .dark .pb-opt:has(input:checked) { background: rgba(124, 58, 237, .12); }
+            .pb-opt input { width: 18px; height: 18px; accent-color: #7c3aed; flex-shrink: 0; }
+            .pb-opt-body { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+            .pb-opt-title { font-size: 14px; font-weight: 600; color: #1e293b; }
+            .dark .pb-opt-title { color: #f1f5f9; }
+            .pb-opt-detail { font-size: 12px; color: #64748b; }
+            .pb-opt-amount { font-size: 16px; font-weight: 700; color: #7c3aed; white-space: nowrap; }
+        </style>
 
         <div class="space-y-1">
             <label id="pbSlipLabel" class="text-sm font-medium text-slate-700 dark:text-slate-300">Receipt</label>
@@ -80,6 +106,14 @@
             }
             select.addEventListener('change', sync);
             sync();
+        })();
+
+        // Fixed-amount choice (PaymentOptions): keep the hidden Amount in step.
+        (function () {
+            var amount = document.getElementById('pbAmount');
+            document.querySelectorAll('input[name="Option"]').forEach(function (r) {
+                r.addEventListener('change', function () { if (r.checked) amount.value = r.dataset.amount; });
+            });
         })();
 
         (function () {

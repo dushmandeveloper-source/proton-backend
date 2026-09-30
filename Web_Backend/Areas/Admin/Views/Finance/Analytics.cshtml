@@ -1,0 +1,183 @@
+@model Web_Backend.Areas.Admin.Models.FinReportViewModel
+@{
+    string Delta(decimal now, decimal before)
+    {
+        if (before == 0) return now == 0 ? "no change" : "new this period";
+        var p = Math.Round((now - before) * 100 / Math.Abs(before), 1);
+        return (p >= 0 ? "▲ " : "▼ ") + Math.Abs(p) + "% vs previous";
+    }
+    var inv = System.Globalization.CultureInfo.InvariantCulture;
+    var periods = new[] { ("today", "Today"), ("week", "This week"), ("month", "This month"), ("year", "This year") };
+}
+<link rel="stylesheet" href="~/css/finance.css" asp-append-version="true" />
+
+<div class="fn">
+    <div class="fn-head">
+        <div>
+            <div class="fn-eyebrow">Finance</div>
+            <h1 class="fn-title">Income vs expenses</h1>
+            <div class="fn-muted">@Model.From.ToString("d MMM yyyy")@(Model.From == Model.To ? "" : " – " + Model.To.ToString("d MMM yyyy")) · compared with @Model.PrevFrom.ToString("d MMM")@(Model.PrevFrom == Model.PrevTo ? "" : " – " + Model.PrevTo.ToString("d MMM yyyy"))</div>
+        </div>
+        <div class="fn-actions">
+            <div class="fn-pills">
+                @foreach (var (key, label) in periods)
+                {
+                    <a class="fn-pill @(Model.Period == key ? "on" : "")" href="@Url.Action("Analytics", new { period = key })">@label</a>
+                }
+            </div>
+            <form method="get" class="fn-filters" style="gap:6px">
+                <input type="hidden" name="period" value="custom" />
+                <input type="date" name="from" value="@Model.From.ToString("yyyy-MM-dd")" class="fn-input" />
+                <input type="date" name="to" value="@Model.To.ToString("yyyy-MM-dd")" class="fn-input" />
+                <button class="fn-btn @(Model.Period == "custom" ? "fn-btn-primary" : "")">Custom</button>
+            </form>
+        </div>
+    </div>
+
+    @for (var ci = 0; ci < Model.Currencies.Count; ci++)
+    {
+        var c = Model.Currencies[ci];
+        var expTotal = c.ExpenseByCategory.Sum(x => x.Amount);
+        <div class="fn-card fn-card-pad" style="display:flex;flex-direction:column;gap:18px">
+            <div class="fn-card-title" style="font-size:17px"><span class="fn-badge" style="font-size:13px;padding:4px 10px">@c.CurrencyCode</span></div>
+
+            <div class="fn-stats">
+                <div class="fn-stat">
+                    <div class="fn-stat-label"><i data-lucide="trending-up"></i> Income</div>
+                    <div class="fn-stat-value fn-up">@c.Income.ToString("N2")</div>
+                    <div class="fn-stat-sub">Course fees @c.CourseIncome.ToString("N2") · other @c.OtherIncome.ToString("N2")</div>
+                    <div class="fn-stat-sub @(c.Income >= c.PrevIncome ? "fn-up" : "fn-down")">@Delta(c.Income, c.PrevIncome)</div>
+                </div>
+                <div class="fn-stat">
+                    <div class="fn-stat-label"><i data-lucide="trending-down"></i> Expenses</div>
+                    <div class="fn-stat-value fn-down">@c.Expense.ToString("N2")</div>
+                    <div class="fn-stat-sub">@c.ExpenseByCategory.Sum(x => x.Entries) entries</div>
+                    <div class="fn-stat-sub @(c.Expense <= c.PrevExpense ? "fn-up" : "fn-down")">@Delta(c.Expense, c.PrevExpense)</div>
+                </div>
+                <div class="fn-stat">
+                    <div class="fn-stat-label"><i data-lucide="scale"></i> Net profit</div>
+                    <div class="fn-stat-value @(c.Net >= 0 ? "fn-up" : "fn-down")">@(c.Net < 0 ? "−" : "")@Math.Abs(c.Net).ToString("N2")</div>
+                    <div class="fn-stat-sub">Margin @c.MarginPercent%</div>
+                    <div class="fn-stat-sub">@Delta(c.Net, c.PrevIncome - c.PrevExpense)</div>
+                </div>
+            </div>
+
+            <div class="fn-chart-card">
+                <div class="fn-card-title" style="margin-bottom:4px"><i data-lucide="chart-spline"></i> Income vs expenses</div>
+                <div id="fn-chart-@ci" class="fn-chart" aria-label="Income vs expenses @c.CurrencyCode"></div>
+            </div>
+
+            <div class="fn-grid-2">
+                <div>
+                    <div class="fn-card-title" style="margin-bottom:10px"><i data-lucide="chart-pie"></i> Expenses by category</div>
+                    @if (c.ExpenseByCategory.Count > 0)
+                    {
+                        <div id="fn-donut-exp-@ci" class="fn-donut"></div>
+                    }
+                    @if (c.ExpenseByCategory.Count == 0)
+                    {
+                        <div class="fn-muted">No expenses in this period.</div>
+                    }
+                    @foreach (var x in c.ExpenseByCategory)
+                    {
+                        var share = expTotal > 0 ? Math.Round(x.Amount * 100 / expTotal, 1) : 0;
+                        <div style="display:flex;align-items:center;gap:10px;padding:7px 0">
+                            <partial name="_Icon" model="(x.IconKey, x.Color, true)" />
+                            <div style="flex:1;min-width:0">
+                                <div style="display:flex;justify-content:space-between;gap:8px;font-size:13.5px"><b>@x.CategoryName</b><span>@x.Amount.ToString("N2") <span class="fn-muted">· @share%</span></span></div>
+                                <div class="fn-bar" style="margin-top:5px"><span style="width:@(share.ToString(inv))%;background:@x.Color"></span></div>
+                            </div>
+                        </div>
+                    }
+                </div>
+                <div>
+                    <div class="fn-card-title" style="margin-bottom:10px"><i data-lucide="coins"></i> Where income came from</div>
+                    @if (c.Income > 0)
+                    {
+                        <div id="fn-donut-inc-@ci" class="fn-donut"></div>
+                    }
+                    @{
+                        var incRows = new List<(string Name, string Icon, string Color, decimal Amount)> { ("Course fees (student payments)", "graduation-cap", "#7c3aed", c.CourseIncome) };
+                        incRows.AddRange(c.IncomeByCategory.Select(x => (x.CategoryName, x.IconKey, x.Color, x.Amount)));
+                        var incTotal = incRows.Sum(r => r.Amount);
+                    }
+                    @foreach (var x in incRows.Where(r => r.Amount > 0 || r.Name.StartsWith("Course")))
+                    {
+                        var share = incTotal > 0 ? Math.Round(x.Amount * 100 / incTotal, 1) : 0;
+                        <div style="display:flex;align-items:center;gap:10px;padding:7px 0">
+                            <partial name="_Icon" model="(x.Icon, x.Color, true)" />
+                            <div style="flex:1;min-width:0">
+                                <div style="display:flex;justify-content:space-between;gap:8px;font-size:13.5px"><b>@x.Name</b><span>@x.Amount.ToString("N2") <span class="fn-muted">· @share%</span></span></div>
+                                <div class="fn-bar" style="margin-top:5px"><span style="width:@(share.ToString(inv))%;background:@x.Color"></span></div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+<script src="~/js/charts.js" asp-append-version="true"></script>
+<script>
+    (function () {
+        var data = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Currencies.Select(c => new
+        {
+            cur = c.CurrencyCode,
+            labels = c.Labels,
+            income = c.IncomeSeries,
+            expense = c.ExpenseSeries,
+            exp = c.ExpenseByCategory.Select(x => new { name = x.CategoryName, value = x.Amount, color = x.Color }),
+            inc = new[] { new { name = "Course fees", value = c.CourseIncome, color = "#7c3aed" } }
+                    .Concat(c.IncomeByCategory.Select(x => new { name = x.CategoryName, value = x.Amount, color = x.Color }))
+                    .Where(x => x.value > 0)
+        })));
+        var PC = window.ProtonCharts;
+
+        data.forEach(function (d, i) {
+            var net = d.income.map(function (v, k) { return Math.round((v - d.expense[k]) * 100) / 100; });
+            PC.render('#fn-chart-' + i, {
+                chart: { type: 'area', height: 320, stacked: false },
+                series: [
+                    { name: 'Income', type: 'area', data: d.income },
+                    { name: 'Expenses', type: 'area', data: d.expense },
+                    { name: 'Net', type: 'line', data: net }
+                ],
+                colors: ['#10b981', '#f43f5e', '#7c3aed'],
+                stroke: { curve: 'smooth', width: [3, 3, 2.5], dashArray: [0, 0, 5] },
+                fill: {
+                    type: ['gradient', 'gradient', 'solid'],
+                    gradient: { shadeIntensity: 1, opacityFrom: 0.42, opacityTo: 0.02, stops: [0, 92, 100] }
+                },
+                markers: { size: d.labels.length <= 12 ? 4 : 0, strokeWidth: 2, strokeColors: '#fff', hover: { size: 6 } },
+                xaxis: { categories: d.labels, axisBorder: { show: false }, axisTicks: { show: false },
+                         labels: { rotate: 0, hideOverlappingLabels: true, trim: true } , tooltip: { enabled: false } },
+                yaxis: { labels: { formatter: function (v) { return PC.compact(v); } } },
+                tooltip: { shared: true, intersect: false, y: { formatter: function (v) { return d.cur + ' ' + PC.fmt(v, 2); } } }
+            });
+
+            function donut(sel, rows, label) {
+                if (!rows.length || !document.querySelector(sel)) return;
+                var total = rows.reduce(function (s, r) { return s + r.value; }, 0);
+                PC.render(sel, {
+                    chart: { type: 'donut', height: 250 },
+                    series: rows.map(function (r) { return r.value; }),
+                    labels: rows.map(function (r) { return r.name; }),
+                    colors: rows.map(function (r) { return r.color; }),
+                    stroke: { width: 3, colors: [PC.isDark() ? '#0f172a' : '#ffffff'] },
+                    legend: { show: false },
+                    plotOptions: { pie: { expandOnClick: true, donut: { size: '72%', labels: {
+                        show: true,
+                        name: { show: true, fontSize: '12px', offsetY: 18 },
+                        value: { show: true, fontSize: '22px', fontWeight: 800, offsetY: -12, formatter: function (v) { return PC.compact(Number(v)); } },
+                        total: { show: true, showAlways: true, label: label, fontSize: '12px', fontWeight: 600,
+                                 formatter: function () { return d.cur + ' ' + PC.compact(total); } }
+                    } } } },
+                    tooltip: { y: { formatter: function (v) { return d.cur + ' ' + PC.fmt(v, 2) + ' · ' + (total ? Math.round(v * 1000 / total) / 10 : 0) + '%'; } } }
+                });
+            }
+            donut('#fn-donut-exp-' + i, d.exp, 'Expenses');
+            donut('#fn-donut-inc-' + i, d.inc, 'Income');
+        });
+    })();
+</script>

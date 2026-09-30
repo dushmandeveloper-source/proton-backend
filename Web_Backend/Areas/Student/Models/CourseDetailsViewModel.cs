@@ -10,6 +10,7 @@ namespace Web_Backend.Areas.StudentPortal.Models
         public CourseRegistration Registration { get; set; } = new();
         public Course? Course { get; set; }
         public List<CourseRegistrationPayment> Payments { get; set; } = new();
+        public List<PaymentInstallment> Installments { get; set; } = new();
         public List<StudentScheduleSegment> Segments { get; set; } = new();
 
         // Lecture notes/materials visible to this student for this

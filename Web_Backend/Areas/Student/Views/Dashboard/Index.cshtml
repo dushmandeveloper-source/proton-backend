@@ -300,15 +300,22 @@
                                         @reg.PaymentStatus
                                     </span>
                                 </td>
+                                @{
+                                    var feeInstDiscount = Model.Installments.TryGetValue(reg.RegistrationID, out var feePlan) ? feePlan.Sum(i => i.DiscountAmount) : 0m;
+                                }
                                 <td class="px-6 py-3 text-slate-600 dark:text-slate-300">
-                                    @if (reg.HasPersonalDiscount)
+                                    @if (reg.HasPersonalDiscount || feeInstDiscount > 0)
                                     {
-                                        <span class="block text-xs line-through text-slate-400 dark:text-slate-500">@reg.CurrencyCode @reg.FeeBeforePersonalDiscount.ToString("N2")</span>
+                                        <span class="block text-xs line-through text-slate-400 dark:text-slate-500">@reg.CurrencyCode @((reg.FeeBeforePersonalDiscount + feeInstDiscount).ToString("N2"))</span>
                                     }
                                     @reg.CurrencyCode @reg.CourseFee.ToString("N2")
                                     @if (reg.HasPersonalDiscount)
                                     {
                                         <span class="block text-[11px] font-medium text-emerald-600 dark:text-emerald-300" title="@reg.PersonalDiscountReason">Personal discount &minus;@reg.PersonalDiscountAmount.ToString("N2")</span>
+                                    }
+                                    @if (feeInstDiscount > 0)
+                                    {
+                                        <span class="block text-[11px] font-medium text-emerald-600 dark:text-emerald-300">Installment discount &minus;@feeInstDiscount.ToString("N2")</span>
                                     }
                                 </td>
                                 <td class="px-6 py-3 text-slate-600 dark:text-slate-300">@reg.CurrencyCode @reg.AmountPaid.ToString("N2")</td>
@@ -345,14 +352,62 @@
             <div class="divide-y divide-slate-100 dark:divide-slate-700">
                 @foreach (var reg in pending)
                 {
-                    <div class="p-4 px-6 flex items-center justify-between gap-4">
-                        <p class="text-sm font-medium text-slate-800 dark:text-slate-100">@reg.CourseTitle</p>
-                        @if (reg.HasPersonalDiscount)
-                        {
-                            <p class="text-xs text-emerald-600 dark:text-emerald-300">Personal discount of @reg.CurrencyCode @reg.PersonalDiscountAmount.ToString("N2") applied@(string.IsNullOrEmpty(reg.PersonalDiscountReason) ? "" : " · " + reg.PersonalDiscountReason)</p>
-                        }
+                    var hasPlan = Model.Installments.TryGetValue(reg.RegistrationID, out var regPlan);
+                    var planToday = Web_Backend.Classes.SriLankaTime.Today;
+                    var duePlanItems = hasPlan ? regPlan!.Where(i => i.IsDueBy(planToday)).ToList() : new List<Web_Backend.Areas.Admin.Models.PaymentInstallment>();
+                    var planDueNow = duePlanItems.Sum(i => i.Remaining);
+                    var nextInst = hasPlan ? regPlan!.FirstOrDefault(i => i.Remaining > 0) : null;
+                    <div class="p-4 px-6 flex items-center justify-between gap-4 flex-wrap">
+                        <div class="min-w-0">
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <p class="text-sm font-medium text-slate-800 dark:text-slate-100">@reg.CourseTitle</p>
+                                @if (hasPlan)
+                                {
+                                    <span class="px-2 py-0.5 rounded-lg text-[11px] font-semibold bg-violet-50 dark:bg-violet-950 text-violet-700 dark:text-violet-300">Installment plan · @regPlan!.Count parts</span>
+                                }
+                                else
+                                {
+                                    <span class="px-2 py-0.5 rounded-lg text-[11px] font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">Full payment</span>
+                                }
+                            </div>
+                            <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                                @if (hasPlan)
+                                {
+                                    if (duePlanItems.Count > 0)
+                                    {
+                                        @string.Join(" + ", duePlanItems.Select(i => $"Installment {i.SeqNo} of {regPlan!.Count} · {(i.DueDate.Date < planToday ? "overdue since" : "due")} {i.DueDate:d MMM}"))
+                                    }
+                                    else if (nextInst != null)
+                                    {
+                                        @($"Nothing due this month · next is installment {nextInst.SeqNo} on {nextInst.DueDate:d MMM yyyy}")
+                                    }
+                                    <span> · total balance @reg.CurrencyCode @reg.BalanceDue.ToString("N2")</span>
+                                }
+                                else
+                                {
+                                    @("Whole remaining balance")
+                                }
+                                @if (reg.HasPersonalDiscount)
+                                {
+                                    <span class="text-emerald-600 dark:text-emerald-300"> · personal discount @reg.CurrencyCode @reg.PersonalDiscountAmount.ToString("N2")@(string.IsNullOrEmpty(reg.PersonalDiscountReason) ? "" : " (" + reg.PersonalDiscountReason + ")")</span>
+                                }
+                            </p>
+                        </div>
                         <div class="flex items-center gap-3 flex-shrink-0">
-                            <p class="text-sm font-semibold text-amber-600 dark:text-amber-300">@reg.CurrencyCode @reg.BalanceDue.ToString("N2") due</p>
+                            <div class="text-right">
+                                @if (hasPlan)
+                                {
+                                    <p class="text-sm font-semibold @(planDueNow > 0 ? "text-amber-600 dark:text-amber-300" : "text-slate-500 dark:text-slate-400")">
+                                        @(planDueNow > 0 ? $"{reg.CurrencyCode} {planDueNow:N2}" : nextInst != null ? $"{reg.CurrencyCode} {nextInst.Remaining:N2}" : "")
+                                    </p>
+                                    <p class="text-[11px] text-slate-400 dark:text-slate-500">@(planDueNow > 0 ? "installment due now" : "next installment")</p>
+                                }
+                                else
+                                {
+                                    <p class="text-sm font-semibold text-amber-600 dark:text-amber-300">@reg.CurrencyCode @reg.BalanceDue.ToString("N2")</p>
+                                    <p class="text-[11px] text-slate-400 dark:text-slate-500">full balance due</p>
+                                }
+                            </div>
                             <a asp-area="Student" asp-controller="Courses" asp-action="PayBalance" asp-route-registrationId="@reg.RegistrationID"
                                class="px-3 py-1.5 rounded-lg font-medium text-xs bg-[#7c3aed] text-white hover:bg-[#6d28d9] transition-all">
                                 Pay Now

@@ -1,0 +1,3 @@
+@model (string Icon, string Color, bool Small)
+@* Category icon tile: lucide icon on a tint of the category colour. *@
+<span class="fn-ic @(Model.Small ? "fn-ic-sm" : "")" style="color:@Model.Color;background:@(Model.Color)1f"><i data-lucide="@Model.Icon"></i></span>

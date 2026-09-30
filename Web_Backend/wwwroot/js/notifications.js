@@ -17,8 +17,8 @@
 
     // Icon + tint per event type; anything unlisted falls back to a bell.
     var ICONS = {
-        PaymentAdded: ['wallet', '#059669', '#ecfdf5'], PaymentEdited: ['wallet', '#0284c7', '#f0f9ff'],
-        PaymentSubmitted: ['receipt', '#d97706', '#fffbeb'], SlipVerified: ['badge-check', '#059669', '#ecfdf5'],
+        BalanceDue: ['wallet', '#dc2626', '#fef2f2'], PaymentAdded: ['wallet', '#059669', '#ecfdf5'], PaymentEdited: ['wallet', '#0284c7', '#f0f9ff'],
+        PaymentSubmitted: ['receipt', '#d97706', '#fffbeb'], SlipVerified: ['badge-check', '#059669', '#ecfdf5'], PaymentRejected: ['circle-x', '#dc2626', '#fef2f2'], InstallmentPlan: ['calendar-clock', '#7c3aed', '#f5f3ff'],
         StudentPaid: ['wallet', '#059669', '#ecfdf5'], DiscountGiven: ['badge-percent', '#059669', '#ecfdf5'],
         AccessRequested: ['key-round', '#d97706', '#fffbeb'], FullAccessGranted: ['lock-open', '#059669', '#ecfdf5'],
         StudentRegistered: ['user-plus', '#7c3aed', '#f5f3ff'], AgentRegistered: ['user-plus', '#7c3aed', '#f5f3ff'],

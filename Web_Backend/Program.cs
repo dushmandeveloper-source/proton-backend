@@ -142,6 +142,8 @@ builder.Services.AddSingleton<IDocumentStorage, DocumentStorage>();
 builder.Services.AddTransient<INotificationData, NotificationData>();
 builder.Services.AddTransient<NotificationService>();
 builder.Services.AddTransient<IMessagingData, MessagingData>();
+builder.Services.AddTransient<IFinanceData, FinanceData>();
+builder.Services.AddTransient<IUserPreferenceData, UserPreferenceData>();
 builder.Services.AddTransient<MessagingService>();
 builder.Services.AddSignalR();
 

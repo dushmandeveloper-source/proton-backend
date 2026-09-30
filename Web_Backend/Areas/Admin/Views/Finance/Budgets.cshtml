@@ -1,0 +1,142 @@
+@model Web_Backend.Areas.Admin.Models.FinBudgetViewModel
+@{
+    var canEdit = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.Finance, 'E');
+    var monthDate = DateTime.ParseExact(Model.Month + "-01", "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
+    var prev = monthDate.AddMonths(-1).ToString("yyyy-MM");
+    var next = monthDate.AddMonths(1).ToString("yyyy-MM");
+    var pct = Model.TotalBudget > 0 ? Math.Round(Model.TotalSpentBudgeted * 100 / Model.TotalBudget, 1) : 0;
+    var tone = Model.TotalBudget <= 0 ? "green" : pct >= 100 ? "red" : pct >= 80 ? "amber" : "green";
+    var ordered = Model.Rows.OrderByDescending(r => r.Budget > 0).ThenByDescending(r => r.PercentUsed).ThenByDescending(r => r.Spent).ToList();
+    var cur = Model.CurrencyCode;
+}
+<link rel="stylesheet" href="~/css/finance.css" asp-append-version="true" />
+
+<div class="fn">
+    <div class="fn-head">
+        <div>
+            <div class="fn-eyebrow">Finance</div>
+            <h1 class="fn-title">Budgets</h1>
+            <div class="fn-muted">A budget applies from the month you set it and carries forward until you change it.</div>
+        </div>
+        <div class="fn-actions">
+            <div class="fn-pills">
+                @foreach (var c in Model.Currencies)
+                {
+                    <a class="fn-pill @(c == cur ? "on" : "")" href="@Url.Action("Budgets", new { month = Model.Month, currency = c })">@c</a>
+                }
+            </div>
+            <div class="fn-pills">
+                <a class="fn-pill" href="@Url.Action("Budgets", new { month = prev, currency = cur })" aria-label="Previous month">‹</a>
+                <span class="fn-pill on">@monthDate.ToString("MMMM yyyy")</span>
+                <a class="fn-pill" href="@Url.Action("Budgets", new { month = next, currency = cur })" aria-label="Next month">›</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="fn-stats">
+        <div class="fn-stat">
+            <div class="fn-stat-label"><i data-lucide="target"></i> Budget used</div>
+            <div id="fn-budget-gauge" class="fn-gauge" data-pct="@pct.ToString(System.Globalization.CultureInfo.InvariantCulture)" data-tone="@tone"></div>
+            <div class="fn-stat-sub">
+                @if (Model.TotalBudget <= 0) { <text>No budgets set for @cur yet</text> }
+                else if (Model.TotalSpentBudgeted > Model.TotalBudget) { <text>Over by <b class="fn-down">@cur @((Model.TotalSpentBudgeted - Model.TotalBudget).ToString("N2"))</b></text> }
+                else { <text>@cur @((Model.TotalBudget - Model.TotalSpentBudgeted).ToString("N2")) left of @Model.TotalBudget.ToString("N2")</text> }
+            </div>
+        </div>
+        <div class="fn-stat">
+            <div class="fn-stat-label"><i data-lucide="triangle-alert"></i> Over budget</div>
+            <div class="fn-stat-value @(Model.OverCount > 0 ? "fn-down" : "")">@Model.OverCount</div>
+            <div class="fn-stat-sub">of @Model.BudgetedCount budgeted categories</div>
+        </div>
+        <div class="fn-stat">
+            <div class="fn-stat-label"><i data-lucide="trending-down"></i> Spent this month</div>
+            <div class="fn-stat-value">@cur @Model.TotalSpent.ToString("N2")</div>
+            <div class="fn-stat-sub">@cur @((Model.TotalSpent - Model.TotalSpentBudgeted).ToString("N2")) in categories without a budget</div>
+        </div>
+    </div>
+
+    <div class="fn-card">
+        <div class="fn-card-head">
+            <div class="fn-card-title"><i data-lucide="wallet-cards"></i> Category budgets · @cur</div>
+            <input type="search" class="fn-input" placeholder="Search…" data-fn-search style="width:220px" />
+        </div>
+        <div class="fn-table-wrap">
+            <table class="fn-table" data-fn-table>
+                <thead><tr><th>Category</th><th style="width:34%">Progress</th><th class="fn-r">Spent</th><th class="fn-r">Budget</th><th></th></tr></thead>
+                <tbody>
+                    @foreach (var r in ordered)
+                    {
+                        <tr id="hl-@r.CategoryID" data-search="@r.CategoryName.ToLowerInvariant()">
+                            <td><div class="fn-cat"><partial name="_Icon" model="(r.IconKey, r.Color, true)" /><div><div class="fn-cat-name">@r.CategoryName</div><span class="fn-badge">@r.CategoryGroup</span></div></div></td>
+                            <td>
+                                @if (r.Budget > 0)
+                                {
+                                    <div class="fn-bar fn-bar-@r.Tone"><span style="width:@(Math.Min(100, r.PercentUsed).ToString(System.Globalization.CultureInfo.InvariantCulture))%"></span></div>
+                                    <div class="fn-muted" style="margin-top:4px">
+                                        @r.PercentUsed% used ·
+                                        @if (r.Spent > r.Budget) { <b class="fn-down">over by @((r.Spent - r.Budget).ToString("N2"))</b> }
+                                        else { <text>@((r.Budget - r.Spent).ToString("N2")) left</text> }
+                                    </div>
+                                }
+                                else
+                                {
+                                    <span class="fn-muted">No budget</span>
+                                }
+                            </td>
+                            <td class="fn-r fn-nowrap">@r.Spent.ToString("N2")</td>
+                            <td class="fn-r fn-nowrap">
+                                @if (canEdit)
+                                {
+                                    <form method="post" asp-action="SetBudget" style="display:inline-flex;gap:6px;justify-content:flex-end">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="categoryId" value="@r.CategoryID" />
+                                        <input type="hidden" name="currency" value="@cur" />
+                                        <input type="hidden" name="month" value="@Model.Month" />
+                                        <input type="number" name="amount" step="0.01" min="0" value="@(r.Budget > 0 ? r.Budget.ToString(System.Globalization.CultureInfo.InvariantCulture) : "")" placeholder="0.00" class="fn-input" style="width:120px;text-align:right" />
+                                        <button type="submit" class="fn-btn fn-btn-sm">Save</button>
+                                    </form>
+                                }
+                                else
+                                {
+                                    @(r.Budget > 0 ? r.Budget.ToString("N2") : "—")
+                                }
+                            </td>
+                            <td></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+<script src="~/js/charts.js" asp-append-version="true"></script>
+<script>
+    (function () {
+        var el = document.getElementById('fn-budget-gauge');
+        if (el) {
+            var pct = parseFloat(el.dataset.pct) || 0;
+            var color = { red: '#ef4444', amber: '#f59e0b', green: '#10b981' }[el.dataset.tone] || '#10b981';
+            ProtonCharts.render(el, {
+                chart: { type: 'radialBar', height: 190, sparkline: { enabled: true } },
+                series: [Math.min(100, pct)],
+                colors: [color],
+                fill: { type: 'gradient', gradient: { shade: 'light', type: 'horizontal', gradientToColors: [color], stops: [0, 100] } },
+                plotOptions: { radialBar: {
+                    startAngle: -110, endAngle: 110, hollow: { size: '62%' },
+                    track: { background: ProtonCharts.isDark() ? '#1e293b' : '#eef2f7', strokeWidth: '100%' },
+                    dataLabels: { name: { show: true, offsetY: 22, fontSize: '12px', color: '#94a3b8' },
+                                  value: { offsetY: -14, fontSize: '28px', fontWeight: 800, formatter: function () { return pct + '%'; } } }
+                } },
+                stroke: { lineCap: 'round' },
+                labels: ['of budget used']
+            });
+        }
+    })();
+    (function () {
+        var s = document.querySelector('[data-fn-search]');
+        if (s) s.addEventListener('input', function () {
+            var q = s.value.toLowerCase();
+            document.querySelectorAll('[data-fn-table] tbody tr').forEach(function (tr) { tr.hidden = q && tr.dataset.search.indexOf(q) < 0; });
+        });
+    })();
+</script>

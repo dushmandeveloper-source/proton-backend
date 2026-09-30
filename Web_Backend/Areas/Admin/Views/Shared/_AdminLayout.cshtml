@@ -154,6 +154,9 @@ else
                     bool coursesOpen = coursesControllers.Contains(activeController);
                     bool examinationOpen = examinationControllers.Contains(activeController);
                     bool communicationOpen = communicationControllers.Contains(activeController);
+                    string activeAction = ViewContext.RouteData.Values["action"]?.ToString() ?? "";
+                    bool financeOpen = activeController == "Finance";
+                    bool canViewFinance = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.Finance, 'V');
                     bool administratorOpen = administratorControllers.Contains(activeController);
                 }
                 <div class="py-2">
@@ -256,6 +259,38 @@ else
                     }
                     </div>
                 </div>
+
+                @if (canViewFinance)
+                {
+                <div class="py-1 sidebar-group" data-open="@(financeOpen ? "true" : "false")">
+                    <button type="button" class="sidebar-group-toggle w-full flex items-center justify-between px-4 py-2 mt-1 group">
+                        <span class="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Finance</span>
+                        <i data-lucide="chevron-down" class="sidebar-group-chevron w-3.5 h-3.5 text-slate-400 dark:text-slate-500 transition-transform duration-200 @(financeOpen ? "rotate-180" : "")"></i>
+                    </button>
+                    <div class="sidebar-group-items space-y-1 @(financeOpen ? "" : "hidden")">
+                    <a asp-area="Admin" asp-controller="Finance" asp-action="Analytics"
+                       class="w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-200 group @((activeController == "Finance" && (activeAction == "Analytics")) ? "bg-slate-50/80 dark:bg-slate-700/60 text-slate-900 dark:text-slate-100 font-semibold" : "text-slate-500 dark:text-slate-400 hover:bg-slate-50/50 dark:hover:bg-slate-700/40 hover:text-slate-900 dark:hover:text-slate-100")">
+                        <i data-lucide="chart-column-big" class="w-5 h-5 @((activeController == "Finance" && (activeAction == "Analytics")) ? "text-[#5a43f1] dark:text-[#a78bfa]" : "text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300")"></i>
+                        <span>Income vs Expenses</span>
+                    </a>
+                    <a asp-area="Admin" asp-controller="Finance" asp-action="Expenses"
+                       class="w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-200 group @((activeController == "Finance" && (activeAction == "Expenses" || (activeAction == "Categories" && Context.Request.Query["kind"] != "Income"))) ? "bg-slate-50/80 dark:bg-slate-700/60 text-slate-900 dark:text-slate-100 font-semibold" : "text-slate-500 dark:text-slate-400 hover:bg-slate-50/50 dark:hover:bg-slate-700/40 hover:text-slate-900 dark:hover:text-slate-100")">
+                        <i data-lucide="receipt" class="w-5 h-5 @((activeController == "Finance" && (activeAction == "Expenses" || (activeAction == "Categories" && Context.Request.Query["kind"] != "Income"))) ? "text-[#5a43f1] dark:text-[#a78bfa]" : "text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300")"></i>
+                        <span>Expenses</span>
+                    </a>
+                    <a asp-area="Admin" asp-controller="Finance" asp-action="Income"
+                       class="w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-200 group @((activeController == "Finance" && (activeAction == "Income" || (activeAction == "Categories" && Context.Request.Query["kind"] == "Income"))) ? "bg-slate-50/80 dark:bg-slate-700/60 text-slate-900 dark:text-slate-100 font-semibold" : "text-slate-500 dark:text-slate-400 hover:bg-slate-50/50 dark:hover:bg-slate-700/40 hover:text-slate-900 dark:hover:text-slate-100")">
+                        <i data-lucide="hand-coins" class="w-5 h-5 @((activeController == "Finance" && (activeAction == "Income" || (activeAction == "Categories" && Context.Request.Query["kind"] == "Income"))) ? "text-[#5a43f1] dark:text-[#a78bfa]" : "text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300")"></i>
+                        <span>Other Income</span>
+                    </a>
+                    <a asp-area="Admin" asp-controller="Finance" asp-action="Budgets"
+                       class="w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-200 group @((activeController == "Finance" && (activeAction == "Budgets")) ? "bg-slate-50/80 dark:bg-slate-700/60 text-slate-900 dark:text-slate-100 font-semibold" : "text-slate-500 dark:text-slate-400 hover:bg-slate-50/50 dark:hover:bg-slate-700/40 hover:text-slate-900 dark:hover:text-slate-100")">
+                        <i data-lucide="target" class="w-5 h-5 @((activeController == "Finance" && (activeAction == "Budgets")) ? "text-[#5a43f1] dark:text-[#a78bfa]" : "text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300")"></i>
+                        <span>Budgets</span>
+                    </a>
+                    </div>
+                </div>
+                }
 
                 <div class="py-1 sidebar-group" data-open="@(communicationOpen ? "true" : "false")">
                     <button type="button" class="sidebar-group-toggle w-full flex items-center justify-between px-4 py-2 mt-1 group">

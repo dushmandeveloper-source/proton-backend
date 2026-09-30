@@ -3,6 +3,7 @@
     ViewData["Title"] = "Batch Details";
     var materials = ViewBag.Materials as List<Web_Backend.Areas.Admin.Models.LectureMaterial> ?? new();
     var roster = ViewBag.Roster as List<Web_Backend.Areas.Admin.Models.StudentRosterEntry> ?? new();
+    var rosterPayments = ViewBag.RosterPayments as Dictionary<string, Web_Backend.Areas.Admin.Models.RosterPaymentSummary> ?? new();
 }
 
 <div class="max-w-5xl mx-auto space-y-8 page-enter">
@@ -79,7 +80,36 @@
                                     <span>&middot; DOB: @student.DateOfBirth.Value.ToString("MMM d, yyyy")</span>
                                 }
                             </p>
+                            @if (rosterPayments.TryGetValue(student.StudentID, out var pay))
+                            {
+                                <p class="text-xs mt-1 flex items-center gap-1.5 flex-wrap">
+                                    @if (pay.BalanceDue <= 0)
+                                    {
+                                        <span class="px-2 py-0.5 rounded-lg text-[11px] font-medium bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300">Fully paid</span>
+                                    }
+                                    else if (pay.HasPlan)
+                                    {
+                                        <span class="px-2 py-0.5 rounded-lg text-[11px] font-semibold bg-violet-50 dark:bg-violet-950 text-violet-700 dark:text-violet-300">Installments · @pay.InstallmentCount</span>
+                                        if (pay.DueNow > 0)
+                                        {
+                                            <span class="font-semibold @(pay.OverdueCount > 0 ? "text-red-600 dark:text-red-300" : "text-amber-600 dark:text-amber-300")">
+                                                @pay.CurrencyCode @pay.DueNow.ToString("N2") due now@(pay.OverdueCount > 0 ? $" · {pay.OverdueCount} overdue" : "")
+                                            </span>
+                                        }
+                                        else if (pay.NextDueDate.HasValue)
+                                        {
+                                            <span class="text-slate-500 dark:text-slate-400">Nothing due this month · next @pay.NextDueDate.Value.ToString("d MMM")</span>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <span class="px-2 py-0.5 rounded-lg text-[11px] font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">Full payment</span>
+                                        <span class="font-semibold text-amber-600 dark:text-amber-300">@pay.CurrencyCode @pay.BalanceDue.ToString("N2") due</span>
+                                    }
+                                </p>
+                            }
                         </div>
+
                         <a asp-action="StudentHistory" asp-controller="ExamReview" asp-area="Lecturer" asp-route-studentId="@student.StudentID"
                            class="flex-shrink-0 px-3 py-1.5 rounded-lg font-medium text-xs bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
                             Exam History

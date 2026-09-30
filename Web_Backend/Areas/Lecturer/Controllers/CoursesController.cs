@@ -54,6 +54,14 @@ namespace Web_Backend.Areas.LecturerPortal.Controllers
             ViewBag.CurrentUser = Auth.GetUser();
             ViewBag.Materials = materials;
             ViewBag.Roster = roster;
+            // Payment status per roster student so lecturers can remind them (0093).
+            try
+            {
+                var payments = await HttpContext.RequestServices.GetRequiredService<ICourseRegistrationData>()
+                    .GetPaymentSummaryForSchedule(scheduleId, userId, SriLankaTime.Today);
+                ViewBag.RosterPayments = payments.GroupBy(p => p.StudentID).ToDictionary(g => g.Key, g => g.First());
+            }
+            catch { ViewBag.RosterPayments = new Dictionary<string, Web_Backend.Areas.Admin.Models.RosterPaymentSummary>(); }
             return View(batch);
         }
 
