@@ -99,7 +99,8 @@ namespace Web_Backend.Controllers.Api
                 email = auth.Email,
                 role = auth.UserTypeID,
                 roleName = auth.UserTypeName,
-                dashboardUrl = $"/{area}/Dashboard/Index"
+                // welcome=1 → Student dashboard shows its once-per-login summary popup.
+                dashboardUrl = portal == Portal.Student ? "/Student/Dashboard/Index?welcome=1" : $"/{area}/Dashboard/Index"
             });
         }
 

@@ -92,6 +92,11 @@ namespace Web_Backend.Areas.Admin.Controllers
                 });
 
                 TempData["SuccessMessage"] = "Lecture material uploaded.";
+                var isHomework = category == "Homework";
+                await HttpContext.RequestServices.GetRequiredService<NotificationService>().NotifyScheduleStudents(scheduleId, isHomework ? "HomeworkPosted" : "MaterialPosted",
+                    isHomework ? "New homework assigned" : "New lecture material",
+                    $"\"{title}\" was posted to your class.",
+                    isHomework ? "/Student/Homework/Index" : $"/Student/Classroom/Batch/{Uri.EscapeDataString(scheduleId)}");
             }
             catch (InvalidOperationException ex)
             {

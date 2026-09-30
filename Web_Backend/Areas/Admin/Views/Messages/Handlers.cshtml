@@ -1,0 +1,54 @@
+@model List<Web_Backend.Areas.Admin.Models.SupportHandlerRow>
+@{
+    ViewData["Title"] = "Support Team";
+}
+
+<div class="max-w-3xl mx-auto space-y-6">
+    <div class="flex items-center justify-between gap-4 flex-wrap">
+        <div>
+            <a asp-action="Index" class="text-sm text-slate-500 dark:text-slate-400 hover:text-slate-700 inline-flex items-center gap-1">
+                <i data-lucide="arrow-left" class="w-4 h-4"></i> Messages
+            </a>
+            <h1 class="text-2xl font-semibold text-slate-800 dark:text-slate-100 mt-1">Support Team</h1>
+            <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">
+                When a student messages <b>Proton Support</b>, it lands in one shared inbox. Everyone on the Support Team
+                sees those chats, gets notified of new ones, and can reply and message students directly.
+                Students see replies as “Your name · Proton Support”. Master Admins are always on the team.
+            </p>
+        </div>
+    </div>
+
+    <div class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-700 divide-y divide-slate-100 dark:divide-slate-800 overflow-hidden">
+        @foreach (var u in Model)
+        {
+            var isMaster = u.RoleName == "Master Admin" || u.RoleName == "MasterAdmin";
+            <div class="flex items-center justify-between gap-4 px-5 py-4">
+                <div class="min-w-0">
+                    <div class="text-sm font-semibold text-slate-800 dark:text-slate-100 truncate">@u.FullName</div>
+                    <div class="text-xs text-slate-500 dark:text-slate-400 truncate">@u.Email · @u.RoleName</div>
+                </div>
+                <form method="post" asp-action="SetHandler">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="userId" value="@u.UserID" />
+                    <input type="hidden" name="isHandler" value="@(u.IsHandler ? "false" : "true")" />
+                    @if (u.IsHandler)
+                    {
+                        <button type="submit" class="px-3 py-1.5 rounded-xl text-xs font-medium bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 hover:bg-red-50 hover:text-red-700 transition-colors">
+                            On the team · Remove
+                        </button>
+                    }
+                    else
+                    {
+                        <button type="submit" class="px-3 py-1.5 rounded-xl text-xs font-medium bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+                            Add to team
+                        </button>
+                    }
+                </form>
+            </div>
+        }
+        @if (Model.Count == 0)
+        {
+            <div class="px-5 py-10 text-center text-sm text-slate-400">No staff users found.</div>
+        }
+    </div>
+</div>

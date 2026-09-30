@@ -23,8 +23,12 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
         private readonly IExamAttemptData attemptRep;
         private readonly IExamData examRep;
         private readonly IDocumentRequestData documentRequestRep;
+        private readonly ILectureMaterialData materialRep;
+        private readonly IHomeworkSubmissionData submissionRep;
+        private readonly INotificationData notificationRep;
 
-        public DashboardController(IStudentData studentRep, ICourseScheduleData scheduleRep, ICourseRegistrationData registrationRep, IExamScheduleData examScheduleRep, IExamAttemptData attemptRep, IExamData examRep, IDocumentRequestData documentRequestRep)
+        public DashboardController(IStudentData studentRep, ICourseScheduleData scheduleRep, ICourseRegistrationData registrationRep, IExamScheduleData examScheduleRep, IExamAttemptData attemptRep, IExamData examRep, IDocumentRequestData documentRequestRep,
+            ILectureMaterialData materialRep, IHomeworkSubmissionData submissionRep, INotificationData notificationRep)
         {
             this.studentRep = studentRep;
             this.scheduleRep = scheduleRep;
@@ -33,12 +37,76 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
             this.attemptRep = attemptRep;
             this.examRep = examRep;
             this.documentRequestRep = documentRequestRep;
+            this.materialRep = materialRep;
+            this.submissionRep = submissionRep;
+            this.notificationRep = notificationRep;
+        }
+
+        // Set by AccountController.Login; TempData is consumed on read, so
+        // the popup shows on the first dashboard load after sign-in only.
+        public const string ShowLoginSummaryKey = "ShowLoginSummary";
+
+        private async Task<LoginSummaryViewModel> BuildLoginSummary(Student student, List<CourseRegistration> registrations, int pendingDocumentCount, string userId)
+        {
+            var active = registrations.Where(r => r.IsActive == "A").ToList();
+            var summary = new LoginSummaryViewModel
+            {
+                StudentName = student.FullName,
+                AccountVerificationStatus = student.AccountVerificationStatus,
+                PassportVerificationStatus = student.PassportVerificationStatus,
+                PendingPayments = active.Where(r => r.BalanceDue > 0).ToList(),
+                Discounts = active.Where(r => r.HasPersonalDiscount || r.HasDiscount).ToList(),
+                LockedCourses = active.Where(r => !r.FullAccess).ToList(),
+                PendingDocumentRequests = pendingDocumentCount
+            };
+
+            if (!student.IsContentRestricted)
+            {
+                var materials = await materialRep.ListForStudent(student.StudentID);
+                var submissions = (await submissionRep.ListForStudent(student.StudentID)).ToDictionary(x => x.MaterialID);
+                var today = Web_Backend.Classes.SriLankaTime.Today;
+                summary.HomeworkDue = materials
+                    .Where(m => m.IsSubmittable
+                        && (!submissions.TryGetValue(m.MaterialID, out var sub) || sub.ResubmissionRequested)
+                        && (m.DueDate == null || m.DueDate.Value.Date >= today))
+                    .OrderBy(m => m.DueDate ?? DateTime.MaxValue)
+                    .Take(5).ToList();
+                var cutoff = DateTime.Now.AddDays(-14);
+                summary.GradedHomework = materials
+                    .Where(m => submissions.TryGetValue(m.MaterialID, out var sub) && sub.IsGraded && sub.GradedDate >= cutoff)
+                    .Select(m => (m, submissions[m.MaterialID]))
+                    .Take(5).ToList();
+            }
+
+            var releasedCutoff = DateTime.Now.AddDays(-14);
+            summary.ReleasedResults = (await attemptRep.ListForStudent(student.StudentID))
+                .Where(a => a.ResultReleasedDate.HasValue && a.ResultReleasedDate >= releasedCutoff)
+                .OrderByDescending(a => a.ResultReleasedDate)
+                .Take(5).ToList();
+
+            try { summary.UnreadNotifications = await notificationRep.UnreadCount(userId); } catch { }
+            try
+            {
+                var messaging = HttpContext.RequestServices.GetRequiredService<MessagingService>();
+                var me = await messaging.Me();
+                if (me != null) summary.UnreadMessages = await messaging.UnreadTotal(me);
+            }
+            catch { }
+            return summary;
         }
 
         [HttpGet]
-        public async Task<IActionResult> Index()
+        public async Task<IActionResult> Index(string? welcome = null)
         {
             Auth.CheckUser();
+            // Login via the public site's API lands here with ?welcome=1;
+            // swap it for the one-time TempData flag so a refresh doesn't
+            // show the popup again.
+            if (welcome == "1")
+            {
+                TempData[ShowLoginSummaryKey] = true;
+                return RedirectToAction("Index");
+            }
             var userId = Auth.GetUserId();
             var student = await studentRep.GetByUserID(userId);
             if (student == null)
@@ -151,6 +219,12 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
             ViewBag.ExamJoinRows = joinRows;
 
             ViewBag.CurrentUser = Auth.GetUser();
+            if (TempData[ShowLoginSummaryKey] is true)
+            {
+                var loginSummary = await BuildLoginSummary(student, registrations, pendingDocumentCount, userId);
+                if (loginSummary.HasAnything) ViewBag.LoginSummary = loginSummary;
+            }
+
             return View(model);
         }
 

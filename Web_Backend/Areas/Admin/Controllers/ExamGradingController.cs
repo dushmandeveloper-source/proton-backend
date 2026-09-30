@@ -105,6 +105,11 @@ namespace Web_Backend.Areas.Admin.Controllers
                         toName: released.StudentName,
                         templateCode: "RESULT_RELEASED",
                         description: description);
+
+                    var gradedStudent = await HttpContext.RequestServices.GetRequiredService<IStudentData>().Get(released.StudentID);
+                    await HttpContext.RequestServices.GetRequiredService<NotificationService>().NotifyUser(gradedStudent?.UserID, "GradeReleased", "Exam result released",
+                        $"Your result for \"{released.ExamTitle}\" is available.",
+                        "/Student/MyResults/Index", released.AttemptID);
                 }
 
                 // The approval itself already succeeded and is not rolled back

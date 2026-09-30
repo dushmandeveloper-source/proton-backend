@@ -1,0 +1,98 @@
+@inject Web_Backend.Areas.Admin.Data.INotificationData NotificationRep
+@{
+    // Top-bar bell for all four portals. Initial unread count is rendered
+    // server-side so the badge is right even before SignalR connects;
+    // wwwroot/js/notifications.js takes over from there. Styled with its own
+    // scoped CSS below (not Tailwind utilities): css/tailwind.css is a
+    // prebuilt file, so utilities not already used elsewhere don't exist.
+    var bellUserId = Web_Backend.Classes.Auth.GetUserId();
+    var bellUnread = 0;
+    if (!string.IsNullOrEmpty(bellUserId))
+    {
+        try { bellUnread = await NotificationRep.UnreadCount(bellUserId); } catch { }
+    }
+}
+@if (!string.IsNullOrEmpty(bellUserId))
+{
+    <div class="nb-root" id="notif-root">
+        <button type="button" id="notif-toggle" aria-label="Notifications" aria-haspopup="true" aria-expanded="false"
+                class="nb-btn @(bellUnread > 0 ? "nb-has-unread" : "")">
+            <i data-lucide="bell" class="nb-icon"></i>
+            <span id="notif-badge" class="nb-badge" @(bellUnread > 0 ? "" : "hidden")>
+                <span class="nb-badge-ping"></span>
+                <span id="notif-badge-count" class="nb-badge-count">@(bellUnread > 99 ? "99+" : bellUnread.ToString())</span>
+            </span>
+        </button>
+
+        <div id="notif-panel" class="nb-panel" hidden role="menu">
+            <div class="nb-head">
+                <div>
+                    <div class="nb-title">Notifications</div>
+                    <div class="nb-sub" id="notif-sub">@(bellUnread > 0 ? $"{bellUnread} unread" : "No unread")</div>
+                </div>
+                <button type="button" id="notif-mark-all" class="nb-mark">
+                    <i data-lucide="check-check" class="nb-mark-icon"></i> Mark all read
+                </button>
+            </div>
+            <div id="notif-list" class="nb-list">
+                <div class="nb-empty">Loading…</div>
+            </div>
+        </div>
+    </div>
+    <style>
+        .nb-root { position: relative; }
+        .nb-btn { position: relative; padding: .5rem; border-radius: .75rem; color: #94a3b8; background: transparent; border: 0; cursor: pointer; transition: background-color .15s, color .15s; line-height: 0; }
+        .nb-btn:hover { background: #f1f5f9; color: #475569; }
+        .dark .nb-btn { color: #64748b; } .dark .nb-btn:hover { background: #334155; color: #cbd5e1; }
+        .nb-icon { width: 20px; height: 20px; }
+        .nb-has-unread .nb-icon, .nb-has-unread svg { color: #7c3aed; animation: nb-swing 1.8s ease-in-out infinite; transform-origin: 50% 2px; }
+        .nb-badge { position: absolute; top: 2px; right: 2px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; background: #ef4444; color: #fff; font-size: 10px; font-weight: 700; line-height: 18px; text-align: center; box-shadow: 0 0 0 2px #fff; }
+        .dark .nb-badge { box-shadow: 0 0 0 2px #1e293b; }
+        .nb-badge[hidden] { display: none; }
+        .nb-badge-ping { position: absolute; inset: 0; border-radius: 999px; background: #ef4444; animation: nb-ping 1.5s cubic-bezier(0,0,.2,1) infinite; }
+        .nb-badge-count { position: relative; }
+
+        .nb-panel { position: absolute; right: -8px; top: calc(100% + 10px); width: 380px; max-width: calc(100vw - 24px); background: #fff; border: 1px solid #e2e8f0; border-radius: 18px; box-shadow: 0 20px 45px -12px rgba(15,23,42,.25), 0 4px 12px -4px rgba(15,23,42,.08); z-index: 60; overflow: hidden; transform-origin: top right; animation: nb-pop .18s cubic-bezier(.2,.9,.3,1.2); }
+        .nb-panel[hidden] { display: none; }
+        .dark .nb-panel { background: #0f172a; border-color: #334155; }
+        .nb-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px; border-bottom: 1px solid #f1f5f9; }
+        .dark .nb-head { border-color: #1e293b; }
+        .nb-title { font-size: 15px; font-weight: 600; color: #1e293b; white-space: nowrap; }
+        .dark .nb-title { color: #f1f5f9; }
+        .nb-sub { font-size: 12px; color: #94a3b8; margin-top: 1px; }
+        .nb-mark { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; font-size: 12px; font-weight: 500; color: #7c3aed; background: #f5f3ff; border: 0; border-radius: 10px; padding: 6px 10px; cursor: pointer; transition: background-color .15s; }
+        .nb-mark:hover { background: #ede9fe; }
+        .dark .nb-mark { background: rgba(124,58,237,.15); color: #c4b5fd; }
+        .nb-mark-icon { width: 14px; height: 14px; }
+        .nb-list { max-height: min(440px, 70vh); overflow-y: auto; }
+        .nb-empty { padding: 40px 16px; text-align: center; font-size: 14px; color: #94a3b8; }
+        .nb-empty-icon { width: 44px; height: 44px; margin: 0 auto 10px; border-radius: 999px; background: #f5f3ff; color: #7c3aed; display: flex; align-items: center; justify-content: center; }
+        .dark .nb-empty-icon { background: rgba(124,58,237,.15); }
+
+        .nb-item { display: flex; gap: 12px; padding: 12px 16px; text-decoration: none; border-bottom: 1px solid #f8fafc; transition: background-color .15s; }
+        .dark .nb-item { border-color: #1e293b; }
+        .nb-item:hover { background: #f8fafc; } .dark .nb-item:hover { background: #1e293b; }
+        .nb-item.nb-unread { background: #faf8ff; } .dark .nb-item.nb-unread { background: rgba(124,58,237,.08); }
+        .nb-item-icon { flex-shrink: 0; width: 36px; height: 36px; border-radius: 12px; display: flex; align-items: center; justify-content: center; }
+        .nb-item-icon svg, .nb-item-icon i { width: 18px; height: 18px; }
+        .nb-item-main { min-width: 0; flex: 1; }
+        .nb-item-title { display: flex; align-items: center; gap: 6px; font-size: 13.5px; font-weight: 600; color: #1e293b; }
+        .dark .nb-item-title { color: #f1f5f9; }
+        .nb-item-title span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .nb-dot { flex-shrink: 0; width: 7px; height: 7px; border-radius: 999px; background: #7c3aed; }
+        .nb-item-body { font-size: 12.5px; color: #64748b; margin-top: 2px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+        .dark .nb-item-body { color: #94a3b8; }
+        .nb-item-time { font-size: 11px; color: #94a3b8; margin-top: 4px; }
+        .nb-new { animation: nb-slide .35s ease-out; }
+
+        .hl-flash { animation: hl-flash 2.4s ease-out 1; border-radius: .75rem; }
+        @@keyframes hl-flash { 0%,30% { box-shadow: 0 0 0 3px #a78bfa; background-color: rgba(167,139,250,.18) } 100% { box-shadow: 0 0 0 0 transparent; background-color: transparent } }
+        @@keyframes nb-swing { 0%,55%,100% { transform: rotate(0) } 10% { transform: rotate(14deg) } 20% { transform: rotate(-12deg) } 30% { transform: rotate(8deg) } 40% { transform: rotate(-5deg) } 50% { transform: rotate(2deg) } }
+        @@keyframes nb-ping { 75%,100% { transform: scale(1.9); opacity: 0 } }
+        @@keyframes nb-pop { from { opacity: 0; transform: scale(.96) translateY(-4px) } to { opacity: 1; transform: none } }
+        @@keyframes nb-slide { from { opacity: 0; transform: translateY(-6px) } to { opacity: 1; transform: none } }
+        @@media (prefers-reduced-motion: reduce) { .nb-root *, .hl-flash { animation: none !important } }
+        @@media (max-width: 480px) { .nb-panel { position: fixed; left: 12px; right: 12px; top: 72px; width: auto; max-width: none; } }
+    </style>
+    <script src="~/js/notifications.js" asp-append-version="true" defer></script>
+}

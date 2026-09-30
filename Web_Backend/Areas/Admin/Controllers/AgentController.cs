@@ -348,6 +348,8 @@ namespace Web_Backend.Areas.Admin.Controllers
                 }
                 await agentRep.VerifyAccount(detail.AgentID, "Verified", Auth.GetUserId());
                 TempData["SuccessMessage"] = "Agent account approved.";
+                await HttpContext.RequestServices.GetRequiredService<NotificationService>().NotifyUser(userId, "AgentApproved", "Your agent account is approved",
+                    "You can now register and manage students.", "/Agent/Dashboard/Index");
             }
             catch (Exception ex)
             {

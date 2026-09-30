@@ -104,6 +104,10 @@ namespace Web_Backend.Controllers.Api
                 IsActive = "A"
             });
 
+            await HttpContext.RequestServices.GetRequiredService<NotificationService>().NotifyStaff(PermissionCode.Students, "StudentRegistered", "New student registered",
+                $"{request.FirstName} {request.LastName} registered on the website.",
+                $"/Admin/Student/Details/{Uri.EscapeDataString(studentId)}");
+
             return Ok(new { userId, studentId });
         }
     }

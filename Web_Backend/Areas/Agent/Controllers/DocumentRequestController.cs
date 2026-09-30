@@ -61,6 +61,9 @@ namespace Web_Backend.Areas.AgentPortal.Controllers
 
                 await requestRep.Submit(itemId, storedFileName, file.FileName, file.ContentType, agentUserId, "Agent");
                 TempData["SuccessMessage"] = "Document submitted.";
+                await HttpContext.RequestServices.GetRequiredService<NotificationService>().NotifyStaff(PermissionCode.DocumentRequests, "DocumentSubmitted", "Document submitted",
+                    $"{Auth.GetUser()?.Name ?? "An agent"} uploaded a requested document for a student.",
+                    $"/Admin/DocumentRequest/Details?requestId={Uri.EscapeDataString(item.RequestID)}", itemId);
             }
             catch (InvalidOperationException ex)
             {

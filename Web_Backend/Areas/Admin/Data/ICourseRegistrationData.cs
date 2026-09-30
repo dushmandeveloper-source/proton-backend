@@ -16,6 +16,7 @@ namespace Web_Backend.Areas.Admin.Data
         Task<string> AddPayment(string registrationId, decimal amount, string method, string slipUrl, string notes, string createdByUserId);
         Task VerifySlip(string paymentId, string verifiedByUserId);
         Task<string> EditPayment(string paymentId, decimal amount, string method, string slipUrl, string notes, string logUserId);
+        Task DeletePayment(string paymentId, string logUserId);
         Task<CourseRegistration?> Get(string id);
         Task<List<CourseRegistrationPayment>> GetPayments(string registrationId);
         Task<List<CourseRegistration>> GetByStudent(string studentId);

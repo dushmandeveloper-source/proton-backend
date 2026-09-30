@@ -50,6 +50,7 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
                 return View(model);
             }
 
+            TempData[Web_Backend.Areas.StudentPortal.Controllers.DashboardController.ShowLoginSummaryKey] = true;
             return RedirectToAction("Index", "Dashboard", new { area = "Student" });
         }
 

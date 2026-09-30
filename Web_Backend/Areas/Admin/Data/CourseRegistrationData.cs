@@ -78,6 +78,14 @@ namespace Web_Backend.Areas.Admin.Data
                 LogUserID = logUserId
             });
 
+        public Task DeletePayment(string paymentId, string logUserId) =>
+            db.ExecuteNonQuery("mst.CourseRegistrationPayment_Delete", new
+            {
+                APIKey = AppData.GetAPIKey(),
+                PaymentID = paymentId,
+                LogUserID = logUserId
+            });
+
         public Task<CourseRegistration?> Get(string id) =>
             db.Get<CourseRegistration, object>("mst.CourseRegistration_Get", new { APIKey = AppData.GetAPIKey(), ID = id });
 

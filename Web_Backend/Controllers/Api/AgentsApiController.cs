@@ -136,6 +136,9 @@ namespace Web_Backend.Controllers.Api
             // can actually do (register/manage students) via
             // Agent.IsContentRestricted, rather than blocking login itself.
             var fullName = $"{request.FirstName} {request.LastName}".Trim();
+            await HttpContext.RequestServices.GetRequiredService<NotificationService>().NotifyStaff(PermissionCode.Agents, "AgentRegistered", "New agent awaiting approval",
+                $"{fullName} registered as an agent and is pending approval.",
+                $"/Admin/Agent/Details/{Uri.EscapeDataString(userId)}");
             await Auth.SignIn(new SessionUser
             {
                 Id = userId,
