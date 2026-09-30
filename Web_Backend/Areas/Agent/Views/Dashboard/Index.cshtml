@@ -58,6 +58,50 @@
         }
     </div>
 
+    @{
+        var agentToday = Web_Backend.Classes.SriLankaTime.Today;
+        var agentOverdue = Model.DueInstallments.Count(i => i.DueDate.Date < agentToday);
+    }
+    <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
+        <div class="px-6 py-4 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between gap-3 flex-wrap">
+            <div>
+                <h3 class="text-sm font-semibold text-slate-800 dark:text-slate-100">Installments due this month</h3>
+                <p class="text-xs text-slate-500 dark:text-slate-400">Your students · <b class="text-amber-600 dark:text-amber-300">@(Model.DueInstallments.Count - agentOverdue) this month</b> · <b class="text-red-600 dark:text-red-300">@agentOverdue overdue</b></p>
+            </div>
+            @foreach (var cur in Model.DueInstallments.GroupBy(i => i.CurrencyCode))
+            {
+                <span class="text-sm font-semibold text-slate-700 dark:text-slate-200">@cur.Key @cur.Sum(i => i.Remaining).ToString("N2") outstanding</span>
+            }
+        </div>
+        @if (Model.DueInstallments.Count == 0)
+        {
+            <div class="p-8 text-center text-sm text-slate-400 dark:text-slate-500">No installments due this month.</div>
+        }
+        else
+        {
+            <div class="divide-y divide-slate-100 dark:divide-slate-700">
+                @foreach (var i in Model.DueInstallments)
+                {
+                    var days = (agentToday - i.DueDate.Date).Days;
+                    var (tag, tagCls) = days > 0
+                        ? (days == 1 ? "1 day overdue" : days + " days overdue", "bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-300")
+                        : days == 0 ? ("Due today", "bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-300")
+                        : ("Due " + i.DueDate.ToString("d MMM"), "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300");
+                    <a href="/Agent/Student/Details/@Uri.EscapeDataString(i.StudentID)#hl-@i.InstallmentID" class="px-6 py-3 flex items-center justify-between gap-4 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
+                        <div class="min-w-0">
+                            <p class="text-sm font-semibold text-slate-800 dark:text-slate-100 truncate">@i.StudentName</p>
+                            <p class="text-xs text-slate-500 dark:text-slate-400 truncate">@i.CourseTitle · installment @i.SeqNo</p>
+                        </div>
+                        <div class="text-right flex-shrink-0">
+                            <p class="text-sm font-semibold text-slate-800 dark:text-slate-100">@i.CurrencyCode @i.Remaining.ToString("N2")</p>
+                            <span class="px-2 py-0.5 rounded-lg text-[11px] font-medium @tagCls">@tag</span>
+                        </div>
+                    </a>
+                }
+            </div>
+        }
+    </div>
+
     <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
         <div class="px-6 py-4 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between">
             <h3 class="text-sm font-semibold text-slate-800 dark:text-slate-100">Recently registered</h3>

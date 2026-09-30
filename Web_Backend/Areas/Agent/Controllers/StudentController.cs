@@ -151,6 +151,9 @@ namespace Web_Backend.Areas.AgentPortal.Controllers
 
             var registrations = await registrationRep.GetByStudent(student.StudentID);
             ViewBag.Registrations = registrations;
+            // Installment plans (0091), read-only for agents.
+            ViewBag.Installments = (await registrationRep.GetInstallmentsByStudent(student.StudentID))
+                .GroupBy(i => i.RegistrationID).ToDictionary(g => g.Key, g => g.OrderBy(i => i.SeqNo).ToList());
 
             var examAttempts = await examAttemptRep.ListForStudent(student.StudentID);
             ViewBag.ExamAttempts = examAttempts;

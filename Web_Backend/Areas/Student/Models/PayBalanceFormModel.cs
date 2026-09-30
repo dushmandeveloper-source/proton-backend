@@ -11,6 +11,8 @@ namespace Web_Backend.Areas.StudentPortal.Models
         // initial payment, this action only exists to make a payment).
         public string PaymentMethod { get; set; } = "";
         public decimal Amount { get; set; }
+        // Which fixed option was picked: "installment" | "full" (PaymentOptions).
+        public string Option { get; set; } = "";
         public string Notes { get; set; } = "";
         public IFormFile? PaymentSlip { get; set; }
     }

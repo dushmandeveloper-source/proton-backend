@@ -1,0 +1,146 @@
+@model List<Web_Backend.Areas.Admin.Models.FinCategory>
+@{
+    var kind = ViewBag.Kind as string ?? "Expense";
+    var canAdd = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.Finance, 'A');
+    var canEdit = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.Finance, 'E');
+    var rows = Model.Where(c => c.Kind == kind).ToList();
+    var colors = new[] { "#7c3aed", "#6366f1", "#3b82f6", "#0ea5e9", "#06b6d4", "#14b8a6", "#10b981", "#22c55e", "#84cc16", "#eab308", "#f59e0b", "#f97316", "#ef4444", "#f43f5e", "#ec4899", "#a855f7", "#64748b", "#78716c" };
+}
+<link rel="stylesheet" href="~/css/finance.css" asp-append-version="true" />
+
+<div class="fn">
+    <div class="fn-head">
+        <div>
+            <div class="fn-eyebrow"><a href="@Url.Action(kind == "Expense" ? "Expenses" : "Income")" class="fn-muted">← @(kind == "Expense" ? "Expenses" : "Other income")</a></div>
+            <h1 class="fn-title">Categories</h1>
+        </div>
+        <div class="fn-actions">
+            <div class="fn-pills">
+                <a class="fn-pill @(kind == "Expense" ? "on" : "")" href="@Url.Action("Categories", new { kind = "Expense" })">Expense</a>
+                <a class="fn-pill @(kind == "Income" ? "on" : "")" href="@Url.Action("Categories", new { kind = "Income" })">Income</a>
+            </div>
+            @if (canAdd)
+            {
+                <button type="button" class="fn-btn fn-btn-primary" data-cat-new><i data-lucide="plus"></i> New category</button>
+            }
+        </div>
+    </div>
+
+    <div class="fn-card">
+        <div class="fn-table-wrap">
+            <table class="fn-table">
+                <thead><tr><th>Category</th>@if (kind == "Expense") {<th>Type</th>}<th class="fn-r">Entries</th><th>Status</th><th></th></tr></thead>
+                <tbody>
+                    @foreach (var c in rows)
+                    {
+                        <tr style="@(c.IsActive == "A" ? "" : "opacity:.55")">
+                            <td><div class="fn-cat"><partial name="_Icon" model="(c.IconKey, c.Color, false)" /><span class="fn-cat-name">@c.CategoryName</span></div></td>
+                            @if (kind == "Expense")
+                            {
+                                <td><span class="fn-badge">@c.CategoryGroup</span></td>
+                            }
+                            <td class="fn-r">@c.EntryCount</td>
+                            <td>@(c.IsActive == "A" ? "Active" : "Inactive")</td>
+                            <td class="fn-r">
+                                @if (canEdit)
+                                {
+                                    <button type="button" class="fn-btn fn-btn-sm" data-cat-edit data-id="@c.CategoryID" data-name="@c.CategoryName"
+                                            data-icon="@c.IconKey" data-color="@c.Color" data-group="@c.CategoryGroup" data-active="@c.IsActive">Edit</button>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="fn-modal" id="cat-modal" hidden role="dialog" aria-modal="true">
+    <div class="fn-modal-bg" data-cat-close></div>
+    <form method="post" asp-action="SaveCategory" class="fn-modal-panel">
+        @Html.AntiForgeryToken()
+        <input type="hidden" name="CategoryID" id="cat-id" />
+        <input type="hidden" name="Kind" value="@kind" />
+        <input type="hidden" name="IconKey" id="cat-icon" value="circle-dollar-sign" />
+        <input type="hidden" name="Color" id="cat-color" value="#7c3aed" />
+        <div class="fn-modal-head">
+            <h3 id="cat-title">New category</h3>
+            <button type="button" class="fn-x" data-cat-close aria-label="Close"><i data-lucide="x"></i></button>
+        </div>
+        <div class="fn-modal-body">
+            <div class="fn-span2" style="display:flex;align-items:center;gap:12px">
+                <span class="fn-ic" id="cat-preview" style="width:48px;height:48px;border-radius:14px"><i data-lucide="circle-dollar-sign"></i></span>
+                <label class="fn-field" style="flex:1">Name <input name="CategoryName" id="cat-name" maxlength="100" required class="fn-input" /></label>
+            </div>
+            @if (kind == "Expense")
+            {
+                <label class="fn-field">Type
+                    <select name="CategoryGroup" id="cat-group" class="fn-select"><option>Variable</option><option>Fixed</option></select>
+                </label>
+            }
+            else
+            {
+                <input type="hidden" name="CategoryGroup" value="Variable" />
+            }
+            <label class="fn-field">Status
+                <select name="IsActive" id="cat-active" class="fn-select"><option value="A">Active</option><option value="I">Inactive</option></select>
+            </label>
+            <div class="fn-field fn-span2">Colour
+                <div class="fn-swatches">
+                    @foreach (var col in colors)
+                    {
+                        <button type="button" class="fn-swatch" style="background:@col" data-color="@col" aria-label="@col"></button>
+                    }
+                </div>
+            </div>
+            <div class="fn-field fn-span2">Icon
+                <div class="fn-icons">
+                    @foreach (var ic in Web_Backend.Classes.FinanceIcons.Keys)
+                    {
+                        <button type="button" class="fn-icon-opt" data-icon="@ic" title="@ic"><i data-lucide="@ic"></i></button>
+                    }
+                </div>
+            </div>
+        </div>
+        <div class="fn-modal-foot">
+            <button type="button" class="fn-btn" data-cat-close>Cancel</button>
+            <button type="submit" class="fn-btn fn-btn-primary">Save</button>
+        </div>
+    </form>
+</div>
+
+<script>
+    (function () {
+        var modal = document.getElementById('cat-modal');
+        document.body.appendChild(modal);
+        function $(id) { return document.getElementById(id); }
+        function setIcon(ic) {
+            $('cat-icon').value = ic;
+            modal.querySelectorAll('.fn-icon-opt').forEach(function (b) { b.classList.toggle('on', b.dataset.icon === ic); });
+            $('cat-preview').innerHTML = '<i data-lucide="' + ic + '"></i>';
+            if (window.lucide) lucide.createIcons();
+            setColor($('cat-color').value);
+        }
+        function setColor(col) {
+            $('cat-color').value = col;
+            modal.querySelectorAll('.fn-swatch').forEach(function (b) { b.classList.toggle('on', b.dataset.color === col); });
+            $('cat-preview').style.color = col; $('cat-preview').style.background = col + '1f';
+        }
+        function open(d) {
+            $('cat-title').textContent = d ? 'Edit category' : 'New category';
+            $('cat-id').value = d ? d.id : '';
+            $('cat-name').value = d ? d.name : '';
+            if ($('cat-group')) $('cat-group').value = d ? d.group : 'Variable';
+            $('cat-active').value = d ? d.active : 'A';
+            setColor(d ? d.color : '#7c3aed'); setIcon(d ? d.icon : 'circle-dollar-sign');
+            modal.hidden = false; $('cat-name').focus();
+        }
+        modal.querySelectorAll('.fn-icon-opt').forEach(function (b) { b.addEventListener('click', function () { setIcon(b.dataset.icon); }); });
+        modal.querySelectorAll('.fn-swatch').forEach(function (b) { b.addEventListener('click', function () { setColor(b.dataset.color); }); });
+        document.querySelectorAll('[data-cat-new]').forEach(function (b) { b.addEventListener('click', function () { open(null); }); });
+        document.querySelectorAll('[data-cat-edit]').forEach(function (b) { b.addEventListener('click', function () { open(b.dataset); }); });
+        modal.querySelectorAll('[data-cat-close]').forEach(function (b) { b.addEventListener('click', function () { modal.hidden = true; }); });
+        document.addEventListener('keydown', function (e) { if (e.key === 'Escape') modal.hidden = true; });
+    })();
+</script>

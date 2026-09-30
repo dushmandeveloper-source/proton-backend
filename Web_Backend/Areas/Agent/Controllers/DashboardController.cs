@@ -17,9 +17,11 @@ namespace Web_Backend.Areas.AgentPortal.Controllers
         private readonly IStudentData studentRep;
         private readonly IAgentData agentRep;
         private readonly IDocumentRequestData documentRequestRep;
+        private readonly ICourseRegistrationData registrationRep;
 
-        public DashboardController(IStudentData studentRep, IAgentData agentRep, IDocumentRequestData documentRequestRep)
+        public DashboardController(IStudentData studentRep, IAgentData agentRep, IDocumentRequestData documentRequestRep, ICourseRegistrationData registrationRep)
         {
+            this.registrationRep = registrationRep;
             this.studentRep = studentRep;
             this.agentRep = agentRep;
             this.documentRequestRep = documentRequestRep;
@@ -46,6 +48,16 @@ namespace Web_Backend.Areas.AgentPortal.Controllers
                 IsPendingApproval = agent?.IsContentRestricted ?? false,
                 PendingDocumentRequestCount = pendingDocumentCount
             };
+
+            try
+            {
+                var today = SriLankaTime.Today;
+                var monthEnd = new DateTime(today.Year, today.Month, 1).AddMonths(1).AddDays(-1);
+                var mine = students.Select(s => s.StudentID).ToHashSet();
+                model.DueInstallments = (await registrationRep.GetDueInstallments(monthEnd))
+                    .Where(i => mine.Contains(i.StudentID)).OrderBy(i => i.DueDate).ToList();
+            }
+            catch { }
 
             return View(model);
         }

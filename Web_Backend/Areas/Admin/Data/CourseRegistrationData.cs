@@ -86,6 +86,61 @@ namespace Web_Backend.Areas.Admin.Data
                 LogUserID = logUserId
             });
 
+        public Task<List<PaymentInstallment>> GetInstallments(string registrationId) =>
+            db.GetList<PaymentInstallment, object>("mst.PaymentInstallment_ListByRegistration", new { APIKey = AppData.GetAPIKey(), RegistrationID = registrationId });
+
+        public Task<List<PaymentInstallment>> GetInstallmentsByStudent(string studentId) =>
+            db.GetList<PaymentInstallment, object>("mst.PaymentInstallment_ListByStudent", new { APIKey = AppData.GetAPIKey(), StudentID = studentId });
+
+        public Task<List<PaymentInstallment>> GetDueInstallments(DateTime asOf) =>
+            db.GetList<PaymentInstallment, object>("mst.PaymentInstallment_DueList", new { APIKey = AppData.GetAPIKey(), AsOf = asOf.Date });
+
+        public Task SaveInstallmentPlan(string registrationId, List<InstallmentPlanRow> rows, string logUserId) =>
+            db.ExecuteNonQuery("mst.PaymentInstallment_SavePlan", new
+            {
+                APIKey = AppData.GetAPIKey(),
+                RegistrationID = registrationId,
+                PlanJson = System.Text.Json.JsonSerializer.Serialize(rows.Select(r => new
+                {
+                    DueDate = r.DueDate.ToString("yyyy-MM-dd"),
+                    r.Amount,
+                    r.DiscountAmount,
+                    DiscountReason = r.DiscountReason ?? ""
+                })),
+                LogUserID = logUserId
+            });
+
+        public Task SetInstallmentDiscount(string installmentId, decimal amount, string reason, string logUserId) =>
+            db.ExecuteNonQuery("mst.PaymentInstallment_SetDiscount", new
+            {
+                APIKey = AppData.GetAPIKey(),
+                InstallmentID = installmentId,
+                Amount = amount,
+                Reason = reason ?? "",
+                LogUserID = logUserId
+            });
+
+        public Task SetPaymentReminders(string registrationId, bool enabled) =>
+            db.ExecuteNonQuery("mst.CourseRegistration_SetPaymentReminders", new { APIKey = AppData.GetAPIKey(), RegistrationID = registrationId, Enabled = enabled });
+
+        public async Task<HashSet<string>> GetRemindersOff(string studentId) =>
+            (await db.GetList<string, object>("mst.CourseRegistration_RemindersOffByStudent", new { APIKey = AppData.GetAPIKey(), StudentID = studentId })).ToHashSet();
+
+        public Task<List<RosterPaymentSummary>> GetPaymentSummaryForSchedule(string scheduleId, string instructorUserId, DateTime asOf) =>
+            db.GetList<RosterPaymentSummary, object>("mst.CourseRegistration_PaymentSummaryForSchedule", new
+            {
+                APIKey = AppData.GetAPIKey(),
+                ScheduleID = scheduleId,
+                UserID = instructorUserId,
+                AsOf = asOf.Date
+            });
+
+        public Task<List<DiscountIncomeRow>> GetDiscountIncome() =>
+            db.GetList<DiscountIncomeRow, object>("mst.Dashboard_DiscountIncome", new { APIKey = AppData.GetAPIKey() });
+
+        public Task RejectPayment(string paymentId, string reason, string logUserId) =>
+            db.ExecuteNonQuery("mst.CourseRegistrationPayment_Reject", new { APIKey = AppData.GetAPIKey(), PaymentID = paymentId, Reason = reason ?? "", LogUserID = logUserId });
+
         public Task<CourseRegistration?> Get(string id) =>
             db.Get<CourseRegistration, object>("mst.CourseRegistration_Get", new { APIKey = AppData.GetAPIKey(), ID = id });
 

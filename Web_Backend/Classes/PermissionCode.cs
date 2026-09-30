@@ -22,6 +22,7 @@ namespace Web_Backend.Classes
         public const string CourseVideos = "CourseVideos";
         public const string Documents = "Documents";
         public const string DocumentRequests = "DocumentRequests";
+        public const string Finance = "Finance";
 
         public static readonly (string Code, string Label)[] All =
         {
@@ -41,6 +42,7 @@ namespace Web_Backend.Classes
             (CourseVideos, "Course Videos"),
             (Documents, "Documents"),
             (DocumentRequests, "Document Requests"),
+            (Finance, "Finance (expenses, income, budgets)"),
         };
     }
 }

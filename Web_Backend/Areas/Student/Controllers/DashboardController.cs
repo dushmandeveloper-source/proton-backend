@@ -46,15 +46,24 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
         // the popup shows on the first dashboard load after sign-in only.
         public const string ShowLoginSummaryKey = "ShowLoginSummary";
 
-        private async Task<LoginSummaryViewModel> BuildLoginSummary(Student student, List<CourseRegistration> registrations, int pendingDocumentCount, string userId)
+        private async Task<LoginSummaryViewModel> BuildLoginSummary(Student student, List<CourseRegistration> registrations, Dictionary<string, List<PaymentInstallment>> installments, int pendingDocumentCount, string userId)
         {
             var active = registrations.Where(r => r.IsActive == "A").ToList();
+            var plans = installments;
+            // Courses whose payment reminders an admin switched off (0092).
+            var remindersOff = await registrationRep.GetRemindersOff(student.StudentID);
+            var remind = active.Where(r => !remindersOff.Contains(r.RegistrationID)).ToList();
+            var today0 = Web_Backend.Classes.SriLankaTime.Today;
             var summary = new LoginSummaryViewModel
             {
                 StudentName = student.FullName,
                 AccountVerificationStatus = student.AccountVerificationStatus,
                 PassportVerificationStatus = student.PassportVerificationStatus,
-                PendingPayments = active.Where(r => r.BalanceDue > 0).ToList(),
+                // With a plan only this month's (and overdue) installments are owed now.
+                PendingPayments = remind.Where(r => r.BalanceDue > 0 && !plans.ContainsKey(r.RegistrationID)).ToList(),
+                DueInstallments = remind.Where(r => plans.ContainsKey(r.RegistrationID))
+                    .SelectMany(r => plans[r.RegistrationID].Where(i => i.IsDueBy(today0)).Select(i => (r, i, plans[r.RegistrationID].Count)))
+                    .OrderBy(x => x.i.DueDate).ToList(),
                 Discounts = active.Where(r => r.HasPersonalDiscount || r.HasDiscount).ToList(),
                 LockedCourses = active.Where(r => !r.FullAccess).ToList(),
                 PendingDocumentRequests = pendingDocumentCount
@@ -83,6 +92,26 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
                 .Where(a => a.ResultReleasedDate.HasValue && a.ResultReleasedDate >= releasedCutoff)
                 .OrderByDescending(a => a.ResultReleasedDate)
                 .Take(5).ToList();
+
+            // Full balances (no installment plan) aren't shown in the popup;
+            // they go to the bell instead, once per course while unread.
+            try
+            {
+                if (summary.PendingPayments.Count > 0)
+                {
+                    var notifier = HttpContext.RequestServices.GetRequiredService<NotificationService>();
+                    var recent = await notificationRep.ListForUser(userId, 100);
+                    foreach (var r in summary.PendingPayments)
+                    {
+                        if (recent.Any(n => !n.IsRead && n.EventType == "BalanceDue" && n.RefID == r.RegistrationID)) continue;
+                        await notifier.NotifyUser(userId, "BalanceDue", "Payment due",
+                            $"{r.CourseTitle}: {r.CurrencyCode} {r.BalanceDue:N2} outstanding.",
+                            $"/Student/Courses/Details?registrationId={Uri.EscapeDataString(r.RegistrationID)}#hl-{r.RegistrationID}",
+                            r.RegistrationID, includeSelf: true);
+                    }
+                }
+            }
+            catch { }
 
             try { summary.UnreadNotifications = await notificationRep.UnreadCount(userId); } catch { }
             try
@@ -160,6 +189,8 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
                 WeekSchedule = weekSchedule,
                 Summary = summary,
                 Registrations = registrations,
+                Installments = (await registrationRep.GetInstallmentsByStudent(student.StudentID))
+                    .GroupBy(i => i.RegistrationID).ToDictionary(g => g.Key, g => g.OrderBy(i => i.SeqNo).ToList()),
                 PendingDocumentRequestCount = pendingDocumentCount
             };
 
@@ -221,7 +252,7 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
             ViewBag.CurrentUser = Auth.GetUser();
             if (TempData[ShowLoginSummaryKey] is true)
             {
-                var loginSummary = await BuildLoginSummary(student, registrations, pendingDocumentCount, userId);
+                var loginSummary = await BuildLoginSummary(student, registrations, model.Installments, pendingDocumentCount, userId);
                 if (loginSummary.HasAnything) ViewBag.LoginSummary = loginSummary;
             }
 

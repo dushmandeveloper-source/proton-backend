@@ -59,6 +59,26 @@ namespace Web_Backend.Areas.Admin.Controllers
             this.notifier = notifier;
         }
 
+        // Marks the student's unread full-balance "Payment due" notification
+        // for this course as read -- once a plan exists (or reminders are
+        // off) that reminder no longer applies.
+        private async Task ClearBalanceDueNotification(string studentId, string registrationId)
+        {
+            try
+            {
+                var student = await rep.Get(studentId);
+                if (string.IsNullOrEmpty(student?.UserID)) return;
+                var notifications = HttpContext.RequestServices.GetRequiredService<INotificationData>();
+                foreach (var n in (await notifications.ListForUser(student.UserID, 100))
+                             .Where(n => !n.IsRead && n.EventType == "BalanceDue" && n.RefID == registrationId))
+                    await notifications.MarkRead(n.NotificationID, student.UserID);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Clearing BalanceDue notification failed");
+            }
+        }
+
         // Bell notification to the student themself. registrationId set →
         // links to that course's details page; otherwise to their dashboard.
         private async Task NotifyStudent(string studentId, string registrationId, string eventType, string title, string body, string? link = null)
@@ -192,11 +212,13 @@ namespace Web_Backend.Areas.Admin.Controllers
         private async Task<StudentDetailsPageViewModel> BuildDetailsPageModel(Student student)
         {
             var registrations = await registrationRep.GetByStudent(student.StudentID);
+            var remindersOff = await registrationRep.GetRemindersOff(student.StudentID);
             var detailModels = new List<CourseRegistrationDetailViewModel>();
             foreach (var reg in registrations)
             {
                 var payments = await registrationRep.GetPayments(reg.RegistrationID);
-                detailModels.Add(new CourseRegistrationDetailViewModel { Registration = reg, Payments = payments });
+                var installments = await registrationRep.GetInstallments(reg.RegistrationID);
+                detailModels.Add(new CourseRegistrationDetailViewModel { Registration = reg, Payments = payments, Installments = installments, PaymentReminders = !remindersOff.Contains(reg.RegistrationID) });
             }
 
             return new StudentDetailsPageViewModel { Student = student, Registrations = detailModels };
@@ -740,8 +762,10 @@ namespace Web_Backend.Areas.Admin.Controllers
                     slipUrl = savedUrl ?? "";
                 }
 
-                await registrationRep.AddPayment(registrationId, amount, paymentMethod, slipUrl, notes, Auth.GetUserId());
-                TempData["SuccessMessage"] = "Payment recorded.";
+                var newPaymentId = await registrationRep.AddPayment(registrationId, amount, paymentMethod, slipUrl, notes, Auth.GetUserId());
+                // Staff took this payment themselves, so it's approved straight away.
+                if (!string.IsNullOrEmpty(newPaymentId)) await registrationRep.VerifySlip(newPaymentId, Auth.GetUserId());
+                TempData["SuccessMessage"] = "Payment recorded and approved.";
                 await NotifyStudent(studentId, registrationId, "PaymentAdded", "Payment recorded", $"A payment of {amount:N2} was recorded on your course.");
             }
             catch (Exception ex)
@@ -793,6 +817,34 @@ namespace Web_Backend.Areas.Admin.Controllers
             return RedirectToAction("Details", new { id = studentId });
         }
 
+        // Rejects a submitted payment (bad/unclear slip, wrong amount...). It
+        // drops out of every total, so the student owes it again (0096).
+        [HttpPost, ValidateAntiForgeryToken]
+        public async Task<IActionResult> RejectCoursePayment(string studentId, string paymentId, string reason)
+        {
+            Auth.CheckPermission(PermissionCode.Enrollments, 'E');
+            try
+            {
+                var regId = "";
+                var amountText = "";
+                foreach (var reg in await registrationRep.GetByStudent(studentId))
+                {
+                    var p = (await registrationRep.GetPayments(reg.RegistrationID)).FirstOrDefault(x => x.PaymentID == paymentId);
+                    if (p != null) { regId = reg.RegistrationID; amountText = $"{reg.CurrencyCode} {p.Amount:N2}"; break; }
+                }
+                if (regId == "") throw new Exception("Payment not found for this student.");
+                await registrationRep.RejectPayment(paymentId, reason ?? "", Auth.GetUserId());
+                TempData["SuccessMessage"] = "Payment rejected. The student has been asked to pay again.";
+                await NotifyStudent(studentId, regId, "PaymentRejected", "Payment rejected, please pay again",
+                    $"Your payment of {amountText} was rejected: {reason}. The amount is due again.");
+            }
+            catch (Exception ex)
+            {
+                TempData["ErrorMessage"] = "Could not reject payment: " + ex.Message;
+            }
+            return RedirectToAction("Details", new { id = studentId });
+        }
+
         [HttpPost, ValidateAntiForgeryToken]
         public async Task<IActionResult> VerifyCoursePaymentSlip(string studentId, string paymentId)
         {
@@ -800,8 +852,8 @@ namespace Web_Backend.Areas.Admin.Controllers
             try
             {
                 await registrationRep.VerifySlip(paymentId, Auth.GetUserId());
-                TempData["SuccessMessage"] = "Payment slip verified.";
-                await NotifyStudent(studentId, "", "SlipVerified", "Payment slip verified", "Your bank deposit slip has been verified.", "/Student/Courses/Index");
+                TempData["SuccessMessage"] = "Payment approved.";
+                await NotifyStudent(studentId, "", "SlipVerified", "Payment approved", "Your payment has been checked and approved. Thank you!", "/Student/Courses/Index");
             }
             catch (Exception ex)
             {
@@ -843,6 +895,82 @@ namespace Web_Backend.Areas.Admin.Controllers
             return RedirectToAction("Details", new { id = studentId });
         }
 
+        // Replaces a registration's installment plan. Rows arrive as parallel
+        // arrays (dueDate[i], amount[i], discount[i], discountReason[i]);
+        // an empty plan removes it. Totals are enforced by the proc.
+        [HttpPost, ValidateAntiForgeryToken]
+        public async Task<IActionResult> SaveInstallmentPlan(string studentId, string registrationId,
+            List<DateTime>? dueDate, List<decimal>? amount, List<decimal>? discount, List<string?>? discountReason)
+        {
+            Auth.CheckPermission(PermissionCode.Enrollments, 'E');
+            try
+            {
+                var rows = new List<InstallmentPlanRow>();
+                for (var i = 0; i < (dueDate?.Count ?? 0); i++)
+                {
+                    rows.Add(new InstallmentPlanRow
+                    {
+                        DueDate = dueDate![i],
+                        Amount = amount != null && i < amount.Count ? amount[i] : 0,
+                        DiscountAmount = discount != null && i < discount.Count ? discount[i] : 0,
+                        DiscountReason = discountReason != null && i < discountReason.Count ? discountReason[i] ?? "" : ""
+                    });
+                }
+                await registrationRep.SaveInstallmentPlan(registrationId, rows, Auth.GetUserId());
+                TempData["SuccessMessage"] = rows.Count == 0 ? "Installment plan removed." : $"Installment plan saved ({rows.Count} installments).";
+                if (rows.Count > 0)
+                {
+                    await ClearBalanceDueNotification(studentId, registrationId);
+                    var first = rows.OrderBy(r => r.DueDate).First();
+                    await NotifyStudent(studentId, registrationId, "InstallmentPlan", "Your payment plan is ready",
+                        $"Your course fee is split into {rows.Count} installments. First due {first.DueDate:d MMM yyyy}.");
+                }
+            }
+            catch (Exception ex)
+            {
+                TempData["ErrorMessage"] = "Could not save installment plan: " + ex.Message;
+            }
+            return Redirect(Url.Action("Details", new { id = studentId }) + "#hl-" + registrationId);
+        }
+
+        [HttpPost, ValidateAntiForgeryToken]
+        public async Task<IActionResult> SetPaymentReminders(string studentId, string registrationId, bool enabled)
+        {
+            Auth.CheckPermission(PermissionCode.Enrollments, 'E');
+            try
+            {
+                await registrationRep.SetPaymentReminders(registrationId, enabled);
+                if (!enabled) await ClearBalanceDueNotification(studentId, registrationId);
+                TempData["SuccessMessage"] = enabled
+                    ? "Payment reminders turned on for this course."
+                    : "Payment reminders turned off: the student won't see due payments for this course in their popup or notifications.";
+            }
+            catch (Exception ex)
+            {
+                TempData["ErrorMessage"] = "Could not update reminders: " + ex.Message;
+            }
+            return Redirect(Url.Action("Details", new { id = studentId }) + "#hl-" + registrationId);
+        }
+
+        [HttpPost, ValidateAntiForgeryToken]
+        public async Task<IActionResult> SetInstallmentDiscount(string studentId, string registrationId, string installmentId, decimal amount, string? reason)
+        {
+            Auth.CheckPermission(PermissionCode.Enrollments, 'E');
+            try
+            {
+                await registrationRep.SetInstallmentDiscount(installmentId, amount, reason ?? "", Auth.GetUserId());
+                TempData["SuccessMessage"] = amount > 0 ? "Installment discount saved." : "Installment discount removed.";
+                if (amount > 0)
+                    await NotifyStudent(studentId, registrationId, "DiscountGiven", "You received a discount",
+                        $"A discount of {amount:N2} was applied to one of your installments." + (string.IsNullOrWhiteSpace(reason) ? "" : $" Reason: {reason}"));
+            }
+            catch (Exception ex)
+            {
+                TempData["ErrorMessage"] = "Could not save discount: " + ex.Message;
+            }
+            return Redirect(Url.Action("Details", new { id = studentId }) + "#hl-" + registrationId);
+        }
+
         [HttpPost, ValidateAntiForgeryToken]
         public async Task<IActionResult> SetPersonalDiscount(string studentId, string registrationId, decimal amount, string? reason)
         {
@@ -875,8 +1003,9 @@ namespace Web_Backend.Areas.Admin.Controllers
                 var balance = registration.CourseFee - paid;
                 if (balance <= 0) throw new Exception("This registration has no balance left.");
 
-                await registrationRep.AddPayment(registrationId, balance, "Cash", "",
+                var cashPaymentId = await registrationRep.AddPayment(registrationId, balance, "Cash", "",
                     string.IsNullOrWhiteSpace(notes) ? "Paid in full (cash)" : notes, Auth.GetUserId());
+                if (!string.IsNullOrEmpty(cashPaymentId)) await registrationRep.VerifySlip(cashPaymentId, Auth.GetUserId());
                 TempData["SuccessMessage"] = $"Cash payment of {registration.CurrencyCode} {balance:N2} recorded — marked fully paid.";
                 await NotifyStudent(studentId, registrationId, "PaymentAdded", "Course fully paid", $"Your cash payment of {registration.CurrencyCode} {balance:N2} was recorded. Your course is fully paid.");
             }

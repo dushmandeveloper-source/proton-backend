@@ -35,6 +35,9 @@
     };
 }
 
+@{
+    var dashHidden = ViewBag.HiddenSections as HashSet<string> ?? new HashSet<string>();
+}
 <div class="max-w-7xl mx-auto space-y-8 page-enter">
 
     <div class="relative">
@@ -48,8 +51,21 @@
         <h2 class="text-3xl md:text-4xl font-bold mt-2 bg-clip-text text-transparent bg-gradient-to-r from-[#06b6d4] to-[#7c3aed] tracking-tight">
             Platform Overview
         </h2>
+        <div class="dash-custom" id="dash-custom">
+            <button type="button" class="dash-custom-btn" id="dash-custom-btn" aria-haspopup="true" aria-expanded="false">
+                <i data-lucide="sliders-horizontal"></i> Customize
+                <span class="dash-custom-count" id="dash-hidden-count" @(dashHidden.Count == 0 ? "hidden" : "")>@dashHidden.Count hidden</span>
+            </button>
+            <div class="dash-custom-panel" id="dash-custom-panel" hidden>
+                <div class="dash-custom-head">Show on my dashboard</div>
+                <div id="dash-custom-list"></div>
+                <div class="dash-custom-foot"><button type="button" id="dash-show-all">Show all</button></div>
+            </div>
+        </div>
     </div>
 
+    <section class="dash-sec" data-dash="kpi" @(dashHidden.Contains("kpi") ? "hidden" : "")>
+        <button type="button" class="dash-hide" data-dash-hide="kpi" title="Hide this section"><i data-lucide="eye-off"></i> Hide</button>
     @* ---------- KPI tiles ---------- *@
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
         <div class="bg-white dark:bg-slate-900/60 p-6 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700">
@@ -91,7 +107,219 @@
             <a asp-controller="ExamGrading" asp-action="Index" class="text-xs font-medium text-[#7c3aed] dark:text-purple-300 hover:underline inline-flex items-center gap-1 mt-3">Open exam grading <i data-lucide="arrow-right" class="w-3 h-3"></i></a>
         </div>
     </div>
+    </section>
 
+    <section class="dash-sec" data-dash="installments" @(dashHidden.Contains("installments") ? "hidden" : "")>
+        <button type="button" class="dash-hide" data-dash-hide="installments" title="Hide this section"><i data-lucide="eye-off"></i> Hide</button>
+    @* ---------- Installments due today / overdue (0091) ---------- *@
+    @if (ViewBag.DueInstallments is List<Web_Backend.Areas.Admin.Models.PaymentInstallment> dueInst)
+    {
+        var instToday = Web_Backend.Classes.SriLankaTime.Today;
+        var dueTodayList = dueInst.Where(i => i.DueDate.Date == instToday).ToList();
+        var overdueList = dueInst.Where(i => i.DueDate.Date < instToday).ToList();
+        <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
+            <div class="p-6 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between gap-3 flex-wrap">
+                <div class="flex items-center gap-3">
+                    <div class="bg-amber-50 dark:bg-amber-950 p-2 rounded-lg"><i data-lucide="calendar-clock" class="w-5 h-5 text-amber-600 dark:text-amber-300"></i></div>
+                    <div>
+                        <h3 class="font-semibold text-slate-800 dark:text-slate-100">Installments due</h3>
+                        <p class="text-xs text-slate-500 dark:text-slate-400">@instToday.ToString("dddd, d MMM") · <b class="text-amber-600 dark:text-amber-300">@dueTodayList.Count due today</b> · <b class="text-red-600 dark:text-red-300">@overdueList.Count overdue</b></p>
+                    </div>
+                </div>
+                @foreach (var cur in dueInst.GroupBy(i => i.CurrencyCode))
+                {
+                    <span class="text-sm font-semibold text-slate-700 dark:text-slate-200">@cur.Key @cur.Sum(i => i.Remaining).ToString("N2") outstanding</span>
+                }
+            </div>
+            @if (dueInst.Count == 0)
+            {
+                <div class="p-8 text-center text-sm text-slate-400 dark:text-slate-500">No installments due today or overdue.</div>
+            }
+            else
+            {
+                <div class="divide-y divide-slate-100 dark:divide-slate-700 max-h-80 overflow-y-auto">
+                    @foreach (var i in dueInst.OrderBy(i => i.DueDate == instToday ? 0 : 1).ThenBy(i => i.DueDate))
+                    {
+                        var isToday = i.DueDate.Date == instToday;
+                        var days = (instToday - i.DueDate.Date).Days;
+                        <a href="/Admin/Student/Details/@Uri.EscapeDataString(i.StudentID)#hl-@i.InstallmentID" class="px-6 py-3 flex items-center justify-between gap-4 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
+                            <div class="min-w-0">
+                                <p class="text-sm font-semibold text-slate-800 dark:text-slate-100 truncate">@i.StudentName</p>
+                                <p class="text-xs text-slate-500 dark:text-slate-400 truncate">@i.CourseTitle · installment @i.SeqNo</p>
+                            </div>
+                            <div class="text-right flex-shrink-0">
+                                <p class="text-sm font-semibold text-slate-800 dark:text-slate-100">@i.CurrencyCode @i.Remaining.ToString("N2")</p>
+                                <span class="px-2 py-0.5 rounded-lg text-[11px] font-medium @(isToday ? "bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-300" : "bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-300")">
+                                    @(isToday ? "Due today" : days == 1 ? "1 day overdue" : days + " days overdue")
+                                </span>
+                            </div>
+                        </a>
+                    }
+                </div>
+            }
+        </div>
+    }
+    </section>
+
+    <section class="dash-sec" data-dash="finance" @(dashHidden.Contains("finance") ? "hidden" : "")>
+        <button type="button" class="dash-hide" data-dash-hide="finance" title="Hide this section"><i data-lucide="eye-off"></i> Hide</button>
+    @* ---------- Finance this month (0095) ---------- *@
+    @if (ViewBag.FinanceSnapshots is List<Web_Backend.Areas.Admin.Models.FinSnapshot> finSnaps && finSnaps.Count > 0)
+    {
+        <link rel="stylesheet" href="~/css/finance.css" asp-append-version="true" />
+        <div class="fn">
+        <div class="fn-card">
+            <div class="fn-card-head">
+                <div class="fn-card-title"><span class="fn-ic fn-ic-sm" style="color:#7c3aed;background:#7c3aed1f"><i data-lucide="wallet"></i></span> Finance · @finSnaps[0].Month.ToString("MMMM yyyy")</div>
+                <div class="fn-actions">
+                    <a class="fn-btn fn-btn-sm" asp-controller="Finance" asp-action="Expenses"><i data-lucide="receipt"></i> Expenses</a>
+                    <a class="fn-btn fn-btn-sm" asp-controller="Finance" asp-action="Budgets"><i data-lucide="target"></i> Budgets</a>
+                    <a class="fn-btn fn-btn-sm fn-btn-primary" asp-controller="Finance" asp-action="Analytics"><i data-lucide="chart-spline"></i> Full analysis</a>
+                </div>
+            </div>
+            @for (var fi = 0; fi < finSnaps.Count; fi++)
+            {
+                var fs = finSnaps[fi];
+                var budPct = fs.TotalBudget > 0 ? Math.Round(fs.SpentBudgeted * 100 / fs.TotalBudget, 0) : 0;
+                <div class="fn-card-pad" style="display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:20px;@(fi > 0 ? "border-top:1px solid var(--fn-line)" : "")">
+                    <div style="display:flex;flex-direction:column;gap:12px">
+                        <div class="fn-stats" style="grid-template-columns:repeat(3,minmax(0,1fr))">
+                            <div class="fn-stat">
+                                <div class="fn-stat-label"><span class="fn-ic fn-ic-sm" style="color:#10b981;background:#10b9811f"><i data-lucide="trending-up"></i></span> Income</div>
+                                <div class="fn-stat-value fn-up" style="font-size:20px">@fs.CurrencyCode @fs.Income.ToString("N0")</div>
+                                <div class="fn-stat-sub">Course fees @fs.CourseIncome.ToString("N0")</div>
+                            </div>
+                            <div class="fn-stat">
+                                <div class="fn-stat-label"><span class="fn-ic fn-ic-sm" style="color:#f43f5e;background:#f43f5e1f"><i data-lucide="trending-down"></i></span> Expenses</div>
+                                <div class="fn-stat-value fn-down" style="font-size:20px">@fs.CurrencyCode @fs.Expense.ToString("N0")</div>
+                                <div class="fn-stat-sub">@(fs.TotalBudget > 0 ? $"{budPct}% of budget" + (fs.OverBudget > 0 ? $" · {fs.OverBudget} over" : "") : "No budgets set")</div>
+                            </div>
+                            <div class="fn-stat">
+                                <div class="fn-stat-label"><span class="fn-ic fn-ic-sm" style="color:#7c3aed;background:#7c3aed1f"><i data-lucide="scale"></i></span> Net</div>
+                                <div class="fn-stat-value @(fs.Net >= 0 ? "fn-up" : "fn-down")" style="font-size:20px">@(fs.Net < 0 ? "−" : "")@fs.CurrencyCode @Math.Abs(fs.Net).ToString("N0")</div>
+                                <div class="fn-stat-sub">so far this month</div>
+                            </div>
+                        </div>
+                        <div id="fin-spark-@fi" style="min-height:90px" data-values='@Html.Raw(System.Text.Json.JsonSerializer.Serialize(fs.DailyNet))'></div>
+                    </div>
+                    <div>
+                        <div class="fn-muted" style="font-weight:600;margin-bottom:6px">Top expenses this month</div>
+                        @if (fs.TopExpenses.Count == 0)
+                        {
+                            <div class="fn-muted" style="padding:16px 0">No expenses recorded yet.</div>
+                        }
+                        @foreach (var t in fs.TopExpenses)
+                        {
+                            <a href="@Url.Action("Expenses", "Finance", new { categoryId = t.CategoryID, currency = fs.CurrencyCode })" style="display:flex;align-items:center;gap:10px;padding:7px 0;text-decoration:none;color:inherit">
+                                <span class="fn-ic fn-ic-sm" style="color:@t.Color;background:@(t.Color)1f"><i data-lucide="@t.IconKey"></i></span>
+                                <span style="flex:1;min-width:0">
+                                    <span style="display:flex;justify-content:space-between;gap:8px;font-size:13px">
+                                        <b style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">@t.CategoryName</b>
+                                        <span class="@(t.Budget > 0 && t.Spent > t.Budget ? "fn-down" : "")" style="white-space:nowrap">@t.Spent.ToString("N0")@(t.Budget > 0 ? " / " + t.Budget.ToString("N0") : "")</span>
+                                    </span>
+                                    @if (t.Budget > 0)
+                                    {
+                                        <span class="fn-bar fn-bar-@t.Tone" style="display:block;margin-top:4px;height:6px"><span style="width:@(Math.Min(100, t.PercentUsed).ToString(System.Globalization.CultureInfo.InvariantCulture))%"></span></span>
+                                    }
+                                </span>
+                            </a>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+        </div>
+    }
+    </section>
+
+    <section class="dash-sec" data-dash="discounts" @(dashHidden.Contains("discounts") ? "hidden" : "")>
+        <button type="button" class="dash-hide" data-dash-hide="discounts" title="Hide this section"><i data-lucide="eye-off"></i> Hide</button>
+    @* ---------- Discounts & income: full price vs discounted (0094) ---------- *@
+    @if (ViewBag.DiscountIncome is List<Web_Backend.Areas.Admin.Models.DiscountIncomeRow> discountIncome && discountIncome.Count > 0)
+    {
+        <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
+            <div class="p-6 border-b border-slate-100 dark:border-slate-700 flex items-center gap-3">
+                <div class="bg-emerald-50 dark:bg-emerald-950 p-2 rounded-lg"><i data-lucide="badge-percent" class="w-5 h-5 text-emerald-600 dark:text-emerald-300"></i></div>
+                <div>
+                    <h3 class="font-semibold text-slate-800 dark:text-slate-100">Discounts &amp; income</h3>
+                    <p class="text-xs text-slate-500 dark:text-slate-400">Full-price vs discounted enrolments · active registrations</p>
+                </div>
+            </div>
+            <div class="divide-y divide-slate-100 dark:divide-slate-700">
+                @foreach (var d in discountIncome)
+                {
+                    <div class="p-6 space-y-5">
+                        <div class="flex items-baseline justify-between gap-3 flex-wrap">
+                            <span class="text-sm font-bold text-slate-800 dark:text-slate-100">@d.CurrencyCode</span>
+                            <span class="text-xs text-slate-500 dark:text-slate-400">@d.Registrations enrolments · <b class="text-emerald-600 dark:text-emerald-300">@d.DiscountedRegistrations discounted</b> · @d.FullPriceRegistrations full price</span>
+                        </div>
+
+                        @* Where the list price went: collected / outstanding / given as discount *@
+                        <div>
+                            <div class="flex h-3 rounded-full overflow-hidden bg-slate-100 dark:bg-slate-800">
+                                <div style="width:@(d.Pct(d.Collected).ToString(System.Globalization.CultureInfo.InvariantCulture))%;background:#7c3aed" title="Collected"></div>
+                                <div style="width:@(d.Pct(d.Outstanding).ToString(System.Globalization.CultureInfo.InvariantCulture))%;background:#f59e0b" title="Outstanding"></div>
+                                <div style="width:@(d.Pct(d.TotalDiscounts).ToString(System.Globalization.CultureInfo.InvariantCulture))%;background:#10b981" title="Discounts"></div>
+                            </div>
+                            <div class="flex gap-4 flex-wrap mt-2 text-xs text-slate-500 dark:text-slate-400">
+                                <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded" style="background:#7c3aed"></span>Collected</span>
+                                <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded" style="background:#f59e0b"></span>Outstanding</span>
+                                <span class="inline-flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded" style="background:#10b981"></span>Given as discount (@d.DiscountPercent%)</span>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                            <div class="rounded-xl bg-slate-50 dark:bg-slate-800/60 px-4 py-3">
+                                <p class="text-xs text-slate-400 dark:text-slate-500 uppercase tracking-wider">Gross fees (no discounts)</p>
+                                <p class="text-lg font-bold text-slate-800 dark:text-slate-100 mt-1">@d.GrossFees.ToString("N2")</p>
+                            </div>
+                            <div class="rounded-xl bg-emerald-50 dark:bg-emerald-950 px-4 py-3">
+                                <p class="text-xs text-emerald-700 dark:text-emerald-300 uppercase tracking-wider">Discounts given</p>
+                                <p class="text-lg font-bold text-emerald-700 dark:text-emerald-300 mt-1">&minus;@d.TotalDiscounts.ToString("N2")</p>
+                                <p class="text-[11px] text-emerald-700 dark:text-emerald-300 mt-0.5">Course @d.CourseDiscounts.ToString("N2") · Personal @d.PersonalDiscounts.ToString("N2") · Installment @d.InstallmentDiscounts.ToString("N2")</p>
+                            </div>
+                            <div class="rounded-xl bg-slate-50 dark:bg-slate-800/60 px-4 py-3">
+                                <p class="text-xs text-slate-400 dark:text-slate-500 uppercase tracking-wider">Net fees (after discounts)</p>
+                                <p class="text-lg font-bold text-slate-800 dark:text-slate-100 mt-1">@d.NetFees.ToString("N2")</p>
+                                <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Collected @d.Collected.ToString("N2") · outstanding @d.Outstanding.ToString("N2")</p>
+                            </div>
+                        </div>
+
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-sm">
+                                <thead>
+                                    <tr class="text-left text-xs text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+                                        <th class="py-2 pr-4">Income collected from</th>
+                                        <th class="py-2 pr-4 text-right">Enrolments</th>
+                                        <th class="py-2 pr-4 text-right">Collected</th>
+                                        <th class="py-2 text-right">Share</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-100 dark:divide-slate-700">
+                                    <tr>
+                                        <td class="py-2 pr-4 text-slate-700 dark:text-slate-200">Full-price enrolments</td>
+                                        <td class="py-2 pr-4 text-right text-slate-600 dark:text-slate-300">@d.FullPriceRegistrations</td>
+                                        <td class="py-2 pr-4 text-right font-semibold text-slate-800 dark:text-slate-100">@d.CollectedFullPrice.ToString("N2")</td>
+                                        <td class="py-2 text-right text-slate-500 dark:text-slate-400">@(d.Collected > 0 ? Math.Round(d.CollectedFullPrice * 100 / d.Collected, 1) : 0)%</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="py-2 pr-4 text-slate-700 dark:text-slate-200">Discounted enrolments</td>
+                                        <td class="py-2 pr-4 text-right text-slate-600 dark:text-slate-300">@d.DiscountedRegistrations</td>
+                                        <td class="py-2 pr-4 text-right font-semibold text-slate-800 dark:text-slate-100">@d.CollectedDiscounted.ToString("N2")</td>
+                                        <td class="py-2 text-right text-slate-500 dark:text-slate-400">@(d.Collected > 0 ? Math.Round(d.CollectedDiscounted * 100 / d.Collected, 1) : 0)%</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+    </section>
+
+    <section class="dash-sec" data-dash="charts" @(dashHidden.Contains("charts") ? "hidden" : "")>
+        <button type="button" class="dash-hide" data-dash-hide="charts" title="Hide this section"><i data-lucide="eye-off"></i> Hide</button>
     @* ---------- Charts: income + enrollment ---------- *@
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
         <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 p-6">
@@ -116,7 +344,7 @@
             }
             else
             {
-                <div class="relative h-64"><canvas id="income-chart" aria-label="Income by month"></canvas></div>
+                <div id="income-chart" style="min-height:270px" aria-label="Income by month"></div>
             }
         </div>
 
@@ -134,17 +362,20 @@
             }
             else
             {
-                <div class="relative" style="height:@(Math.Max(160, enrollmentTop.Count * 34))px"><canvas id="enrollment-chart" aria-label="Enrollment by course"></canvas></div>
+                <div id="enrollment-chart" style="min-height:@(Math.Max(180, enrollmentTop.Count * 40))px" aria-label="Enrollment by course"></div>
             }
         </div>
     </div>
+    </section>
 
+    <section class="dash-sec" data-dash="exams" @(dashHidden.Contains("exams") ? "hidden" : "")>
+        <button type="button" class="dash-hide" data-dash-hide="exams" title="Hide this section"><i data-lucide="eye-off"></i> Hide</button>
     @* ---------- Exam progress + pending review ---------- *@
     <div class="grid grid-cols-1 lg:grid-cols-5 gap-5">
         <div class="lg:col-span-2 bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 p-6">
             <h3 class="font-semibold text-slate-800 dark:text-slate-100">Examination progress</h3>
             <p class="text-xs text-slate-400 dark:text-slate-500 mb-4">Exam attempts by stage</p>
-            <div class="relative h-56"><canvas id="exam-chart" aria-label="Examination progress"></canvas></div>
+            <div id="exam-chart" style="min-height:240px" aria-label="Examination progress"></div>
         </div>
 
         <div class="lg:col-span-3 bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
@@ -183,7 +414,10 @@
             }
         </div>
     </div>
+    </section>
 
+    <section class="dash-sec" data-dash="access" @(dashHidden.Contains("access") ? "hidden" : "")>
+        <button type="button" class="dash-hide" data-dash-hide="access" title="Hide this section"><i data-lucide="eye-off"></i> Hide</button>
     @* ---------- Pending full access / access requests ---------- *@
     <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
         <div class="p-6 pb-3 flex items-center justify-between gap-3 flex-wrap">
@@ -258,7 +492,10 @@
             </div>
         }
     </div>
+    </section>
 
+    <section class="dash-sec" data-dash="pending" @(dashHidden.Contains("pending") ? "hidden" : "")>
+        <button type="button" class="dash-hide" data-dash-hide="pending" title="Hide this section"><i data-lucide="eye-off"></i> Hide</button>
     @* ---------- Top 10 pending payments ---------- *@
     <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
         <div class="p-6 pb-3">
@@ -302,7 +539,10 @@
             </div>
         }
     </div>
+    </section>
 
+    <section class="dash-sec" data-dash="submissions" @(dashHidden.Contains("submissions") ? "hidden" : "")>
+        <button type="button" class="dash-hide" data-dash-hide="submissions" title="Hide this section"><i data-lucide="eye-off"></i> Hide</button>
     @* ---------- Latest submissions ---------- *@
     <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
         <div class="p-6 pb-3">
@@ -341,83 +581,178 @@
             </div>
         }
     </div>
+    </section>
 </div>
 
 @section Scripts {
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+    <style>
+        .dash-sec { position: relative; display: block; }
+        .dash-sec[hidden], .dash-sec.dash-empty { display: none; }
+        .dash-hide { position: absolute; top: -12px; right: 14px; z-index: 5; display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 999px;
+                     border: 1px solid #e2e8f0; background: #fff; color: #64748b; font-size: 11.5px; font-weight: 600; cursor: pointer; opacity: 0; transform: translateY(3px);
+                     transition: opacity .15s, transform .15s, color .15s; box-shadow: 0 4px 12px -6px rgba(15,23,42,.25); }
+        .dark .dash-hide { background: #1e293b; border-color: #334155; color: #94a3b8; }
+        .dash-hide svg { width: 13px; height: 13px; }
+        .dash-sec:hover .dash-hide, .dash-hide:focus-visible { opacity: 1; transform: none; }
+        .dash-hide:hover { color: #dc2626; }
+        @@media (hover: none) { .dash-hide { opacity: 1; transform: none; } }
+        .dash-custom { position: absolute; top: 0; right: 0; }
+        .dash-custom-btn { display: inline-flex; align-items: center; gap: 7px; padding: 8px 14px; border-radius: 12px; border: 1px solid #e2e8f0; background: #fff;
+                           color: #334155; font-size: 13px; font-weight: 600; cursor: pointer; box-shadow: 0 4px 14px -8px rgba(15,23,42,.3); }
+        .dark .dash-custom-btn { background: #1e293b; border-color: #334155; color: #e2e8f0; }
+        .dash-custom-btn svg { width: 15px; height: 15px; }
+        .dash-custom-count { padding: 1px 8px; border-radius: 999px; background: #ede9fe; color: #6d28d9; font-size: 11px; }
+        .dash-custom-count[hidden] { display: none; }
+        .dash-custom-panel { position: absolute; right: 0; top: calc(100% + 8px); z-index: 40; width: 290px; background: #fff; border: 1px solid #e2e8f0; border-radius: 16px;
+                             box-shadow: 0 22px 50px -18px rgba(15,23,42,.35); padding: 8px; animation: dash-in .16s ease-out; }
+        .dark .dash-custom-panel { background: #0f172a; border-color: #334155; }
+        .dash-custom-panel[hidden] { display: none; }
+        @@keyframes dash-in { from { opacity: 0; transform: translateY(-4px) } to { opacity: 1; transform: none } }
+        .dash-custom-head { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: #94a3b8; padding: 6px 8px; }
+        .dash-row { display: flex; align-items: center; gap: 10px; padding: 8px; border-radius: 10px; cursor: pointer; font-size: 13.5px; color: #1e293b; }
+        .dark .dash-row { color: #e2e8f0; }
+        .dash-row:hover { background: #f5f3ff; }
+        .dark .dash-row:hover { background: rgba(124,58,237,.14); }
+        .dash-row svg { width: 16px; height: 16px; color: #7c3aed; }
+        .dash-row span { flex: 1; }
+        .dash-sw { width: 34px; height: 20px; border-radius: 999px; background: #cbd5e1; position: relative; transition: background-color .2s; flex-shrink: 0; }
+        .dash-sw::after { content: ''; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 999px; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.2); transition: transform .2s; }
+        .dash-row.on .dash-sw { background: #7c3aed; }
+        .dash-row.on .dash-sw::after { transform: translateX(14px); }
+        .dash-custom-foot { border-top: 1px solid #f1f5f9; margin-top: 6px; padding: 8px 8px 2px; text-align: right; }
+        .dark .dash-custom-foot { border-color: #1e293b; }
+        .dash-custom-foot button { border: 0; background: transparent; color: #7c3aed; font-size: 12.5px; font-weight: 600; cursor: pointer; }
+        @@media (max-width: 640px) { .dash-custom { position: static; margin-top: 14px; } .dash-custom-panel { left: 0; right: auto; } }
+    </style>
+    <script src="~/js/charts.js" asp-append-version="true"></script>
+    <script>
+        // Hide / show dashboard sections; saved per user on the server.
+        (function () {
+            var sections = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Web_Backend.Areas.Admin.Controllers.DashboardController.Sections.Select(x => new { key = x.Key, label = x.Label, icon = x.Icon })));
+            var btn = document.getElementById('dash-custom-btn'), panel = document.getElementById('dash-custom-panel');
+            var list = document.getElementById('dash-custom-list'), count = document.getElementById('dash-hidden-count');
+            // A section with nothing to show (e.g. no installments due) takes no space at all.
+            document.querySelectorAll('.dash-sec').forEach(function (el) {
+                var real = Array.prototype.some.call(el.children, function (c) { return !c.classList.contains('dash-hide') && c.tagName !== 'LINK'; });
+                if (!real) el.classList.add('dash-empty');
+            });
+            function sec(k) { var el = document.querySelector('[data-dash="' + k + '"]'); return el && !el.classList.contains('dash-empty') ? el : null; }
+            function hiddenKeys() { return sections.filter(function (x) { var el = sec(x.key); return el && el.hidden; }).map(function (x) { return x.key; }); }
+            function save() {
+                var fd = new FormData();
+                hiddenKeys().forEach(function (k) { fd.append('hidden', k); });
+                var t = document.querySelector('input[name="__RequestVerificationToken"]');
+                fetch('@Url.Action("SetHiddenSections")', { method: 'POST', body: fd, credentials: 'same-origin', headers: { 'RequestVerificationToken': t ? t.value : '' } });
+            }
+            function draw() {
+                list.innerHTML = sections.filter(function (x) { return sec(x.key); }).map(function (x) {
+                    var on = !sec(x.key).hidden;
+                    return '<div class="dash-row' + (on ? ' on' : '') + '" data-k="' + x.key + '" role="switch" aria-checked="' + on + '" tabindex="0"><i data-lucide="' + x.icon + '"></i><span>' + x.label + '</span><i class="dash-sw"></i></div>';
+                }).join('');
+                var n = hiddenKeys().length;
+                count.textContent = n + ' hidden'; count.hidden = n === 0;
+                if (window.lucide) lucide.createIcons();
+            }
+            function setVisible(k, show) {
+                var el = sec(k); if (!el) return;
+                el.hidden = !show;
+                // Charts drawn while hidden have no width -- let them re-measure.
+                if (show) setTimeout(function () { window.dispatchEvent(new Event('resize')); }, 30);
+                draw(); save();
+            }
+            btn.addEventListener('click', function (e) { e.stopPropagation(); panel.hidden = !panel.hidden; btn.setAttribute('aria-expanded', String(!panel.hidden)); if (!panel.hidden) draw(); });
+            document.addEventListener('click', function (e) { if (!panel.hidden && !document.getElementById('dash-custom').contains(e.target)) panel.hidden = true; });
+            list.addEventListener('click', function (e) { var r = e.target.closest('.dash-row'); if (r) setVisible(r.dataset.k, sec(r.dataset.k).hidden); });
+            list.addEventListener('keydown', function (e) { var r = e.target.closest('.dash-row'); if (r && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); r.click(); } });
+            document.getElementById('dash-show-all').addEventListener('click', function () {
+                sections.forEach(function (x) { var el = sec(x.key); if (el) el.hidden = false; });
+                setTimeout(function () { window.dispatchEvent(new Event('resize')); }, 30);
+                draw(); save();
+            });
+            document.querySelectorAll('[data-dash-hide]').forEach(function (b) {
+                b.addEventListener('click', function () {
+                    setVisible(b.dataset.dashHide, false);
+                    if (window.showToast) window.showToast('Section hidden. Bring it back from Customize.');
+                });
+            });
+        })();
+    </script>
     <script>
         (function () {
-            if (!window.Chart) return;
-            const dark = document.documentElement.classList.contains('dark');
-            const ink = dark ? '#cbd5e1' : '#475569';
-            const grid = dark ? 'rgba(148,163,184,0.15)' : 'rgba(148,163,184,0.25)';
-            const brand = dark ? '#a78bfa' : '#7c3aed';
-            Chart.defaults.color = ink;
-            Chart.defaults.font.family = 'inherit';
-            Chart.defaults.plugins.legend.display = false;
-            const bar = { backgroundColor: brand, borderRadius: 4, borderSkipped: 'start', maxBarThickness: 28 };
-            const fmt = v => Number(v).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+            var PC = window.ProtonCharts;
 
-            // Income by month — one currency at a time (never mixed).
-            const incomeCanvas = document.getElementById('income-chart');
-            if (incomeCanvas) {
-                const labels = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(months.Select(m => m.ToString("MMM yy"))));
-                const series = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(incomeSeries));
-                const currencies = Object.keys(series);
-                const incomeChart = new Chart(incomeCanvas, {
-                    type: 'bar',
-                    data: { labels, datasets: [{ label: currencies[0], data: series[currencies[0]], ...bar }] },
-                    options: {
-                        responsive: true, maintainAspectRatio: false,
-                        scales: { x: { grid: { display: false } }, y: { beginAtZero: true, grid: { color: grid }, ticks: { callback: fmt } } },
-                        plugins: { tooltip: { callbacks: { label: ctx => `${ctx.dataset.label} ${fmt(ctx.parsed.y)}` } } }
-                    }
+            // Finance sparklines: running net this month.
+            document.querySelectorAll('[id^="fin-spark-"]').forEach(function (el) {
+                var vals = JSON.parse(el.dataset.values || '[]');
+                if (!vals.length) return;
+                var up = vals[vals.length - 1] >= 0;
+                PC.render(el, {
+                    chart: { type: 'area', height: 90, sparkline: { enabled: true } },
+                    series: [{ name: 'Net so far', data: vals }],
+                    colors: [up ? '#10b981' : '#f43f5e'],
+                    stroke: { curve: 'smooth', width: 2.5 },
+                    fill: { type: 'gradient', gradient: { opacityFrom: .4, opacityTo: 0 } },
+                    tooltip: { x: { show: false }, y: { formatter: function (v) { return PC.fmt(v, 2); } } }
                 });
-                const picker = document.getElementById('income-currency');
-                if (picker) picker.addEventListener('change', () => {
-                    incomeChart.data.datasets[0].label = picker.value;
-                    incomeChart.data.datasets[0].data = series[picker.value];
-                    incomeChart.update();
-                });
-            }
+            });
 
-            // Enrollment by course — horizontal bars.
-            const enrollCanvas = document.getElementById('enrollment-chart');
-            const courseUrl = '@Url.Action("Details", "Course")/';
-            if (enrollCanvas) {
-                const rows = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(enrollmentTop.Select(e => new { e.CourseID, e.CourseTitle, e.EnrolledCount })));
-                new Chart(enrollCanvas, {
-                    type: 'bar',
-                    data: {
-                        labels: rows.map(r => r.CourseTitle.length > 34 ? r.CourseTitle.slice(0, 33) + '…' : r.CourseTitle),
-                        datasets: [{ label: 'Students', data: rows.map(r => r.EnrolledCount), ...bar }]
-                    },
-                    options: {
-                        indexAxis: 'y', responsive: true, maintainAspectRatio: false,
-                        scales: { x: { beginAtZero: true, grid: { color: grid }, ticks: { precision: 0 } }, y: { grid: { display: false } } },
-                        plugins: { tooltip: { callbacks: { title: items => rows[items[0].dataIndex].CourseTitle, label: ctx => `${ctx.parsed.x} student(s) — click to open` } } },
-                        onHover: (evt, els) => { evt.native.target.style.cursor = els.length ? 'pointer' : 'default'; },
-                        onClick: (evt, els) => { if (els.length) window.location = courseUrl + encodeURIComponent(rows[els[0].index].CourseID); }
-                    }
+            // Income by month -- one currency at a time (never mixed).
+            var labels = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(months.Select(m => m.ToString("MMM yy"))));
+            var series = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(incomeSeries));
+            var currencies = Object.keys(series);
+            if (currencies.length && document.getElementById('income-chart')) {
+                PC.render('#income-chart', {
+                    chart: { type: 'area', height: 270 },
+                    series: [{ name: currencies[0], data: series[currencies[0]] }],
+                    colors: ['#7c3aed'],
+                    stroke: { curve: 'smooth', width: 3 },
+                    fill: { type: 'gradient', gradient: { shadeIntensity: 1, opacityFrom: .45, opacityTo: .02, stops: [0, 90, 100] } },
+                    markers: { size: 4, strokeWidth: 2, strokeColors: '#fff', hover: { size: 6 } },
+                    legend: { show: false },
+                    xaxis: { categories: labels, axisBorder: { show: false }, axisTicks: { show: false }, tooltip: { enabled: false } },
+                    yaxis: { labels: { formatter: function (v) { return PC.compact(v); } } },
+                    tooltip: { y: { formatter: function (v, o) { return (o && o.w ? o.w.globals.seriesNames[0] : '') + ' ' + PC.fmt(v, 2); } } }
+                }).then(function (chart) {
+                    var picker = document.getElementById('income-currency');
+                    if (chart && picker) picker.addEventListener('change', function () {
+                        chart.updateSeries([{ name: picker.value, data: series[picker.value] }]);
+                    });
                 });
             }
 
-            // Examination progress — attempts per stage.
-            const examCanvas = document.getElementById('exam-chart');
-            if (examCanvas) {
-                new Chart(examCanvas, {
-                    type: 'bar',
-                    data: {
-                        labels: ['In progress', 'Awaiting grading', 'Teacher review', 'Admin approval', 'Released'],
-                        datasets: [{ label: 'Attempts', data: [@ep.InProgress, @ep.AwaitingGrading, @ep.AwaitingTeacher, @ep.AwaitingAdmin, @ep.Released], ...bar }]
-                    },
-                    options: {
-                        indexAxis: 'y', responsive: true, maintainAspectRatio: false,
-                        scales: { x: { beginAtZero: true, grid: { color: grid }, ticks: { precision: 0 } }, y: { grid: { display: false } } },
-                        plugins: { tooltip: { callbacks: { label: ctx => `${ctx.parsed.x} attempt(s)` } } },
-                        onHover: (evt, els) => { evt.native.target.style.cursor = els.length ? 'pointer' : 'default'; },
-                        onClick: (evt, els) => { if (els.length) window.location = '@Url.Action("Index", "ExamGrading")' + (els[0].index === 3 ? '?tab=review' : ''); }
-                    }
+            // Enrollment by course -- horizontal rounded bars, click to open.
+            var courseUrl = '@Url.Action("Details", "Course")/';
+            var rows = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(enrollmentTop.Select(e => new { e.CourseID, e.CourseTitle, e.EnrolledCount })));
+            if (rows.length && document.getElementById('enrollment-chart')) {
+                PC.render('#enrollment-chart', {
+                    chart: { type: 'bar', height: Math.max(180, rows.length * 40),
+                             events: { dataPointSelection: function (e, c, o) { window.location = courseUrl + encodeURIComponent(rows[o.dataPointIndex].CourseID); } } },
+                    series: [{ name: 'Students', data: rows.map(function (r) { return r.EnrolledCount; }) }],
+                    colors: ['#7c3aed'],
+                    fill: { type: 'gradient', gradient: { type: 'horizontal', shadeIntensity: .4, gradientToColors: ['#a78bfa'], opacityFrom: 1, opacityTo: 1, stops: [0, 100] } },
+                    plotOptions: { bar: { horizontal: true, borderRadius: 7, borderRadiusApplication: 'end', barHeight: '62%' } },
+                    dataLabels: { enabled: true, style: { fontSize: '11px', fontWeight: 700 }, offsetX: -4 },
+                    legend: { show: false },
+                    xaxis: { categories: rows.map(function (r) { return r.CourseTitle.length > 34 ? r.CourseTitle.slice(0, 33) + '…' : r.CourseTitle; }),
+                             labels: { formatter: function (v) { return Math.round(v); } }, axisBorder: { show: false }, axisTicks: { show: false } },
+                    tooltip: { x: { formatter: function (v, o) { return rows[o.dataPointIndex].CourseTitle; } },
+                               y: { formatter: function (v) { return v + ' student(s) · click to open'; } } }
+                });
+            }
+
+            // Examination progress -- one colour per stage.
+            if (document.getElementById('exam-chart')) {
+                PC.render('#exam-chart', {
+                    chart: { type: 'bar', height: 240,
+                             events: { dataPointSelection: function (e, c, o) { window.location = '@Url.Action("Index", "ExamGrading")' + (o.dataPointIndex === 3 ? '?tab=review' : ''); } } },
+                    series: [{ name: 'Attempts', data: [@ep.InProgress, @ep.AwaitingGrading, @ep.AwaitingTeacher, @ep.AwaitingAdmin, @ep.Released] }],
+                    colors: ['#0ea5e9', '#f59e0b', '#a855f7', '#7c3aed', '#10b981'],
+                    plotOptions: { bar: { horizontal: true, distributed: true, borderRadius: 7, borderRadiusApplication: 'end', barHeight: '60%' } },
+                    dataLabels: { enabled: true, style: { fontSize: '11px', fontWeight: 700 }, offsetX: -4 },
+                    legend: { show: false },
+                    xaxis: { categories: ['In progress', 'Awaiting grading', 'Teacher review', 'Admin approval', 'Released'],
+                             labels: { formatter: function (v) { return Math.round(v); } }, axisBorder: { show: false }, axisTicks: { show: false } },
+                    tooltip: { y: { formatter: function (v) { return v + ' attempt(s)'; } } }
                 });
             }
         })();

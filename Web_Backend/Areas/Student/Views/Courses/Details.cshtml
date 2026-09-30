@@ -91,15 +91,25 @@
         <div class="p-6 grid grid-cols-1 md:grid-cols-3 gap-6">
             <div>
                 <p class="text-xs text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">Course Fee</p>
-                @if (Model.Registration.HasPersonalDiscount)
+                @{
+                    // Installment discounts (0091) already came off CourseFee too.
+                    var instDiscount = Model.Installments.Sum(i => i.DiscountAmount);
+                }
+                @if (Model.Registration.HasPersonalDiscount || instDiscount > 0)
                 {
-                    <p class="text-sm line-through text-slate-400 dark:text-slate-500">@Model.Registration.CurrencyCode @Model.Registration.FeeBeforePersonalDiscount.ToString("N2")</p>
+                    <p class="text-sm line-through text-slate-400 dark:text-slate-500">@Model.Registration.CurrencyCode @((Model.Registration.FeeBeforePersonalDiscount + instDiscount).ToString("N2"))</p>
                 }
                 <p class="text-xl font-bold text-slate-800 dark:text-slate-100">@Model.Registration.CurrencyCode @Model.Registration.CourseFee.ToString("N2")</p>
                 @if (Model.Registration.HasPersonalDiscount)
                 {
                     <p class="mt-1 inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs font-medium bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300">
                         <i data-lucide="badge-percent" class="w-3.5 h-3.5"></i> Personal discount &minus;@Model.Registration.CurrencyCode @Model.Registration.PersonalDiscountAmount.ToString("N2")@(string.IsNullOrEmpty(Model.Registration.PersonalDiscountReason) ? "" : " · " + Model.Registration.PersonalDiscountReason)
+                    </p>
+                }
+                @foreach (var d in Model.Installments.Where(i => i.HasDiscount))
+                {
+                    <p class="mt-1 inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs font-medium bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300">
+                        <i data-lucide="badge-percent" class="w-3.5 h-3.5"></i> Installment @d.SeqNo discount &minus;@Model.Registration.CurrencyCode @d.DiscountAmount.ToString("N2")@(string.IsNullOrEmpty(d.DiscountReason) ? "" : " · " + d.DiscountReason)
                     </p>
                 }
             </div>
@@ -122,6 +132,62 @@
             </div>
         }
     </div>
+
+    @* ---------- Installment plan (0091) ---------- *@
+    @if (Model.Installments.Count > 0)
+    {
+        var todayI = Web_Backend.Classes.SriLankaTime.Today;
+        var instStatuses = Model.Installments.Select(i => i.StatusOn(todayI)).ToList();
+        var instPaid = instStatuses.Count(x => x == "Paid");
+        var instDue = instStatuses.Count(x => x is "Overdue" or "DueThisMonth" or "PartlyPaid");
+        var instUpcoming = instStatuses.Count(x => x == "Upcoming");
+        var dueNow = Model.Installments.Where(i => i.IsDueBy(todayI)).Sum(i => i.Remaining);
+        <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
+            <div class="p-6 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between gap-3 flex-wrap">
+                <div class="flex items-center gap-3">
+                    <div class="bg-violet-50 dark:bg-violet-950 p-2 rounded-lg"><i data-lucide="calendar-clock" class="w-5 h-5 text-violet-600 dark:text-violet-300"></i></div>
+                    <div>
+                        <h3 class="font-semibold text-lg text-slate-800 dark:text-slate-100">Installment Plan</h3>
+                        <p class="text-xs text-slate-500 dark:text-slate-400">@Model.Installments.Count installments · <span class="text-emerald-600 dark:text-emerald-300 font-semibold">@instPaid paid</span> · <span class="text-amber-600 dark:text-amber-300 font-semibold">@instDue due</span> · @instUpcoming upcoming</p>
+                    </div>
+                </div>
+                @if (dueNow > 0)
+                {
+                    <div class="text-right">
+                        <p class="text-xs text-slate-400 dark:text-slate-500 uppercase tracking-wider">Due now</p>
+                        <p class="text-lg font-bold text-amber-600 dark:text-amber-300">@Model.Registration.CurrencyCode @dueNow.ToString("N2")</p>
+                    </div>
+                }
+            </div>
+            <div class="divide-y divide-slate-100 dark:divide-slate-700">
+                @for (var n = 0; n < Model.Installments.Count; n++)
+                {
+                    var inst = Model.Installments[n];
+                    var (instLabel, instCls) = Web_Backend.Areas.Admin.Models.PaymentInstallment.Badge(instStatuses[n]);
+                    <div id="hl-@inst.InstallmentID" class="px-6 py-4 flex items-center justify-between gap-4 flex-wrap">
+                        <div class="flex items-center gap-4 min-w-0">
+                            <div class="w-9 h-9 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-sm font-bold text-slate-600 dark:text-slate-300 flex-shrink-0">@inst.SeqNo</div>
+                            <div class="min-w-0">
+                                <p class="text-sm font-semibold text-slate-800 dark:text-slate-100">Due @inst.DueDate.ToString("d MMM yyyy")</p>
+                                <p class="text-xs text-slate-500 dark:text-slate-400">
+                                    @Model.Registration.CurrencyCode @inst.NetAmount.ToString("N2")
+                                    @if (inst.HasDiscount)
+                                    {
+                                        <span class="text-emerald-600 dark:text-emerald-300"> · discount &minus;@inst.DiscountAmount.ToString("N2")@(string.IsNullOrEmpty(inst.DiscountReason) ? "" : " (" + inst.DiscountReason + ")")</span>
+                                    }
+                                    @if (inst.PaidAmount > 0 && inst.Remaining > 0)
+                                    {
+                                        <span> · paid @inst.PaidAmount.ToString("N2"), @inst.Remaining.ToString("N2") left</span>
+                                    }
+                                </p>
+                            </div>
+                        </div>
+                        <span class="px-2 py-1 rounded-lg text-[11px] font-medium @instCls">@instLabel</span>
+                    </div>
+                }
+            </div>
+        </div>
+    }
 
     @* ---------- Payment history ---------- *@
     <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
@@ -155,13 +221,21 @@
                                 <td class="px-6 py-3 font-medium text-slate-800 dark:text-slate-100">@Model.Registration.CurrencyCode @payment.Amount.ToString("N2")</td>
                                 <td class="px-6 py-3 text-slate-600 dark:text-slate-300">@payment.PaymentMethod</td>
                                 <td class="px-6 py-3">
-                                    @if (payment.IsVerified)
+                                    @switch (payment.ApprovalStatus)
                                     {
-                                        <span class="inline-flex px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-50 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-300">Verified</span>
-                                    }
-                                    else
-                                    {
-                                        <span class="inline-flex px-2.5 py-1 rounded-full text-xs font-medium bg-amber-50 dark:bg-amber-950 text-amber-600 dark:text-amber-300">Pending</span>
+                                        case "Approved":
+                                            <span class="inline-flex px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-50 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-300">Approved</span>
+                                            break;
+                                        case "Rejected":
+                                            <span class="inline-flex px-2.5 py-1 rounded-full text-xs font-medium bg-red-50 dark:bg-red-950 text-red-600 dark:text-red-300">Rejected</span>
+                                            <span class="block text-xs text-red-600 dark:text-red-300 mt-1">@payment.RejectReason · please pay this again</span>
+                                            break;
+                                        case "Voided":
+                                            <span class="inline-flex px-2.5 py-1 rounded-full text-xs font-medium bg-slate-100 dark:bg-slate-800 text-slate-500">Voided</span>
+                                            break;
+                                        default:
+                                            <span class="inline-flex px-2.5 py-1 rounded-full text-xs font-medium bg-amber-50 dark:bg-amber-950 text-amber-600 dark:text-amber-300">Pending approval</span>
+                                            break;
                                     }
                                 </td>
                             </tr>

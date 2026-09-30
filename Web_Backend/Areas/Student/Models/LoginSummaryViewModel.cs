@@ -11,7 +11,10 @@ namespace Web_Backend.Areas.StudentPortal.Models
         public string AccountVerificationStatus { get; set; } = "Verified";
         public string PassportVerificationStatus { get; set; } = "Verified";
 
+        // Registrations WITHOUT an installment plan: whole balance is due.
         public List<CourseRegistration> PendingPayments { get; set; } = new();
+        // Installments due this month or overdue, for registrations with a plan.
+        public List<(CourseRegistration Registration, PaymentInstallment Installment, int Total)> DueInstallments { get; set; } = new();
         public List<CourseRegistration> Discounts { get; set; } = new();
         public List<CourseRegistration> LockedCourses { get; set; } = new();
         public List<LectureMaterial> HomeworkDue { get; set; } = new();
@@ -23,7 +26,7 @@ namespace Web_Backend.Areas.StudentPortal.Models
 
         public bool HasAnything =>
             AccountVerificationStatus != "Verified" || PassportVerificationStatus == "Rejected" ||
-            PendingPayments.Count > 0 || Discounts.Count > 0 || LockedCourses.Count > 0 ||
+            DueInstallments.Count > 0 || Discounts.Count > 0 || LockedCourses.Count > 0 ||
             HomeworkDue.Count > 0 || ReleasedResults.Count > 0 || GradedHomework.Count > 0 ||
             PendingDocumentRequests > 0 || UnreadNotifications > 0 || UnreadMessages > 0;
     }
