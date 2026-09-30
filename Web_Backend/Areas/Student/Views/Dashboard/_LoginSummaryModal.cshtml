@@ -1,0 +1,255 @@
+@model Web_Backend.Areas.StudentPortal.Models.LoginSummaryViewModel
+@{
+    // Once-per-login summary; rendered by Dashboard/Index only when
+    // ViewBag.LoginSummary is set (DashboardController.BuildLoginSummary).
+    // Scoped .ls-* CSS (css/tailwind.css is prebuilt), and the script moves
+    // the dialog to <body>: the layout's <main> uses backdrop-blur, which
+    // would otherwise trap position:fixed inside the content panel.
+    var firstName = (Model.StudentName ?? "").Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? "there";
+    var hour = Web_Backend.Classes.SriLankaTime.Now.Hour;
+    var greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
+    var accountPending = Model.AccountVerificationStatus != "Verified";
+    var passportRejected = Model.PassportVerificationStatus == "Rejected";
+    var today = Web_Backend.Classes.SriLankaTime.Today;
+    var itemCount = (accountPending || passportRejected ? 1 : 0) + Model.PendingPayments.Count + Model.Discounts.Count
+        + Model.HomeworkDue.Count + Model.ReleasedResults.Count + Model.GradedHomework.Count + Model.LockedCourses.Count
+        + (Model.UnreadMessages > 0 ? 1 : 0) + (Model.PendingDocumentRequests > 0 ? 1 : 0) + (Model.UnreadNotifications > 0 ? 1 : 0);
+}
+
+<div id="login-summary" class="ls-overlay" role="dialog" aria-modal="true" aria-labelledby="ls-title">
+    <div class="ls-backdrop" data-ls-close></div>
+
+    <div class="ls-dialog">
+        <div class="ls-hero">
+            <button type="button" class="ls-x" data-ls-close aria-label="Close"><i data-lucide="x"></i></button>
+            <div class="ls-hero-icon"><i data-lucide="bell-ring"></i></div>
+            <div>
+                <div class="ls-greet" id="ls-title">@greeting, @firstName</div>
+                <div class="ls-lead">You have <b>@itemCount</b> update@(itemCount == 1 ? "" : "s") waiting</div>
+            </div>
+        </div>
+
+        <div class="ls-body">
+            @if (accountPending || passportRejected)
+            {
+                <a href="/Student/Profile/Index" class="ls-item">
+                    <span class="ls-ic ls-amber"><i data-lucide="shield-alert"></i></span>
+                    <span class="ls-txt">
+                        <span class="ls-t">Account verification</span>
+                        <span class="ls-s">@(accountPending
+                            ? (Model.AccountVerificationStatus == "Rejected" ? "Verification rejected. Please review your profile." : "Being verified. Materials unlock once approved.")
+                            : "Passport photo rejected. Please upload a clear one.")</span>
+                    </span>
+                    <i data-lucide="chevron-right" class="ls-go"></i>
+                </a>
+            }
+
+            @foreach (var r in Model.PendingPayments)
+            {
+                <a href="/Student/Courses/Details?registrationId=@Uri.EscapeDataString(r.RegistrationID)" class="ls-item">
+                    <span class="ls-ic ls-red"><i data-lucide="wallet"></i></span>
+                    <span class="ls-txt">
+                        <span class="ls-t">Payment due</span>
+                        <span class="ls-s">@r.CourseTitle</span>
+                    </span>
+                    <span class="ls-val ls-val-red">@r.CurrencyCode @r.BalanceDue.ToString("N2")</span>
+                </a>
+            }
+
+            @foreach (var r in Model.Discounts)
+            {
+                var total = r.PersonalDiscountAmount + r.DiscountAmount;
+                <a href="/Student/Courses/Details?registrationId=@Uri.EscapeDataString(r.RegistrationID)" class="ls-item">
+                    <span class="ls-ic ls-green"><i data-lucide="badge-percent"></i></span>
+                    <span class="ls-txt">
+                        <span class="ls-t">Discount applied</span>
+                        <span class="ls-s">@r.CourseTitle</span>
+                    </span>
+                    <span class="ls-val ls-val-green">−@r.CurrencyCode @total.ToString("N2")</span>
+                </a>
+            }
+
+            @foreach (var m in Model.HomeworkDue)
+            {
+                var dueSoon = m.DueDate.HasValue && m.DueDate.Value.Date <= today.AddDays(1);
+                <a href="/Student/Homework/Index" class="ls-item">
+                    <span class="ls-ic ls-violet"><i data-lucide="notebook-pen"></i></span>
+                    <span class="ls-txt">
+                        <span class="ls-t">@m.Title</span>
+                        <span class="ls-s">Homework to submit · @m.CourseTitle</span>
+                    </span>
+                    <span class="ls-val @(dueSoon ? "ls-val-red" : "")">@(m.DueDate.HasValue ? "Due " + m.DueDate.Value.ToString("d MMM") : "")</span>
+                </a>
+            }
+
+            @foreach (var a in Model.ReleasedResults)
+            {
+                <a href="/Student/MyResults/Index" class="ls-item">
+                    <span class="ls-ic ls-sky"><i data-lucide="award"></i></span>
+                    <span class="ls-txt">
+                        <span class="ls-t">Exam result released</span>
+                        <span class="ls-s">@a.ExamTitle</span>
+                    </span>
+                    @if (a.Passed.HasValue)
+                    {
+                        <span class="ls-pill @(a.Passed == true ? "ls-pill-green" : "ls-pill-red")">@(a.Passed == true ? "Pass" : "Fail")</span>
+                    }
+                </a>
+            }
+
+            @foreach (var g in Model.GradedHomework)
+            {
+                <a href="/Student/Homework/Index" class="ls-item">
+                    <span class="ls-ic ls-sky"><i data-lucide="award"></i></span>
+                    <span class="ls-txt">
+                        <span class="ls-t">Homework graded</span>
+                        <span class="ls-s">@g.Material.Title</span>
+                    </span>
+                    <span class="ls-val">@(g.Submission.MarksAwarded.HasValue ? g.Submission.MarksAwarded.Value.ToString("0.##") + " marks" : "Graded")</span>
+                </a>
+            }
+
+            @foreach (var r in Model.LockedCourses)
+            {
+                <div class="ls-item">
+                    <span class="ls-ic ls-slate"><i data-lucide="lock"></i></span>
+                    <span class="ls-txt">
+                        <span class="ls-t">Modules locked</span>
+                        <span class="ls-s">@r.CourseTitle · unlocks when fully paid</span>
+                    </span>
+                    @if (r.AccessRequestedDate.HasValue)
+                    {
+                        <span class="ls-val">Requested</span>
+                    }
+                    else
+                    {
+                        <a href="@Url.Action("RequestAccess", "Classroom", new { area = "Student", course = r.CourseTitle })" target="_blank" rel="noopener" class="ls-link">Request</a>
+                    }
+                </div>
+            }
+
+            @if (Model.UnreadMessages > 0)
+            {
+                <a href="/Student/Messages/Index" class="ls-item">
+                    <span class="ls-ic ls-violet"><i data-lucide="message-circle"></i></span>
+                    <span class="ls-txt">
+                        <span class="ls-t">@Model.UnreadMessages unread message@(Model.UnreadMessages == 1 ? "" : "s")</span>
+                        <span class="ls-s">Tap to open your chats</span>
+                    </span>
+                    <i data-lucide="chevron-right" class="ls-go"></i>
+                </a>
+            }
+
+            @if (Model.PendingDocumentRequests > 0)
+            {
+                <a href="/Student/DocumentRequest/Index" class="ls-item">
+                    <span class="ls-ic ls-orange"><i data-lucide="file-up"></i></span>
+                    <span class="ls-txt">
+                        <span class="ls-t">@Model.PendingDocumentRequests document@(Model.PendingDocumentRequests == 1 ? "" : "s") requested</span>
+                        <span class="ls-s">Upload what the office asked for</span>
+                    </span>
+                    <i data-lucide="chevron-right" class="ls-go"></i>
+                </a>
+            }
+
+            @if (Model.UnreadNotifications > 0)
+            {
+                <button type="button" data-ls-open-bell class="ls-item">
+                    <span class="ls-ic ls-indigo"><i data-lucide="bell"></i></span>
+                    <span class="ls-txt">
+                        <span class="ls-t">@Model.UnreadNotifications unread notification@(Model.UnreadNotifications == 1 ? "" : "s")</span>
+                        <span class="ls-s">See what's new</span>
+                    </span>
+                    <i data-lucide="chevron-right" class="ls-go"></i>
+                </button>
+            }
+        </div>
+
+        <div class="ls-foot">
+            <button type="button" id="login-summary-ok" data-ls-close class="ls-ok">Got it</button>
+        </div>
+    </div>
+</div>
+
+<style>
+    .ls-overlay { position: fixed; inset: 0; z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 16px; }
+    .ls-backdrop { position: absolute; inset: 0; background: rgba(15, 23, 42, .45); backdrop-filter: blur(3px); animation: ls-fade .2s ease-out both; }
+    .ls-dialog { position: relative; width: 100%; max-width: 440px; max-height: min(620px, calc(100vh - 32px)); display: flex; flex-direction: column;
+        background: #fff; border-radius: 22px; overflow: hidden; box-shadow: 0 30px 70px -20px rgba(15, 23, 42, .5); animation: ls-pop .3s cubic-bezier(.2, .9, .3, 1.15) both; }
+    .dark .ls-dialog { background: #0f172a; }
+    .ls-dialog svg { width: 18px; height: 18px; flex-shrink: 0; }
+
+    .ls-hero { position: relative; display: flex; align-items: center; gap: 12px; padding: 18px 44px 16px 18px; color: #fff; background: linear-gradient(135deg, #7c3aed, #4f46e5); }
+    .ls-hero-icon { width: 40px; height: 40px; border-radius: 12px; background: rgba(255, 255, 255, .18); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .ls-greet { font-size: 16px; font-weight: 700; line-height: 1.25; }
+    .ls-lead { font-size: 12.5px; opacity: .85; margin-top: 2px; }
+    .ls-x { position: absolute; top: 12px; right: 12px; width: 30px; height: 30px; border-radius: 9px; border: 0; background: transparent; color: rgba(255, 255, 255, .85); display: flex; align-items: center; justify-content: center; cursor: pointer; }
+    .ls-x:hover { background: rgba(255, 255, 255, .16); color: #fff; }
+
+    .ls-body { overflow-y: auto; padding: 8px; }
+    .ls-item { width: 100%; box-sizing: border-box; display: flex; align-items: center; gap: 12px; padding: 10px; border-radius: 14px; text-decoration: none; color: inherit; border: 0; background: transparent; text-align: left; font: inherit; cursor: pointer; transition: background-color .15s; animation: ls-in .3s ease-out both; }
+    div.ls-item { cursor: default; }
+    a.ls-item:hover, button.ls-item:hover { background: #f6f4ff; }
+    .dark a.ls-item:hover, .dark button.ls-item:hover { background: #172139; }
+    .ls-item:nth-child(2) { animation-delay: .04s } .ls-item:nth-child(3) { animation-delay: .08s } .ls-item:nth-child(4) { animation-delay: .12s } .ls-item:nth-child(n+5) { animation-delay: .16s }
+    .ls-ic { width: 36px; height: 36px; border-radius: 11px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .ls-red { background: #fef2f2; color: #dc2626 } .ls-green { background: #ecfdf5; color: #059669 } .ls-amber { background: #fffbeb; color: #d97706 }
+    .ls-violet { background: #f5f3ff; color: #7c3aed } .ls-sky { background: #f0f9ff; color: #0284c7 } .ls-slate { background: #f1f5f9; color: #475569 }
+    .ls-orange { background: #fff7ed; color: #ea580c } .ls-indigo { background: #eef2ff; color: #4f46e5 }
+    .dark .ls-ic { background: rgba(148, 163, 184, .12); }
+    .ls-txt { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+    .ls-t { font-size: 13.5px; font-weight: 600; color: #1e293b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .dark .ls-t { color: #f1f5f9; }
+    .ls-s { font-size: 12px; color: #64748b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .dark .ls-s { color: #94a3b8; }
+    .ls-val { font-size: 12.5px; font-weight: 600; color: #64748b; white-space: nowrap; }
+    .ls-val-red { color: #dc2626; } .ls-val-green { color: #059669; }
+    .ls-pill { font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 8px; }
+    .ls-pill-green { background: #dcfce7; color: #15803d } .ls-pill-red { background: #fee2e2; color: #b91c1c }
+    .ls-link { font-size: 12.5px; font-weight: 600; color: #7c3aed; text-decoration: none; padding: 4px 8px; border-radius: 8px; }
+    .ls-link:hover { background: #f5f3ff; }
+    .ls-go { color: #cbd5e1; }
+
+    .ls-foot { padding: 10px 16px 14px; border-top: 1px solid #f1f5f9; display: flex; }
+    .dark .ls-foot { border-color: #1e293b; }
+    .ls-ok { flex: 1; padding: 11px; border-radius: 12px; border: 0; background: #7c3aed; color: #fff; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; transition: background-color .15s; }
+    .ls-ok:hover { background: #6d28d9; }
+
+    .ls-closing .ls-dialog { animation: ls-drop .18s ease-in both; }
+    .ls-closing .ls-backdrop { animation: ls-out .18s ease-in both; }
+    @@keyframes ls-fade { from { opacity: 0 } to { opacity: 1 } }
+    @@keyframes ls-out { to { opacity: 0 } }
+    @@keyframes ls-pop { from { opacity: 0; transform: translateY(14px) scale(.96) } to { opacity: 1; transform: none } }
+    @@keyframes ls-in { from { opacity: 0; transform: translateY(6px) } to { opacity: 1; transform: none } }
+    @@keyframes ls-drop { to { opacity: 0; transform: translateY(10px) scale(.97) } }
+    @@media (prefers-reduced-motion: reduce) { .ls-overlay, .ls-overlay * { animation: none !important } }
+    @@media (max-width: 520px) { .ls-overlay { align-items: flex-end; padding: 0; } .ls-dialog { max-width: none; border-radius: 22px 22px 0 0; } }
+</style>
+<script>
+    (function () {
+        var el = document.getElementById('login-summary');
+        if (!el) return;
+        // Escape the layout's blurred <main> so it truly overlays the page.
+        document.body.appendChild(el);
+        document.body.style.overflow = 'hidden';
+        function onKey(e) { if (e.key === 'Escape') close(); }
+        function close() {
+            if (el.classList.contains('ls-closing')) return;
+            el.classList.add('ls-closing');
+            document.body.style.overflow = '';
+            document.removeEventListener('keydown', onKey);
+            setTimeout(function () { el.remove(); }, 180);
+        }
+        el.querySelectorAll('[data-ls-close]').forEach(function (b) { b.addEventListener('click', close); });
+        document.addEventListener('keydown', onKey);
+        var bellBtn = el.querySelector('[data-ls-open-bell]');
+        if (bellBtn) bellBtn.addEventListener('click', function () {
+            close();
+            var t = document.getElementById('notif-toggle');
+            if (t) setTimeout(function () { t.click(); }, 200);
+        });
+        if (window.lucide && lucide.createIcons) lucide.createIcons();
+        var ok = document.getElementById('login-summary-ok');
+        if (ok) ok.focus();
+    })();
+</script>

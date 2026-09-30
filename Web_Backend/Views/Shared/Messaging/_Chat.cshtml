@@ -1,0 +1,119 @@
+@{
+    // Shared chat page for all four portals (rendered from
+    // Areas/*/Views/Messages/Index.cshtml, so each portal's own layout
+    // applies). Behaviour: wwwroot/js/messaging.js. Styles are scoped .ch-*
+    // CSS rather than Tailwind utilities (css/tailwind.css is prebuilt).
+    var me = (Web_Backend.Classes.ChatIdentity)ViewBag.Me;
+    var area = ViewContext.RouteData.Values["area"]?.ToString() ?? "";
+    var isMaster = Web_Backend.Classes.Auth.GetUser()?.Role == Web_Backend.Classes.Auth.MasterAdminRoleId;
+    var newLabel = "New message";
+}
+
+<div id="chat-app" class="ch-app"
+     data-base="/@area/Messages"
+     data-me="@me.UserId"
+     data-broadcast="@(me.CanBroadcast ? "1" : "0")"
+     data-student="@(me.IsStudent ? "1" : "0")"
+     data-open="@ViewBag.OpenConversation"
+     data-compose-to="@ViewBag.ComposeTo">
+
+    <aside class="ch-side">
+        <div class="ch-side-head">
+            <div class="ch-side-title">
+                <h1>Messages</h1>
+                @if (isMaster && area == "Admin")
+                {
+                    <a href="/Admin/Messages/Handlers" class="ch-link" title="Choose which staff answer students' messages to Proton Support">
+                        <i data-lucide="users-round"></i> Support Team
+                    </a>
+                }
+            </div>
+            <button type="button" class="ch-primary" id="ch-new">
+                <i data-lucide="square-pen"></i> @newLabel
+            </button>
+        </div>
+        <div class="ch-search">
+            <i data-lucide="search"></i>
+            <input type="search" id="ch-filter" placeholder="Search conversations" autocomplete="off" />
+        </div>
+        <div class="ch-list" id="ch-list">
+            <div class="ch-muted ch-pad">Loading…</div>
+        </div>
+    </aside>
+
+    <section class="ch-main" id="ch-main">
+        <div class="ch-empty" id="ch-empty">
+            <div class="ch-empty-art"><i data-lucide="messages-square"></i></div>
+            <h2>Your messages</h2>
+            <p>
+                @if (me.IsStudent)
+                {
+                    <text>Chat with Proton Support, your lecturers or your agent.</text>
+                }
+                else
+                {
+                    <text>Select a conversation, or start a new one — you can message several students at once.</text>
+                }
+            </p>
+            <button type="button" class="ch-primary" data-ch-new><i data-lucide="square-pen"></i> @newLabel</button>
+        </div>
+
+        <div class="ch-thread" id="ch-thread" hidden>
+            <header class="ch-thread-head">
+                <button type="button" class="ch-icon-btn ch-back" id="ch-back" aria-label="Back"><i data-lucide="arrow-left"></i></button>
+                <div class="ch-avatar" id="ch-thread-avatar"></div>
+                <div class="ch-thread-meta">
+                    <div class="ch-thread-title" id="ch-thread-title"></div>
+                    <div class="ch-thread-sub" id="ch-thread-sub"></div>
+                </div>
+            </header>
+            <div class="ch-messages" id="ch-messages"></div>
+            <form class="ch-composer" id="ch-composer" autocomplete="off">
+                <textarea id="ch-input" rows="1" maxlength="4000" placeholder="Write a message…"></textarea>
+                <button type="submit" class="ch-send" id="ch-send" aria-label="Send"><i data-lucide="send-horizontal"></i></button>
+            </form>
+            <div class="ch-hint">Enter to send · Shift+Enter for a new line</div>
+        </div>
+    </section>
+</div>
+
+<!-- New message modal -->
+<div class="ch-modal" id="ch-modal" hidden role="dialog" aria-modal="true" aria-labelledby="ch-modal-title">
+    <div class="ch-modal-backdrop" data-ch-close></div>
+    <div class="ch-modal-panel">
+        <div class="ch-modal-head">
+            <h2 id="ch-modal-title">@newLabel</h2>
+            <button type="button" class="ch-icon-btn" data-ch-close aria-label="Close"><i data-lucide="x"></i></button>
+        </div>
+        <div class="ch-modal-body">
+            <label class="ch-label">To</label>
+            <div class="ch-chips" id="ch-chips"></div>
+            <div class="ch-search ch-search-modal">
+                <i data-lucide="search"></i>
+                <input type="search" id="ch-contact-filter" placeholder="@(me.IsStudent ? "Search" : "Search students by name or email")" autocomplete="off" />
+            </div>
+            @if (me.CanBroadcast)
+            {
+                <div class="ch-select-all">
+                    <label><input type="checkbox" id="ch-select-all" /> Select all shown</label>
+                    <span id="ch-selected-count" class="ch-muted">0 selected</span>
+                </div>
+            }
+            <div class="ch-contacts" id="ch-contacts"><div class="ch-muted ch-pad">Loading…</div></div>
+            <label class="ch-label" for="ch-modal-body">Message</label>
+            <textarea id="ch-modal-body" class="ch-textarea" rows="4" maxlength="4000" placeholder="Write your message…"></textarea>
+            <div class="ch-modal-error" id="ch-modal-error" hidden></div>
+        </div>
+        <div class="ch-modal-foot">
+            @if (me.CanBroadcast)
+            {
+                <span class="ch-muted ch-foot-note">Each student receives it in their own private chat.</span>
+            }
+            <button type="button" class="ch-secondary" data-ch-close>Cancel</button>
+            <button type="button" class="ch-primary" id="ch-modal-send"><i data-lucide="send-horizontal"></i> Send</button>
+        </div>
+    </div>
+</div>
+
+<link rel="stylesheet" href="~/css/messaging.css" asp-append-version="true" />
+<script src="~/js/messaging.js" asp-append-version="true" defer></script>

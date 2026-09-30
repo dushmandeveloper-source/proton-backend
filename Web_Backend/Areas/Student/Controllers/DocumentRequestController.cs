@@ -71,6 +71,9 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
 
                 await requestRep.Submit(itemId, storedFileName, file.FileName, file.ContentType, Auth.GetUserId(), "Student");
                 TempData["SuccessMessage"] = "Document submitted.";
+                await HttpContext.RequestServices.GetRequiredService<NotificationService>().NotifyStaff(PermissionCode.DocumentRequests, "DocumentSubmitted", "Document submitted",
+                    $"{student.FullName} uploaded a requested document.",
+                    $"/Admin/DocumentRequest/Details?requestId={Uri.EscapeDataString(item.RequestID)}", itemId);
             }
             catch (InvalidOperationException ex)
             {

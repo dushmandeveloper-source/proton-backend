@@ -373,3 +373,8 @@
         </a>
     </div>
 </div>
+
+@if (ViewBag.LoginSummary is Web_Backend.Areas.StudentPortal.Models.LoginSummaryViewModel loginSummary)
+{
+    <partial name="_LoginSummaryModal" model="loginSummary" />
+}

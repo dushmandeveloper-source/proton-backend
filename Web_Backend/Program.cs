@@ -139,6 +139,10 @@ builder.Services.AddTransient<ICourseVideoData, CourseVideoData>();
 builder.Services.AddTransient<IDocumentData, DocumentData>();
 builder.Services.AddSingleton<IImageUploader, ImageUploader>();
 builder.Services.AddSingleton<IDocumentStorage, DocumentStorage>();
+builder.Services.AddTransient<INotificationData, NotificationData>();
+builder.Services.AddTransient<NotificationService>();
+builder.Services.AddTransient<IMessagingData, MessagingData>();
+builder.Services.AddTransient<MessagingService>();
 builder.Services.AddSignalR();
 
 var app = builder.Build();
@@ -174,6 +178,7 @@ app.MapControllerRoute(
     pattern: "{controller=Home}/{action=Index}/{id?}");
 
 app.MapHub<Web_Backend.Hubs.ExamWatchHub>("/hubs/exam-watch");
+app.MapHub<Web_Backend.Hubs.NotificationHub>("/hubs/notifications");
 
 await SeedContactEmailTemplatesAsync(app.Services);
 

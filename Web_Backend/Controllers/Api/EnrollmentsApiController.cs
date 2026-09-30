@@ -236,6 +236,9 @@ namespace Web_Backend.Controllers.Api
             // so it's caught and surfaced only as emailSent: false for the
             // frontend to warn "contact support" on.
             var fullName = $"{request.FirstName} {request.LastName}".Trim();
+            await HttpContext.RequestServices.GetRequiredService<NotificationService>().NotifyStaff(PermissionCode.Students, "StudentRegistered", "New student registered",
+                $"{fullName} registered on the website" + (enrolledCourseIds.Count > 0 ? $" and enrolled in {enrolledCourseIds.Count} course(s)." : "."),
+                $"/Admin/Student/Details/{Uri.EscapeDataString(studentId)}");
             var emailSent = true;
             try
             {
@@ -409,6 +412,10 @@ namespace Web_Backend.Controllers.Api
                     slipUrl,
                     request.Notes ?? "",
                     Auth.GetUserId());
+
+                await HttpContext.RequestServices.GetRequiredService<NotificationService>().NotifyStaff(PermissionCode.Enrollments, "PaymentSubmitted", "New payment to verify",
+                    $"{Auth.GetUser()?.Name ?? "A student"} paid {registration.CurrencyCode} {request.Amount:N2} ({request.PaymentMethod}).",
+                    $"/Admin/Student/Details/{Uri.EscapeDataString(registration.StudentID)}", registration.RegistrationID);
 
                 return Ok(new { paymentId, slipUrl });
             }

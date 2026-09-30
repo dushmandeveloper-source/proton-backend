@@ -20,9 +20,10 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
         private readonly IBatchModuleData moduleRep;
         private readonly ILectureMaterialData materialRep;
         private readonly IHomeworkSubmissionData submissionRep;
+        private readonly NotificationService notifier;
 
         public ClassroomController(IStudentData studentRep, ICourseRegistrationData registrationRep, ICourseScheduleData scheduleRep,
-            IBatchModuleData moduleRep, ILectureMaterialData materialRep, IHomeworkSubmissionData submissionRep)
+            IBatchModuleData moduleRep, ILectureMaterialData materialRep, IHomeworkSubmissionData submissionRep, NotificationService notifier)
         {
             this.studentRep = studentRep;
             this.registrationRep = registrationRep;
@@ -30,6 +31,7 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
             this.moduleRep = moduleRep;
             this.materialRep = materialRep;
             this.submissionRep = submissionRep;
+            this.notifier = notifier;
         }
 
         // Batches the student belongs to, with whether their registration
@@ -92,7 +94,12 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
                 var reg = (await registrationRep.GetByStudent(student.StudentID))
                     .FirstOrDefault(r => r.IsActive == "A" && !r.FullAccess && r.CourseTitle == course);
                 if (reg != null)
+                {
                     await registrationRep.RequestAccess(reg.RegistrationID, student.StudentID);
+                    await notifier.NotifyStaff(PermissionCode.Enrollments, "AccessRequested", "Course access requested",
+                        $"{user?.Name} requested full access to {course}.",
+                        $"/Admin/Student/Details/{Uri.EscapeDataString(student.StudentID)}", reg.RegistrationID);
+                }
             }
             return Redirect(Web_Backend.Classes.WhatsAppLink.RequestAccess(user?.Name ?? "", user?.Email ?? "", course ?? ""));
         }

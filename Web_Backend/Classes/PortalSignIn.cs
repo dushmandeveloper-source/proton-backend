@@ -106,11 +106,30 @@ namespace Web_Backend.Classes
 
             await authRep.RecordLoginResult(auth.AuthID, success: true);
 
-            var rolePermissions = await rolePermissionRep.GetForRole(auth.UserTypeID);
-            var overrides = await userPermissionOverrideRep.GetForUser(auth.UserID);
+            var effective = await BuildEffectivePermissions(auth.UserTypeID, auth.UserID);
+
+            await Auth.SignIn(new SessionUser
+            {
+                Id = auth.UserID,
+                Name = auth.FullName,
+                Email = auth.Email,
+                Role = auth.UserTypeID,
+                Permissions = effective
+            }, portal, rememberMe);
+
+            return new SignInOutcome { Success = true };
+        }
+
+        // Role grid + per-user overrides → effective permissions. Used at
+        // sign-in and by Auth's per-request refresh, so role/override edits
+        // apply immediately instead of waiting for the user to re-login.
+        public async Task<Dictionary<string, PermissionGridViewModel>> BuildEffectivePermissions(string userTypeId, string userId)
+        {
+            var rolePermissions = await rolePermissionRep.GetForRole(userTypeId);
+            var overrides = await userPermissionOverrideRep.GetForUser(userId);
             var overrideByModule = overrides.ToDictionary(o => o.ModuleCode);
 
-            var effective = PermissionCode.All.ToDictionary(
+            return PermissionCode.All.ToDictionary(
                 m => m.Code,
                 m =>
                 {
@@ -126,17 +145,16 @@ namespace Web_Backend.Classes
                         CanDelete = ov?.CanDelete ?? role?.CanDelete ?? false,
                     };
                 });
+        }
 
-            await Auth.SignIn(new SessionUser
-            {
-                Id = auth.UserID,
-                Name = auth.FullName,
-                Email = auth.Email,
-                Role = auth.UserTypeID,
-                Permissions = effective
-            }, portal, rememberMe);
-
-            return new SignInOutcome { Success = true };
+        // Current role/permissions/active state for an already signed-in
+        // user, or null if the account no longer exists or was deactivated.
+        public async Task<(string role, Dictionary<string, PermissionGridViewModel> permissions)?> ReloadAsync(string userId)
+        {
+            var auth = await authRep.FindByUserId(userId);
+            if (auth == null || auth.IsLocked || auth.AuthIsActive != "A" || auth.UserIsActive != "A")
+                return null;
+            return (auth.UserTypeID, await BuildEffectivePermissions(auth.UserTypeID, auth.UserID));
         }
 
         // Issues a reset token for an account, but only if it belongs to the

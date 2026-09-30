@@ -192,6 +192,30 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
+        // Tells whoever grades this attempt that it's waiting: lecturers of
+        // the student's batch(es) for the exam's course, or Exams staff for a
+        // standalone exam (no course, so no batch lecturer).
+        private async Task NotifyGraders(ExamAttempt attempt, Student student)
+        {
+            var notifier = HttpContext.RequestServices.GetRequiredService<NotificationService>();
+            var exam = await examRep.Get(attempt.ExamID);
+            if (exam == null) return;
+            var title = "Exam submitted — awaiting grading";
+            var body = $"{student.FullName} submitted \"{exam.ExamTitle}\".";
+            if (exam.IsStandalone)
+            {
+                await notifier.NotifyStaff(PermissionCode.Exams, "ExamSubmitted", title, body,
+                    $"/Admin/ExamGrading/Index", attempt.AttemptID);
+                return;
+            }
+            var schedules = (await registrationRep.GetByStudent(student.StudentID))
+                .Where(r => r.IsActive == "A" && r.CourseID == exam.CourseID && !string.IsNullOrEmpty(r.ScheduleID))
+                .Select(r => r.ScheduleID).Distinct();
+            foreach (var scheduleId in schedules)
+                await notifier.NotifyScheduleInstructors(scheduleId, "ExamSubmitted", title, body,
+                    $"/Lecturer/ExamReview/Grade?attemptId={Uri.EscapeDataString(attempt.AttemptID)}");
+        }
+
         public async Task<IActionResult> Submit(string attemptId, bool isForced = false)
         {
             Auth.CheckUser();
@@ -214,6 +238,7 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
                 // trapping them behind an unmet completeness rule defeats the
                 // point of ending the attempt.
                 await attemptRep.Submit(attemptId, isForced);
+                await NotifyGraders(attempt, student);
             }
             catch (System.Exception ex)
             {

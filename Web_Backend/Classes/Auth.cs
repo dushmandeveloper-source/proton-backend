@@ -123,11 +123,42 @@ namespace Web_Backend.Classes
             return result;
         }
 
+        private const string CachedUserKey = "ProtonAuthUser";
+
+        // The cookie's Role/Permissions are a snapshot from sign-in, so on
+        // their own a role or permission edit (or deactivation) wouldn't take
+        // effect until the user signed out — up to 30 days with Remember Me.
+        // Refresh them from the DB once per request; the cookie now only
+        // proves identity. A deactivated/locked/deleted account resolves to
+        // null (treated as logged out).
         public static SessionUser? GetUser()
         {
+            if (HttpContext.Items.TryGetValue(CachedUserKey, out var cached))
+                return cached as SessionUser;
+
+            SessionUser? user = null;
             var json = ResolvePrincipal()?.FindFirst(UserClaimType)?.Value;
-            if (string.IsNullOrEmpty(json)) return null;
-            return JsonSerializer.Deserialize<SessionUser>(json);
+            if (!string.IsNullOrEmpty(json))
+            {
+                user = JsonSerializer.Deserialize<SessionUser>(json);
+                if (user != null)
+                {
+                    var signIn = HttpContext.RequestServices.GetRequiredService<PortalSignIn>();
+                    var fresh = signIn.ReloadAsync(user.Id).GetAwaiter().GetResult();
+                    if (fresh == null)
+                    {
+                        user = null;
+                    }
+                    else
+                    {
+                        user.Role = fresh.Value.role;
+                        user.Permissions = fresh.Value.permissions;
+                    }
+                }
+            }
+
+            HttpContext.Items[CachedUserKey] = user;
+            return user;
         }
 
         public static string GetUserId() => GetUser()?.Id ?? "";

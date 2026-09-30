@@ -23,8 +23,9 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
         private readonly ILectureMaterialData materialRep;
         private readonly ICourseVideoData videoRep;
         private readonly IImageUploader uploader;
+        private readonly NotificationService notifier;
 
-        public CoursesController(IStudentData studentRep, ICourseRegistrationData registrationRep, ICourseData courseRep, ICourseScheduleData scheduleRep, ILectureMaterialData materialRep, ICourseVideoData videoRep, IImageUploader uploader)
+        public CoursesController(IStudentData studentRep, ICourseRegistrationData registrationRep, ICourseData courseRep, ICourseScheduleData scheduleRep, ILectureMaterialData materialRep, ICourseVideoData videoRep, IImageUploader uploader, NotificationService notifier)
         {
             this.studentRep = studentRep;
             this.registrationRep = registrationRep;
@@ -33,6 +34,7 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
             this.materialRep = materialRep;
             this.videoRep = videoRep;
             this.uploader = uploader;
+            this.notifier = notifier;
         }
 
         [HttpGet]
@@ -198,6 +200,15 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
                     Auth.GetUserId());
 
                 TempData["SuccessMessage"] = $"Payment of {registration.CurrencyCode} {form.Amount:N2} recorded — pending verification.";
+
+                var payer = Auth.GetUser()?.Name ?? "A student";
+                var body = $"{payer} paid {registration.CurrencyCode} {form.Amount:N2} ({form.PaymentMethod}) — slip needs verifying.";
+                await notifier.NotifyStaff(PermissionCode.Enrollments, "PaymentSubmitted", "New payment to verify", body,
+                    $"/Admin/Student/Details/{Uri.EscapeDataString(registration.StudentID)}", registration.RegistrationID);
+                var owner = await studentRep.Get(registration.StudentID);
+                if (!string.IsNullOrEmpty(owner?.CreatedByUserID))
+                    await notifier.NotifyUser(owner.CreatedByUserID, "StudentPaid", "Your student made a payment", body,
+                        $"/Agent/Student/Details/{Uri.EscapeDataString(registration.StudentID)}");
             }
             catch (Exception ex)
             {

@@ -1,0 +1,51 @@
+@inject Web_Backend.Classes.MessagingService Messaging
+@{
+    // Top-bar chat icon: same look/blink as the bell (.nb-* styles live in
+    // _NotificationBell.cshtml). Live updates come from the "proton:message"
+    // DOM event that notifications.js raises for SignalR "message" pushes.
+    Web_Backend.Classes.ChatIdentity? chatMe = null;
+    var chatUnread = 0;
+    try
+    {
+        chatMe = await Messaging.Me();
+        if (chatMe?.CanMessage == true) chatUnread = await Messaging.UnreadTotal(chatMe);
+    }
+    catch { chatMe = null; }
+    var chatArea = ViewContext.RouteData.Values["area"]?.ToString() ?? "";
+}
+@if (chatMe?.CanMessage == true)
+{
+    <a href="/@chatArea/Messages/Index" id="chat-toggle" aria-label="Messages" title="Messages"
+       class="nb-btn @(chatUnread > 0 ? "nb-has-unread" : "")" data-me="@chatMe.UserId">
+        <i data-lucide="message-circle" class="nb-icon"></i>
+        <span id="chat-badge" class="nb-badge" @(chatUnread > 0 ? "" : "hidden")>
+            <span class="nb-badge-ping"></span>
+            <span id="chat-badge-count" class="nb-badge-count">@(chatUnread > 99 ? "99+" : chatUnread.ToString())</span>
+        </span>
+    </a>
+    <script>
+        (function () {
+            var btn = document.getElementById('chat-toggle');
+            var badge = document.getElementById('chat-badge');
+            var count = document.getElementById('chat-badge-count');
+            var me = btn.getAttribute('data-me');
+            var n = parseInt(count.textContent, 10) || 0;
+            function set(v) {
+                n = Math.max(0, v);
+                count.textContent = n > 99 ? '99+' : String(n);
+                badge.hidden = n === 0;
+                btn.classList.toggle('nb-has-unread', n > 0);
+            }
+            window.protonSetChatUnread = set;
+            document.addEventListener('proton:message', function (e) {
+                var m = e.detail || {};
+                if (m.senderUserId === me) return;
+                // The open thread on the Messages page is read as it arrives.
+                if (window.protonActiveConversation && window.protonActiveConversation === m.conversationId && !document.hidden) return;
+                set(n + 1);
+                if (!window.protonActiveConversation && typeof window.showToast === 'function')
+                    window.showToast('💬 ' + m.senderName + ': ' + (m.body.length > 80 ? m.body.slice(0, 80) + '…' : m.body));
+            });
+        })();
+    </script>
+}

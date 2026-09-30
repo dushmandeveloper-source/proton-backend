@@ -28,14 +28,16 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
         private readonly IHomeworkSubmissionData submissionRep;
         private readonly IImageUploader uploader;
         private readonly ICourseRegistrationData registrationRep;
+        private readonly NotificationService notifier;
 
-        public HomeworkController(IStudentData studentRep, ILectureMaterialData materialRep, IHomeworkSubmissionData submissionRep, IImageUploader uploader, ICourseRegistrationData registrationRep)
+        public HomeworkController(IStudentData studentRep, ILectureMaterialData materialRep, IHomeworkSubmissionData submissionRep, IImageUploader uploader, ICourseRegistrationData registrationRep, NotificationService notifier)
         {
             this.studentRep = studentRep;
             this.materialRep = materialRep;
             this.submissionRep = submissionRep;
             this.uploader = uploader;
             this.registrationRep = registrationRep;
+            this.notifier = notifier;
         }
 
         [HttpGet]
@@ -99,6 +101,12 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
 
                 await submissionRep.Upsert(materialId, student.StudentID, fileUrl);
                 TempData["SuccessMessage"] = "Submitted.";
+
+                var material = (await materialRep.ListForStudent(student.StudentID)).FirstOrDefault(m => m.MaterialID == materialId);
+                if (material != null)
+                    await notifier.NotifyScheduleInstructors(material.ScheduleID, "HomeworkSubmitted",
+                        "New homework submission", $"{student.FullName} submitted \"{material.Title}\".",
+                        $"/Lecturer/Notes/Submissions?materialId={Uri.EscapeDataString(materialId)}", student.StudentID);
             }
             catch (InvalidOperationException ex)
             {

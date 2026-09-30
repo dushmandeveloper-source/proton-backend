@@ -37,11 +37,12 @@ namespace Web_Backend.Areas.Admin.Controllers
         private readonly IConfiguration configuration;
         private readonly IServiceScopeFactory scopeFactory;
         private readonly ILogger<StudentController> logger;
+        private readonly NotificationService notifier;
 
         public StudentController(
             IStudentData rep, IUserData userRep, IUserAuthData authRep, IUserTypeData userTypeRep, IImageUploader uploader,
             ICourseRegistrationData registrationRep, ICourseData courseRep, ICourseScheduleData scheduleRep, IEmailSender emailSender, IConfiguration configuration,
-            IServiceScopeFactory scopeFactory, ILogger<StudentController> logger)
+            IServiceScopeFactory scopeFactory, ILogger<StudentController> logger, NotificationService notifier)
         {
             this.rep = rep;
             this.userRep = userRep;
@@ -55,6 +56,26 @@ namespace Web_Backend.Areas.Admin.Controllers
             this.configuration = configuration;
             this.scopeFactory = scopeFactory;
             this.logger = logger;
+            this.notifier = notifier;
+        }
+
+        // Bell notification to the student themself. registrationId set →
+        // links to that course's details page; otherwise to their dashboard.
+        private async Task NotifyStudent(string studentId, string registrationId, string eventType, string title, string body, string? link = null)
+        {
+            try
+            {
+                var student = await rep.Get(studentId);
+                if (student == null || string.IsNullOrEmpty(student.UserID)) return;
+                link ??= string.IsNullOrEmpty(registrationId)
+                    ? "/Student/Dashboard/Index"
+                    : $"/Student/Courses/Details?registrationId={Uri.EscapeDataString(registrationId)}";
+                await notifier.NotifyUser(student.UserID, eventType, title, body, link);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Student notification {EventType} failed", eventType);
+            }
         }
 
         private async Task PopulateCourseList()
@@ -546,6 +567,7 @@ namespace Web_Backend.Areas.Admin.Controllers
             {
                 await rep.VerifyAccount(studentId, "Verified", Auth.GetUserId());
                 TempData["SuccessMessage"] = "Account verified.";
+                await NotifyStudent(studentId, "", "AccountVerified", "Account verified", "Your account has been verified. Welcome aboard!");
             }
             catch (Exception ex)
             {
@@ -562,6 +584,7 @@ namespace Web_Backend.Areas.Admin.Controllers
             {
                 await rep.VerifyAccount(studentId, "Rejected", Auth.GetUserId());
                 TempData["SuccessMessage"] = "Account rejected.";
+                await NotifyStudent(studentId, "", "AccountRejected", "Account verification rejected", "Your account could not be verified. Please check your profile details or contact us.", "/Student/Profile/Index");
             }
             catch (Exception ex)
             {
@@ -578,6 +601,7 @@ namespace Web_Backend.Areas.Admin.Controllers
             {
                 await rep.VerifyPassport(studentId, "Verified", Auth.GetUserId());
                 TempData["SuccessMessage"] = "Passport verified.";
+                await NotifyStudent(studentId, "", "PassportVerified", "Passport verified", "Your passport has been verified.", "/Student/Profile/Index");
             }
             catch (Exception ex)
             {
@@ -594,6 +618,7 @@ namespace Web_Backend.Areas.Admin.Controllers
             {
                 await rep.VerifyPassport(studentId, "Rejected", Auth.GetUserId());
                 TempData["SuccessMessage"] = "Passport rejected.";
+                await NotifyStudent(studentId, "", "PassportRejected", "Passport rejected", "Your passport could not be verified. Please upload a clear photo.", "/Student/Profile/Index");
             }
             catch (Exception ex)
             {
@@ -717,6 +742,7 @@ namespace Web_Backend.Areas.Admin.Controllers
 
                 await registrationRep.AddPayment(registrationId, amount, paymentMethod, slipUrl, notes, Auth.GetUserId());
                 TempData["SuccessMessage"] = "Payment recorded.";
+                await NotifyStudent(studentId, registrationId, "PaymentAdded", "Payment recorded", $"A payment of {amount:N2} was recorded on your course.");
             }
             catch (Exception ex)
             {
@@ -740,10 +766,29 @@ namespace Web_Backend.Areas.Admin.Controllers
 
                 await registrationRep.EditPayment(paymentId, amount, paymentMethod, slipUrl, notes, Auth.GetUserId());
                 TempData["SuccessMessage"] = "Payment updated.";
+                await NotifyStudent(studentId, "", "PaymentEdited", "Payment updated", "One of your course payments was updated. Check your balance.", "/Student/Courses/Index");
             }
             catch (Exception ex)
             {
                 TempData["ErrorMessage"] = "Could not update payment: " + ex.Message;
+            }
+            return RedirectToAction("Details", new { id = studentId });
+        }
+
+        // Hard delete — Master Admin only, by role rather than the
+        // Enrollments 'D' flag, so it can't be granted via the permission grid.
+        [HttpPost, ValidateAntiForgeryToken]
+        public async Task<IActionResult> DeleteCoursePayment(string studentId, string paymentId)
+        {
+            Auth.CheckUserRole(Auth.MasterAdminRoleId);
+            try
+            {
+                await registrationRep.DeletePayment(paymentId, Auth.GetUserId());
+                TempData["SuccessMessage"] = "Payment deleted.";
+            }
+            catch (Exception ex)
+            {
+                TempData["ErrorMessage"] = "Could not delete payment: " + ex.Message;
             }
             return RedirectToAction("Details", new { id = studentId });
         }
@@ -756,6 +801,7 @@ namespace Web_Backend.Areas.Admin.Controllers
             {
                 await registrationRep.VerifySlip(paymentId, Auth.GetUserId());
                 TempData["SuccessMessage"] = "Payment slip verified.";
+                await NotifyStudent(studentId, "", "SlipVerified", "Payment slip verified", "Your bank deposit slip has been verified.", "/Student/Courses/Index");
             }
             catch (Exception ex)
             {
@@ -805,6 +851,8 @@ namespace Web_Backend.Areas.Admin.Controllers
             {
                 await registrationRep.SetPersonalDiscount(registrationId, amount, reason ?? "", Auth.GetUserId());
                 TempData["SuccessMessage"] = amount > 0 ? "Personal discount saved." : "Personal discount removed.";
+                if (amount > 0)
+                    await NotifyStudent(studentId, registrationId, "DiscountGiven", "You received a discount", $"A discount of {amount:N2} was applied to your course." + (string.IsNullOrWhiteSpace(reason) ? "" : $" Reason: {reason}"));
             }
             catch (Exception ex)
             {
@@ -830,6 +878,7 @@ namespace Web_Backend.Areas.Admin.Controllers
                 await registrationRep.AddPayment(registrationId, balance, "Cash", "",
                     string.IsNullOrWhiteSpace(notes) ? "Paid in full (cash)" : notes, Auth.GetUserId());
                 TempData["SuccessMessage"] = $"Cash payment of {registration.CurrencyCode} {balance:N2} recorded — marked fully paid.";
+                await NotifyStudent(studentId, registrationId, "PaymentAdded", "Course fully paid", $"Your cash payment of {registration.CurrencyCode} {balance:N2} was recorded. Your course is fully paid.");
             }
             catch (Exception ex)
             {
@@ -848,6 +897,8 @@ namespace Web_Backend.Areas.Admin.Controllers
                 TempData["SuccessMessage"] = fullAccess
                     ? "Full access granted for this course."
                     : "Full access revoked for this course.";
+                if (fullAccess)
+                    await NotifyStudent(studentId, registrationId, "FullAccessGranted", "Course unlocked", "You now have full access to all modules of your course.");
             }
             catch (Exception ex)
             {
