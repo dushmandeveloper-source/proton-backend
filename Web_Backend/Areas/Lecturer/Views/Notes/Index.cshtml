@@ -43,10 +43,11 @@
                             }
                         </div>
                         <div class="flex items-center gap-2 flex-shrink-0">
-                            <a href="@m.FileURL" target="_blank" rel="noopener"
+                            <button type="button" data-url="@m.FileURL" data-type="@m.FileType" data-title="@m.Title"
+ onclick="if (this.dataset.type === 'Link' || this.dataset.type === 'Video') window.open(this.dataset.url, '_blank', 'noopener'); else openMaterialPreview(this.dataset.url, this.dataset.type, this.dataset.title)"
                                class="px-3 py-1.5 rounded-lg font-medium text-xs bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
                                 View
-                            </a>
+                            </button>
                             @if (m.IsSubmittable)
                             {
                                 <a asp-action="Submissions" asp-route-materialId="@m.MaterialID"
@@ -69,3 +70,6 @@
         }
     </div>
 </div>
+
+@await Html.PartialAsync("_MaterialPreviewModal")
+

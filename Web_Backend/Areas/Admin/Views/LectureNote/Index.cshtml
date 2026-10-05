@@ -94,9 +94,10 @@
                                 <td class="px-6 py-3 text-slate-500 dark:text-slate-400">@m.FileType</td>
                                 <td class="px-6 py-3 text-slate-500 dark:text-slate-400">@m.UploadedByName (@m.UploadedByRole)</td>
                                 <td class="px-6 py-3 text-right">
-                                    <a href="@m.FileURL" target="_blank" rel="noopener" title="View" class="p-2 rounded-xl text-slate-400 dark:text-slate-500 hover:text-[#7c3aed] dark:hover:text-purple-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors inline-block">
+                                    <button type="button" data-url="@m.FileURL" data-type="@m.FileType" data-title="@m.Title"
+ onclick="if (this.dataset.type === 'Link' || this.dataset.type === 'Video') window.open(this.dataset.url, '_blank', 'noopener'); else openMaterialPreview(this.dataset.url, this.dataset.type, this.dataset.title)" title="View" class="p-2 rounded-xl text-slate-400 dark:text-slate-500 hover:text-[#7c3aed] dark:hover:text-purple-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors inline-block">
                                         <i data-lucide="eye" class="w-4 h-4"></i>
-                                    </a>
+                                    </button>
                                     @if (m.IsSubmittable)
                                     {
                                         <a asp-action="Submissions" asp-route-materialId="@m.MaterialID" title="Submissions" class="p-2 rounded-xl text-slate-400 dark:text-slate-500 hover:text-amber-600 dark:hover:text-amber-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors inline-block">
@@ -122,6 +123,8 @@
         }
     </div>
 </div>
+
+@await Html.PartialAsync("_MaterialPreviewModal")
 
 @section Scripts {
     <script>
