@@ -239,13 +239,17 @@
                             <p class="text-sm font-medium text-slate-800 dark:text-slate-100">@m.Title</p>
                             <p class="text-xs text-slate-400 dark:text-slate-500">@m.MaterialDate.ToString("MMM d, yyyy") &middot; @m.FileType &middot; by @m.UploadedByName (@m.UploadedByRole)</p>
                         </div>
-                        <a href="@m.FileURL" target="_blank" rel="noopener"
+                        <button type="button" data-url="@m.FileURL" data-type="@m.FileType" data-title="@m.Title"
+ onclick="if (this.dataset.type === 'Link' || this.dataset.type === 'Video') window.open(this.dataset.url, '_blank', 'noopener'); else openMaterialPreview(this.dataset.url, this.dataset.type, this.dataset.title)"
                            class="px-3 py-1.5 rounded-lg font-medium text-xs bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors flex-shrink-0">
                             View
-                        </a>
+                        </button>
                     </div>
                 }
             </div>
         }
     </div>
 </div>
+
+@await Html.PartialAsync("_MaterialPreviewModal")
+

@@ -15,9 +15,9 @@ else if (Model.IsLink)
 {
     <a href="@url" target="_blank" rel="noopener noreferrer" class="@btn"><i data-lucide="external-link" class="w-3.5 h-3.5"></i> Open</a>
 }
-else if (Model.FileType == "Image" || url.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase))
+else if (Model.FileType == "Image" || System.Text.RegularExpressions.Regex.IsMatch(url, @"\.(pdf|pptx?|ppsx?|docx?|xlsx?)$", System.Text.RegularExpressions.RegexOptions.IgnoreCase))
 {
-    <button type="button" data-url="@url" data-type="@Model.FileType" onclick="openMaterialPreview(this.dataset.url, this.dataset.type)" class="@btn"><i data-lucide="eye" class="w-3.5 h-3.5"></i> Preview</button>
+    <button type="button" data-url="@url" data-type="@Model.FileType" data-title="@Model.Title" onclick="openMaterialPreview(this.dataset.url, this.dataset.type, this.dataset.title)" class="@btn"><i data-lucide="eye" class="w-3.5 h-3.5"></i> Preview</button>
 }
 @if (!Model.IsLink && Model.AllowDownload)
 {

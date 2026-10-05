@@ -1,22 +1,50 @@
-@* ---------- Lecture material / homework preview modal ----------
-   Shared across Admin, Lecturer and Student areas — call
-   openMaterialPreview(url, fileType) from any "Preview"/"View" button.
-   Images render as <img>, PDFs render in an embedded <iframe> viewer.
-   Other document types (Word/PowerPoint/Excel) have no reliable in-browser
-   preview, so callers should not offer a Preview button for those — only a
-   Download link (when allowed) or a disabled placeholder. *@
-<div id="material-preview-modal" class="hidden fixed inset-0 z-[60] flex items-center justify-center bg-black/90 p-4" role="dialog" aria-modal="true">
-    <button type="button" id="material-preview-modal-close" aria-label="Close"
-            class="absolute top-4 right-4 z-10 p-2 rounded-lg text-white/80 hover:text-white hover:bg-white/10">
-        <i data-lucide="x" class="w-7 h-7"></i>
-    </button>
-    <div id="material-preview-modal-body" class="w-full h-full max-w-4xl flex items-center justify-center overflow-auto"></div>
+@* ---------- Lecture material / homework / document preview modal ----------
+   Shared across Admin, Lecturer, Student and Agent areas — call
+   openMaterialPreview(url, fileType[, title]) from any "Preview"/"View" button.
+   - Images: zoomable <img> (buttons, Ctrl+wheel, pinch via native scroll).
+   - PDFs: rendered with PDF.js (lazy-loaded from cdnjs) into a scrollable,
+     responsive page stack with zoom in/out, fit-to-width and page navigation.
+     No download/print button is exposed (Agent documents are view-only).
+   - Office files (ppt/pptx/doc/docx/xls/xlsx): Microsoft's Office Online
+     embed viewer. It fetches the file itself, so it only works for files at a
+     publicly reachable URL (i.e. production, not localhost / auth-gated
+     endpoints). *@
+<div id="material-preview-modal" class="hidden fixed inset-0 z-[60] flex flex-col bg-slate-950/95" role="dialog" aria-modal="true">
+    <div class="flex items-center gap-1 sm:gap-2 px-2 sm:px-4 py-2 bg-slate-900 text-white border-b border-white/10 flex-shrink-0">
+        <p id="mpv-title" class="flex-1 min-w-0 truncate text-sm font-medium text-white/90"></p>
+
+        <div id="mpv-pager" class="hidden items-center gap-1 text-sm">
+            <button type="button" id="mpv-prev" class="mpv-btn" aria-label="Previous page"><i data-lucide="chevron-left" class="w-4 h-4"></i></button>
+            <input id="mpv-page" type="number" min="1" class="w-12 bg-white/10 rounded px-1 py-0.5 text-center text-sm" aria-label="Page" />
+            <span class="text-white/60">/ <span id="mpv-pages">1</span></span>
+            <button type="button" id="mpv-next" class="mpv-btn" aria-label="Next page"><i data-lucide="chevron-right" class="w-4 h-4"></i></button>
+        </div>
+
+        <div id="mpv-zoom" class="hidden items-center gap-1 text-sm">
+            <button type="button" id="mpv-zoom-out" class="mpv-btn" aria-label="Zoom out"><i data-lucide="zoom-out" class="w-4 h-4"></i></button>
+            <span id="mpv-zoom-label" class="w-12 text-center tabular-nums text-white/80">100%</span>
+            <button type="button" id="mpv-zoom-in" class="mpv-btn" aria-label="Zoom in"><i data-lucide="zoom-in" class="w-4 h-4"></i></button>
+            <button type="button" id="mpv-fit" class="mpv-btn" aria-label="Fit to width" title="Fit to width"><i data-lucide="maximize-2" class="w-4 h-4"></i></button>
+        </div>
+
+        <button type="button" id="material-preview-modal-close" aria-label="Close" class="mpv-btn ml-1"><i data-lucide="x" class="w-5 h-5"></i></button>
+    </div>
+    <div id="material-preview-modal-body" class="flex-1 min-h-0 overflow-auto overscroll-contain" oncontextmenu="return false;"></div>
 </div>
+
+<style>
+    .mpv-btn { padding: .375rem; border-radius: .5rem; color: rgba(255,255,255,.8); }
+    .mpv-btn:hover { color: #fff; background: rgba(255,255,255,.1); }
+    .mpv-btn:disabled { opacity: .35; pointer-events: none; }
+    #material-preview-modal-body .mpv-page { margin: 12px auto; background: #fff; box-shadow: 0 2px 12px rgba(0,0,0,.4); }
+    #material-preview-modal-body .mpv-page canvas { display: block; width: 100%; height: 100%; }
+</style>
 
 <script>
     (function () {
         const modal = document.getElementById('material-preview-modal');
         const body = document.getElementById('material-preview-modal-body');
+        const $ = (id) => document.getElementById(id);
 
         // Move the modal to the end of <body> -- if this partial renders
         // inside a container that has backdrop-filter/transform/filter set
@@ -29,35 +57,284 @@
             document.body.appendChild(modal);
         }
 
-        window.openMaterialPreview = function (url, fileType) {
-            if (!url) return;
-            body.innerHTML = '';
-
-            if (fileType === 'Image') {
-                const img = document.createElement('img');
-                img.src = url;
-                img.className = 'max-w-full max-h-full object-contain rounded-lg';
-                img.oncontextmenu = () => false;
-                body.appendChild(img);
-            } else {
-                // PDF (and anything else the browser can render natively).
-                const iframe = document.createElement('iframe');
-                iframe.src = url + '#toolbar=0';
-                iframe.className = 'w-full h-full bg-white rounded-lg';
-                iframe.title = 'Document preview';
-                body.appendChild(iframe);
+        const PDFJS_BASE = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/';
+        let pdfjsPromise = null;
+        function loadPdfJs() {
+            if (window.pdfjsLib) return Promise.resolve(window.pdfjsLib);
+            if (!pdfjsPromise) {
+                pdfjsPromise = new Promise((resolve, reject) => {
+                    const s = document.createElement('script');
+                    s.src = PDFJS_BASE + 'pdf.min.js';
+                    s.onload = () => {
+                        window.pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_BASE + 'pdf.worker.min.js';
+                        resolve(window.pdfjsLib);
+                    };
+                    s.onerror = () => { pdfjsPromise = null; reject(new Error('Failed to load PDF viewer')); };
+                    document.head.appendChild(s);
+                });
             }
+            return pdfjsPromise;
+        }
 
+        // ---- state ----
+        let mode = null;          // 'pdf' | 'image' | 'frame'
+        let scale = 1;            // pdf: CSS scale relative to 100%; image: multiplier of fit size
+        let pdfDoc = null, pages = [], renderToken = 0, observer = null;
+        const MIN = 0.25, MAX = 5;
+
+        function extOf(url) {
+            const m = (url || '').split(/[?#]/)[0].match(/\.([a-z0-9]+)$/i);
+            return m ? m[1].toLowerCase() : '';
+        }
+        function setChrome(showPager, showZoom) {
+            $('mpv-pager').classList.toggle('hidden', !showPager);
+            $('mpv-pager').classList.toggle('flex', showPager);
+            $('mpv-zoom').classList.toggle('hidden', !showZoom);
+            $('mpv-zoom').classList.toggle('flex', showZoom);
+        }
+        function message(text) {
+            body.innerHTML = '';
+            const p = document.createElement('p');
+            p.className = 'text-center text-white/70 text-sm p-10';
+            p.textContent = text;
+            body.appendChild(p);
+        }
+        function updateZoomLabel() { $('mpv-zoom-label').textContent = Math.round(scale * 100) + '%'; }
+
+        // ---------- PDF ----------
+        async function openPdf(url) {
+            mode = 'pdf';
+            setChrome(true, true);
+            message('Loading document…');
+            const token = ++renderToken;
+            try {
+                const lib = await loadPdfJs();
+                const doc = await lib.getDocument({ url, withCredentials: true }).promise;
+                if (token !== renderToken) { doc.destroy(); return; }
+                pdfDoc = doc;
+                $('mpv-pages').textContent = doc.numPages;
+                $('mpv-page').max = doc.numPages;
+                $('mpv-page').value = 1;
+                body.innerHTML = '';
+                pages = [];
+                const first = await doc.getPage(1);
+                const base = first.getViewport({ scale: 1 });
+                for (let i = 1; i <= doc.numPages; i++) {
+                    const div = document.createElement('div');
+                    div.className = 'mpv-page';
+                    div.dataset.page = i;
+                    body.appendChild(div);
+                    pages.push({ div, w: base.width, h: base.height, rendered: 0 });
+                }
+                // Real per-page sizes (mixed-orientation PDFs / slides).
+                for (let i = 0; i < pages.length; i++) {
+                    const pg = i === 0 ? first : await doc.getPage(i + 1);
+                    if (token !== renderToken) return;
+                    const vp = pg.getViewport({ scale: 1 });
+                    pages[i].w = vp.width; pages[i].h = vp.height; pages[i].page = pg;
+                }
+                fitWidth();
+                setupObserver();
+            } catch (e) {
+                if (token === renderToken) message('Could not load this document. ' + (e && e.message ? e.message : ''));
+            }
+        }
+        function layoutPdf() {
+            pages.forEach(p => {
+                p.div.style.width = (p.w * scale) + 'px';
+                p.div.style.height = (p.h * scale) + 'px';
+            });
+            updateZoomLabel();
+            // Re-render visible pages at the new resolution.
+            pages.forEach(p => { if (p.visible) renderPage(p); });
+        }
+        async function renderPage(p) {
+            if (!p.page) return;
+            const dpr = window.devicePixelRatio || 1;
+            const target = scale * dpr;
+            if (p.rendered === target || p.rendering) return;
+            p.rendering = true;
+            try {
+                const vp = p.page.getViewport({ scale: target });
+                const canvas = document.createElement('canvas');
+                canvas.width = Math.floor(vp.width);
+                canvas.height = Math.floor(vp.height);
+                await p.page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
+                p.div.replaceChildren(canvas);
+                p.rendered = target;
+            } catch (_) { /* superseded or cancelled */ }
+            p.rendering = false;
+            if (p.visible && p.rendered !== scale * (window.devicePixelRatio || 1)) renderPage(p);
+        }
+        function setupObserver() {
+            if (observer) observer.disconnect();
+            observer = new IntersectionObserver((entries) => {
+                entries.forEach(en => {
+                    const p = pages[en.target.dataset.page - 1];
+                    p.visible = en.isIntersecting;
+                    if (p.visible) renderPage(p);
+                });
+                const firstVisible = pages.find(p => p.visible);
+                if (firstVisible) $('mpv-page').value = firstVisible.div.dataset.page;
+                updatePager();
+            }, { root: body, rootMargin: '300px 0px' });
+            pages.forEach(p => observer.observe(p.div));
+        }
+        function updatePager() {
+            const n = +$('mpv-page').value;
+            $('mpv-prev').disabled = n <= 1;
+            $('mpv-next').disabled = !pdfDoc || n >= pdfDoc.numPages;
+        }
+        function goToPage(n) {
+            if (!pages.length) return;
+            n = Math.max(1, Math.min(pages.length, n | 0));
+            pages[n - 1].div.scrollIntoView({ block: 'start' });
+            $('mpv-page').value = n;
+            updatePager();
+        }
+
+        // ---------- Image ----------
+        function openImage(url) {
+            mode = 'image';
+            setChrome(false, true);
+            body.innerHTML = '';
+            const wrap = document.createElement('div');
+            wrap.className = 'min-w-full min-h-full flex items-center justify-center p-4';
+            const img = document.createElement('img');
+            img.src = url;
+            img.draggable = false;
+            img.className = 'rounded-lg select-none';
+            img.onload = () => { fitWidth(); };
+            wrap.appendChild(img);
+            body.appendChild(wrap);
+        }
+        function layoutImage() {
+            const img = body.querySelector('img');
+            if (!img || !img.naturalWidth) return;
+            img.style.width = (img.naturalWidth * scale) + 'px';
+            img.style.maxWidth = 'none';
+            updateZoomLabel();
+        }
+
+        // ---------- Office / other ----------
+        function openFrame(src) {
+            mode = 'frame';
+            setChrome(false, false);
+            body.innerHTML = '';
+            const iframe = document.createElement('iframe');
+            iframe.src = src;
+            iframe.className = 'w-full h-full bg-white border-0';
+            iframe.title = 'Document preview';
+            body.appendChild(iframe);
+        }
+
+        // ---------- zoom ----------
+        function setScale(s, anchor) {
+            s = Math.max(MIN, Math.min(MAX, s));
+            if (s === scale) return;
+            // Keep the point under the cursor/centre stable while zooming.
+            const r = body.getBoundingClientRect();
+            const ax = anchor ? anchor.x - r.left : body.clientWidth / 2;
+            const ay = anchor ? anchor.y - r.top : body.clientHeight / 2;
+            const fx = (body.scrollLeft + ax) / scale, fy = (body.scrollTop + ay) / scale;
+            scale = s;
+            mode === 'pdf' ? layoutPdf() : layoutImage();
+            body.scrollLeft = fx * scale - ax;
+            body.scrollTop = fy * scale - ay;
+        }
+        function fitWidth() {
+            const avail = body.clientWidth - 24;
+            if (mode === 'pdf' && pages.length) {
+                const widest = Math.max(...pages.map(p => p.w));
+                scale = Math.max(MIN, Math.min(MAX, avail / widest));
+                layoutPdf();
+            } else if (mode === 'image') {
+                const img = body.querySelector('img');
+                if (!img || !img.naturalWidth) return;
+                const fit = Math.min(avail / img.naturalWidth, (body.clientHeight - 32) / img.naturalHeight, 1);
+                scale = Math.max(MIN, fit);
+                layoutImage();
+            }
+        }
+        const step = (dir) => setScale(dir > 0 ? scale * 1.25 : scale / 1.25);
+        $('mpv-zoom-in').addEventListener('click', () => step(1));
+        $('mpv-zoom-out').addEventListener('click', () => step(-1));
+        $('mpv-fit').addEventListener('click', fitWidth);
+        body.addEventListener('wheel', (e) => {
+            if (!(e.ctrlKey || e.metaKey) || mode === 'frame') return;   // trackpad pinch arrives as ctrl+wheel
+            e.preventDefault();
+            setScale(scale * Math.exp(-e.deltaY * 0.0025), { x: e.clientX, y: e.clientY });
+        }, { passive: false });
+
+        // Two-finger pinch on touch devices.
+        let pinch = null;
+        body.addEventListener('touchstart', (e) => {
+            if (e.touches.length === 2 && mode !== 'frame') {
+                const [a, b] = e.touches;
+                pinch = { d: Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY), s: scale };
+            }
+        }, { passive: true });
+        body.addEventListener('touchmove', (e) => {
+            if (!pinch || e.touches.length !== 2) return;
+            e.preventDefault();
+            const [a, b] = e.touches;
+            const d = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+            setScale(pinch.s * d / pinch.d, { x: (a.clientX + b.clientX) / 2, y: (a.clientY + b.clientY) / 2 });
+        }, { passive: false });
+        body.addEventListener('touchend', () => { pinch = null; });
+
+        $('mpv-prev').addEventListener('click', () => goToPage(+$('mpv-page').value - 1));
+        $('mpv-next').addEventListener('click', () => goToPage(+$('mpv-page').value + 1));
+        $('mpv-page').addEventListener('change', (e) => goToPage(+e.target.value));
+
+        let resizeTimer;
+        window.addEventListener('resize', () => {
+            if (modal.classList.contains('hidden')) return;
+            clearTimeout(resizeTimer);
+            resizeTimer = setTimeout(fitWidth, 150);
+        });
+
+        const OFFICE = ['ppt', 'pptx', 'pps', 'ppsx', 'doc', 'docx', 'xls', 'xlsx'];
+
+        window.openMaterialPreview = function (url, fileType, title) {
+            if (!url) return;
+            closePreview(true);
+            const ext = extOf(url);
+            $('mpv-title').textContent = title || decodeURIComponent((url.split(/[?#]/)[0].split('/').pop()) || '');
             modal.classList.remove('hidden');
+            document.documentElement.style.overflow = 'hidden';
             if (window.lucide) lucide.createIcons();
+
+            if (fileType === 'Image' || ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg'].includes(ext)) {
+                openImage(url);
+            } else if (OFFICE.includes(ext)) {
+                const abs = new URL(url, location.href).href;
+                openFrame('https://view.officeapps.live.com/op/embed.aspx?src=' + encodeURIComponent(abs));
+            } else if (ext === 'pdf' || ext === '' || fileType === 'Document' || fileType === 'PDF') {
+                openPdf(url);   // extension-less URLs are the auth-gated Preview endpoints, which only serve PDFs here
+            } else {
+                openFrame(url);
+            }
         };
 
-        function closePreview() {
-            modal.classList.add('hidden');
+        function closePreview(keepOpen) {
+            renderToken++;
+            if (observer) { observer.disconnect(); observer = null; }
+            if (pdfDoc) { pdfDoc.destroy(); pdfDoc = null; }
+            pages = []; mode = null; scale = 1;
             body.innerHTML = '';
+            if (keepOpen !== true) {
+                modal.classList.add('hidden');
+                document.documentElement.style.overflow = '';
+            }
         }
-        document.getElementById('material-preview-modal-close').addEventListener('click', closePreview);
-        modal.addEventListener('click', (e) => { if (e.target === modal) closePreview(); });
-        document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !modal.classList.contains('hidden')) closePreview(); });
+        $('material-preview-modal-close').addEventListener('click', () => closePreview());
+        document.addEventListener('keydown', (e) => {
+            if (modal.classList.contains('hidden')) return;
+            if (e.key === 'Escape') closePreview();
+            else if ((e.ctrlKey || e.metaKey) && (e.key === '+' || e.key === '=')) { e.preventDefault(); step(1); }
+            else if ((e.ctrlKey || e.metaKey) && e.key === '-') { e.preventDefault(); step(-1); }
+            else if ((e.ctrlKey || e.metaKey) && e.key === '0') { e.preventDefault(); fitWidth(); }
+        });
     })();
 </script>
