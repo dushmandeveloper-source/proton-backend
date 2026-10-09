@@ -46,3 +46,6 @@ Web_Backend/PrivateStorage/
 # Local dev server console output
 Web_Backend/run_stdout.log
 Web_Backend/run_stderr.log
+
+# Full-size originals of shrunk uploads (Classes/ImageOptimizer.cs) — runtime data
+Web_Backend/App_Data/

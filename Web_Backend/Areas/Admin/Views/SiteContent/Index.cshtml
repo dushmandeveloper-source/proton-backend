@@ -1,0 +1,358 @@
+@model List<SiteBanner>
+@using Web_Backend.Areas.Admin.Models
+@{
+    ViewData["Title"] = "Site Content";
+    bool canAdd = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.SiteContent, 'A');
+    bool canEdit = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.SiteContent, 'E');
+    bool canDelete = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.SiteContent, 'D');
+    var tab = ViewBag.Tab as string ?? "hero";
+    var settings = ViewBag.Settings as Dictionary<string, string> ?? new();
+    var stats = ViewBag.ImageStats as Web_Backend.Classes.ImageStats ?? new();
+    string siteUrl = ViewBag.PublicSiteUrl as string ?? "";
+    string S(string key) => settings.TryGetValue(key, out var v) ? v : "";
+    // Uploaded files live on this backend; built-in /images/... ship with the public site.
+    string Img(string? url) => string.IsNullOrEmpty(url) ? "" : url.StartsWith("/Uploads/", StringComparison.OrdinalIgnoreCase) || url.StartsWith("http") ? url : siteUrl + url;
+    string Mb(long b) => (b / 1024d / 1024d).ToString("0.0") + " MB";
+
+    var tabs = new[]
+    {
+        ("hero", "Banner", "image"),
+        ("wheel", "Rotating wheel", "orbit"),
+        ("announcement", "Announcement bar", "megaphone"),
+        ("images", "Home page images", "images"),
+        ("speed", "Image speed", "gauge"),
+    };
+    var input = "w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm";
+    var card = "bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700";
+    var btnPrimary = "px-4 py-2 rounded-xl font-medium bg-[#7c3aed] text-white hover:bg-[#6d28d9] shadow-sm text-sm inline-flex items-center gap-2";
+    var btnGhost = "px-4 py-2 rounded-xl font-medium bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-sm inline-flex items-center gap-2";
+}
+
+<style>
+    /* Live preview of the hero heading animations — mirrors frontend2's
+       index.css (.hero-anim-*) closely enough to judge each one. */
+    .anim-preview { background: linear-gradient(135deg, #0b1220, #1e3a5f); }
+    .anim-preview .ap-line { display: block; }
+    .anim-preview .ap-u { display: inline-block; white-space: pre; }
+    .ap-RiseTilt .ap-u { transform-origin: 50% 100%; animation: ap-rise .9s cubic-bezier(.2,.9,.25,1.15) both; }
+    @@keyframes ap-rise { from { opacity: 0; transform: translateY(.6em) rotateX(-85deg) scale(.8); filter: blur(10px); } to { opacity: 1; transform: none; filter: none; } }
+    .ap-BlurIn .ap-u { animation: ap-blur 1s ease-out both; }
+    @@keyframes ap-blur { from { opacity: 0; filter: blur(14px); transform: scale(1.08); } to { opacity: 1; filter: none; transform: none; } }
+    .ap-FadeUp .ap-line { animation: ap-fadeup .9s cubic-bezier(.22,1,.36,1) both; }
+    @@keyframes ap-fadeup { from { opacity: 0; transform: translateY(28px); } to { opacity: 1; transform: none; } }
+    .ap-SlideIn .ap-line { animation: ap-slide-l .9s cubic-bezier(.22,1,.36,1) both; }
+    .ap-SlideIn .ap-line:nth-child(2) { animation-name: ap-slide-r; }
+    @@keyframes ap-slide-l { from { opacity: 0; transform: translateX(-60px); } to { opacity: 1; transform: none; } }
+    @@keyframes ap-slide-r { from { opacity: 0; transform: translateX(60px); } to { opacity: 1; transform: none; } }
+    .ap-Flip .ap-u { animation: ap-flip .8s cubic-bezier(.2,.8,.3,1) both; }
+    @@keyframes ap-flip { from { opacity: 0; transform: perspective(400px) rotateY(90deg); } to { opacity: 1; transform: none; } }
+    .ap-Zoom .ap-u { animation: ap-zoom .7s cubic-bezier(.2,1.4,.4,1) both; }
+    @@keyframes ap-zoom { from { opacity: 0; transform: scale(2.2); } to { opacity: 1; transform: none; } }
+    .ap-Wave .ap-u { animation: ap-rise .8s ease-out both, ap-wave 2.4s ease-in-out infinite; }
+    @@keyframes ap-wave { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+    .ap-Typewriter .ap-u { opacity: 0; animation: ap-type .01s linear both; }
+    @@keyframes ap-type { to { opacity: 1; } }
+    .ap-Typewriter .ap-caret { display: inline-block; width: 2px; height: 1em; background: #70e4fd; vertical-align: -0.1em; animation: ap-caret .8s step-end infinite; }
+    @@keyframes ap-caret { 50% { opacity: 0; } }
+</style>
+
+<div class="max-w-6xl mx-auto page-enter">
+    <div class="flex flex-col md:flex-row md:items-end justify-between mb-6 gap-4">
+        <div>
+            <h2 class="text-3xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">Site Content</h2>
+            <p class="text-slate-500 dark:text-slate-400 mt-2">Change the public website's banner, animations, announcement bar and home page images. Changes appear on the site right away.</p>
+        </div>
+        @if (!string.IsNullOrEmpty(siteUrl))
+        {
+            <a href="@siteUrl" target="_blank" rel="noopener" class="@btnGhost w-fit"><i data-lucide="external-link" class="w-4 h-4"></i> Open website</a>
+        }
+    </div>
+
+    <div class="flex gap-1 overflow-x-auto rounded-2xl bg-slate-100 dark:bg-slate-800/60 p-1.5 mb-6">
+        @foreach (var (key, label, icon) in tabs)
+        {
+            <a href="@Url.Action("Index", new { tab = key })"
+               class="flex items-center gap-2 whitespace-nowrap px-4 py-2 rounded-xl text-sm font-medium @(tab == key ? "bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 shadow-sm" : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200")">
+                <i data-lucide="@icon" class="w-4 h-4"></i> @label
+            </a>
+        }
+    </div>
+
+    @* ================= BANNER ================= *@
+    @if (tab == "hero")
+    {
+        var heroAnim = S("HeroTextAnimation");
+        <form method="post" asp-action="SaveHeroSettings" class="@card p-6 mb-6">
+            @Html.AntiForgeryToken()
+            <h3 class="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-1">Banner text animation</h3>
+            <p class="text-sm text-slate-500 dark:text-slate-400 mb-4">How the heading "Connecting Sri Lanka &amp; China through trusted solutions." appears when the home page opens. Click an option to preview it.</p>
+
+            <div class="grid grid-cols-1 lg:grid-cols-[1fr_1.1fr] gap-6">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    @foreach (var o in SiteContentCatalog.HeroTextAnimations)
+                    {
+                        <label class="flex items-start gap-3 p-3 rounded-xl border border-slate-200 dark:border-slate-700 cursor-pointer hover:border-[#7c3aed] has-[:checked]:border-[#7c3aed] has-[:checked]:bg-violet-50 dark:has-[:checked]:bg-violet-950/40">
+                            <input type="radio" name="heroTextAnimation" value="@o.Value" checked="@(heroAnim == o.Value)" onchange="previewHeroAnim(this.value)" class="mt-1 accent-[#7c3aed]" />
+                            <span>
+                                <span class="block text-sm font-medium text-slate-800 dark:text-slate-100">@o.Label</span>
+                                <span class="block text-xs text-slate-500 dark:text-slate-400">@o.Hint</span>
+                            </span>
+                        </label>
+                    }
+                </div>
+                <div>
+                    <div id="anim-preview" class="anim-preview rounded-2xl p-8 min-h-[220px] flex flex-col justify-center text-center text-white font-bold text-2xl md:text-3xl leading-tight"></div>
+                    <button type="button" onclick="previewHeroAnim()" class="@btnGhost mt-3"><i data-lucide="rotate-ccw" class="w-4 h-4"></i> Replay preview</button>
+                </div>
+            </div>
+
+            <hr class="my-6 border-slate-100 dark:border-slate-700" />
+
+            <h3 class="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-4">Background slider</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <label class="block">
+                    <span class="text-sm font-medium text-slate-600 dark:text-slate-300">Photo transition</span>
+                    <select name="heroTransition" class="@input mt-1">
+                        @foreach (var o in SiteContentCatalog.HeroTransitions)
+                        {
+                            <option value="@o.Value" selected="@(S("HeroTransition") == o.Value)">@o.Label — @o.Hint</option>
+                        }
+                    </select>
+                </label>
+                <label class="block">
+                    <span class="text-sm font-medium text-slate-600 dark:text-slate-300">Seconds per photo</span>
+                    <input type="number" name="heroSlideSeconds" min="3" max="20" value="@S("HeroSlideSeconds")" class="@input mt-1" />
+                </label>
+            </div>
+            @if (canEdit)
+            {
+                <button type="submit" class="@btnPrimary mt-5"><i data-lucide="save" class="w-4 h-4"></i> Save banner settings</button>
+            }
+        </form>
+
+        @await Html.PartialAsync("_BannerList", new SiteContentListModel(
+            SiteContentCatalog.HeroSlide, "Banner photos",
+            "Background photos behind the home page heading, shown in this order. Use wide landscape photos (at least 1600 × 900). They're shrunk automatically.",
+            Model.Where(b => b.Placement == SiteContentCatalog.HeroSlide).ToList(), siteUrl, canAdd, canEdit, canDelete))
+    }
+
+    @* ================= WHEEL ================= *@
+    @if (tab == "wheel")
+    {
+        @await Html.PartialAsync("_BannerList", new SiteContentListModel(
+            SiteContentCatalog.HeroWheel, "Rotating wheel photos",
+            "Photos on the rotating 3D card wheel under the banner heading. 8 photos work best (they repeat 3 times around the wheel). Square-ish photos, at least 600 × 600.",
+            Model.Where(b => b.Placement == SiteContentCatalog.HeroWheel).ToList(), siteUrl, canAdd, canEdit, canDelete))
+    }
+
+    @* ================= ANNOUNCEMENT ================= *@
+    @if (tab == "announcement")
+    {
+        <form method="post" asp-action="SaveAnnouncementSettings" class="@card p-6 mb-6">
+            @Html.AntiForgeryToken()
+            <div class="flex items-center justify-between gap-4 mb-4">
+                <div>
+                    <h3 class="text-lg font-semibold text-slate-800 dark:text-slate-100">Announcement bar</h3>
+                    <p class="text-sm text-slate-500 dark:text-slate-400">The thin bar at the very top of every page of the website.</p>
+                </div>
+                <label class="flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-200 cursor-pointer">
+                    <input type="checkbox" name="enabled" value="true" checked="@(S("AnnouncementEnabled") == "1")" class="w-4 h-4 accent-[#7c3aed]" /> Show the bar
+                </label>
+            </div>
+
+            <div id="ann-preview" class="rounded-xl px-4 py-2 text-sm font-medium text-center mb-5 overflow-hidden whitespace-nowrap"
+                 style="background:@S("AnnouncementBgColor");color:@S("AnnouncementTextColor")">
+                @(Model.FirstOrDefault(b => b.Placement == SiteContentCatalog.Announcement)?.Title ?? "Your announcement text appears here")
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <label class="block md:col-span-2">
+                    <span class="text-sm font-medium text-slate-600 dark:text-slate-300">Animation</span>
+                    <select name="animation" class="@input mt-1">
+                        @foreach (var o in SiteContentCatalog.AnnouncementAnimations)
+                        {
+                            <option value="@o.Value" selected="@(S("AnnouncementAnimation") == o.Value)">@o.Label — @o.Hint</option>
+                        }
+                    </select>
+                </label>
+                <label class="block">
+                    <span class="text-sm font-medium text-slate-600 dark:text-slate-300">Speed</span>
+                    <select name="speed" class="@input mt-1">
+                        @foreach (var o in SiteContentCatalog.Speeds)
+                        {
+                            <option value="@o.Value" selected="@(S("AnnouncementSpeed") == o.Value)">@o.Label</option>
+                        }
+                    </select>
+                </label>
+                <div class="grid grid-cols-2 gap-2">
+                    <label class="block">
+                        <span class="text-sm font-medium text-slate-600 dark:text-slate-300">Background</span>
+                        <input type="color" name="bgColor" value="@S("AnnouncementBgColor")" oninput="document.getElementById('ann-preview').style.background=this.value" class="mt-1 h-10 w-full rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 p-1" />
+                    </label>
+                    <label class="block">
+                        <span class="text-sm font-medium text-slate-600 dark:text-slate-300">Text</span>
+                        <input type="color" name="textColor" value="@S("AnnouncementTextColor")" oninput="document.getElementById('ann-preview').style.color=this.value" class="mt-1 h-10 w-full rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 p-1" />
+                    </label>
+                </div>
+            </div>
+            @if (canEdit)
+            {
+                <button type="submit" class="@btnPrimary mt-5"><i data-lucide="save" class="w-4 h-4"></i> Save bar settings</button>
+            }
+        </form>
+
+        @await Html.PartialAsync("_BannerList", new SiteContentListModel(
+            SiteContentCatalog.Announcement, "Messages",
+            "Each message can have Chinese text (shown when a visitor picks 中文), an optional link and a start/end date so it turns on and off by itself.",
+            Model.Where(b => b.Placement == SiteContentCatalog.Announcement).ToList(), siteUrl, canAdd, canEdit, canDelete))
+    }
+
+    @* ================= HOME PAGE IMAGES ================= *@
+    @if (tab == "images")
+    {
+        <p class="text-sm text-slate-500 dark:text-slate-400 mb-4">Replace any fixed image on the home page. "Reset" goes back to the original image.</p>
+        @foreach (var group in SiteContentCatalog.HomeImages.GroupBy(s => s.Section))
+        {
+            <h3 class="text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 mt-6 mb-3">@group.Key</h3>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                @foreach (var slot in group)
+                {
+                    settings.TryGetValue(SiteContentCatalog.HomeImagePrefix + slot.Key, out var custom);
+                    var current = string.IsNullOrEmpty(custom) ? slot.DefaultUrl : custom;
+                    <div class="@card overflow-hidden flex flex-col">
+                        <div class="relative aspect-[4/3] bg-slate-100 dark:bg-slate-800">
+                            <img src="@Img(current)" alt="@slot.Label" loading="lazy" class="absolute inset-0 w-full h-full object-cover" />
+                            @if (!string.IsNullOrEmpty(custom))
+                            {
+                                <span class="absolute top-2 left-2 px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase bg-[#7c3aed] text-white">Custom</span>
+                            }
+                        </div>
+                        <div class="p-4 flex-1 flex flex-col gap-3">
+                            <p class="text-sm font-medium text-slate-800 dark:text-slate-100">@slot.Label</p>
+                            @if (canEdit)
+                            {
+                                <form method="post" asp-action="SaveHomeImage" enctype="multipart/form-data" class="mt-auto">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="slot" value="@slot.Key" />
+                                    <label class="@btnPrimary w-full justify-center cursor-pointer">
+                                        <i data-lucide="upload" class="w-4 h-4"></i> Replace
+                                        <input type="file" name="image" accept="image/*" class="hidden" onchange="this.form.submit()" />
+                                    </label>
+                                </form>
+                                @if (!string.IsNullOrEmpty(custom))
+                                {
+                                    <form method="post" asp-action="ResetHomeImage" onsubmit="return confirm('Go back to the original image?')">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="slot" value="@slot.Key" />
+                                        <button type="submit" class="@btnGhost w-full justify-center"><i data-lucide="rotate-ccw" class="w-4 h-4"></i> Reset</button>
+                                    </form>
+                                }
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    }
+
+    @* ================= IMAGE SPEED ================= *@
+    @if (tab == "speed")
+    {
+        <div class="@card p-6">
+            <h3 class="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-1">Automatic image shrinking</h3>
+            <p class="text-sm text-slate-500 dark:text-slate-400 mb-5">
+                Every uploaded photo is resized to at most @stats.Options.MaxDimension px on its longest side and re-saved at quality @stats.Options.Quality,
+                with camera/GPS data removed. Full-size originals are kept privately on the server. PDFs and other files are never changed.
+            </p>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                <div class="rounded-2xl bg-slate-50 dark:bg-slate-800/60 p-4"><p class="text-xs text-slate-500 dark:text-slate-400">Uploaded images</p><p class="text-2xl font-bold text-slate-800 dark:text-slate-100">@stats.Total</p></div>
+                <div class="rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 p-4"><p class="text-xs text-emerald-700 dark:text-emerald-300">Done</p><p class="text-2xl font-bold text-emerald-700 dark:text-emerald-300">@stats.Optimized</p></div>
+                <div class="rounded-2xl bg-amber-50 dark:bg-amber-950/40 p-4"><p class="text-xs text-amber-700 dark:text-amber-300">Waiting</p><p class="text-2xl font-bold text-amber-700 dark:text-amber-300">@stats.Pending</p></div>
+                <div class="rounded-2xl bg-slate-50 dark:bg-slate-800/60 p-4"><p class="text-xs text-slate-500 dark:text-slate-400">Visitors download</p><p class="text-2xl font-bold text-slate-800 dark:text-slate-100">@Mb(stats.ServedBytes)</p></div>
+            </div>
+            @if (stats.Running)
+            {
+                <p class="text-sm text-amber-700 dark:text-amber-300 flex items-center gap-2"><i data-lucide="loader" class="w-4 h-4 animate-spin"></i> Shrinking images now… refresh in a minute.</p>
+            }
+            else if (canEdit)
+            {
+                <form method="post" asp-action="OptimizeImages">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="@btnPrimary" @(stats.Pending == 0 ? "disabled" : "")><i data-lucide="zap" class="w-4 h-4"></i> Shrink images now</button>
+                    @if (stats.Pending == 0)
+                    {
+                        <span class="ml-3 text-sm text-slate-500 dark:text-slate-400">All images are already shrunk.</span>
+                    }
+                </form>
+            }
+        </div>
+    }
+</div>
+
+@section Scripts {
+    <script>
+        // ---------- Hero animation preview ----------
+        const PREVIEW_LINES = ['Connecting Sri Lanka', '& China through', 'trusted solutions.'];
+        const PER_WORD = ['BlurIn', 'Zoom'];
+        let currentAnim = '@(S("HeroTextAnimation"))';
+
+        function previewHeroAnim(anim) {
+            if (anim) currentAnim = anim;
+            const box = document.getElementById('anim-preview');
+            if (!box) return;
+            box.className = box.className.replace(/\bap-\w+/g, '') + ' ap-' + currentAnim;
+            box.innerHTML = '';
+            let i = 0;
+            PREVIEW_LINES.forEach((text, li) => {
+                const line = document.createElement('span');
+                line.className = 'ap-line' + (li === 2 ? ' text-[#70e4fd]' : '');
+                line.style.animationDelay = (li * 0.35) + 's';
+                const units = PER_WORD.includes(currentAnim) ? text.split(/(\s+)/) : [...text];
+                units.forEach(u => {
+                    const s = document.createElement('span');
+                    s.className = 'ap-u';
+                    s.textContent = u;
+                    const step = currentAnim === 'Typewriter' ? 0.06 : PER_WORD.includes(currentAnim) ? 0.12 : 0.028;
+                    s.style.animationDelay = (currentAnim === 'Wave' ? `${i * 0.028}s, ${0.9 + i * 0.06}s` : `${i * step}s`);
+                    line.appendChild(s);
+                    i++;
+                });
+                box.appendChild(line);
+            });
+            if (currentAnim === 'Typewriter') {
+                const caret = document.createElement('span');
+                caret.className = 'ap-caret';
+                box.lastChild.appendChild(caret);
+            }
+        }
+        previewHeroAnim();
+
+        // ---------- Add / edit form (shared by every list on this page) ----------
+        function openBannerForm(placement, data) {
+            const f = document.getElementById('banner-form-' + placement);
+            if (!f) return;
+            data = data || {};
+            f.querySelector('[name=BannerID]').value = data.id || 0;
+            f.querySelector('[name=Title]').value = data.title || '';
+            const zh = f.querySelector('[name=TitleChinese]'); if (zh) zh.value = data.titleChinese || '';
+            f.querySelector('[name=LinkURL]').value = data.link || '';
+            f.querySelector('[name=StartsAt]').value = data.startsAt || '';
+            f.querySelector('[name=EndsAt]').value = data.endsAt || '';
+            const img = f.querySelector('[name=image]'); if (img) { img.value = ''; img.required = !data.id; }
+            const prev = f.querySelector('.banner-form-preview');
+            if (prev) { prev.src = data.imageUrl || ''; prev.classList.toggle('hidden', !data.imageUrl); }
+            f.querySelector('.banner-form-title').textContent = data.id ? 'Edit' : 'Add new';
+            f.classList.remove('hidden');
+            f.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+        function closeBannerForm(placement) {
+            document.getElementById('banner-form-' + placement)?.classList.add('hidden');
+        }
+        function previewUpload(input) {
+            const prev = input.form.querySelector('.banner-form-preview');
+            if (!prev || !input.files?.[0]) return;
+            prev.src = URL.createObjectURL(input.files[0]);
+            prev.classList.remove('hidden');
+        }
+    </script>
+}

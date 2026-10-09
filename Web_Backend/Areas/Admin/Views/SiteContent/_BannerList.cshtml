@@ -1,0 +1,151 @@
+@model SiteContentListModel
+@using Web_Backend.Areas.Admin.Models
+@{
+    bool isText = Model.Placement == SiteContentCatalog.Announcement;
+    string Img(string? url) => string.IsNullOrEmpty(url) ? "" : url.StartsWith("/Uploads/", StringComparison.OrdinalIgnoreCase) || url.StartsWith("http") ? url : Model.SiteUrl + url;
+    string Dt(DateTime? d) => d?.ToString("yyyy-MM-ddTHH:mm") ?? "";
+    var input = "w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm";
+    var card = "bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700";
+    var iconBtn = "p-2 rounded-lg text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-30 disabled:pointer-events-none";
+}
+
+<div class="flex flex-col sm:flex-row sm:items-end justify-between gap-3 mb-4">
+    <div>
+        <h3 class="text-lg font-semibold text-slate-800 dark:text-slate-100">@Model.Heading</h3>
+        <p class="text-sm text-slate-500 dark:text-slate-400 max-w-3xl">@Model.Help</p>
+    </div>
+    @if (Model.CanAdd)
+    {
+        <button type="button" onclick="openBannerForm('@Model.Placement')"
+                class="px-4 py-2 rounded-xl font-medium bg-[#7c3aed] text-white hover:bg-[#6d28d9] shadow-sm text-sm flex items-center gap-2 w-fit shrink-0">
+            <i data-lucide="plus" class="w-4 h-4"></i> Add @(isText ? "message" : "photo")
+        </button>
+    }
+</div>
+
+@if (Model.CanAdd || Model.CanEdit)
+{
+    <form id="banner-form-@Model.Placement" method="post" asp-action="SaveBanner" enctype="multipart/form-data" class="hidden @card p-6 mb-6">
+        @Html.AntiForgeryToken()
+        <input type="hidden" name="BannerID" value="0" />
+        <input type="hidden" name="Placement" value="@Model.Placement" />
+        <h4 class="banner-form-title font-semibold text-slate-800 dark:text-slate-100 mb-4">Add new</h4>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            @if (!isText)
+            {
+                <div class="md:col-span-2 flex flex-col sm:flex-row gap-4 items-start">
+                    <img class="banner-form-preview hidden w-48 aspect-video object-cover rounded-xl border border-slate-200 dark:border-slate-700" alt="" />
+                    <label class="block flex-1">
+                        <span class="text-sm font-medium text-slate-600 dark:text-slate-300">Photo</span>
+                        <input type="file" name="image" accept="image/*" onchange="previewUpload(this)" class="@input mt-1" />
+                        <span class="text-xs text-slate-400">JPG, PNG, WebP or AVIF, up to 10 MB. Leave empty when editing to keep the current photo.</span>
+                    </label>
+                </div>
+                <label class="block">
+                    <span class="text-sm font-medium text-slate-600 dark:text-slate-300">Description <span class="text-slate-400">(for screen readers / SEO)</span></span>
+                    <input type="text" name="Title" maxlength="300" class="@input mt-1" placeholder="e.g. Shanghai skyline at night" />
+                </label>
+            }
+            else
+            {
+                <label class="block">
+                    <span class="text-sm font-medium text-slate-600 dark:text-slate-300">Message (English)</span>
+                    <input type="text" name="Title" maxlength="300" required class="@input mt-1" placeholder="e.g. 2027 intake applications are now open!" />
+                </label>
+                <label class="block">
+                    <span class="text-sm font-medium text-slate-600 dark:text-slate-300">Message (中文) <span class="text-slate-400">optional</span></span>
+                    <input type="text" name="TitleChinese" maxlength="300" class="@input mt-1" />
+                </label>
+            }
+            <label class="block">
+                <span class="text-sm font-medium text-slate-600 dark:text-slate-300">Link <span class="text-slate-400">optional</span></span>
+                <input type="text" name="LinkURL" maxlength="500" class="@input mt-1" placeholder="/services/education or https://…" />
+            </label>
+            <div class="grid grid-cols-2 gap-3">
+                <label class="block">
+                    <span class="text-sm font-medium text-slate-600 dark:text-slate-300">Show from <span class="text-slate-400">optional</span></span>
+                    <input type="datetime-local" name="StartsAt" class="@input mt-1" />
+                </label>
+                <label class="block">
+                    <span class="text-sm font-medium text-slate-600 dark:text-slate-300">Until <span class="text-slate-400">optional</span></span>
+                    <input type="datetime-local" name="EndsAt" class="@input mt-1" />
+                </label>
+            </div>
+        </div>
+        <div class="flex gap-2 mt-5">
+            <button type="submit" class="px-4 py-2 rounded-xl font-medium bg-[#7c3aed] text-white hover:bg-[#6d28d9] text-sm">Save</button>
+            <button type="button" onclick="closeBannerForm('@Model.Placement')" class="px-4 py-2 rounded-xl font-medium bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-sm">Cancel</button>
+        </div>
+    </form>
+}
+
+<div class="@card overflow-hidden mb-6">
+    @if (!Model.Items.Any())
+    {
+        <div class="p-12 text-center text-sm text-slate-400 dark:text-slate-500">
+            @(isText ? "No messages yet — the bar stays hidden until you add one." : "No photos yet — the website shows its built-in photos until you add some.")
+        </div>
+    }
+    else
+    {
+        <ul class="divide-y divide-slate-100 dark:divide-slate-800">
+            @for (int i = 0; i < Model.Items.Count; i++)
+            {
+                var b = Model.Items[i];
+                var inactive = b.IsActive != "A";
+                <li class="flex items-center gap-4 p-4 @(inactive ? "opacity-60" : "")">
+                    <span class="w-6 text-center text-sm font-semibold text-slate-400">@(i + 1)</span>
+                    @if (!isText)
+                    {
+                        <img src="@Img(b.ImageURL)" alt="" loading="lazy" class="w-28 aspect-video object-cover rounded-lg border border-slate-200 dark:border-slate-700 shrink-0" />
+                    }
+                    <div class="flex-1 min-w-0">
+                        <p class="text-sm font-medium text-slate-800 dark:text-slate-100 truncate">@(string.IsNullOrEmpty(b.Title) ? "(no description)" : b.Title)</p>
+                        @if (!string.IsNullOrEmpty(b.TitleChinese))
+                        {
+                            <p class="text-xs text-slate-500 dark:text-slate-400 truncate">@b.TitleChinese</p>
+                        }
+                        <div class="flex flex-wrap gap-2 mt-1">
+                            @if (inactive)
+                            {
+                                <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300">Hidden</span>
+                            }
+                            else if (b.IsScheduledOut)
+                            {
+                                <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300">Outside schedule</span>
+                            }
+                            @if (b.StartsAt.HasValue || b.EndsAt.HasValue)
+                            {
+                                <span class="text-xs text-slate-500 dark:text-slate-400">@(b.StartsAt?.ToString("MMM d, yyyy HH:mm") ?? "now") → @(b.EndsAt?.ToString("MMM d, yyyy HH:mm") ?? "no end")</span>
+                            }
+                            @if (!string.IsNullOrEmpty(b.LinkURL))
+                            {
+                                <span class="text-xs text-[#7c3aed] truncate max-w-[16rem]">@b.LinkURL</span>
+                            }
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-1 shrink-0">
+                        @if (Model.CanEdit)
+                        {
+                            <form method="post" asp-action="MoveBanner">@Html.AntiForgeryToken()<input type="hidden" name="id" value="@b.BannerID" /><input type="hidden" name="direction" value="-1" />
+                                <button type="submit" class="@iconBtn" title="Move up" disabled="@(i == 0)"><i data-lucide="arrow-up" class="w-4 h-4"></i></button></form>
+                            <form method="post" asp-action="MoveBanner">@Html.AntiForgeryToken()<input type="hidden" name="id" value="@b.BannerID" /><input type="hidden" name="direction" value="1" />
+                                <button type="submit" class="@iconBtn" title="Move down" disabled="@(i == Model.Items.Count - 1)"><i data-lucide="arrow-down" class="w-4 h-4"></i></button></form>
+                            <form method="post" asp-action="ToggleBanner">@Html.AntiForgeryToken()<input type="hidden" name="id" value="@b.BannerID" />
+                                <button type="submit" class="@iconBtn" title="@(inactive ? "Show on site" : "Hide from site")"><i data-lucide="@(inactive ? "eye-off" : "eye")" class="w-4 h-4"></i></button></form>
+                            <button type="button" class="@iconBtn" title="Edit"
+                                    onclick='openBannerForm(@Json.Serialize(Model.Placement), @Json.Serialize(new { id = b.BannerID, title = b.Title, titleChinese = b.TitleChinese, link = b.LinkURL, startsAt = Dt(b.StartsAt), endsAt = Dt(b.EndsAt), imageUrl = Img(b.ImageURL) }))'>
+                                <i data-lucide="pencil" class="w-4 h-4"></i>
+                            </button>
+                        }
+                        @if (Model.CanDelete)
+                        {
+                            <form method="post" asp-action="DeleteBanner" onsubmit="return confirm('Delete this item?')">@Html.AntiForgeryToken()<input type="hidden" name="id" value="@b.BannerID" />
+                                <button type="submit" class="@iconBtn hover:text-red-600" title="Delete"><i data-lucide="trash-2" class="w-4 h-4"></i></button></form>
+                        }
+                    </div>
+                </li>
+            }
+        </ul>
+    }
+</div>

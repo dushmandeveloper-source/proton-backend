@@ -11,6 +11,7 @@
 
   <ItemGroup>
     <PackageReference Include="MailKit" Version="4.17.0" />
+    <PackageReference Include="SkiaSharp" Version="4.153.1" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="10.2.3" />
   </ItemGroup>
 
@@ -38,10 +39,8 @@
        build clones only the repo (appsettings.Production.json is gitignored)
        and has no pwsh, so there the Exec could only ever fail — it logged
        MSB3073 "pwsh: not found" on every deploy. -->
-  <Target Name="GeneratePendingMigrations" AfterTargets="Publish"
-          Condition="Exists('$(ProjectDir)appsettings.Production.json')">
-    <Exec Command="pwsh -NoProfile -File &quot;$(ProjectDir)..\Database\tools\generate-pending-from-appsettings.ps1&quot; -AppSettingsPath &quot;$(ProjectDir)appsettings.Production.json&quot;"
-          ContinueOnError="WarnAndContinue" />
+  <Target Name="GeneratePendingMigrations" AfterTargets="Publish" Condition="Exists('$(ProjectDir)appsettings.Production.json')">
+    <Exec Command="pwsh -NoProfile -File &quot;$(ProjectDir)..\Database\tools\generate-pending-from-appsettings.ps1&quot; -AppSettingsPath &quot;$(ProjectDir)appsettings.Production.json&quot;" ContinueOnError="WarnAndContinue" />
   </Target>
 
 </Project>
