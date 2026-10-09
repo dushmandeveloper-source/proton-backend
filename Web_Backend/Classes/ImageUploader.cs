@@ -26,10 +26,12 @@ namespace Web_Backend.Classes
         private const long MaxBytes = 5 * 1024 * 1024; // 5 MB
 
         private readonly IWebHostEnvironment env;
+        private readonly ImageOptimizer optimizer;
 
-        public ImageUploader(IWebHostEnvironment env)
+        public ImageUploader(IWebHostEnvironment env, ImageOptimizer optimizer)
         {
             this.env = env;
+            this.optimizer = optimizer;
         }
 
         public Task<string?> SaveAsync(IFormFile? file, string subFolder) =>
@@ -57,6 +59,9 @@ namespace Web_Backend.Classes
             {
                 await file.CopyToAsync(stream);
             }
+
+            // Shrink photos right away (resize/re-encode, strip EXIF); a no-op for non-images.
+            await optimizer.Optimize(absolutePath);
 
             return $"/{relativeFolder.Replace('\\', '/')}/{fileName}";
         }

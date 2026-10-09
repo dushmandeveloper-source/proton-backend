@@ -1,4 +1,5 @@
 using DBAccess;
+using Microsoft.AspNetCore.ResponseCompression;
 using Web_Backend.Areas.Admin.Data;
 using Web_Backend.Areas.Admin.Models;
 using Web_Backend.Classes;
@@ -144,8 +145,26 @@ builder.Services.AddTransient<NotificationService>();
 builder.Services.AddTransient<IMessagingData, MessagingData>();
 builder.Services.AddTransient<IFinanceData, FinanceData>();
 builder.Services.AddTransient<IUserPreferenceData, UserPreferenceData>();
+builder.Services.AddTransient<ISiteContentData, SiteContentData>();
 builder.Services.AddTransient<MessagingService>();
 builder.Services.AddSignalR();
+
+// --- Speed: compression, image shrinking, public API cache ---
+// Brotli (then gzip) for HTML/JS/CSS/JSON — roughly 4x smaller over the wire.
+// Images/video are already compressed and aren't in the default MIME list.
+builder.Services.AddResponseCompression(o =>
+{
+    o.EnableForHttps = true;
+    o.Providers.Add<BrotliCompressionProvider>();
+    o.Providers.Add<GzipCompressionProvider>();
+});
+builder.Services.Configure<BrotliCompressionProviderOptions>(o => o.Level = System.IO.Compression.CompressionLevel.Fastest);
+builder.Services.Configure<GzipCompressionProviderOptions>(o => o.Level = System.IO.Compression.CompressionLevel.Fastest);
+
+builder.Services.AddMemoryCache();
+builder.Services.AddSingleton<PublicApiCache>();
+builder.Services.AddSingleton<ImageOptimizer>();
+builder.Services.AddHostedService<ImageBackfillService>();
 
 var app = builder.Build();
 
@@ -165,9 +184,32 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
-app.UseStaticFiles();
+app.UseResponseCompression(); // must come before UseStaticFiles
+
+// Browser caching for static files. Uploads get a fresh GUID name on every
+// upload (never reused), so they can be cached for a year; lib/css/js/img
+// change rarely and are versioned with asp-append-version where it matters.
+app.UseStaticFiles(new StaticFileOptions
+{
+    OnPrepareResponse = ctx =>
+    {
+        var path = ctx.Context.Request.Path.Value ?? "";
+        var headers = ctx.Context.Response.Headers;
+        if (path.StartsWith("/Uploads/", StringComparison.OrdinalIgnoreCase))
+            headers.CacheControl = "public, max-age=31536000, immutable";
+        else if (ctx.Context.Request.Query.ContainsKey("v"))
+            headers.CacheControl = "public, max-age=31536000, immutable";
+        else
+            headers.CacheControl = "public, max-age=604800, stale-while-revalidate=86400";
+    }
+});
 app.UseRouting();
 app.UseCors(PublicSiteCors);
+
+// Public API response cache (see Classes/PublicApiCache.cs). After UseCors so
+// cached hits still get the CORS headers the public site needs.
+var publicApiCache = app.Services.GetRequiredService<PublicApiCache>();
+app.Use((ctx, next) => publicApiCache.InvokeAsync(ctx, _ => next()));
 app.UseAuthentication();
 app.UseAuthorization();
 

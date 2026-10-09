@@ -11,6 +11,7 @@
     var canViewHolidayCalendar = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.HolidayCalendar, 'V');
     var canViewExams = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.Exams, 'V');
     var canViewEmailSettings = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.EmailSettings, 'V');
+    var canViewSiteContent = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.SiteContent, 'V');
     var canViewEmailTemplates = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.EmailTemplates, 'V');
     var canViewUserManagement = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.UserManagement, 'V');
     var canViewAgents = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.Agents, 'V');
@@ -35,18 +36,9 @@
         }
     </script>
     <link rel="stylesheet" href="~/css/tailwind.css" asp-append-version="true" />
-    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
-    <!-- MathLive: WYSIWYG equation editor (<math-field>) used on the Exam
-         question editor so admins build equations by clicking, never typing
-         LaTeX by hand. Its value round-trips as a LaTeX string. -->
-    <script defer src="https://cdn.jsdelivr.net/npm/mathlive@0.110.0/mathlive.min.js"></script>
-    <!-- KaTeX: lightweight render-only display of the LaTeX strings MathLive
-         produces, used everywhere a question/option is shown but not being
-         edited (question lists, read-only views). -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.18.4/dist/katex.min.css" integrity="sha384-u1zONI5gPXUx0UKI62c75/zww972y0v2rSK5ZYlVdS6xEuWDeZWUI66v6t1gvlXJ" crossorigin="anonymous">
-    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.18.4/dist/katex.min.js" integrity="sha384-ykMNcWQhhTUb0YV9SPpPUFURHZ+tWmubkakGBP+OgNK/UXdO2gtzglWx0Rj9hnO3" crossorigin="anonymous"></script>
+    <script src="~/lib/lucide/lucide.min.js" asp-append-version="true"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" onload="this.onload=null;this.rel='stylesheet'">
     <style>
         body { font-family: 'Inter', sans-serif; }
         .custom-scrollbar::-webkit-scrollbar { width: 6px; }
@@ -292,6 +284,15 @@ else
                 </div>
                 }
 
+                @if (canViewSiteContent)
+                {
+                    <a asp-area="Admin" asp-controller="SiteContent" asp-action="Index"
+                       class="w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-200 group @(activeController == "SiteContent" ? "bg-slate-50/80 dark:bg-slate-700/60 text-slate-900 dark:text-slate-100 font-semibold" : "text-slate-500 dark:text-slate-400 hover:bg-slate-50/50 dark:hover:bg-slate-700/40 hover:text-slate-900 dark:hover:text-slate-100")">
+                        <i data-lucide="layout-template" class="w-5 h-5 @(activeController == "SiteContent" ? "text-[#5a43f1] dark:text-[#a78bfa]" : "text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300")"></i>
+                        <span>Site Content</span>
+                    </a>
+                }
+
                 <div class="py-1 sidebar-group" data-open="@(communicationOpen ? "true" : "false")">
                     <button type="button" class="sidebar-group-toggle w-full flex items-center justify-between px-4 py-2 mt-1 group">
                         <span class="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Communication</span>
@@ -430,24 +431,47 @@ else
     // Defined ahead of @@RenderSection("Scripts") below: child views' Scripts
     // sections call protonApplyBasemap()/protonPinIcon() synchronously as soon
     // as they render, so these must already exist by then.
+    //
+    // CARTO started returning "API KEY REQUIRED" placeholder tiles, so this
+    // now uses OpenFreeMap vector tiles (free, no key) rendered by MapLibre GL
+    // through its Leaflet bridge. Those scripts load lazily on first use, after
+    // the view's own Leaflet <script> has run.
+    let protonMapLibreReady = null;
+    function protonLoadMapLibre() {
+        if (protonMapLibreReady) return protonMapLibreReady;
+        const load = (tag, attrs) => new Promise((resolve, reject) => {
+            const el = Object.assign(document.createElement(tag), attrs);
+            el.onload = resolve; el.onerror = reject;
+            document.head.appendChild(el);
+        });
+        protonMapLibreReady = Promise.all([
+            load('link', { rel: 'stylesheet', href: 'https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css' }),
+            load('script', { src: 'https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js' })
+        ]).then(() => load('script', { src: 'https://unpkg.com/@@maplibre/maplibre-gl-leaflet@0.0.22/leaflet-maplibre-gl.js' }));
+        return protonMapLibreReady;
+    }
+
     window.protonApplyBasemap = function (map) {
-        const light = 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
-        const dark = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
-        const attribution = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>';
+        const light = 'https://tiles.openfreemap.org/styles/liberty';
+        const dark = 'https://tiles.openfreemap.org/styles/dark';
+        const attribution = '<a href="https://openfreemap.org" target="_blank">OpenFreeMap</a> &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>';
         const isDark = () => document.documentElement.classList.contains('dark');
 
-        let layer = L.tileLayer(isDark() ? dark : light, { attribution, maxZoom: 19, detectRetina: true }).addTo(map);
+        let layer = null;
+        let style = null;
+        const apply = () => {
+            const next = isDark() ? dark : light;
+            if (next === style) return;
+            style = next;
+            if (layer) map.removeLayer(layer);
+            layer = L.maplibreGL({ style, attribution }).addTo(map);
+        };
 
-        // Re-tile when the theme toggle flips, so an open map follows along.
-        new MutationObserver(() => {
-            const url = isDark() ? dark : light;
-            if (layer._url !== url) {
-                map.removeLayer(layer);
-                layer = L.tileLayer(url, { attribution, maxZoom: 19, detectRetina: true }).addTo(map);
-            }
-        }).observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
-
-        return layer;
+        protonLoadMapLibre().then(() => {
+            apply();
+            // Restyle when the theme toggle flips, so an open map follows along.
+            new MutationObserver(apply).observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+        });
     };
 
     // Brand-coloured teardrop pin, so markers don't look like stock Leaflet.

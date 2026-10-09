@@ -8,6 +8,18 @@
     bool canDelete = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.Exams, 'D');
 }
 
+<!-- Loaded only on this page (was on every admin page via _AdminLayout).
+ Deferred scripts in the body still run before DOMContentLoaded.
+ MathLive: WYSIWYG equation editor (<math-field>) used on the Exam
+     question editor so admins build equations by clicking, never typing
+     LaTeX by hand. Its value round-trips as a LaTeX string. -->
+<script defer src="https://cdn.jsdelivr.net/npm/mathlive@0.110.0/mathlive.min.js"></script>
+<!-- KaTeX: lightweight render-only display of the LaTeX strings MathLive
+     produces, used everywhere a question/option is shown but not being
+     edited (question lists, read-only views). -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.18.4/dist/katex.min.css" integrity="sha384-u1zONI5gPXUx0UKI62c75/zww972y0v2rSK5ZYlVdS6xEuWDeZWUI66v6t1gvlXJ" crossorigin="anonymous">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.18.4/dist/katex.min.js" integrity="sha384-ykMNcWQhhTUb0YV9SPpPUFURHZ+tWmubkakGBP+OgNK/UXdO2gtzglWx0Rj9hnO3" crossorigin="anonymous"></script>
+
 <div class="max-w-5xl mx-auto page-enter">
     <div class="flex items-center gap-3 mb-6">
         <a asp-action="Index" class="p-2 rounded-xl text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700">

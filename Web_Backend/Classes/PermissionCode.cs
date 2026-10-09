@@ -23,6 +23,7 @@ namespace Web_Backend.Classes
         public const string Documents = "Documents";
         public const string DocumentRequests = "DocumentRequests";
         public const string Finance = "Finance";
+        public const string SiteContent = "SiteContent";
 
         public static readonly (string Code, string Label)[] All =
         {
@@ -43,6 +44,7 @@ namespace Web_Backend.Classes
             (Documents, "Documents"),
             (DocumentRequests, "Document Requests"),
             (Finance, "Finance (expenses, income, budgets)"),
+            (SiteContent, "Site Content (banner, announcements, home images)"),
         };
     }
 }
