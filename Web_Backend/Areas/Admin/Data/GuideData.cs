@@ -37,6 +37,8 @@ namespace Web_Backend.Areas.Admin.Data
                 g.GuideID,
                 g.Slug,
                 CoverImageURL = g.CoverImageURL ?? "",
+                Icon = g.Icon ?? "",
+                Color = g.Color ?? "",
                 g.ContentJSON,
                 IsActive = g.IsActive == "I" ? "I" : "A",
             });

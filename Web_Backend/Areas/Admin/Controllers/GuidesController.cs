@@ -67,7 +67,7 @@ namespace Web_Backend.Areas.Admin.Controllers
         }
 
         [HttpPost, ValidateAntiForgeryToken]
-        public async Task<IActionResult> Save(int guideId, string slug, string contentJson, string isActive, IFormFile? cover, bool removeCover = false)
+        public async Task<IActionResult> Save(int guideId, string slug, string contentJson, string isActive, IFormFile? cover, bool removeCover = false, string icon = "", string color = "")
         {
             Auth.CheckPermission(PermissionCode.SiteContent, guideId == 0 ? 'A' : 'E');
 
@@ -119,6 +119,8 @@ namespace Web_Backend.Areas.Admin.Controllers
                     GuideID = guideId,
                     Slug = slug,
                     CoverImageURL = coverUrl,
+                    Icon = GuideStyles.Icons.Any(i => i.Key == icon) ? icon : "",
+                    Color = GuideStyles.Colors.Any(c => c.Key == color) ? color : "",
                     ContentJSON = JsonSerializer.Serialize(clean, Guide.Json),
                     IsActive = isActive == "I" ? "I" : "A",
                 });
