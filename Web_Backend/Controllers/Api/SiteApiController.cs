@@ -58,9 +58,10 @@ namespace Web_Backend.Controllers.Api
                         .Select(b => new { text = b.Title, textChinese = b.TitleChinese, link = b.LinkURL })
                         .ToList(),
                 },
-                // First active, in-schedule festival effect (null = none running).
+                // Most recently saved active, in-schedule festival effect (null = none running).
                 festival = banners
                     .Where(b => b.Placement == SiteContentCatalog.Festival && !string.IsNullOrEmpty(b.Title))
+                    .OrderByDescending(b => b.UpdatedDate)
                     .Select(b => new { theme = b.Title, density = double.TryParse(S("FestivalDensity"), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var d) ? d : 1 })
                     .FirstOrDefault(),
                 // Only slots an admin has replaced; the frontend keeps its own default otherwise.

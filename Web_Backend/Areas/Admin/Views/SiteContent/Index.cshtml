@@ -250,12 +250,14 @@
     @if (tab == "festival")
     {
         var festivals = Model.Where(b => b.Placement == SiteContentCatalog.Festival).ToList();
+        // Same rule as SiteApiController: the most recently saved live effect is the one shown.
+        var showingId = festivals.Where(b => b.IsActive == "A" && !b.IsScheduledOut).OrderByDescending(b => b.UpdatedDate).Select(b => b.BannerID).FirstOrDefault();
         string ThemeLabel(string key) => SiteContentCatalog.FestivalThemes.FirstOrDefault(o => o.Value == key)?.Label ?? key;
         string Dt(DateTime? d) => d?.ToString("yyyy-MM-ddTHH:mm") ?? "";
 
         <div class="@card p-6 mb-6">
             <h3 class="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-1">Festival effects</h3>
-            <p class="text-sm text-slate-500 dark:text-slate-400 mb-4">Seasonal animation shown over the whole website (it never blocks clicks). Schedule each one with dates and it turns on and off by itself. If two overlap, the one higher in the list wins.</p>
+            <p class="text-sm text-slate-500 dark:text-slate-400 mb-4">Seasonal animation shown over the whole website (it never blocks clicks). Schedule each one with dates and it turns on and off by itself. If two overlap, the one saved most recently is shown.</p>
 
             <div class="grid grid-cols-1 lg:grid-cols-[1fr_1.2fr] gap-6">
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 content-start">
@@ -270,7 +272,7 @@
                 </div>
                 <div>
                     <div class="relative overflow-hidden rounded-2xl aspect-video bg-gradient-to-br from-slate-900 to-[#1e3a5f]">
-                        <canvas id="festival-preview" class="absolute inset-0 w-full h-full"></canvas>
+                        <div id="festival-preview" class="absolute inset-0"></div>
                         <span id="festival-preview-label" class="absolute bottom-3 left-3 px-2.5 py-1 rounded-full text-xs font-semibold bg-white/90 text-slate-800">Click a theme to preview</span>
                     </div>
                     <form method="post" asp-action="SaveFestivalSettings" class="mt-4 flex flex-wrap items-end gap-3">
@@ -344,9 +346,13 @@
                                 <p class="text-sm font-medium text-slate-800 dark:text-slate-100">@ThemeLabel(b.Title)</p>
                                 <p class="text-xs text-slate-500 dark:text-slate-400">@(b.StartsAt?.ToString("MMM d, yyyy HH:mm") ?? "now") → @(b.EndsAt?.ToString("MMM d, yyyy HH:mm") ?? "no end")</p>
                             </div>
-                            @if (runningNow)
+                            @if (runningNow && b.BannerID == showingId)
                             {
-                                <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300">Live now</span>
+                                <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300">Showing on site</span>
+                            }
+                            else if (runningNow)
+                            {
+                                <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400">Overlaps — not shown</span>
                             }
                             else if (inactive)
                             {
@@ -490,6 +496,7 @@
 @section Scripts {
     @if (tab == "festival")
     {
+        <script src="https://cdn.jsdelivr.net/npm/tsparticles@3.9.1/tsparticles.bundle.min.js"></script>
         <script src="~/js/festival-fx.js" asp-append-version="true"></script>
     }
     <script>
@@ -584,7 +591,8 @@
             const line = document.createElement('div');
             box.appendChild(line);
             let i = 0;
-            const rotates = (anim === 'Fade' || anim === 'SlideUp') && items.length > 1;
+            // Fade / Slide-up replay even with one message, so the effect is visible.
+            const rotates = anim === 'Fade' || anim === 'SlideUp';
             const render = () => {
                 line.className = 'px-4 py-2 text-center';
                 void line.offsetWidth; // restart the CSS animation

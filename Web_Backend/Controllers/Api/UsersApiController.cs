@@ -8,6 +8,8 @@ namespace Web_Backend.Controllers.Api
     public record CreateUserRequest(string FirstName, string LastName, string Email, string UserTypeID);
     public record SetUserTypeRequest(string UserTypeID);
 
+    [RequireAdminPermission(PermissionCode.UserManagement)]
+
     [ApiController]
     [Route("api/users")]
     public class UsersApiController : ControllerBase
