@@ -292,7 +292,6 @@
 }
 
 /* ---------- rotating wheel variants ---------- */
-.wheel-style-Tilted .wheel-wrap { transform: translateY(18%) translateZ(-26rem) rotateX(-62deg) rotateZ(var(--wheel-spin, 0deg)); }
 .wheel-shape-Circle .wheel-card-face { border-radius: 9999px; }
 .wheel-shape-Square .wheel-card-face { border-radius: 0.35rem; }
 
@@ -310,4 +309,89 @@
 
 @media (prefers-reduced-motion: reduce) {
   .wheel-marquee-track { animation: none; }
+}
+
+/* ---------- "A Complete Solution" orbit (src/components/SolutionOrbit.jsx) ---------- */
+.solution-orbit-spin { animation: solution-spin 28s linear infinite; }
+/* each bubble cancels its spoke angle + the arm's spin so icons stay upright */
+.solution-orbit-upright { transform: rotate(var(--start)); animation: solution-unspin 28s linear infinite; }
+@keyframes solution-spin { to { transform: rotate(360deg); } }
+@keyframes solution-unspin { from { transform: rotate(var(--start)); } to { transform: rotate(calc(var(--start) - 360deg)); } }
+.solution-orbit-pulse { top: 0; animation: solution-pulse 2.4s ease-in infinite; }
+@keyframes solution-pulse {
+  0% { top: 0; opacity: 0; transform: translateX(-50%) scale(0.6); }
+  15% { opacity: 1; }
+  100% { top: 100%; opacity: 0; transform: translateX(-50%) scale(1); }
+}
+.solution-orbit-glow { animation: solution-glow 2.4s ease-in-out infinite; }
+@keyframes solution-glow { 0%, 100% { transform: scale(1); opacity: 0.55; } 50% { transform: scale(1.35); opacity: 0; } }
+.solution-orbit-ring { animation: solution-breathe 4s ease-in-out infinite; }
+@keyframes solution-breathe { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.04); } }
+.solution-orbit:hover .solution-orbit-spin,
+.solution-orbit:hover .solution-orbit-upright { animation-play-state: paused; }
+@media (prefers-reduced-motion: reduce) {
+  .solution-orbit-spin, .solution-orbit-upright, .solution-orbit-pulse, .solution-orbit-glow, .solution-orbit-ring { animation: none; }
+}
+
+/* ---------- Hero photo gallery styles (src/components/HeroGallery.jsx) ---------- */
+.hg-card { position: relative; overflow: hidden; border: 3px solid #fff; border-radius: 1rem; box-shadow: 0 14px 30px rgba(0, 0, 0, 0.4); background: #0b1220; flex: none; }
+.hg-card img { width: 100%; height: 100%; object-fit: cover; display: block; user-select: none; }
+.hg-shape-Circle .hg-card { border-radius: 9999px; }
+.hg-shape-Square .hg-card { border-radius: 0.35rem; }
+
+/* Coverflow: full-view cards, centre card big, sides angled away */
+.hg-Coverflow { perspective: 1000px; }
+.hg-cover { position: absolute; width: 10rem; aspect-ratio: 4 / 3; transition: transform 0.8s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.8s ease; }
+@media (min-width: 768px) { .hg-cover { width: 13rem; } }
+
+/* Deck: stacked cards, the top one slides off and back underneath */
+.hg-deck { position: absolute; width: 11rem; aspect-ratio: 4 / 3; transition: transform 0.7s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.7s ease; }
+.hg-deck.is-top { animation: hg-deal 0.7s cubic-bezier(0.22, 1, 0.36, 1) both; }
+@keyframes hg-deal { from { transform: translateY(-30px) rotate(-8deg) scale(1.05); opacity: 0; } }
+@media (min-width: 768px) { .hg-deck { width: 14rem; } }
+
+/* Spotlight: one large photo + thumbnails */
+.hg-spot { width: 20rem; aspect-ratio: 16 / 7; }
+@media (min-width: 768px) { .hg-spot { width: 28rem; } }
+.hg-spot-img { position: absolute !important; inset: 0; opacity: 0; transform: scale(1.04); transition: opacity 0.9s ease, transform 3s ease; }
+.hg-spot-img.is-active { opacity: 1; transform: scale(1); }
+.hg-thumb { width: 2.6rem; height: 2.6rem; border-width: 2px; opacity: 0.55; transition: opacity 0.4s, transform 0.4s; }
+.hg-thumb.is-active { opacity: 1; transform: translateY(-4px); }
+
+/* Fan: like a hand of cards, spreading gently */
+.hg-fan { position: absolute; bottom: 0; width: 7rem; aspect-ratio: 3 / 4; transform-origin: 50% 120%; transform: translateX(var(--x)) rotate(var(--r)); animation: hg-fan 4s ease-in-out infinite; }
+.hg-fan:hover { z-index: 20; transform: translateX(var(--x)) rotate(var(--r)) translateY(-14px) scale(1.08); }
+@keyframes hg-fan { 0%, 100% { transform: translateX(var(--x)) rotate(var(--r)); } 50% { transform: translateX(calc(var(--x) * 1.12)) rotate(calc(var(--r) * 1.15)); } }
+@media (min-width: 768px) { .hg-fan { width: 8.5rem; } }
+
+/* Grid: every photo in full, gentle float */
+.hg-grid { width: 6.5rem; aspect-ratio: 4 / 3; animation: hg-bob 5s ease-in-out infinite; }
+@media (min-width: 768px) { .hg-grid { width: 8.5rem; } }
+/* Float: one row of full cards bobbing */
+.hg-float { width: 7rem; aspect-ratio: 1; animation: hg-bob 3.6s ease-in-out infinite; }
+@media (min-width: 768px) { .hg-float { width: 9rem; } }
+@keyframes hg-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-12px); } }
+
+/* Orbit: cards travel round a flat ring, staying upright */
+.hg-orbit-ring { position: relative; width: 18rem; height: 12rem; animation: hg-spin linear infinite; }
+@media (min-width: 768px) { .hg-orbit-ring { width: 30rem; height: 14rem; } }
+.hg-orbit-slot { position: absolute; left: 50%; top: 50%; width: 0; height: 0; transform: rotate(var(--a)) translateY(-6.5rem); }
+@media (min-width: 768px) { .hg-orbit-slot { transform: rotate(var(--a)) translateY(-7.5rem); } }
+.hg-orbit-card { position: absolute; left: -2.6rem; top: -2.6rem; width: 5.2rem; aspect-ratio: 1; transform: rotate(calc(var(--a) * -1)); animation: hg-unspin linear infinite; }
+@keyframes hg-spin { to { transform: rotate(360deg); } }
+@keyframes hg-unspin { from { transform: rotate(calc(var(--a) * -1)); } to { transform: rotate(calc(var(--a) * -1 - 360deg)); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .hg-fan, .hg-grid, .hg-float, .hg-orbit-ring, .hg-orbit-card, .hg-deck.is-top { animation: none !important; }
+}
+
+/* Tilted wheel: steeper tilt, pushed lower so it never covers the buttons */
+.wheel-style-Tilted .wheel-wrap { transform: translateY(34%) translateZ(-26rem) rotateX(-64deg) rotateZ(var(--wheel-spin, 0deg)); }
+
+/* Phones: lift the 3D wheels so the cards sit inside the banner instead of
+   being cut off at its bottom edge. */
+@media (max-width: 639px) {
+  .wheel-stage { margin-top: 2.25rem; }
+  .wheel-wrap { transform: translateY(6%) translateZ(-20rem) rotateX(-77deg) rotateZ(var(--wheel-spin, 0deg)); }
+  .wheel-style-Tilted .wheel-wrap { transform: translateY(20%) translateZ(-26rem) rotateX(-64deg) rotateZ(var(--wheel-spin, 0deg)); }
 }

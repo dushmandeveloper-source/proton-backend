@@ -33,7 +33,15 @@ namespace Web_Backend.Areas.Admin.Models
     public record SiteContentListModel(string Placement, string Heading, string Help, List<SiteBanner> Items,
                                        string SiteUrl, bool CanAdd, bool CanEdit, bool CanDelete);
 
-    public record TextSlot(string Key, string Label, string Section, string Default, bool Multiline = false);
+    // Kind: "text" | "multiline" | "link" | "color" (#RRGGBB).
+    public record TextSlot(string Key, string Label, string Section, string Default, string Kind = "text")
+    {
+        public bool Multiline => Kind == "multiline";
+    }
+
+    // View model for Views/SiteContent/_TextSlotsForm.cshtml.
+    public record TextSlotsFormModel(List<TextSlot> Slots, Dictionary<string, string> Settings, string ReturnTab,
+                                     bool CanEdit, string Title, string Help);
 
     public record HomeImageSlot(string Key, string Label, string Section, string DefaultUrl);
 
@@ -52,13 +60,29 @@ namespace Web_Backend.Areas.Admin.Models
 
         public const string HomeImagePrefix = "HomeImage:";
         public const string TextPrefix = "Text:";
+        public const string Banner = "Home page — banner";
 
         // Website wording an admin can change (English). Empty = the Default below.
         public static readonly TextSlot[] TextSlots =
         {
+            new("hero-line1",        "Heading line 1",            Banner, "Connecting Sri Lanka"),
+            new("hero-line2",        "Heading line 2",            Banner, "& China through"),
+            new("hero-line3",        "Heading line 3 (highlighted)", Banner, "trusted solutions."),
+            new("hero-title-color",  "Heading colour",            Banner, "#FFFFFF", "color"),
+            new("hero-accent-color", "Highlighted line colour",   Banner, "#70E4FD", "color"),
+            new("hero-lede",         "Text under the heading",    Banner, "A professional Sino–Lanka cooperation platform providing legal, compliant, and reliable cross-border services in education, healthcare, business, and industrial development.", "multiline"),
+            new("hero-lede-color",   "Text colour",               Banner, "#E6E6E6", "color"),
+            new("hero-btn1-text",    "Button 1 text",             Banner, "Explore services"),
+            new("hero-btn1-link",    "Button 1 link",             Banner, "/#services", "link"),
+            new("hero-btn1-bg",      "Button 1 background",       Banner, "#131313", "color"),
+            new("hero-btn1-fg",      "Button 1 text colour",      Banner, "#FFFFFF", "color"),
+            new("hero-btn2-text",    "Button 2 text",             Banner, "About the platform"),
+            new("hero-btn2-link",    "Button 2 link",             Banner, "/#about", "link"),
+            new("hero-btn2-bg",      "Button 2 background",       Banner, "#70E4FD", "color"),
+            new("hero-btn2-fg",      "Button 2 text colour",      Banner, "#131313", "color"),
             new("edu-unis-tag",     "Section label",   "Education page — universities section", "Where you can study"),
             new("edu-unis-heading", "Heading",         "Education page — universities section", "Universities you can study at"),
-            new("edu-unis-intro",   "Intro line",      "Education page — universities section", "Recognised institutions across China — tap any campus for programs, intakes and costs.", true),
+            new("edu-unis-intro",   "Intro line",      "Education page — universities section", "Recognised institutions across China — tap any campus for programs, intakes and costs.", "multiline"),
             new("edu-unis-stat",    "Stat label (under 120+)", "Education page — top stats", "Universities available"),
         };
 
@@ -129,11 +153,27 @@ namespace Web_Backend.Areas.Admin.Models
             new("0.6", "Light"), new("1", "Normal"), new("1.6", "Heavy"),
         };
 
+        // When the text under the heading and the two buttons appear.
+        public static readonly SiteOption[] HeroRevealOptions =
+        {
+            new("Instant", "Straight away", "Text and buttons are there immediately"),
+            new("Quick",   "Quickly",       "After about half a second (recommended)"),
+            new("After",   "After the heading", "Only once the heading animation has finished"),
+        };
+
         public static readonly SiteOption[] WheelStyles =
         {
-            new("Wheel3D", "3D Wheel",       "Cards ride a tilted 3D wheel (default)"),
-            new("Tilted",  "Tilted Wheel",   "Steeper tilt — the full arc of cards is visible"),
-            new("Marquee", "Flat Carousel",  "A straight strip of cards gliding sideways"),
+            new("Wheel3D",       "3D Wheel",         "Cards ride a tilted 3D wheel (default)"),
+            new("Tilted",        "Tilted Wheel",     "Steeper tilt — the full arc of cards is visible"),
+            new("Marquee",       "Flat Carousel",    "A straight strip of full cards gliding sideways"),
+            new("DoubleMarquee", "Double Carousel",  "Two strips gliding in opposite directions"),
+            new("Coverflow",     "Coverflow",        "Full cards; the centre one is large, the sides angle away"),
+            new("Deck",          "Card Deck",        "Stacked cards; the top one is dealt off in turn"),
+            new("Spotlight",     "Spotlight",        "One big photo at a time with thumbnails below"),
+            new("Grid",          "Photo Grid",       "Every photo shown in full, gently floating"),
+            new("Fan",           "Fan",              "Cards spread like a hand of playing cards"),
+            new("Float",         "Floating Row",     "A row of full cards bobbing up and down"),
+            new("Orbit",         "Orbit Ring",       "Cards circle around a flat ring"),
         };
 
         public static readonly SiteOption[] WheelShapes =
@@ -158,6 +198,7 @@ namespace Web_Backend.Areas.Admin.Models
             ["HeroTransition"] = "KenBurns",
             ["HeroSlideSeconds"] = "6",
             ["HeroTextRepeatSeconds"] = "0",
+            ["HeroReveal"] = "Quick",
             ["AnnouncementEnabled"] = "1",
             ["AnnouncementAnimation"] = "Scroll",
             ["AnnouncementSpeed"] = "Normal",

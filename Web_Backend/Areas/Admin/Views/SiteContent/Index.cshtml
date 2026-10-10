@@ -90,6 +90,15 @@
                     <div id="anim-preview" class="anim-preview rounded-2xl p-8 min-h-[220px] flex flex-col justify-center text-center text-white font-bold text-2xl md:text-3xl leading-tight"></div>
                     <button type="button" onclick="previewHeroAnim()" class="@btnGhost mt-3"><i data-lucide="rotate-ccw" class="w-4 h-4"></i> Replay preview</button>
                     <label class="block mt-4">
+                        <span class="text-sm font-medium text-slate-600 dark:text-slate-300">Show the text &amp; buttons</span>
+                        <select name="heroReveal" class="@input mt-1">
+                            @foreach (var o in SiteContentCatalog.HeroRevealOptions)
+                            {
+                                <option value="@o.Value" selected="@(S("HeroReveal") == o.Value)">@o.Label — @o.Hint</option>
+                            }
+                        </select>
+                    </label>
+                    <label class="block mt-4">
                         <span class="text-sm font-medium text-slate-600 dark:text-slate-300">Replay the animation every … seconds</span>
                         <input type="number" name="heroTextRepeatSeconds" min="0" max="60" value="@S("HeroTextRepeatSeconds")" class="@input mt-1" />
                         <span class="text-xs text-slate-400">Pause after the heading finishes, then it animates again. 0 = play once.</span>
@@ -127,6 +136,11 @@
             }
         </form>
 
+        @await Html.PartialAsync("_TextSlotsForm", new TextSlotsFormModel(
+            SiteContentCatalog.TextSlots.Where(t => t.Section == SiteContentCatalog.Banner).ToList(), settings, "hero", canEdit,
+            "Banner text & buttons",
+            "Heading, text under it, and both buttons — wording, links and colours. Links: /services/education, /#services (a home-page section) or https://…  Wording changes show on the English site; colours apply to every language."))
+
         @await Html.PartialAsync("_BannerList", new SiteContentListModel(
             SiteContentCatalog.HeroSlide, "Banner photos",
             "Background photos behind the home page heading, shown in this order. Use wide landscape photos (at least 1600 × 900). They're shrunk automatically.",
@@ -139,8 +153,8 @@
         <form method="post" asp-action="SaveWheelSettings" class="@card p-6 mb-6">
             @Html.AntiForgeryToken()
             <h3 class="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-1">Rotating wheel style</h3>
-            <p class="text-sm text-slate-500 dark:text-slate-400 mb-4">Change any option to see it below with your wheel photos.</p>
-            <div id="wheel-preview" class="wheel-preview-box relative overflow-hidden rounded-2xl h-56 mb-4 flex items-center"
+            <p class="text-sm text-slate-500 dark:text-slate-400 mb-4">Change any option to see it below on the real website banner (half size). Save to make it live.</p>
+            <div id="wheel-preview" class="wheel-preview-box relative overflow-hidden rounded-2xl h-[26rem] mb-4"
                  data-imgs='@Json.Serialize(Model.Where(b => b.Placement == SiteContentCatalog.HeroWheel && b.IsActive == "A").Select(b => Img(b.ImageURL)))'></div>
             <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <label class="block">
@@ -395,38 +409,9 @@
     @* ================= PAGE TEXT ================= *@
     @if (tab == "text")
     {
-        <form method="post" asp-action="SavePageText" class="@card p-6 mb-6">
-            @Html.AntiForgeryToken()
-            <h3 class="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-1">Page text</h3>
-            <p class="text-sm text-slate-500 dark:text-slate-400 mb-5">Change wording on the website (English). Clear a box to go back to the original wording.</p>
-            @foreach (var group in SiteContentCatalog.TextSlots.GroupBy(t => t.Section))
-            {
-                <h4 class="text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 mt-4 mb-3">@group.Key</h4>
-                <div class="grid grid-cols-1 gap-4">
-                    @foreach (var slot in group)
-                    {
-                        settings.TryGetValue(SiteContentCatalog.TextPrefix + slot.Key, out var current);
-                        var value = string.IsNullOrEmpty(current) ? slot.Default : current;
-                        <label class="block">
-                            <span class="text-sm font-medium text-slate-600 dark:text-slate-300">@slot.Label</span>
-                            @if (slot.Multiline)
-                            {
-                                <textarea name="text[@slot.Key]" rows="2" maxlength="500" class="@input mt-1">@value</textarea>
-                            }
-                            else
-                            {
-                                <input type="text" name="text[@slot.Key]" value="@value" maxlength="500" class="@input mt-1" />
-                            }
-                            <span class="text-xs text-slate-400">Original: @slot.Default</span>
-                        </label>
-                    }
-                </div>
-            }
-            @if (canEdit)
-            {
-                <button type="submit" class="@btnPrimary mt-6"><i data-lucide="save" class="w-4 h-4"></i> Save text</button>
-            }
-        </form>
+        @await Html.PartialAsync("_TextSlotsForm", new TextSlotsFormModel(
+            SiteContentCatalog.TextSlots.Where(t => t.Section != SiteContentCatalog.Banner).ToList(), settings, "text", canEdit,
+            "Page text", "Change wording on the website (English). Clear a box to go back to the original."))
     }
 
     @* ================= HOME PAGE IMAGES ================= *@
@@ -676,34 +661,20 @@
         function startWheelPreview() {
             const box = document.getElementById('wheel-preview');
             if (!box) return;
-            cancelAnimationFrame(wheelRaf);
             const f = box.closest('form');
-            const style = f.querySelector('[name=style]').value;
-            const shape = f.querySelector('[name=shape]').value;
-            const lap = { Slow: 110, Normal: 70, Fast: 35 }[f.querySelector('[name=speed]').value] || 70;
-            const dir = f.querySelector('[name=direction]').value === 'Right' ? -1 : 1;
-            let imgs = JSON.parse(box.dataset.imgs || '[]');
-            if (!imgs.length) { box.innerHTML = '<p class="w-full text-center text-sm text-white/70">Add wheel photos below to preview.</p>'; return; }
-            const esc = u => u.replace(/"/g, '&quot;');
-            if (style === 'Marquee') {
-                const cards = [...imgs, ...imgs, ...imgs, ...imgs].map(u => '<div class="wheel-marquee-card"><img src="' + esc(u) + '" alt=""></div>').join('');
-                box.innerHTML = '<div class="wheel-marquee wheel-shape-' + shape + '" style="width:100%"><div class="wheel-marquee-track' + (dir < 0 ? ' is-right' : '') + '" style="animation-duration:' + (lap * 0.6) + 's">' + cards + '</div></div>';
-                return;
+            const params = ['style', 'shape', 'speed', 'direction'].map(n => f.querySelector('[name=' + n + ']').value).join(',');
+            // The real website banner, shrunk to half size, with the chosen
+            // style forced via ?wheelPreview= (frontend2 Hero.jsx).
+            const src = '@siteUrl/?wheelPreview=' + encodeURIComponent(params);
+            let frame = box.querySelector('iframe');
+            if (!frame) {
+                box.innerHTML = '';
+                frame = document.createElement('iframe');
+                frame.setAttribute('title', 'Website preview');
+                frame.style.cssText = 'position:absolute;top:0;left:0;width:200%;height:200%;border:0;transform:scale(.5);transform-origin:0 0;pointer-events:none';
+                box.appendChild(frame);
             }
-            let html = '<div class="wheel-stage wheel-style-' + style + ' wheel-shape-' + shape + '" style="width:100%;height:6rem;margin-top:5rem"><div class="wheel-wrap">';
-            for (let i = 0; i < 24; i++) {
-                html += '<div class="wheel-spoke" style="--spoke-angle:' + (i * 15) + 'deg"><div class="wheel-card"><div class="wheel-card-face" style="overflow:hidden"><img src="' + esc(imgs[i % imgs.length]) + '" alt="" style="width:100%;height:100%;object-fit:cover"></div></div></div>';
-            }
-            box.innerHTML = html + '</div></div>';
-            const wrap = box.querySelector('.wheel-wrap');
-            let spin = 0, last = performance.now();
-            const tick = t => {
-                spin = (spin + (360 / lap) * ((t - last) / 1000) * dir) % 360;
-                last = t;
-                wrap.style.setProperty('--wheel-spin', spin + 'deg');
-                wheelRaf = requestAnimationFrame(tick);
-            };
-            wheelRaf = requestAnimationFrame(tick);
+            frame.src = src;
         }
         startWheelPreview();
 

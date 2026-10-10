@@ -43,6 +43,7 @@ namespace Web_Backend.Controllers.Api
                     transition = S("HeroTransition"),
                     slideSeconds = int.TryParse(S("HeroSlideSeconds"), out var secs) ? secs : 6,
                     textRepeatSeconds = int.TryParse(S("HeroTextRepeatSeconds"), out var repeatSecs) ? repeatSecs : 0,
+                    reveal = S("HeroReveal"),
                     slides = Images(SiteContentCatalog.HeroSlide),
                 },
                 wheel = Images(SiteContentCatalog.HeroWheel),

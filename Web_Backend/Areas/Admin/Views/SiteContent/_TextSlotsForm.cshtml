@@ -1,0 +1,192 @@
+@model TextSlotsFormModel
+@using Web_Backend.Areas.Admin.Models
+@{
+    var input = "w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm";
+    string V(TextSlot slot) => Model.Settings.TryGetValue(SiteContentCatalog.TextPrefix + slot.Key, out var v) && !string.IsNullOrEmpty(v) ? v : slot.Default;
+    bool isBanner = Model.ReturnTab == "hero";
+    var formId = "text-form-" + Model.ReturnTab;
+
+    // Friendly groups: banner slots are grouped by what they change; other
+    // pages by their section name.
+    (string Title, string Hint) GroupOf(TextSlot s) =>
+        !isBanner ? (s.Section, "")
+        : s.Key.StartsWith("hero-btn1") ? ("Button 1", "The first button under the text.")
+        : s.Key.StartsWith("hero-btn2") ? ("Button 2", "The second button.")
+        : s.Key.StartsWith("hero-lede") ? ("Text under the heading", "The short paragraph below the big heading.")
+        : ("Heading", "The big title on the home page banner. Line 3 is the highlighted one.");
+
+    // Pages a button can open — clients pick a page instead of typing a URL.
+    var pages = new (string Url, string Label)[]
+    {
+        ("/#services", "Home page → Services section"),
+        ("/#about", "Home page → About section"),
+        ("/#contact", "Home page → Contact section"),
+        ("/services/education", "Education page"),
+        ("/services/healthcare", "Healthcare page"),
+        ("/services/business", "Business page"),
+        ("/services/industrial", "Industrial page"),
+        ("/about", "About Us page"),
+        ("/contact", "Contact Us page"),
+        ("/gallery", "Gallery page"),
+        ("/register", "Student registration page"),
+        ("/login", "Login page"),
+    };
+
+    // Proton brand palette for one-click colours.
+    var swatches = new (string Hex, string Name)[]
+    {
+        ("#FFFFFF", "White"), ("#E6E6E6", "Light grey"), ("#131313", "Black"), ("#0F172A", "Navy"),
+        ("#70E4FD", "Proton blue"), ("#2BB9DA", "Deep blue"), ("#7C3AED", "Purple"), ("#DC2626", "Red"),
+        ("#F59E0B", "Gold"), ("#10B981", "Green"),
+    };
+}
+
+<form method="post" asp-action="SavePageText" class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 p-6 mb-6" id="@formId">
+    @Html.AntiForgeryToken()
+    <input type="hidden" name="returnTab" value="@Model.ReturnTab" />
+    <h3 class="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-1">@Model.Title</h3>
+    <p class="text-sm text-slate-500 dark:text-slate-400 mb-5">@(isBanner ? "Type your wording, click a colour and choose where each button goes. The preview updates as you go — click Save when you're happy." : Model.Help)</p>
+
+    @* Banner: preview on the left (stays in view while scrolling), edit fields on the right *@
+    <div class="@(isBanner ? "grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-6 items-start" : "")">
+    @if (isBanner)
+    {
+        <div class="lg:sticky lg:top-4 rounded-2xl p-6 text-center shadow-lg" style="background:linear-gradient(135deg,#0b1220,#1e3a5f)">
+            <p class="text-[10px] font-semibold uppercase tracking-widest text-white/40 mb-3">Preview</p>
+            <div class="font-bold text-2xl md:text-3xl leading-tight">
+                <span id="pv-line1" class="block"></span>
+                <span id="pv-line2" class="block"></span>
+                <span id="pv-line3" class="block"></span>
+            </div>
+            <p id="pv-lede" class="mt-3 text-sm max-w-xl mx-auto"></p>
+            <div class="mt-4 flex flex-wrap justify-center gap-3">
+                <span id="pv-btn1" class="px-5 py-2 rounded-full text-xs font-mono uppercase tracking-wide"></span>
+                <span id="pv-btn2" class="px-5 py-2 rounded-full text-xs font-mono uppercase tracking-wide"></span>
+            </div>
+        </div>
+    }
+
+    <div class="grid grid-cols-1 gap-5">
+    @foreach (var group in Model.Slots.GroupBy(GroupOf))
+    {
+        <section class="rounded-2xl border border-slate-100 dark:border-slate-700 bg-slate-50/60 dark:bg-slate-800/40 p-5 " data-group>
+            <div class="flex items-start justify-between gap-3 mb-4">
+                <div>
+                    <h4 class="font-semibold text-slate-800 dark:text-slate-100">@group.Key.Title</h4>
+                    @if (!string.IsNullOrEmpty(group.Key.Hint))
+                    {
+                        <p class="text-xs text-slate-500 dark:text-slate-400">@group.Key.Hint</p>
+                    }
+                </div>
+                <button type="button" onclick="resetGroup(this)" class="text-xs font-medium text-slate-500 hover:text-[#7c3aed] inline-flex items-center gap-1 shrink-0">
+                    <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i> Reset to original
+                </button>
+            </div>
+            <div class="grid grid-cols-1 gap-4">
+            @foreach (var slot in group)
+            {
+                var value = V(slot);
+                var label = slot.Label.Replace("Button 1 ", "").Replace("Button 2 ", "");
+                label = char.ToUpper(label[0]) + label[1..];
+                <div>
+                    <span class="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1.5">@label</span>
+
+                    @if (slot.Kind == "color")
+                    {
+                        <input type="hidden" name="text[@slot.Key]" value="@value" data-slot="@slot.Key" data-default="@slot.Default" />
+                        <div class="flex flex-wrap items-center gap-2" data-swatches="@slot.Key">
+                            @foreach (var (hex, name) in swatches)
+                            {
+                                <button type="button" title="@name" onclick="pickColor('@slot.Key','@hex')" data-hex="@hex"
+                                        class="swatch w-8 h-8 rounded-full border border-slate-300 dark:border-slate-600 shadow-sm transition-transform hover:scale-110"
+                                        style="background:@hex"></button>
+                            }
+                            <label class="relative w-8 h-8 rounded-full border border-dashed border-slate-400 flex items-center justify-center cursor-pointer text-slate-500 hover:text-[#7c3aed]" title="More colours">
+                                <i data-lucide="plus" class="w-4 h-4"></i>
+                                <input type="color" value="@value" oninput="pickColor('@slot.Key', this.value.toUpperCase())" class="absolute inset-0 opacity-0 cursor-pointer" />
+                            </label>
+                        </div>
+                    }
+                    else if (slot.Kind == "link")
+                    {
+                        var isCustom = !pages.Any(p => p.Url == value);
+                        <input type="hidden" name="text[@slot.Key]" value="@value" data-slot="@slot.Key" data-default="@slot.Default" />
+                        <select class="@input" onchange="pickLink('@slot.Key', this)">
+                            @foreach (var (url, name) in pages)
+                            {
+                                <option value="@url" selected="@(url == value)">@name</option>
+                            }
+                            <option value="__custom" selected="@isCustom">Other website address…</option>
+                        </select>
+                        <input type="url" placeholder="https://example.com" value="@(isCustom ? value : "")" data-custom-for="@slot.Key"
+                               oninput="setValue('@slot.Key', this.value)" class="@input mt-2 @(isCustom ? "" : "hidden")" />
+                    }
+                    else if (slot.Multiline)
+                    {
+                        <textarea name="text[@slot.Key]" rows="3" maxlength="500" oninput="bannerPreview()" data-slot="@slot.Key" data-default="@slot.Default" class="@input">@value</textarea>
+                    }
+                    else
+                    {
+                        <input type="text" name="text[@slot.Key]" value="@value" maxlength="200" oninput="bannerPreview()" data-slot="@slot.Key" data-default="@slot.Default" class="@input" />
+                    }
+                </div>
+            }
+            </div>
+        </section>
+    }
+    </div>
+    </div>
+
+    @if (Model.CanEdit)
+    {
+        <button type="submit" class="px-5 py-2.5 rounded-xl font-medium bg-[#7c3aed] text-white hover:bg-[#6d28d9] shadow-sm text-sm inline-flex items-center gap-2 mt-6"><i data-lucide="save" class="w-4 h-4"></i> Save changes</button>
+    }
+</form>
+
+<script>
+    (function () {
+        const form = document.getElementById('@formId');
+        const field = k => form.querySelector('[data-slot="' + k + '"]');
+
+        function setValue(k, v) { const f = field(k); if (f) { f.value = v; } refreshSwatches(); bannerPreview(); }
+        function pickColor(k, hex) { setValue(k, hex); }
+        function pickLink(k, sel) {
+            const custom = form.querySelector('[data-custom-for="' + k + '"]');
+            if (sel.value === '__custom') { custom.classList.remove('hidden'); custom.focus(); setValue(k, custom.value); }
+            else { custom.classList.add('hidden'); setValue(k, sel.value); }
+        }
+        function resetGroup(btn) {
+            btn.closest('[data-group]').querySelectorAll('[data-slot]').forEach(f => {
+                f.value = f.dataset.default;
+                if (f.type === 'hidden') {
+                    const sel = f.parentElement.querySelector('select');
+                    if (sel) { sel.value = f.dataset.default; pickLink(f.dataset.slot, sel); }
+                }
+            });
+            refreshSwatches(); bannerPreview();
+        }
+        function refreshSwatches() {
+            form.querySelectorAll('[data-swatches]').forEach(box => {
+                const v = (field(box.dataset.swatches)?.value || '').toUpperCase();
+                box.querySelectorAll('.swatch').forEach(s => {
+                    const on = s.dataset.hex === v;
+                    s.style.outline = on ? '3px solid #7c3aed' : 'none';
+                    s.style.outlineOffset = '2px';
+                });
+            });
+        }
+        function bannerPreview() {
+            if ('@Model.ReturnTab' !== 'hero') return;
+            const v = k => field(k)?.value || '';
+            const set = (id, text, css) => { const el = document.getElementById(id); if (!el) return; el.textContent = text; Object.assign(el.style, css || {}); };
+            set('pv-line1', v('hero-line1'), { color: v('hero-title-color') });
+            set('pv-line2', v('hero-line2'), { color: v('hero-title-color') });
+            set('pv-line3', v('hero-line3'), { color: v('hero-accent-color') });
+            set('pv-lede', v('hero-lede'), { color: v('hero-lede-color') });
+            set('pv-btn1', v('hero-btn1-text'), { background: v('hero-btn1-bg'), color: v('hero-btn1-fg') });
+            set('pv-btn2', v('hero-btn2-text'), { background: v('hero-btn2-bg'), color: v('hero-btn2-fg') });
+        }
+        Object.assign(window, { setValue, pickColor, pickLink, resetGroup, bannerPreview });
+        refreshSwatches(); bannerPreview();
+    })();
+</script>
