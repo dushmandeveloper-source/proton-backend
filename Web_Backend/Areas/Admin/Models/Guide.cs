@@ -9,6 +9,8 @@ namespace Web_Backend.Areas.Admin.Models
         public int GuideID { get; set; }
         public string Slug { get; set; } = "";
         public string CoverImageURL { get; set; } = "";
+        public string Icon { get; set; } = "";   // lucide name, see GuideStyles
+        public string Color { get; set; } = "";  // GuideStyles.Colors key
         public string ContentJSON { get; set; } = "{}";
         public int SortOrder { get; set; }
         public string IsActive { get; set; } = "A";
@@ -56,6 +58,30 @@ namespace Web_Backend.Areas.Admin.Models
         public static readonly (string Code, string Label)[] All =
         {
             ("en", "English"), ("zh", "中文 Chinese"), ("si", "සිංහල Sinhala"), ("ta", "தமிழ் Tamil"),
+        };
+    }
+}
+
+namespace Web_Backend.Areas.Admin.Models
+{
+    // Card icon/colour choices for a guide without a cover photo. Keep in
+    // sync with frontend2/src/components/GuidesPage.jsx (ICONS / COLORS).
+    public static class GuideStyles
+    {
+        public static readonly (string Key, string Label)[] Icons =
+        {
+            ("graduation-cap", "Graduation cap"), ("book-open", "Book"), ("plane", "Plane"), ("award", "Award"),
+            ("stethoscope", "Medicine"), ("languages", "Languages"), ("wallet", "Money"), ("briefcase", "Career"),
+            ("building-2", "University"), ("globe", "Globe"), ("map-pin", "Location"), ("file-text", "Documents"),
+            ("users", "People"), ("calendar", "Dates"), ("lightbulb", "Tips"), ("heart-pulse", "Health"),
+            ("house", "Accommodation"), ("shield-check", "Visa & safety"),
+        };
+        public static readonly (string Key, string Label, string From, string To)[] Colors =
+        {
+            ("navy", "Navy", "#0f172a", "#1e3a5f"), ("blue", "Blue", "#1e3a5f", "#38c6f6"),
+            ("purple", "Purple", "#0b1220", "#7c3aed"), ("teal", "Teal", "#131313", "#2bb9da"),
+            ("green", "Green", "#1e293b", "#10b981"), ("amber", "Amber", "#0f172a", "#f59e0b"),
+            ("rose", "Rose", "#1e1b2e", "#e11d48"), ("slate", "Slate", "#0f172a", "#64748b"),
         };
     }
 }

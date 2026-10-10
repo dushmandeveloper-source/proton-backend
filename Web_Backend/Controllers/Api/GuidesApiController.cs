@@ -23,6 +23,8 @@ namespace Web_Backend.Controllers.Api
             {
                 slug = g.Slug,
                 coverImageUrl = g.CoverImageURL,
+                icon = g.Icon,
+                color = g.Color,
                 publishedDate = g.PublishedDate,
                 content = g.Content.Where(kv => !kv.Value.IsEmpty).ToDictionary(
                     kv => kv.Key,
@@ -40,6 +42,8 @@ namespace Web_Backend.Controllers.Api
             {
                 slug = g.Slug,
                 coverImageUrl = g.CoverImageURL,
+                icon = g.Icon,
+                color = g.Color,
                 publishedDate = g.PublishedDate,
                 updatedDate = g.UpdatedDate,
                 content = g.Content.Where(kv => !kv.Value.IsEmpty).ToDictionary(kv => kv.Key, kv => kv.Value),
