@@ -147,6 +147,26 @@
         const form = document.getElementById('guide-form');
         const token = form.querySelector('input[name=__RequestVerificationToken]').value;
         const editors = {};
+        // Quill 2 keeps every list as <ol><li data-list="bullet|ordered">; convert
+        // standard <ul>/<ol> into that when loading, and export clean standard
+        // HTML (getSemanticHTML) when saving/previewing.
+        function toQuillLists(html) {
+            const box = document.createElement('div');
+            box.innerHTML = html || '';
+            box.querySelectorAll('ul, ol').forEach(list => {
+                const kind = list.tagName === 'UL' ? 'bullet' : 'ordered';
+                const ol = document.createElement('ol');
+                [...list.children].forEach(li => { li.setAttribute('data-list', kind); ol.appendChild(li); });
+                list.replaceWith(ol);
+            });
+            return box.innerHTML;
+        }
+        function bodyHtmlOf(q) {
+            if (q.getText().trim() === '' && !q.root.querySelector('img')) return '';
+            return q.getSemanticHTML().replace(/&nbsp;/g, ' ');
+        }
+        // shared by the language tabs and the live preview (declared first: showLang runs early)
+        let currentLang = 'en', previewWin = null, previewTimer = null;
         const esc = s => (s || '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
         // ---------- editors ----------
@@ -167,7 +187,9 @@
                     },
                 },
             });
-            if (t.bodyHtml) q.clipboard.dangerouslyPasteHTML(t.bodyHtml);
+            // Load in Quill's native list markup directly — its paste importer
+            // turns every list into a numbered one.
+            if (t.bodyHtml) { q.root.innerHTML = toQuillLists(t.bodyHtml); q.update('silent'); q.history.clear(); }
             editors[code] = q;
             (t.faq || []).forEach(f => addFaq(code, f.q, f.a));
             ['input', 'change'].forEach(ev => panel.addEventListener(ev, refreshDots));
@@ -237,7 +259,6 @@
         // ---------- live preview (the real website page, fed the unsaved draft) ----------
         const PREVIEW_URL = '@siteUrl/guides-preview';
         const PREVIEW_ORIGIN = new URL(PREVIEW_URL).origin;
-        let currentLang = 'en', previewWin = null, previewTimer = null;
         const coverPreviewImg = document.getElementById('cover-preview');
         function collectDraft() {
             const out = {};
@@ -248,7 +269,7 @@
                     title: p.querySelector('[data-field=title]').value,
                     seoTitle: p.querySelector('[data-field=seoTitle]').value,
                     description: p.querySelector('[data-field=description]').value,
-                    bodyHtml: q.getText().trim() === '' && !q.root.querySelector('img') ? '' : q.root.innerHTML,
+                    bodyHtml: bodyHtmlOf(q),
                     faq: [...p.querySelectorAll('.faq-row')].map(r => ({ q: r.querySelector('[data-faq=q]').value, a: r.querySelector('[data-faq=a]').value })).filter(f => f.q.trim() && f.a.trim()),
                 };
                 if (t.title.trim() || t.bodyHtml) out[code] = t;
@@ -334,7 +355,7 @@
                     title: p.querySelector('[data-field=title]').value,
                     seoTitle: p.querySelector('[data-field=seoTitle]').value,
                     description: p.querySelector('[data-field=description]').value,
-                    bodyHtml: q.getText().trim() === '' && !q.root.querySelector('img') ? '' : q.root.innerHTML,
+                    bodyHtml: bodyHtmlOf(q),
                     faq: [...p.querySelectorAll('.faq-row')].map(r => ({ q: r.querySelector('[data-faq=q]').value, a: r.querySelector('[data-faq=a]').value })),
                 };
             });
