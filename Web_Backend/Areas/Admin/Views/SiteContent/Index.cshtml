@@ -270,6 +270,33 @@
                 <div class="rounded-2xl bg-amber-50 dark:bg-amber-950/40 p-4"><p class="text-xs text-amber-700 dark:text-amber-300">Waiting</p><p class="text-2xl font-bold text-amber-700 dark:text-amber-300">@stats.Pending</p></div>
                 <div class="rounded-2xl bg-slate-50 dark:bg-slate-800/60 p-4"><p class="text-xs text-slate-500 dark:text-slate-400">Visitors download</p><p class="text-2xl font-bold text-slate-800 dark:text-slate-100">@Mb(stats.ServedBytes)</p></div>
             </div>
+            <div class="rounded-2xl border border-slate-100 dark:border-slate-700 p-4 mb-6 text-sm">
+                <p class="font-semibold text-slate-700 dark:text-slate-200 mb-2">Settings <span class="font-normal text-slate-400">(appsettings.json → ApplicationSettings)</span></p>
+                <dl class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-1 text-slate-600 dark:text-slate-300">
+                    <div class="flex justify-between gap-4"><dt>ImageOptimization:Enabled</dt><dd class="font-mono">@stats.Options.Enabled</dd></div>
+                    <div class="flex justify-between gap-4"><dt>ImageOptimization:MaxDimension</dt><dd class="font-mono">@stats.Options.MaxDimension px</dd></div>
+                    <div class="flex justify-between gap-4"><dt>ImageOptimization:Quality</dt><dd class="font-mono">@stats.Options.Quality</dd></div>
+                    <div class="flex justify-between gap-4"><dt>ImageOptimization:KeepOriginals</dt><dd class="font-mono">@stats.Options.KeepOriginals</dd></div>
+                    <div class="flex justify-between gap-4"><dt>ImageOptimization:OptimizeExistingOnStartup</dt><dd class="font-mono">@stats.Options.OptimizeExistingOnStartup</dd></div>
+                    <div class="flex justify-between gap-4"><dt>Uploads:Path</dt><dd class="font-mono break-all text-right">@(stats.CustomFolder ? stats.Folder : "(default) wwwroot/Uploads")</dd></div>
+                    <div class="md:col-span-2 flex justify-between gap-4"><dt>Uploads:OriginalsPath</dt><dd class="font-mono break-all text-right">@stats.OriginalsFolder</dd></div>
+                </dl>
+                @if (!stats.CustomFolder)
+                {
+                    <p class="mt-3 text-amber-700 dark:text-amber-300">Uploads are stored inside the website folder. Set <span class="font-mono">Uploads:Path</span> to a folder outside it so a backend redeploy can never overwrite or delete uploaded files.</p>
+                }
+                else if (stats.InOldFolder > 0)
+                {
+                    <p class="mt-3 text-amber-700 dark:text-amber-300">@stats.InOldFolder file(s) are still in the old wwwroot/Uploads folder.</p>
+                    @if (canEdit)
+                    {
+                        <form method="post" asp-action="MoveUploads" class="mt-2">
+                            @Html.AntiForgeryToken()
+                            <button type="submit" class="@btnGhost"><i data-lucide="folder-input" class="w-4 h-4"></i> Move them to the uploads folder</button>
+                        </form>
+                    }
+                }
+            </div>
             @if (stats.Running)
             {
                 <p class="text-sm text-amber-700 dark:text-amber-300 flex items-center gap-2"><i data-lucide="loader" class="w-4 h-4 animate-spin"></i> Shrinking images now… refresh in a minute.</p>

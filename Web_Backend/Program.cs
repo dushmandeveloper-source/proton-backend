@@ -163,6 +163,7 @@ builder.Services.Configure<GzipCompressionProviderOptions>(o => o.Level = System
 
 builder.Services.AddMemoryCache();
 builder.Services.AddSingleton<PublicApiCache>();
+builder.Services.AddSingleton<UploadPaths>();
 builder.Services.AddSingleton<ImageOptimizer>();
 builder.Services.AddHostedService<ImageBackfillService>();
 
@@ -203,6 +204,25 @@ app.UseStaticFiles(new StaticFileOptions
             headers.CacheControl = "public, max-age=604800, stale-while-revalidate=86400";
     }
 });
+
+// Uploads moved out of wwwroot (ApplicationSettings:Uploads:Path): serve that
+// folder at the same /Uploads URL. If IIS maps /Uploads as a virtual directory,
+// IIS answers first and this never runs.
+var uploadPaths = app.Services.GetRequiredService<UploadPaths>();
+if (uploadPaths.IsCustom)
+{
+    app.UseStaticFiles(new StaticFileOptions
+    {
+        FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(uploadPaths.Root),
+        RequestPath = "/Uploads",
+        ServeUnknownFileTypes = false,
+        OnPrepareResponse = ctx =>
+        {
+            ctx.Context.Response.Headers.CacheControl = "public, max-age=31536000, immutable";
+            ctx.Context.Response.Headers["X-Content-Type-Options"] = "nosniff";
+        }
+    });
+}
 app.UseRouting();
 app.UseCors(PublicSiteCors);
 

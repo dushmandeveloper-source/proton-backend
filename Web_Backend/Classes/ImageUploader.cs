@@ -25,12 +25,12 @@ namespace Web_Backend.Classes
         private static readonly string[] AllowedExtensions = { ".jpg", ".jpeg", ".jfif", ".jpe", ".png", ".webp", ".gif", ".bmp", ".tif", ".tiff", ".avif", ".heic", ".heif", ".svg", ".pdf" };
         private const long MaxBytes = 5 * 1024 * 1024; // 5 MB
 
-        private readonly IWebHostEnvironment env;
+        private readonly UploadPaths paths;
         private readonly ImageOptimizer optimizer;
 
-        public ImageUploader(IWebHostEnvironment env, ImageOptimizer optimizer)
+        public ImageUploader(UploadPaths paths, ImageOptimizer optimizer)
         {
-            this.env = env;
+            this.paths = paths;
             this.optimizer = optimizer;
         }
 
@@ -50,8 +50,10 @@ namespace Web_Backend.Classes
             // Generated name, never the client-supplied one — a caller-controlled
             // filename could contain path segments or overwrite existing files.
             var fileName = $"{Guid.NewGuid():N}{ext}";
-            var relativeFolder = Path.Combine("Uploads", subFolder);
-            var absoluteFolder = Path.Combine(env.WebRootPath, relativeFolder);
+            // Folder comes from UploadPaths (wwwroot/Uploads, or the configured
+            // ApplicationSettings:Uploads:Path); the public URL is the same either way.
+            var safeSub = string.Join("_", subFolder.Split(Path.GetInvalidFileNameChars())).Replace("..", "");
+            var absoluteFolder = Path.Combine(paths.Root, safeSub);
             Directory.CreateDirectory(absoluteFolder);
 
             var absolutePath = Path.Combine(absoluteFolder, fileName);
@@ -63,7 +65,7 @@ namespace Web_Backend.Classes
             // Shrink photos right away (resize/re-encode, strip EXIF); a no-op for non-images.
             await optimizer.Optimize(absolutePath);
 
-            return $"/{relativeFolder.Replace('\\', '/')}/{fileName}";
+            return $"/Uploads/{safeSub}/{fileName}";
         }
 
         public void Delete(string? webRelativeUrl)
@@ -71,14 +73,9 @@ namespace Web_Backend.Classes
             if (string.IsNullOrWhiteSpace(webRelativeUrl)) return;
             // Only ever delete inside wwwroot/Uploads, and only a bare file name —
             // guards against a stored value like "/../../appsettings.json".
-            if (!webRelativeUrl.StartsWith("/Uploads/", StringComparison.OrdinalIgnoreCase)) return;
-
-            var relative = webRelativeUrl.TrimStart('/').Replace('/', Path.DirectorySeparatorChar);
-            var absolute = Path.GetFullPath(Path.Combine(env.WebRootPath, relative));
-            var uploadsRoot = Path.GetFullPath(Path.Combine(env.WebRootPath, "Uploads"));
-            if (!absolute.StartsWith(uploadsRoot, StringComparison.OrdinalIgnoreCase)) return;
-
-            if (File.Exists(absolute)) File.Delete(absolute);
+            // PhysicalPathFor returns null for anything outside the uploads folder.
+            var absolute = paths.PhysicalPathFor(webRelativeUrl);
+            if (absolute != null && File.Exists(absolute)) File.Delete(absolute);
         }
     }
 }
