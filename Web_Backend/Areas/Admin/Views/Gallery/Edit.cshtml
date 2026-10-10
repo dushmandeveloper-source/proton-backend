@@ -58,10 +58,10 @@
                     <span class="w-12 h-12 rounded-2xl bg-[#7c3aed]/10 text-[#7c3aed] flex items-center justify-center"><i data-lucide="upload-cloud" class="w-6 h-6"></i></span>
                     <span class="mt-3 text-sm font-semibold text-slate-700 dark:text-slate-200">Drop photos here or click to choose</span>
                     <span class="mt-1 text-xs text-slate-400">Choose many at once · JPG, PNG, WebP · up to 15 MB each · resized automatically for fast loading</span>
-                    <input id="file-input" type="file" accept="image/*" multiple class="sr-only" />
+                    <input id="file-input" type="file" accept="image/jpeg,image/png,image/webp,image/avif,.jpg,.jpeg,.png,.webp,.avif" multiple class="sr-only" />
                 </label>
                 <div id="upload-status" class="hidden mt-3">
-                    <div class="flex justify-between text-xs text-slate-500"><span id="upload-text"></span><span id="upload-pct"></span></div>
+                    <div class="flex justify-between gap-3 text-xs text-slate-500"><span id="upload-text" class="break-words"></span><span id="upload-pct"></span></div>
                     <div class="mt-1 h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden"><div id="upload-bar" class="h-full w-0 bg-[#7c3aed] transition-all duration-300"></div></div>
                 </div>
 
@@ -143,8 +143,9 @@
                     return div;
                 }
                 async function upload(files) {
-                    files = [...files].filter(f => f.type.startsWith('image/'));
-                    if (!files.length) return;
+                    const all = [...files];
+                    files = all.filter(f => f.type.startsWith('image/') || /\.(jpe?g|png|webp|avif)$/i.test(f.name));
+                    if (!files.length) { say(all.length ? 'Only JPG, PNG or WebP photos can be added (iPhone HEIC photos: export as JPG first)' : 'No photos found — drop image files, not a folder'); return; }
                     const status = document.getElementById('upload-status');
                     const bar = document.getElementById('upload-bar');
                     status.classList.remove('hidden');
@@ -154,8 +155,10 @@
                         const fd = new FormData(); fd.append('eventId', EVENT_ID); fd.append('photo', f);
                         try {
                             const res = await post('@Url.Action("UploadPhoto")', fd);
-                            const j = await res.json().catch(() => ({}));
-                            if (res.ok) grid.appendChild(tile(j.id, j.url)); else failed.push(f.name + (j.error ? ' (' + j.error + ')' : ''));
+                            const j = await res.json().catch(() => null);
+                            if (res.ok && j && j.url) grid.appendChild(tile(j.id, j.url));
+                            else if (res.ok || res.redirected) { failed.push(f.name + ' (your login has expired — refresh the page and sign in)'); break; }
+                            else failed.push(f.name + (j && j.error ? ' (' + j.error + ')' : ' (error ' + res.status + ')'));
                         } catch { failed.push(f.name); }
                         done++;
                         const pct = Math.round(done / files.length * 100);
@@ -163,14 +166,22 @@
                     }
                     if (window.lucide) lucide.createIcons();
                     refreshCount();
-                    document.getElementById('upload-text').textContent = failed.length ? 'Done — skipped: ' + failed.join(', ') : 'All ' + files.length + ' photo' + (files.length === 1 ? '' : 's') + ' added';
+                    document.getElementById('upload-text').textContent = failed.length ? 'Not added: ' + failed.join(', ') : 'All ' + files.length + ' photo' + (files.length === 1 ? '' : 's') + ' added';
                     setTimeout(() => { if (!failed.length) { status.classList.add('hidden'); bar.style.width = '0'; } }, 2500);
                 }
                 const drop = document.getElementById('drop');
                 document.getElementById('file-input').addEventListener('change', e => { upload(e.target.files); e.target.value = ''; });
                 ['dragenter', 'dragover'].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.add('border-[#7c3aed]', 'bg-[#7c3aed]/5'); }));
-                ['dragleave', 'drop'].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.remove('border-[#7c3aed]', 'bg-[#7c3aed]/5'); }));
-                drop.addEventListener('drop', e => upload(e.dataTransfer.files));
+                drop.addEventListener('dragleave', () => drop.classList.remove('border-[#7c3aed]', 'bg-[#7c3aed]/5'));
+                // Dropping anywhere on the page works too (otherwise the browser
+                // would just open the image in the tab).
+                window.addEventListener('dragover', e => { if (e.dataTransfer?.types?.includes('Files')) { e.preventDefault(); drop.classList.add('border-[#7c3aed]', 'bg-[#7c3aed]/5'); } });
+                window.addEventListener('drop', e => {
+                    if (!e.dataTransfer?.files?.length) return;
+                    e.preventDefault();
+                    drop.classList.remove('border-[#7c3aed]', 'bg-[#7c3aed]/5');
+                    upload(e.dataTransfer.files);
+                });
             })();
         </script>
     }
