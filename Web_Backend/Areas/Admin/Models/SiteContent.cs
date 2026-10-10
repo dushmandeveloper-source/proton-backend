@@ -60,6 +60,11 @@ namespace Web_Backend.Areas.Admin.Models
             new("Flip",       "Flip",           "Letters flip over on their vertical axis"),
             new("Zoom",       "Zoom Pop",       "Words pop in from large to normal size"),
             new("Wave",       "Wave",           "Letters rise in, then ripple in a gentle continuous wave"),
+            new("Bounce",     "Bounce",         "Letters drop in and bounce into place"),
+            new("MaskReveal", "Mask Reveal",    "Words slide up from behind an invisible line"),
+            new("Neon",       "Neon Flicker",   "Letters flicker on like a neon sign"),
+            new("Glitch",     "Glitch",         "Digital glitch with colour split, then settles"),
+            new("Swing",      "Swing",          "Letters swing down from the top like hanging signs"),
             new("None",       "No animation",   "Heading is shown immediately"),
         };
 
@@ -70,6 +75,12 @@ namespace Web_Backend.Areas.Admin.Models
             new("Slide",    "Slide",      "Photos slide in from the right"),
             new("Zoom",     "Zoom Out",   "Next photo zooms out into place"),
             new("Curtain",  "Curtain",    "Next photo is revealed left to right"),
+            new("Circle",   "Circle Reveal", "Next photo grows out of a circle in the centre"),
+            new("Diagonal", "Diagonal Wipe", "Next photo wipes in at an angle"),
+            new("Blur",     "Blur Dissolve", "Photos melt into each other through a soft blur"),
+            new("PushUp",   "Push Up",    "New photo pushes the old one up"),
+            new("RotateZoom", "Rotate Zoom", "Next photo spins in slightly while zooming"),
+            new("Split",    "Split Open", "Next photo opens from the centre outwards"),
         };
 
         public static readonly SiteOption[] AnnouncementAnimations =
@@ -77,7 +88,11 @@ namespace Web_Backend.Areas.Admin.Models
             new("Scroll",  "Scrolling ticker", "All messages scroll right to left in one line"),
             new("Fade",    "Fade rotate",      "Messages fade between each other"),
             new("SlideUp", "Slide-up rotate",  "Messages slide up one after another"),
-            new("Pulse",   "Pulse",            "First message only, with a soft glow pulse"),
+            new("Pulse",   "Pulse",            "First message gently grows and glows, like a heartbeat"),
+            new("Shimmer", "Shimmer",          "A light sweep runs across the text"),
+            new("Flip",    "Flip rotate",      "Messages flip over like a departure board"),
+            new("Bounce",  "Bounce rotate",    "Messages drop in with a bounce"),
+            new("Glow",    "Glow",             "First message with a soft breathing glow"),
             new("Static",  "Static",           "First message only, no motion"),
         };
 
@@ -102,6 +117,23 @@ namespace Web_Backend.Areas.Admin.Models
             new("0.6", "Light"), new("1", "Normal"), new("1.6", "Heavy"),
         };
 
+        public static readonly SiteOption[] WheelStyles =
+        {
+            new("Wheel3D", "3D Wheel",       "Cards ride a tilted 3D wheel (default)"),
+            new("Tilted",  "Tilted Wheel",   "Steeper tilt — the full arc of cards is visible"),
+            new("Marquee", "Flat Carousel",  "A straight strip of cards gliding sideways"),
+        };
+
+        public static readonly SiteOption[] WheelShapes =
+        {
+            new("Rounded", "Rounded"), new("Circle", "Circle"), new("Square", "Square"),
+        };
+
+        public static readonly SiteOption[] Directions =
+        {
+            new("Left", "Right to left"), new("Right", "Left to right"),
+        };
+
         public static readonly SiteOption[] Speeds =
         {
             new("Slow", "Slow"), new("Normal", "Normal"), new("Fast", "Fast"),
@@ -120,6 +152,10 @@ namespace Web_Backend.Areas.Admin.Models
             ["AnnouncementBgColor"] = "#0F172A",
             ["AnnouncementTextColor"] = "#FFFFFF",
             ["FestivalDensity"] = "1",
+            ["WheelStyle"] = "Wheel3D",
+            ["WheelShape"] = "Rounded",
+            ["WheelSpeed"] = "Normal",
+            ["WheelDirection"] = "Left",
         };
 
         // Fixed images on the home page. DefaultUrl is the file shipped in

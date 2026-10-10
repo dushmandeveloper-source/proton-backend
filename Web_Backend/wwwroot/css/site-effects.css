@@ -1,0 +1,313 @@
+/* GENERATED from frontend2/src/styles/site-effects.css by `npm run sync:festival` — do not edit here. */
+/* Admin-selectable public-site animations: hero heading (.hero-anim-*),
+   hero slider transitions (.hero-tr-*), announcement bar (.announce-*),
+   rotating wheel variants (.wheel-style-*, .wheel-shape-*).
+
+   SAME FILE is copied to the backend for the admin live previews
+   (Web_Backend/wwwroot/css/site-effects.css) by `npm run sync:festival`.
+   Plain CSS only — no Tailwind @apply — so it works in both places. */
+
+/* Hero heading entrance animations — admin-selectable in Admin → Site
+   Content (HeroTextAnimation). MagnifyText puts .hero-anim-<Name> on each
+   line and staggers each letter's .hero-u via animation-delay. */
+.hero-u { display: inline-block; }
+.hero-anim-RiseTilt .hero-u {
+  transform-origin: 50% 100%;
+  animation: hero-rise 0.9s cubic-bezier(0.2, 0.9, 0.25, 1.15) both;
+}
+@keyframes hero-rise {
+  from { opacity: 0; transform: translateY(0.6em) rotateX(-85deg) scale(0.8); filter: blur(10px); }
+  60% { opacity: 1; filter: blur(0); }
+  to { opacity: 1; transform: none; filter: blur(0); }
+}
+.hero-anim-BlurIn .hero-u { animation: hero-blur 1s ease-out both; }
+@keyframes hero-blur {
+  from { opacity: 0; filter: blur(14px); transform: scale(1.08); }
+  to { opacity: 1; filter: blur(0); transform: none; }
+}
+.hero-anim-FadeUp .hero-u { animation: hero-fadeup 0.9s cubic-bezier(0.22, 1, 0.36, 1) both; }
+@keyframes hero-fadeup {
+  from { opacity: 0; transform: translateY(0.7em); }
+  to { opacity: 1; transform: none; }
+}
+.hero-anim-SlideIn .hero-u { animation: hero-slide-l 0.9s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.hero-line-1 .hero-anim-SlideIn .hero-u { animation-name: hero-slide-r; }
+@keyframes hero-slide-l { from { opacity: 0; transform: translateX(-1.6em); } to { opacity: 1; transform: none; } }
+@keyframes hero-slide-r { from { opacity: 0; transform: translateX(1.6em); } to { opacity: 1; transform: none; } }
+.hero-anim-Flip .hero-u { animation: hero-flip 0.8s cubic-bezier(0.2, 0.8, 0.3, 1) both; }
+@keyframes hero-flip {
+  from { opacity: 0; transform: perspective(400px) rotateY(90deg); }
+  to { opacity: 1; transform: none; }
+}
+.hero-anim-Zoom .hero-u { animation: hero-zoom 0.7s cubic-bezier(0.2, 1.4, 0.4, 1) both; }
+@keyframes hero-zoom { from { opacity: 0; transform: scale(2.2); } to { opacity: 1; transform: none; } }
+.hero-anim-Wave .hero-u { animation: hero-rise 0.8s ease-out both, hero-wave 2.4s ease-in-out infinite; }
+@keyframes hero-wave { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-0.1em); } }
+.hero-anim-Typewriter .hero-u { animation: hero-type 0.01s linear both; }
+@keyframes hero-type { from { opacity: 0; } to { opacity: 1; } }
+/* one blinking caret after the last line, shown once typing finishes */
+.hero-caret {
+  display: inline-block;
+  width: 0.07em;
+  height: 0.85em;
+  margin-left: 0.08em;
+  vertical-align: -0.05em;
+  background: currentColor;
+  color: #70e4fd;
+  animation: hero-type 0.01s linear both, hero-caret 0.8s step-end infinite;
+}
+@keyframes hero-caret { 50% { opacity: 0; } }
+
+.hero-shine {
+  animation: hero-shine 1.6s ease-in-out var(--shine-delay, 2s) both;
+}
+@keyframes hero-shine {
+  0%, 100% { text-shadow: 0 0 0 rgba(112, 228, 253, 0); }
+  45% { text-shadow: 0 0 18px rgba(112, 228, 253, 0.95), 0 0 42px rgba(112, 228, 253, 0.55); }
+}
+.hero-fade {
+  animation: hero-fade-in 0.9s ease-out both;
+}
+@keyframes hero-fade-in {
+  from { opacity: 0; transform: translateY(16px); filter: blur(6px); }
+  to { opacity: 1; transform: none; filter: blur(0); }
+}
+
+
+/* Hero background slider. Transition chosen in Admin → Site Content
+   (HeroTransition) via .hero-tr-<Name> on the wrapper; --slide-ms is the
+   time each photo stays up. .is-prev is the photo being replaced. */
+.hero-slide { opacity: 0; }
+.hero-slide.is-active { opacity: 1; z-index: 2; }
+.hero-slide.is-prev { z-index: 1; }
+
+.hero-tr-KenBurns .hero-slide { transform: scale(1); transition: opacity 1.5s ease, transform calc(var(--slide-ms) + 1.5s) ease-out; }
+.hero-tr-KenBurns .hero-slide.is-active { transform: scale(1.08); }
+
+.hero-tr-Fade .hero-slide { transition: opacity 1.4s ease; }
+
+.hero-tr-Slide .hero-slide { opacity: 1; transform: translateX(100%); transition: transform 1.1s cubic-bezier(0.7, 0, 0.2, 1); }
+.hero-tr-Slide .hero-slide.is-active { transform: translateX(0); }
+.hero-tr-Slide .hero-slide.is-prev { transform: translateX(-100%); }
+.hero-tr-Slide .hero-slide:not(.is-active):not(.is-prev) { transition: none; }
+
+.hero-tr-Zoom .hero-slide { transform: scale(1.25); transition: opacity 1.3s ease, transform 1.6s cubic-bezier(0.22, 1, 0.36, 1); }
+.hero-tr-Zoom .hero-slide.is-active { transform: scale(1); }
+
+.hero-tr-Curtain .hero-slide { opacity: 1; clip-path: inset(0 100% 0 0); }
+.hero-tr-Curtain .hero-slide.is-active { clip-path: inset(0 0 0 0); transition: clip-path 1.3s cubic-bezier(0.7, 0, 0.2, 1); }
+.hero-tr-Curtain .hero-slide.is-prev { clip-path: inset(0 0 0 0); }
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-slide { transform: none !important; clip-path: none !important; transition: opacity 1.2s ease !important; }
+  .hero-slide:not(.is-active) { opacity: 0 !important; }
+}
+
+
+
+/* Announcement bar (src/components/AnnouncementBar.jsx) — animation chosen
+   in Admin → Site Content. */
+.announce-track { animation: announce-scroll linear infinite; }
+.announce-bar:hover .announce-track { animation-play-state: paused; }
+@keyframes announce-scroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+.announce-Fade { animation: announce-fade 0.6s ease both; }
+@keyframes announce-fade { from { opacity: 0; } to { opacity: 1; } }
+.announce-SlideUp { animation: announce-slideup 0.5s cubic-bezier(0.22, 1, 0.36, 1) both; }
+@keyframes announce-slideup { from { opacity: 0; transform: translateY(100%); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .announce-track, .announce-Fade, .announce-SlideUp, .announce-Flip, .announce-Bounce,
+  .announce-pulse > *, .announce-glow > *, .announce-shimmer::after { animation: none !important; }
+}
+
+/* ---------- more heading animations ---------- */
+.hero-anim-Bounce .hero-u { animation: hero-bounce 1s cubic-bezier(0.28, 0.84, 0.42, 1) both; }
+@keyframes hero-bounce {
+  0% { opacity: 0; transform: translateY(-1.4em); }
+  45% { opacity: 1; transform: translateY(0); }
+  62% { transform: translateY(-0.28em); }
+  78% { transform: translateY(0); }
+  90% { transform: translateY(-0.07em); }
+  100% { opacity: 1; transform: none; }
+}
+.hero-anim-MaskReveal .hero-u { animation: hero-mask 0.9s cubic-bezier(0.22, 1, 0.36, 1) both; }
+@keyframes hero-mask {
+  from { clip-path: inset(0 0 100% 0); transform: translateY(0.9em); }
+  to { clip-path: inset(-20% 0 -20% 0); transform: none; }
+}
+.hero-anim-Neon .hero-u { animation: hero-neon 1.4s linear both; }
+@keyframes hero-neon {
+  0%, 18%, 22%, 25%, 53%, 57% { opacity: 0.08; text-shadow: none; }
+  20%, 24%, 55%, 100% { opacity: 1; text-shadow: 0 0 6px rgba(112, 228, 253, 0.9), 0 0 18px rgba(112, 228, 253, 0.6); }
+}
+.hero-anim-Glitch .hero-u { animation: hero-glitch 0.8s steps(2, end) both; }
+@keyframes hero-glitch {
+  0% { opacity: 0; transform: translate(-0.12em, 0.05em) skewX(18deg); text-shadow: 0.08em 0 #ff2a6d, -0.08em 0 #05d9e8; }
+  30% { opacity: 1; transform: translate(0.1em, -0.04em) skewX(-12deg); text-shadow: -0.06em 0 #ff2a6d, 0.06em 0 #05d9e8; }
+  60% { transform: translate(-0.04em, 0); text-shadow: 0.03em 0 #ff2a6d, -0.03em 0 #05d9e8; }
+  100% { opacity: 1; transform: none; text-shadow: none; }
+}
+.hero-anim-Swing .hero-u { transform-origin: 50% 0; animation: hero-swing 1.1s cubic-bezier(0.25, 1.4, 0.4, 1) both; }
+@keyframes hero-swing {
+  from { opacity: 0; transform: perspective(500px) rotateX(-110deg); }
+  to { opacity: 1; transform: none; }
+}
+
+/* ---------- more slider transitions ---------- */
+.hero-tr-Circle .hero-slide { opacity: 1; clip-path: circle(0% at 50% 50%); }
+.hero-tr-Circle .hero-slide.is-active { clip-path: circle(75% at 50% 50%); transition: clip-path 1.5s cubic-bezier(0.65, 0, 0.35, 1); }
+.hero-tr-Circle .hero-slide.is-prev { clip-path: circle(75% at 50% 50%); }
+
+.hero-tr-Diagonal .hero-slide { opacity: 1; clip-path: polygon(0 0, 0 0, -30% 100%, 0 100%); }
+.hero-tr-Diagonal .hero-slide.is-active { clip-path: polygon(0 0, 130% 0, 100% 100%, 0 100%); transition: clip-path 1.4s cubic-bezier(0.7, 0, 0.2, 1); }
+.hero-tr-Diagonal .hero-slide.is-prev { clip-path: polygon(0 0, 130% 0, 100% 100%, 0 100%); }
+
+.hero-tr-Blur .hero-slide { filter: blur(24px); transform: scale(1.06); transition: opacity 1.6s ease, filter 1.6s ease, transform 1.6s ease; }
+.hero-tr-Blur .hero-slide.is-active { filter: blur(0); transform: scale(1); }
+
+.hero-tr-PushUp .hero-slide { opacity: 1; transform: translateY(100%); transition: transform 1.1s cubic-bezier(0.7, 0, 0.2, 1); }
+.hero-tr-PushUp .hero-slide.is-active { transform: translateY(0); }
+.hero-tr-PushUp .hero-slide.is-prev { transform: translateY(-100%); }
+.hero-tr-PushUp .hero-slide:not(.is-active):not(.is-prev) { transition: none; }
+
+.hero-tr-RotateZoom .hero-slide { transform: scale(1.4) rotate(-6deg); transition: opacity 1.4s ease, transform 1.6s cubic-bezier(0.22, 1, 0.36, 1); }
+.hero-tr-RotateZoom .hero-slide.is-active { transform: scale(1) rotate(0); }
+
+.hero-tr-Split .hero-slide { opacity: 1; clip-path: inset(0 50% 0 50%); }
+.hero-tr-Split .hero-slide.is-active { clip-path: inset(0 0 0 0); transition: clip-path 1.3s cubic-bezier(0.7, 0, 0.2, 1); }
+.hero-tr-Split .hero-slide.is-prev { clip-path: inset(0 0 0 0); }
+
+/* ---------- announcement bar: more styles + visible pulse ---------- */
+.announce-Flip { animation: announce-flip 0.7s cubic-bezier(0.22, 1, 0.36, 1) both; transform-origin: 50% 50%; }
+@keyframes announce-flip { from { opacity: 0; transform: perspective(300px) rotateX(-90deg); } to { opacity: 1; transform: none; } }
+.announce-Bounce { animation: announce-bounce 0.9s cubic-bezier(0.28, 0.84, 0.42, 1) both; }
+@keyframes announce-bounce {
+  0% { opacity: 0; transform: translateY(-120%); }
+  50% { opacity: 1; transform: translateY(0); }
+  70% { transform: translateY(-22%); }
+  85% { transform: translateY(0); }
+  93% { transform: translateY(-6%); }
+  100% { transform: none; }
+}
+/* Pulse: the message gently grows and glows like a heartbeat */
+.announce-pulse > * { display: inline-block; animation: announce-pulse 1.6s ease-in-out infinite; }
+@keyframes announce-pulse {
+  0%, 100% { transform: scale(1); text-shadow: none; }
+  40% { transform: scale(1.07); text-shadow: 0 0 10px currentColor; }
+}
+/* Glow: soft breathing glow, no movement */
+.announce-glow > * { animation: announce-glow 2.4s ease-in-out infinite; }
+@keyframes announce-glow {
+  0%, 100% { text-shadow: 0 0 0 transparent; opacity: 0.85; }
+  50% { text-shadow: 0 0 8px currentColor, 0 0 18px currentColor; opacity: 1; }
+}
+/* Shimmer: a light band sweeps across the bar */
+.announce-shimmer { position: relative; }
+.announce-shimmer::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(100deg, transparent 30%, rgba(255, 255, 255, 0.35) 50%, transparent 70%);
+  transform: translateX(-100%);
+  animation: announce-shimmer 2.8s ease-in-out infinite;
+}
+@keyframes announce-shimmer { to { transform: translateX(100%); } }
+
+/* 3D card wheel: a disc tilted almost flat and pushed back in space, with
+   each card riding the tip of a long spoke pivoting from the disc center. */
+.wheel-stage {
+  position: relative;
+  z-index: 2;
+  perspective: 2000px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.wheel-wrap {
+  height: 46rem;
+  width: 100%;
+  transform-style: preserve-3d;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: absolute;
+  transform: translateY(13%) translateZ(-20rem) rotateX(-77deg) rotateZ(var(--wheel-spin, 0deg));
+}
+
+@media (min-width: 640px) {
+  .wheel-wrap {
+    height: 56rem;
+  }
+}
+
+@media (min-width: 768px) {
+  .wheel-wrap {
+    height: 68rem;
+  }
+}
+
+.wheel-spoke {
+  transform-style: preserve-3d;
+  justify-content: center;
+  align-items: center;
+  display: flex;
+  position: absolute;
+  inset: 0%;
+  transform: rotate(var(--spoke-angle, 0deg)) translateZ(1px);
+}
+
+.wheel-card {
+  transform-origin: 50% 100%;
+  width: 6.25rem;
+  height: 50%;
+  transform-style: preserve-3d;
+  position: absolute;
+  top: 0;
+  transform: translateZ(-1px);
+}
+
+@media (min-width: 640px) {
+  .wheel-card {
+    width: 7.5rem;
+  }
+}
+
+@media (min-width: 768px) {
+  .wheel-card {
+    width: 9rem;
+  }
+}
+
+.wheel-card-face {
+  aspect-ratio: 1;
+  backface-visibility: hidden;
+  width: 82%;
+  margin: 0 auto;
+  transform-style: preserve-3d;
+  border-radius: 1rem;
+  border: 3px solid #fff;
+  position: relative;
+  transform: rotateX(90deg);
+}
+
+/* ---------- rotating wheel variants ---------- */
+.wheel-style-Tilted .wheel-wrap { transform: translateY(18%) translateZ(-26rem) rotateX(-62deg) rotateZ(var(--wheel-spin, 0deg)); }
+.wheel-shape-Circle .wheel-card-face { border-radius: 9999px; }
+.wheel-shape-Square .wheel-card-face { border-radius: 0.35rem; }
+
+/* Flat carousel: a straight strip of cards gliding sideways (seamless loop) */
+.wheel-marquee { overflow: hidden; -webkit-mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent); mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent); }
+.wheel-marquee-track { display: flex; width: max-content; gap: 1rem; padding: 0.5rem 0; animation: wheel-marquee linear infinite; }
+.wheel-marquee-track.is-right { animation-direction: reverse; }
+.wheel-marquee:hover .wheel-marquee-track { animation-play-state: paused; }
+@keyframes wheel-marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+.wheel-marquee-card { width: 6rem; aspect-ratio: 1; overflow: hidden; border: 3px solid #fff; border-radius: 1rem; flex: none; box-shadow: 0 10px 24px rgba(0, 0, 0, 0.35); }
+@media (min-width: 768px) { .wheel-marquee-card { width: 8rem; } }
+.wheel-shape-Circle .wheel-marquee-card { border-radius: 9999px; }
+.wheel-shape-Square .wheel-marquee-card { border-radius: 0.35rem; }
+.wheel-marquee-card img { width: 100%; height: 100%; object-fit: cover; }
+
+@media (prefers-reduced-motion: reduce) {
+  .wheel-marquee-track { animation: none; }
+}
