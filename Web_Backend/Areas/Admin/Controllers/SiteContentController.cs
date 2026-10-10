@@ -149,6 +149,24 @@ namespace Web_Backend.Areas.Admin.Controllers
         }
 
         [HttpPost, ValidateAntiForgeryToken]
+        public async Task<IActionResult> SaveWheelSettings(string style, string shape, string speed, string direction)
+        {
+            Auth.CheckPermission(PermissionCode.SiteContent, 'E');
+            if (!SiteContentCatalog.IsValid(SiteContentCatalog.WheelStyles, style)
+                || !SiteContentCatalog.IsValid(SiteContentCatalog.WheelShapes, shape)
+                || !SiteContentCatalog.IsValid(SiteContentCatalog.Speeds, speed)
+                || !SiteContentCatalog.IsValid(SiteContentCatalog.Directions, direction))
+                return Fail("Please choose valid options.", "wheel");
+
+            await rep.SetSetting("WheelStyle", style);
+            await rep.SetSetting("WheelShape", shape);
+            await rep.SetSetting("WheelSpeed", speed);
+            await rep.SetSetting("WheelDirection", direction);
+            TempData["SuccessMessage"] = "Wheel settings saved.";
+            return RedirectToAction("Index", new { tab = "wheel" });
+        }
+
+        [HttpPost, ValidateAntiForgeryToken]
         public async Task<IActionResult> SaveAnnouncementSettings(bool enabled, string animation, string speed, string bgColor, string textColor)
         {
             Auth.CheckPermission(PermissionCode.SiteContent, 'E');

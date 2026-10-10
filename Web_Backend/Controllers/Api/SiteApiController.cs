@@ -46,6 +46,13 @@ namespace Web_Backend.Controllers.Api
                     slides = Images(SiteContentCatalog.HeroSlide),
                 },
                 wheel = Images(SiteContentCatalog.HeroWheel),
+                wheelSettings = new
+                {
+                    style = S("WheelStyle"),
+                    shape = S("WheelShape"),
+                    speed = S("WheelSpeed"),
+                    direction = S("WheelDirection"),
+                },
                 announcement = new
                 {
                     enabled = S("AnnouncementEnabled") == "1",
