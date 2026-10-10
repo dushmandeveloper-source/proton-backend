@@ -22,16 +22,18 @@ namespace Web_Backend.Classes
             { ".jpg", ".jpeg", ".jfif", ".jpe", ".png", ".webp" };
 
         private readonly ImageOptimizationOptions opt;
+        private readonly UploadPaths paths;
         private readonly string uploadsRoot, originalsRoot;
         private readonly ILogger<ImageOptimizer> log;
 
-        public ImageOptimizer(IWebHostEnvironment env, IConfiguration config, ILogger<ImageOptimizer> log)
+        public ImageOptimizer(UploadPaths paths, IConfiguration config, ILogger<ImageOptimizer> log)
         {
             opt = config.GetSection("ApplicationSettings:ImageOptimization").Get<ImageOptimizationOptions>() ?? new();
             opt.MaxDimension = Math.Clamp(opt.MaxDimension, 400, 8000);
             opt.Quality = Math.Clamp(opt.Quality, 60, 100);
-            uploadsRoot = Path.Combine(env.WebRootPath, "Uploads");
-            originalsRoot = Path.Combine(env.ContentRootPath, "App_Data", "originals");
+            this.paths = paths;
+            uploadsRoot = paths.Root;
+            originalsRoot = paths.Originals;
             this.log = log;
         }
 
@@ -146,6 +148,43 @@ namespace Web_Backend.Classes
                 ? Directory.EnumerateFiles(uploadsRoot, "*", SearchOption.AllDirectories).Where(IsImage)
                 : [];
 
+        // Moves ALL uploaded files (images, PDFs, media) plus originals/markers from the
+        // built-in wwwroot/Uploads + App_Data/originals into the configured folders.
+        // Never overwrites. Returns moved count, or null if another run is in progress.
+        public async Task<int?> MoveFromDefaultFolder(CancellationToken ct)
+        {
+            if (!paths.IsCustom || !Directory.Exists(paths.DefaultRoot)) return 0;
+            if (!await running.WaitAsync(0, ct)) return null;
+            try
+            {
+                var moved = 0;
+                foreach (var file in Directory.EnumerateFiles(paths.DefaultRoot, "*", SearchOption.AllDirectories).ToList())
+                {
+                    ct.ThrowIfCancellationRequested();
+                    var rel = Path.GetRelativePath(paths.DefaultRoot, file);
+                    if (rel.Equals("web.config", StringComparison.OrdinalIgnoreCase)) continue;
+                    var target = Path.Combine(uploadsRoot, rel);
+                    if (File.Exists(target)) continue;
+                    Directory.CreateDirectory(Path.GetDirectoryName(target)!);
+                    foreach (var suffix in new[] { "", ".done" })
+                    {
+                        var oldOriginal = Path.Combine(paths.DefaultOriginals, rel) + suffix;
+                        var newOriginal = Path.Combine(originalsRoot, rel) + suffix;
+                        if (File.Exists(oldOriginal) && !File.Exists(newOriginal))
+                        {
+                            Directory.CreateDirectory(Path.GetDirectoryName(newOriginal)!);
+                            File.Move(oldOriginal, newOriginal);
+                        }
+                    }
+                    File.Move(file, target);
+                    moved++;
+                }
+                if (moved > 0) log.LogInformation("Moved {Count} uploads from {From} to {To}", moved, paths.DefaultRoot, uploadsRoot);
+                return moved;
+            }
+            finally { running.Release(); }
+        }
+
         // One run at a time: the startup backfill and the admin button share this.
         private readonly SemaphoreSlim running = new(1, 1);
         public bool IsRunning => running.CurrentCount == 0;
@@ -169,7 +208,17 @@ namespace Web_Backend.Classes
 
         public ImageStats Stats()
         {
-            var stats = new ImageStats { Running = IsRunning, Options = opt };
+            var stats = new ImageStats
+            {
+                Running = IsRunning,
+                Options = opt,
+                Folder = uploadsRoot,
+                OriginalsFolder = originalsRoot,
+                CustomFolder = paths.IsCustom,
+                InOldFolder = paths.IsCustom && Directory.Exists(paths.DefaultRoot)
+                    ? Directory.EnumerateFiles(paths.DefaultRoot, "*", SearchOption.AllDirectories).Count(f => !f.EndsWith("web.config", StringComparison.OrdinalIgnoreCase))
+                    : 0,
+            };
             foreach (var file in Uploads())
             {
                 stats.Total++;
@@ -192,6 +241,10 @@ namespace Web_Backend.Classes
         public long OriginalBytes { get; set; } // full-size copies kept in App_Data/originals
         public bool Running { get; set; }
         public ImageOptimizationOptions Options { get; set; } = new();
+        public string Folder { get; set; } = "";
+        public string OriginalsFolder { get; set; } = "";
+        public bool CustomFolder { get; set; }
+        public int InOldFolder { get; set; }    // files still in wwwroot/Uploads after Uploads:Path was set
     }
 
     // Shrinks images uploaded before optimization existed. Runs once in the background after startup.

@@ -207,6 +207,17 @@ namespace Web_Backend.Areas.Admin.Controllers
             return RedirectToAction("Index", new { tab = "speed" });
         }
 
+        [HttpPost, ValidateAntiForgeryToken]
+        public async Task<IActionResult> MoveUploads(CancellationToken ct)
+        {
+            Auth.CheckPermission(PermissionCode.SiteContent, 'E');
+            var moved = await optimizer.MoveFromDefaultFolder(ct);
+            TempData[moved == null ? "ErrorMessage" : "SuccessMessage"] = moved == null
+                ? "Images are being processed — try again in a minute."
+                : $"Moved {moved} file(s) to the uploads folder.";
+            return RedirectToAction("Index", new { tab = "speed" });
+        }
+
         // ---------- helpers ----------
 
         private IActionResult Fail(string message, string tab)
