@@ -8,11 +8,12 @@
     var iconBtn = "p-2 rounded-lg text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800";
 }
 
+<div id="order-toast" class="hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-xl bg-slate-900 text-white text-sm shadow-lg"></div>
 <div class="max-w-5xl mx-auto page-enter">
     <div class="flex flex-col md:flex-row md:items-end justify-between mb-6 gap-4">
         <div>
             <h2 class="text-3xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">Testimonials</h2>
-            <p class="text-slate-500 dark:text-slate-400 mt-2">Real words from your students and clients, shown on the website's Testimonials page. Only add genuine quotes, with the person's permission.</p>
+            <p class="text-slate-500 dark:text-slate-400 mt-2">Drag <i data-lucide="grip-vertical" class="inline w-4 h-4"></i> to change the order. Real words from your students and clients, shown on the website's Testimonials page. Only add genuine quotes, with the person's permission.</p>
         </div>
         @if (canAdd)
         {
@@ -63,11 +64,12 @@
         }
         else
         {
-            <ul class="divide-y divide-slate-100 dark:divide-slate-800">
+            <ul id="sortable-list" class="divide-y divide-slate-100 dark:divide-slate-800">
                 @foreach (var t in Model)
                 {
                     var hidden = t.IsActive != "A";
-                    <li class="flex items-start gap-4 p-4 @(hidden ? "opacity-60" : "")">
+                    <li data-id="@t.TestimonialID" class="flex items-start gap-4 p-4 bg-white dark:bg-slate-900 @(hidden ? "opacity-60" : "")">
+                        @if (canEdit) { <span class="drag-handle cursor-grab active:cursor-grabbing p-2 -ml-2 text-slate-300 hover:text-slate-500" title="Drag to reorder"><i data-lucide="grip-vertical" class="w-5 h-5"></i></span> }
                         @if (!string.IsNullOrEmpty(t.PhotoURL))
                         {
                             <img src="@t.PhotoURL" alt="" class="w-12 h-12 rounded-full object-cover shrink-0" />
@@ -104,7 +106,26 @@
 </div>
 
 @section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
     <script>
+        (function () {
+            const list = document.getElementById('sortable-list');
+            if (!list || !window.Sortable) return;
+            const toast = document.getElementById('order-toast');
+            Sortable.create(list, {
+                handle: '.drag-handle', animation: 180, ghostClass: 'opacity-40',
+                onEnd: async () => {
+                    const fd = new FormData();
+                    [...list.children].forEach(li => fd.append('ids', li.dataset.id));
+                    fd.append('__RequestVerificationToken', document.querySelector('input[name=__RequestVerificationToken]').value);
+                    const res = await fetch('@Url.Action("Reorder")', { method: 'POST', body: fd });
+                    toast.textContent = res.ok ? 'Order saved' : 'Could not save the order — please refresh';
+                    toast.classList.remove('hidden');
+                    clearTimeout(window.__orderToast);
+                    window.__orderToast = setTimeout(() => toast.classList.add('hidden'), 2200);
+                },
+            });
+        })();
         function setStars(n) {
             const f = document.getElementById('t-form');
             f.querySelector('[name=Rating]').value = n;

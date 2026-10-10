@@ -9,11 +9,13 @@
     var iconBtn = "p-2 rounded-lg text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-30 disabled:pointer-events-none";
 }
 
+@Html.AntiForgeryToken()
+<div id="order-toast" class="hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-xl bg-slate-900 text-white text-sm shadow-lg"></div>
 <div class="max-w-5xl mx-auto page-enter">
     <div class="flex flex-col md:flex-row md:items-end justify-between mb-6 gap-4">
         <div>
             <h2 class="text-3xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">Study Guides</h2>
-            <p class="text-slate-500 dark:text-slate-400 mt-2">Articles on the website's Study Guides page — great for Google (e.g. "study in China from Sri Lanka"). Write each one like a blog post, in as many languages as you like.</p>
+            <p class="text-slate-500 dark:text-slate-400 mt-2">Drag <i data-lucide="grip-vertical" class="inline w-4 h-4"></i> to change the order on the website. Articles on the website's Study Guides page — great for Google (e.g. "study in China from Sri Lanka"). Write each one like a blog post, in as many languages as you like.</p>
         </div>
         <div class="flex gap-2 shrink-0">
             <a href="@siteUrl/guides" target="_blank" rel="noopener" class="px-4 py-2 rounded-xl font-medium bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-sm inline-flex items-center gap-2"><i data-lucide="external-link" class="w-4 h-4"></i> View on website</a>
@@ -31,13 +33,14 @@
         }
         else
         {
-            <ul class="divide-y divide-slate-100 dark:divide-slate-800">
+            <ul id="sortable-list" class="divide-y divide-slate-100 dark:divide-slate-800">
                 @for (int i = 0; i < Model.Count; i++)
                 {
                     var g = Model[i];
                     var content = g.Content;
                     var hidden = g.IsActive != "A";
-                    <li class="flex items-center gap-4 p-4 @(hidden ? "opacity-60" : "")">
+                    <li data-id="@g.GuideID" class="flex items-center gap-4 p-4 bg-white dark:bg-slate-900 @(hidden ? "opacity-60" : "")">
+                        @if (canEdit) { <span class="drag-handle cursor-grab active:cursor-grabbing p-2 -ml-2 text-slate-300 hover:text-slate-500" title="Drag to reorder"><i data-lucide="grip-vertical" class="w-5 h-5"></i></span> }
                         @if (!string.IsNullOrEmpty(g.CoverImageURL))
                         {
                             <img src="@Img(g.CoverImageURL)" alt="" class="w-24 aspect-video object-cover rounded-lg border border-slate-200 dark:border-slate-700 shrink-0" />
@@ -64,10 +67,6 @@
                         <div class="flex items-center gap-1 shrink-0">
                             @if (canEdit)
                             {
-                                <form method="post" asp-action="Move">@Html.AntiForgeryToken()<input type="hidden" name="id" value="@g.GuideID" /><input type="hidden" name="direction" value="-1" />
-                                    <button type="submit" class="@iconBtn" title="Move up" disabled="@(i == 0)"><i data-lucide="arrow-up" class="w-4 h-4"></i></button></form>
-                                <form method="post" asp-action="Move">@Html.AntiForgeryToken()<input type="hidden" name="id" value="@g.GuideID" /><input type="hidden" name="direction" value="1" />
-                                    <button type="submit" class="@iconBtn" title="Move down" disabled="@(i == Model.Count - 1)"><i data-lucide="arrow-down" class="w-4 h-4"></i></button></form>
                                 <form method="post" asp-action="Toggle">@Html.AntiForgeryToken()<input type="hidden" name="id" value="@g.GuideID" />
                                     <button type="submit" class="@iconBtn" title="@(hidden ? "Show on website" : "Hide from website")"><i data-lucide="@(hidden ? "eye-off" : "eye")" class="w-4 h-4"></i></button></form>
                                 <a asp-action="Edit" asp-route-id="@g.GuideID" class="@iconBtn" title="Edit"><i data-lucide="pencil" class="w-4 h-4"></i></a>
@@ -84,3 +83,30 @@
         }
     </div>
 </div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+    <script>
+        (function () {
+            const list = document.getElementById('sortable-list');
+            if (!list || !window.Sortable) return;
+            const token = document.querySelector('input[name=__RequestVerificationToken]')?.value;
+            const toast = document.getElementById('order-toast');
+            Sortable.create(list, {
+                handle: '.drag-handle',
+                animation: 180,
+                ghostClass: 'opacity-40',
+                onEnd: async () => {
+                    const fd = new FormData();
+                    [...list.children].forEach(li => fd.append('ids', li.dataset.id));
+                    fd.append('__RequestVerificationToken', token);
+                    const res = await fetch('@Url.Action("Reorder")', { method: 'POST', body: fd });
+                    toast.textContent = res.ok ? 'Order saved' : 'Could not save the order — please refresh';
+                    toast.classList.remove('hidden');
+                    clearTimeout(window.__orderToast);
+                    window.__orderToast = setTimeout(() => toast.classList.add('hidden'), 2200);
+                },
+            });
+        })();
+    </script>
+}

@@ -61,6 +61,16 @@ namespace Web_Backend.Areas.Admin.Controllers
             return RedirectToAction("Index");
         }
 
+        // Drag-and-drop: the whole new order in one call (ids top to bottom).
+        [HttpPost, ValidateAntiForgeryToken]
+        public async Task<IActionResult> Reorder([FromForm] int[] ids)
+        {
+            Auth.CheckPermission(PermissionCode.SiteContent, 'E');
+            if (ids == null || ids.Length == 0) return BadRequest();
+            await rep.Reorder(ids);
+            return Ok(new { saved = true });
+        }
+
         [HttpPost, ValidateAntiForgeryToken]
         public async Task<IActionResult> Toggle(int id)
         {
