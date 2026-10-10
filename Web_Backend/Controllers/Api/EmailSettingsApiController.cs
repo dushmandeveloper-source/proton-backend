@@ -1,9 +1,11 @@
+using Web_Backend.Classes;
 using Microsoft.AspNetCore.Mvc;
 using Web_Backend.Areas.Admin.Data;
 using Web_Backend.Areas.Admin.Models;
 
 namespace Web_Backend.Controllers.Api
 {
+    [RequireAdminPermission(PermissionCode.EmailSettings)]
     [ApiController]
     [Route("api/email-settings")]
     public class EmailSettingsApiController : ControllerBase

@@ -1,9 +1,11 @@
+using Web_Backend.Classes;
 using Microsoft.AspNetCore.Mvc;
 using Web_Backend.Areas.Admin.Data;
 using Web_Backend.Areas.Admin.Models;
 
 namespace Web_Backend.Controllers.Api
 {
+    [RequireAdminPermission(PermissionCode.UserManagement)]
     [ApiController]
     [Route("api/user-types")]
     public class UserTypesApiController : ControllerBase
