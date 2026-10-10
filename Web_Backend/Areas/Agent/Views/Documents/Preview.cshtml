@@ -12,12 +12,22 @@
                 <p class="text-slate-500 dark:text-slate-400 mt-1">@Model.Description</p>
             }
         </div>
+        <div class="flex items-center gap-2">
+        @if (Model.CanDownload)
+        {
+            <a asp-action="Download" asp-route-id="@Model.DocumentID" class="px-4 py-2 rounded-xl font-medium text-sm bg-[#dc2626] text-white hover:bg-[#b91c1c] transition-colors flex items-center gap-2 w-fit">
+                <i data-lucide="download" class="w-4 h-4"></i> Download
+            </a>
+        }
         <a asp-action="Index" class="px-4 py-2 rounded-xl font-medium text-sm bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors flex items-center gap-2 w-fit">
             <i data-lucide="arrow-left" class="w-4 h-4"></i> Back to Documents
         </a>
+        </div>
     </div>
 
-    @* View-only: this page intentionally has no download link or button —
+    @* View-only unless the admin ticked "Allow agents to download" (then a
+       Download button appears above, served by DocumentsController.Download).
+       Otherwise this page intentionally has no download link or button —
        the file is only ever reachable through Content (inline disposition),
        and PDFs load with the viewer's own toolbar suppressed so the built-in
        save/print icons aren't a substitute download path. This is a soft

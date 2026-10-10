@@ -46,6 +46,7 @@ namespace Web_Backend.Areas.Admin.Data
                 doc.FileSizeBytes,
                 doc.VisibilityScope,
                 doc.IsActive,
+                AllowDownload = doc.AllowDownload == "Y" ? "Y" : "N",
                 AgentUserIDsJSON = JsonSerializer.Serialize(agentUserIds),
                 LogUserID = logUserId
             });

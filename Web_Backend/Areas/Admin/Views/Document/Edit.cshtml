@@ -107,6 +107,15 @@
                     </label>
                 </div>
 
+                <label class="flex items-start gap-3 rounded-xl border border-slate-200 dark:border-slate-600 px-4 py-3 cursor-pointer has-[:checked]:border-[#dc2626] has-[:checked]:bg-red-50/50 dark:has-[:checked]:bg-red-950/30">
+                    <input type="checkbox" name="AllowDownload" value="true" @(Model.AllowDownload ? "checked" : "") class="mt-1 accent-[#dc2626]" />
+                    <input type="hidden" name="AllowDownload" value="false" />
+                    <div>
+                        <p class="text-sm font-medium text-slate-800 dark:text-slate-100">Allow agents to download this file</p>
+                        <p class="text-xs text-slate-500 dark:text-slate-400">Off: agents can only preview it on screen. On: agents also get a Download button.</p>
+                    </div>
+                </label>
+
                 <div id="agent-picker" class="@(Model.VisibilityScope == "Specific" ? "" : "hidden") space-y-2 border-t border-slate-100 dark:border-slate-700 pt-4">
                     @if (!availableAgents.Any())
                     {

@@ -71,6 +71,10 @@ namespace Web_Backend.Controllers.Api
                     .OrderByDescending(b => b.UpdatedDate)
                     .Select(b => new { theme = b.Title, density = double.TryParse(S("FestivalDensity"), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var d) ? d : 1 })
                     .FirstOrDefault(),
+                // Admin-edited wording (English); missing key = frontend default.
+                texts = settings
+                    .Where(kv => kv.Key.StartsWith(SiteContentCatalog.TextPrefix) && !string.IsNullOrEmpty(kv.Value))
+                    .ToDictionary(kv => kv.Key[SiteContentCatalog.TextPrefix.Length..], kv => kv.Value),
                 // Only slots an admin has replaced; the frontend keeps its own default otherwise.
                 homeImages = settings
                     .Where(kv => kv.Key.StartsWith(SiteContentCatalog.HomeImagePrefix) && !string.IsNullOrEmpty(kv.Value))

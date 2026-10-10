@@ -146,7 +146,8 @@ namespace Web_Backend.Areas.Admin.Controllers
                     ContentType = contentType,
                     FileSizeBytes = fileSizeBytes,
                     VisibilityScope = form.VisibilityScope,
-                    IsActive = form.IsActive
+                    IsActive = form.IsActive,
+                    AllowDownload = form.AllowDownload ? "Y" : "N"
                 };
 
                 var agentUserIds = form.VisibilityScope == "Specific" ? form.AgentUserIDs : new List<string>();
@@ -198,6 +199,7 @@ namespace Web_Backend.Areas.Admin.Controllers
             Description = d.Description,
             VisibilityScope = d.VisibilityScope,
             IsActive = d.IsActive,
+            AllowDownload = d.AllowDownload == "Y",
             AgentUserIDs = d.AssignedAgents.Select(a => a.UserID).ToList(),
             OriginalFileName = d.OriginalFileName,
             FileSizeBytes = d.FileSizeBytes
