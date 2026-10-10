@@ -1,0 +1,232 @@
+@model Guide
+@{
+    bool isNew = Model.GuideID == 0;
+    ViewData["Title"] = isNew ? "New Study Guide" : "Edit Study Guide";
+    string siteUrl = ViewBag.PublicSiteUrl as string ?? "";
+    string Img(string url) => url.StartsWith("/Uploads/", StringComparison.OrdinalIgnoreCase) ? url : siteUrl + url;
+    var input = "w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm";
+    var card = "bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 p-6";
+}
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.snow.css" />
+<style>
+    .guide-editor .ql-toolbar { border-radius: 0.75rem 0.75rem 0 0; border-color: rgb(226 232 240); background: #fff; }
+    .guide-editor .ql-container { border-radius: 0 0 0.75rem 0.75rem; border-color: rgb(226 232 240); min-height: 22rem; font-size: 15px; background: #fff; }
+    .guide-editor .ql-editor { min-height: 22rem; line-height: 1.7; color: #1e293b; }
+    .guide-editor .ql-editor h2 { font-size: 1.4em; font-weight: 700; margin: 1em 0 .4em; }
+    .guide-editor .ql-editor h3 { font-size: 1.15em; font-weight: 700; margin: .9em 0 .3em; }
+    .guide-editor .ql-editor img { max-width: 100%; border-radius: .75rem; }
+</style>
+
+<div class="max-w-5xl mx-auto page-enter">
+    <div class="flex items-center justify-between gap-4 mb-6">
+        <div>
+            <a asp-action="Index" class="text-sm text-slate-500 hover:text-[#7c3aed] inline-flex items-center gap-1"><i data-lucide="arrow-left" class="w-4 h-4"></i> All guides</a>
+            <h2 class="text-3xl font-bold text-slate-800 dark:text-slate-100 tracking-tight mt-2">@(isNew ? "Write a new guide" : Model.En.Title)</h2>
+        </div>
+        @if (!isNew)
+        {
+            <a href="@siteUrl/guides/@Model.Slug" target="_blank" rel="noopener" class="px-4 py-2 rounded-xl font-medium bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-sm inline-flex items-center gap-2 shrink-0"><i data-lucide="external-link" class="w-4 h-4"></i> View on website</a>
+        }
+    </div>
+
+    <form id="guide-form" method="post" asp-action="Save" enctype="multipart/form-data" class="space-y-6">
+        @Html.AntiForgeryToken()
+        <input type="hidden" name="guideId" value="@Model.GuideID" />
+        <input type="hidden" name="contentJson" id="content-json" />
+        <script type="application/json" id="initial-content">@Html.Raw(Model.ContentJSON.Replace("</", "<\\/"))</script>
+
+        @* ---------- language tabs ---------- *@
+        <div class="@card">
+            <div class="flex flex-wrap gap-1 rounded-2xl bg-slate-100 dark:bg-slate-800/60 p-1.5 mb-5" id="lang-tabs">
+                @foreach (var (code, label) in GuideLanguages.All)
+                {
+                    <button type="button" data-lang="@code" onclick="showLang('@code')"
+                            class="lang-tab px-4 py-2 rounded-xl text-sm font-medium text-slate-500 dark:text-slate-400">
+                        @label <span class="lang-dot ml-1 inline-block w-2 h-2 rounded-full bg-slate-300"></span>
+                    </button>
+                }
+            </div>
+            <p class="text-xs text-slate-500 dark:text-slate-400 mb-5" id="lang-hint"></p>
+
+            @foreach (var (code, label) in GuideLanguages.All)
+            {
+                <div class="lang-panel hidden space-y-5" data-lang="@code">
+                    <label class="block">
+                        <span class="text-sm font-medium text-slate-600 dark:text-slate-300">Title</span>
+                        <input type="text" data-field="title" maxlength="200" class="@input mt-1 text-base font-semibold" placeholder="e.g. Study in China from Sri Lanka: The Complete Guide" />
+                    </label>
+                    <label class="block">
+                        <span class="text-sm font-medium text-slate-600 dark:text-slate-300">Short description</span>
+                        <textarea data-field="description" rows="2" maxlength="300" class="@input mt-1" placeholder="One or two sentences. Shown on the guides page and in Google results."></textarea>
+                    </label>
+                    <div>
+                        <span class="text-sm font-medium text-slate-600 dark:text-slate-300">Article</span>
+                        <div class="guide-editor mt-1"><div class="quill" data-lang="@code"></div></div>
+                    </div>
+
+                    <div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-sm font-medium text-slate-600 dark:text-slate-300">Frequently asked questions <span class="text-slate-400 font-normal">(optional — also shown in Google results)</span></span>
+                            <button type="button" onclick="addFaq('@code')" class="text-sm font-medium text-[#7c3aed] inline-flex items-center gap-1"><i data-lucide="plus" class="w-4 h-4"></i> Add question</button>
+                        </div>
+                        <div class="faq-list mt-2 space-y-3" data-lang="@code"></div>
+                    </div>
+
+                    <details class="rounded-xl border border-slate-200 dark:border-slate-700 p-4">
+                        <summary class="text-sm font-medium text-slate-600 dark:text-slate-300 cursor-pointer">Google title (optional)</summary>
+                        <input type="text" data-field="seoTitle" maxlength="70" class="@input mt-3" placeholder="Leave empty to use the title. Best under 60 characters." />
+                    </details>
+                </div>
+            }
+        </div>
+
+        @* ---------- cover, address, status ---------- *@
+        <div class="@card grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+                <span class="text-sm font-medium text-slate-600 dark:text-slate-300">Cover photo</span>
+                <img id="cover-preview" src="@(string.IsNullOrEmpty(Model.CoverImageURL) ? "" : Img(Model.CoverImageURL))" alt="" class="mt-2 w-full aspect-video object-cover rounded-xl border border-slate-200 dark:border-slate-700 @(string.IsNullOrEmpty(Model.CoverImageURL) ? "hidden" : "")" />
+                <input type="file" name="cover" accept="image/*" class="@input mt-2" onchange="previewCover(this)" />
+                @if (!string.IsNullOrEmpty(Model.CoverImageURL))
+                {
+                    <label class="mt-2 flex items-center gap-2 text-sm text-slate-500"><input type="checkbox" name="removeCover" value="true" /> Remove cover photo</label>
+                }
+            </div>
+            <div class="space-y-5">
+                <label class="block">
+                    <span class="text-sm font-medium text-slate-600 dark:text-slate-300">Web address</span>
+                    <div class="mt-1 flex items-center rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 overflow-hidden">
+                        <span class="px-3 text-xs text-slate-400 whitespace-nowrap">…/guides/</span>
+                        <input type="text" name="slug" id="slug" value="@Model.Slug" maxlength="120" class="flex-1 px-2 py-2 bg-white dark:bg-slate-800 text-sm border-0 outline-none" placeholder="made from the English title" />
+                    </div>
+                    <span class="text-xs text-slate-400">Lowercase words with dashes. Leave empty to create it from the English title.</span>
+                </label>
+                <label class="flex items-center gap-3 rounded-xl border border-slate-200 dark:border-slate-600 px-4 py-3 cursor-pointer">
+                    <input type="checkbox" id="is-active" @(Model.IsActive == "A" ? "checked" : "") class="w-4 h-4 accent-[#7c3aed]" />
+                    <input type="hidden" name="isActive" id="is-active-value" value="@Model.IsActive" />
+                    <span class="text-sm font-medium text-slate-700 dark:text-slate-200">Show this guide on the website</span>
+                </label>
+            </div>
+        </div>
+
+        <div class="flex gap-2">
+            <button type="submit" class="px-5 py-2.5 rounded-xl font-medium bg-[#7c3aed] text-white hover:bg-[#6d28d9] shadow-sm text-sm inline-flex items-center gap-2"><i data-lucide="save" class="w-4 h-4"></i> @(isNew ? "Publish guide" : "Save guide")</button>
+            <a asp-action="Index" class="px-5 py-2.5 rounded-xl font-medium bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-sm">Cancel</a>
+        </div>
+    </form>
+</div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.js"></script>
+    <script>
+        const LANGS = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(GuideLanguages.All.Select(l => new { code = l.Code, label = l.Label })));
+        const content = JSON.parse(document.getElementById('initial-content').textContent || '{}');
+        const form = document.getElementById('guide-form');
+        const token = form.querySelector('input[name=__RequestVerificationToken]').value;
+        const editors = {};
+        const esc = s => (s || '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+        // ---------- editors ----------
+        LANGS.forEach(({ code }) => {
+            const panel = document.querySelector('.lang-panel[data-lang="' + code + '"]');
+            const t = content[code] || {};
+            panel.querySelector('[data-field=title]').value = t.title || '';
+            panel.querySelector('[data-field=description]').value = t.description || '';
+            panel.querySelector('[data-field=seoTitle]').value = t.seoTitle || '';
+
+            const q = new Quill(panel.querySelector('.quill'), {
+                theme: 'snow',
+                placeholder: code === 'en' ? 'Write your article here…' : 'Write the translation here (leave empty to show English)…',
+                modules: {
+                    toolbar: {
+                        container: [[{ header: [2, 3, false] }], ['bold', 'italic', 'underline'], [{ list: 'ordered' }, { list: 'bullet' }], ['blockquote', 'link', 'image'], ['clean']],
+                        handlers: { image: () => uploadImage(q) },
+                    },
+                },
+            });
+            if (t.bodyHtml) q.clipboard.dangerouslyPasteHTML(t.bodyHtml);
+            editors[code] = q;
+            (t.faq || []).forEach(f => addFaq(code, f.q, f.a));
+            ['input', 'change'].forEach(ev => panel.addEventListener(ev, refreshDots));
+            q.on('text-change', refreshDots);
+        });
+
+        function uploadImage(q) {
+            const file = document.createElement('input');
+            file.type = 'file';
+            file.accept = 'image/*';
+            file.onchange = async () => {
+                const fd = new FormData();
+                fd.append('image', file.files[0]);
+                fd.append('__RequestVerificationToken', token);
+                const res = await fetch('@Url.Action("UploadImage")', { method: 'POST', body: fd });
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok) { alert(data.message || 'Upload failed'); return; }
+                const range = q.getSelection(true);
+                q.insertEmbed(range ? range.index : q.getLength(), 'image', data.url, 'user');
+            };
+            file.click();
+        }
+
+        // ---------- FAQ rows ----------
+        function addFaq(code, qText = '', aText = '') {
+            const list = document.querySelector('.faq-list[data-lang="' + code + '"]');
+            const row = document.createElement('div');
+            row.className = 'faq-row rounded-xl border border-slate-200 dark:border-slate-700 p-3 space-y-2 bg-slate-50/60 dark:bg-slate-800/40';
+            row.innerHTML = '<div class="flex gap-2"><input type="text" data-faq="q" placeholder="Question" class="@input" value="' + esc(qText) + '" />'
+                + '<button type="button" title="Remove" class="px-2 text-slate-400 hover:text-red-600" onclick="this.closest(\'.faq-row\').remove();refreshDots()">✕</button></div>'
+                + '<textarea data-faq="a" rows="2" placeholder="Answer" class="@input">' + esc(aText) + '</textarea>';
+            list.appendChild(row);
+            refreshDots();
+        }
+
+        // ---------- tabs ----------
+        function hasText(code) {
+            const p = document.querySelector('.lang-panel[data-lang="' + code + '"]');
+            return p.querySelector('[data-field=title]').value.trim() !== '' || (editors[code] && editors[code].getText().trim() !== '');
+        }
+        function refreshDots() {
+            LANGS.forEach(({ code }) => {
+                const dot = document.querySelector('.lang-tab[data-lang="' + code + '"] .lang-dot');
+                if (dot) dot.style.background = hasText(code) ? '#10b981' : '#cbd5e1';
+            });
+        }
+        function showLang(code) {
+            document.querySelectorAll('.lang-panel').forEach(p => p.classList.toggle('hidden', p.dataset.lang !== code));
+            document.querySelectorAll('.lang-tab').forEach(b => {
+                const on = b.dataset.lang === code;
+                b.classList.toggle('bg-white', on);
+                b.classList.toggle('shadow-sm', on);
+                b.classList.toggle('text-slate-800', on);
+            });
+            document.getElementById('lang-hint').textContent = code === 'en'
+                ? 'English is required. A green dot means that language has text; languages without text show the English version on the website.'
+                : 'Translate the English guide here. Leave everything empty to show the English version to visitors who chose this language.';
+        }
+        showLang('en');
+        refreshDots();
+
+        // ---------- cover / status / submit ----------
+        function previewCover(input) {
+            const img = document.getElementById('cover-preview');
+            if (input.files[0]) { img.src = URL.createObjectURL(input.files[0]); img.classList.remove('hidden'); }
+        }
+        document.getElementById('is-active').addEventListener('change', e => document.getElementById('is-active-value').value = e.target.checked ? 'A' : 'I');
+
+        form.addEventListener('submit', () => {
+            const out = {};
+            LANGS.forEach(({ code }) => {
+                const p = document.querySelector('.lang-panel[data-lang="' + code + '"]');
+                const q = editors[code];
+                out[code] = {
+                    title: p.querySelector('[data-field=title]').value,
+                    seoTitle: p.querySelector('[data-field=seoTitle]').value,
+                    description: p.querySelector('[data-field=description]').value,
+                    bodyHtml: q.getText().trim() === '' && !q.root.querySelector('img') ? '' : q.root.innerHTML,
+                    faq: [...p.querySelectorAll('.faq-row')].map(r => ({ q: r.querySelector('[data-faq=q]').value, a: r.querySelector('[data-faq=a]').value })),
+                };
+            });
+            document.getElementById('content-json').value = JSON.stringify(out);
+        });
+    </script>
+}

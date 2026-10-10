@@ -1,0 +1,127 @@
+@model List<Web_Backend.Areas.Admin.Data.Testimonial>
+@{
+    ViewData["Title"] = "Testimonials";
+    bool canAdd = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.SiteContent, 'A');
+    bool canEdit = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.SiteContent, 'E');
+    bool canDelete = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.SiteContent, 'D');
+    var input = "w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm";
+    var iconBtn = "p-2 rounded-lg text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800";
+}
+
+<div class="max-w-5xl mx-auto page-enter">
+    <div class="flex flex-col md:flex-row md:items-end justify-between mb-6 gap-4">
+        <div>
+            <h2 class="text-3xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">Testimonials</h2>
+            <p class="text-slate-500 dark:text-slate-400 mt-2">Real words from your students and clients, shown on the website's Testimonials page. Only add genuine quotes, with the person's permission.</p>
+        </div>
+        @if (canAdd)
+        {
+            <button type="button" onclick="editTestimonial({ id: 0, rating: 5, active: 'A' })" class="px-4 py-2 rounded-xl font-medium bg-[#7c3aed] text-white hover:bg-[#6d28d9] shadow-sm text-sm inline-flex items-center gap-2 shrink-0"><i data-lucide="plus" class="w-4 h-4"></i> Add testimonial</button>
+        }
+    </div>
+
+    @if (canAdd || canEdit)
+    {
+        <form id="t-form" method="post" asp-action="Save" enctype="multipart/form-data" class="hidden bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 p-6 mb-6 space-y-4">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="TestimonialID" value="0" />
+            <input type="hidden" name="IsActive" value="A" />
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <label class="block"><span class="text-sm font-medium text-slate-600 dark:text-slate-300">Name</span>
+                    <input type="text" name="Name" maxlength="150" required class="@input mt-1" placeholder="e.g. Nimal Perera" /></label>
+                <label class="block"><span class="text-sm font-medium text-slate-600 dark:text-slate-300">Course / role <span class="text-slate-400">(optional)</span></span>
+                    <input type="text" name="Role" maxlength="200" class="@input mt-1" placeholder="e.g. MBBS student, Wuhan University" /></label>
+            </div>
+            <label class="block"><span class="text-sm font-medium text-slate-600 dark:text-slate-300">What they said</span>
+                <textarea name="Quote" rows="4" maxlength="2000" required class="@input mt-1"></textarea></label>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
+                <div>
+                    <span class="text-sm font-medium text-slate-600 dark:text-slate-300">Star rating</span>
+                    <input type="hidden" name="Rating" value="5" />
+                    <div class="mt-1 flex gap-1" id="t-stars">
+                        @for (int s = 1; s <= 5; s++)
+                        {
+                            <button type="button" data-star="@s" onclick="setStars(@s)" class="text-2xl leading-none">★</button>
+                        }
+                    </div>
+                </div>
+                <label class="block"><span class="text-sm font-medium text-slate-600 dark:text-slate-300">Photo <span class="text-slate-400">(optional)</span></span>
+                    <input type="file" name="photo" accept="image/*" class="@input mt-1" /></label>
+            </div>
+            <label class="flex items-center gap-2 text-sm text-slate-500 hidden" id="t-remove-photo"><input type="checkbox" name="removePhoto" value="true" /> Remove current photo</label>
+            <div class="flex gap-2">
+                <button type="submit" class="px-4 py-2 rounded-xl font-medium bg-[#7c3aed] text-white hover:bg-[#6d28d9] text-sm">Save</button>
+                <button type="button" onclick="document.getElementById('t-form').classList.add('hidden')" class="px-4 py-2 rounded-xl font-medium bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-sm">Cancel</button>
+            </div>
+        </form>
+    }
+
+    <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
+        @if (!Model.Any())
+        {
+            <div class="p-12 text-center text-sm text-slate-400">No testimonials yet. The website shows a friendly "share your story" message until you add one.</div>
+        }
+        else
+        {
+            <ul class="divide-y divide-slate-100 dark:divide-slate-800">
+                @foreach (var t in Model)
+                {
+                    var hidden = t.IsActive != "A";
+                    <li class="flex items-start gap-4 p-4 @(hidden ? "opacity-60" : "")">
+                        @if (!string.IsNullOrEmpty(t.PhotoURL))
+                        {
+                            <img src="@t.PhotoURL" alt="" class="w-12 h-12 rounded-full object-cover shrink-0" />
+                        }
+                        else
+                        {
+                            <div class="w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center font-semibold text-slate-500 shrink-0">@t.Name[..1]</div>
+                        }
+                        <div class="flex-1 min-w-0">
+                            <p class="text-sm font-semibold text-slate-800 dark:text-slate-100">@t.Name <span class="text-amber-500">@(new string('★', t.Rating))</span></p>
+                            @if (!string.IsNullOrEmpty(t.Role)) { <p class="text-xs text-slate-500">@t.Role</p> }
+                            <p class="text-sm text-slate-600 dark:text-slate-300 mt-1 line-clamp-2">“@t.Quote”</p>
+                            @if (hidden) { <span class="inline-block mt-1 px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase bg-slate-200 dark:bg-slate-700 text-slate-600">Hidden</span> }
+                        </div>
+                        <div class="flex items-center gap-1 shrink-0">
+                            @if (canEdit)
+                            {
+                                <form method="post" asp-action="Toggle">@Html.AntiForgeryToken()<input type="hidden" name="id" value="@t.TestimonialID" />
+                                    <button type="submit" class="@iconBtn" title="@(hidden ? "Show on website" : "Hide from website")"><i data-lucide="@(hidden ? "eye-off" : "eye")" class="w-4 h-4"></i></button></form>
+                                <button type="button" class="@iconBtn" title="Edit"
+                                        onclick='editTestimonial(@Json.Serialize(new { id = t.TestimonialID, name = t.Name, role = t.Role, quote = t.Quote, rating = t.Rating, active = t.IsActive, hasPhoto = !string.IsNullOrEmpty(t.PhotoURL) }))'><i data-lucide="pencil" class="w-4 h-4"></i></button>
+                            }
+                            @if (canDelete)
+                            {
+                                <form method="post" asp-action="Delete" onsubmit="return confirm('Delete this testimonial?')">@Html.AntiForgeryToken()<input type="hidden" name="id" value="@t.TestimonialID" />
+                                    <button type="submit" class="@iconBtn hover:text-red-600" title="Delete"><i data-lucide="trash-2" class="w-4 h-4"></i></button></form>
+                            }
+                        </div>
+                    </li>
+                }
+            </ul>
+        }
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        function setStars(n) {
+            const f = document.getElementById('t-form');
+            f.querySelector('[name=Rating]').value = n;
+            f.querySelectorAll('[data-star]').forEach(b => b.style.color = +b.dataset.star <= n ? '#f59e0b' : '#cbd5e1');
+        }
+        function editTestimonial(d) {
+            const f = document.getElementById('t-form');
+            f.querySelector('[name=TestimonialID]').value = d.id || 0;
+            f.querySelector('[name=Name]').value = d.name || '';
+            f.querySelector('[name=Role]').value = d.role || '';
+            f.querySelector('[name=Quote]').value = d.quote || '';
+            f.querySelector('[name=IsActive]').value = d.active || 'A';
+            f.querySelector('[name=photo]').value = '';
+            document.getElementById('t-remove-photo').classList.toggle('hidden', !d.hasPhoto);
+            setStars(d.rating || 5);
+            f.classList.remove('hidden');
+            f.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    </script>
+}
