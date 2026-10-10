@@ -19,6 +19,7 @@
         ("hero", "Banner", "image"),
         ("wheel", "Rotating wheel", "orbit"),
         ("announcement", "Announcement bar", "megaphone"),
+        ("festival", "Festival effects", "party-popper"),
         ("images", "Home page images", "images"),
         ("speed", "Image speed", "gauge"),
     };
@@ -54,6 +55,33 @@
     @@keyframes ap-type { to { opacity: 1; } }
     .ap-Typewriter .ap-caret { display: inline-block; width: 2px; height: 1em; background: #70e4fd; vertical-align: -0.1em; animation: ap-caret .8s step-end infinite; }
     @@keyframes ap-caret { 50% { opacity: 0; } }
+
+    /* Slider transition preview — same rules as frontend2's .hero-tr-* */
+    #slider-preview .sp-slide { position: absolute; inset: 0; background-size: cover; background-position: center; opacity: 0; }
+    #slider-preview .sp-slide.is-active { opacity: 1; z-index: 2; }
+    #slider-preview .sp-slide.is-prev { z-index: 1; }
+    .sp-tr-KenBurns .sp-slide { transform: scale(1); transition: opacity 1.5s ease, transform calc(var(--slide-ms) + 1.5s) ease-out; }
+    .sp-tr-KenBurns .sp-slide.is-active { transform: scale(1.08); }
+    .sp-tr-Fade .sp-slide { transition: opacity 1.4s ease; }
+    .sp-tr-Slide .sp-slide { opacity: 1; transform: translateX(100%); transition: transform 1.1s cubic-bezier(.7,0,.2,1); }
+    .sp-tr-Slide .sp-slide.is-active { transform: translateX(0); }
+    .sp-tr-Slide .sp-slide.is-prev { transform: translateX(-100%); }
+    .sp-tr-Slide .sp-slide:not(.is-active):not(.is-prev) { transition: none; }
+    .sp-tr-Zoom .sp-slide { transform: scale(1.25); transition: opacity 1.3s ease, transform 1.6s cubic-bezier(.22,1,.36,1); }
+    .sp-tr-Zoom .sp-slide.is-active { transform: scale(1); }
+    .sp-tr-Curtain .sp-slide { opacity: 1; clip-path: inset(0 100% 0 0); }
+    .sp-tr-Curtain .sp-slide.is-active { clip-path: inset(0 0 0 0); transition: clip-path 1.3s cubic-bezier(.7,0,.2,1); }
+    .sp-tr-Curtain .sp-slide.is-prev { clip-path: inset(0 0 0 0); }
+
+    /* Announcement bar preview — same as frontend2's .announce-* */
+    .apv-track { display: flex; width: max-content; animation: apv-scroll linear infinite; }
+    @@keyframes apv-scroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+    .apv-Fade { animation: apv-fade .6s ease both; }
+    @@keyframes apv-fade { from { opacity: 0; } to { opacity: 1; } }
+    .apv-SlideUp { animation: apv-slideup .5s cubic-bezier(.22,1,.36,1) both; }
+    @@keyframes apv-slideup { from { opacity: 0; transform: translateY(100%); } to { opacity: 1; transform: none; } }
+    .apv-pulse { animation: apv-pulse 2.4s ease-in-out infinite; }
+    @@keyframes apv-pulse { 0%, 100% { box-shadow: inset 0 0 0 rgba(255,255,255,0); } 50% { box-shadow: inset 0 0 22px rgba(255,255,255,.28); } }
 </style>
 
 <div class="max-w-6xl mx-auto page-enter">
@@ -103,16 +131,27 @@
                 <div>
                     <div id="anim-preview" class="anim-preview rounded-2xl p-8 min-h-[220px] flex flex-col justify-center text-center text-white font-bold text-2xl md:text-3xl leading-tight"></div>
                     <button type="button" onclick="previewHeroAnim()" class="@btnGhost mt-3"><i data-lucide="rotate-ccw" class="w-4 h-4"></i> Replay preview</button>
+                    <label class="block mt-4">
+                        <span class="text-sm font-medium text-slate-600 dark:text-slate-300">Replay the animation every … seconds</span>
+                        <input type="number" name="heroTextRepeatSeconds" min="0" max="60" value="@S("HeroTextRepeatSeconds")" class="@input mt-1" />
+                        <span class="text-xs text-slate-400">Pause after the heading finishes, then it animates again. 0 = play once.</span>
+                    </label>
                 </div>
             </div>
 
             <hr class="my-6 border-slate-100 dark:border-slate-700" />
 
-            <h3 class="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-4">Background slider</h3>
+            <h3 class="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-1">Background slider</h3>
+            <p class="text-sm text-slate-500 dark:text-slate-400 mb-4">Pick a transition to see it on your banner photos below.</p>
+            <div id="slider-preview" class="relative isolate overflow-hidden rounded-2xl aspect-[16/7] bg-slate-900 mb-4"
+                 data-slides='@Json.Serialize(Model.Where(b => b.Placement == SiteContentCatalog.HeroSlide && b.IsActive == "A").Select(b => Img(b.ImageURL)))'>
+                <div class="absolute inset-0 z-10 bg-black/40 pointer-events-none"></div>
+                <span id="slider-preview-label" class="absolute bottom-3 left-3 z-20 px-2.5 py-1 rounded-full text-xs font-semibold bg-white/90 text-slate-800"></span>
+            </div>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <label class="block">
                     <span class="text-sm font-medium text-slate-600 dark:text-slate-300">Photo transition</span>
-                    <select name="heroTransition" class="@input mt-1">
+                    <select name="heroTransition" class="@input mt-1" onchange="startSliderPreview()">
                         @foreach (var o in SiteContentCatalog.HeroTransitions)
                         {
                             <option value="@o.Value" selected="@(S("HeroTransition") == o.Value)">@o.Label — @o.Hint</option>
@@ -121,7 +160,7 @@
                 </label>
                 <label class="block">
                     <span class="text-sm font-medium text-slate-600 dark:text-slate-300">Seconds per photo</span>
-                    <input type="number" name="heroSlideSeconds" min="3" max="20" value="@S("HeroSlideSeconds")" class="@input mt-1" />
+                    <input type="number" name="heroSlideSeconds" min="3" max="20" value="@S("HeroSlideSeconds")" class="@input mt-1" onchange="startSliderPreview()" />
                 </label>
             </div>
             @if (canEdit)
@@ -160,15 +199,15 @@
                 </label>
             </div>
 
-            <div id="ann-preview" class="rounded-xl px-4 py-2 text-sm font-medium text-center mb-5 overflow-hidden whitespace-nowrap"
-                 style="background:@S("AnnouncementBgColor");color:@S("AnnouncementTextColor")">
-                @(Model.FirstOrDefault(b => b.Placement == SiteContentCatalog.Announcement)?.Title ?? "Your announcement text appears here")
-            </div>
+            <p class="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-2">Live preview</p>
+            <div id="ann-preview" class="relative overflow-hidden rounded-xl text-sm font-medium mb-5 whitespace-nowrap"
+                 style="background:@S("AnnouncementBgColor");color:@S("AnnouncementTextColor")"
+                 data-items='@Json.Serialize(Model.Where(b => b.Placement == SiteContentCatalog.Announcement && b.IsActive == "A").Select(b => b.Title))'></div>
 
             <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <label class="block md:col-span-2">
                     <span class="text-sm font-medium text-slate-600 dark:text-slate-300">Animation</span>
-                    <select name="animation" class="@input mt-1">
+                    <select name="animation" class="@input mt-1" onchange="startAnnPreview()">
                         @foreach (var o in SiteContentCatalog.AnnouncementAnimations)
                         {
                             <option value="@o.Value" selected="@(S("AnnouncementAnimation") == o.Value)">@o.Label — @o.Hint</option>
@@ -177,7 +216,7 @@
                 </label>
                 <label class="block">
                     <span class="text-sm font-medium text-slate-600 dark:text-slate-300">Speed</span>
-                    <select name="speed" class="@input mt-1">
+                    <select name="speed" class="@input mt-1" onchange="startAnnPreview()">
                         @foreach (var o in SiteContentCatalog.Speeds)
                         {
                             <option value="@o.Value" selected="@(S("AnnouncementSpeed") == o.Value)">@o.Label</option>
@@ -205,6 +244,138 @@
             SiteContentCatalog.Announcement, "Messages",
             "Each message can have Chinese text (shown when a visitor picks 中文), an optional link and a start/end date so it turns on and off by itself.",
             Model.Where(b => b.Placement == SiteContentCatalog.Announcement).ToList(), siteUrl, canAdd, canEdit, canDelete))
+    }
+
+    @* ================= FESTIVAL EFFECTS ================= *@
+    @if (tab == "festival")
+    {
+        var festivals = Model.Where(b => b.Placement == SiteContentCatalog.Festival).ToList();
+        string ThemeLabel(string key) => SiteContentCatalog.FestivalThemes.FirstOrDefault(o => o.Value == key)?.Label ?? key;
+        string Dt(DateTime? d) => d?.ToString("yyyy-MM-ddTHH:mm") ?? "";
+
+        <div class="@card p-6 mb-6">
+            <h3 class="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-1">Festival effects</h3>
+            <p class="text-sm text-slate-500 dark:text-slate-400 mb-4">Seasonal animation shown over the whole website (it never blocks clicks). Schedule each one with dates and it turns on and off by itself. If two overlap, the one higher in the list wins.</p>
+
+            <div class="grid grid-cols-1 lg:grid-cols-[1fr_1.2fr] gap-6">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 content-start">
+                    @foreach (var o in SiteContentCatalog.FestivalThemes)
+                    {
+                        <button type="button" onclick="previewFestival('@o.Value', this)" data-theme="@o.Value"
+                                class="fest-pick text-left p-3 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-[#7c3aed]">
+                            <span class="block text-sm font-medium text-slate-800 dark:text-slate-100">@o.Label</span>
+                            <span class="block text-xs text-slate-500 dark:text-slate-400">@o.Hint</span>
+                        </button>
+                    }
+                </div>
+                <div>
+                    <div class="relative overflow-hidden rounded-2xl aspect-video bg-gradient-to-br from-slate-900 to-[#1e3a5f]">
+                        <canvas id="festival-preview" class="absolute inset-0 w-full h-full"></canvas>
+                        <span id="festival-preview-label" class="absolute bottom-3 left-3 px-2.5 py-1 rounded-full text-xs font-semibold bg-white/90 text-slate-800">Click a theme to preview</span>
+                    </div>
+                    <form method="post" asp-action="SaveFestivalSettings" class="mt-4 flex flex-wrap items-end gap-3">
+                        @Html.AntiForgeryToken()
+                        <label class="block">
+                            <span class="text-sm font-medium text-slate-600 dark:text-slate-300">Amount</span>
+                            <select name="density" id="festival-density" onchange="previewFestival()" class="@input mt-1">
+                                @foreach (var o in SiteContentCatalog.FestivalDensities)
+                                {
+                                    <option value="@o.Value" selected="@(S("FestivalDensity") == o.Value)">@o.Label</option>
+                                }
+                            </select>
+                        </label>
+                        @if (canEdit)
+                        {
+                            <button type="submit" class="@btnGhost"><i data-lucide="save" class="w-4 h-4"></i> Save amount</button>
+                        }
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        @if (canAdd || canEdit)
+        {
+            <form id="festival-form" method="post" asp-action="SaveBanner" class="@card p-6 mb-6">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="BannerID" value="0" />
+                <input type="hidden" name="Placement" value="@SiteContentCatalog.Festival" />
+                <h4 id="festival-form-title" class="font-semibold text-slate-800 dark:text-slate-100 mb-4">Schedule a festival effect</h4>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <label class="block">
+                        <span class="text-sm font-medium text-slate-600 dark:text-slate-300">Theme</span>
+                        <select name="Title" required class="@input mt-1" onchange="previewFestival(this.value)">
+                            @foreach (var o in SiteContentCatalog.FestivalThemes)
+                            {
+                                <option value="@o.Value">@o.Label</option>
+                            }
+                        </select>
+                    </label>
+                    <label class="block">
+                        <span class="text-sm font-medium text-slate-600 dark:text-slate-300">Starts</span>
+                        <input type="datetime-local" name="StartsAt" class="@input mt-1" />
+                    </label>
+                    <label class="block">
+                        <span class="text-sm font-medium text-slate-600 dark:text-slate-300">Ends</span>
+                        <input type="datetime-local" name="EndsAt" class="@input mt-1" />
+                    </label>
+                </div>
+                <p class="text-xs text-slate-400 mt-2">Leave both dates empty to run it until you hide or delete it.</p>
+                <div class="flex gap-2 mt-4">
+                    <button type="submit" class="@btnPrimary"><i data-lucide="calendar-plus" class="w-4 h-4"></i> Save</button>
+                    <button type="button" onclick="resetFestivalForm()" class="@btnGhost">Clear</button>
+                </div>
+            </form>
+        }
+
+        <div class="@card overflow-hidden mb-6">
+            @if (!festivals.Any())
+            {
+                <div class="p-12 text-center text-sm text-slate-400 dark:text-slate-500">No festival effects scheduled.</div>
+            }
+            else
+            {
+                <ul class="divide-y divide-slate-100 dark:divide-slate-800">
+                    @foreach (var b in festivals)
+                    {
+                        var inactive = b.IsActive != "A";
+                        var runningNow = !inactive && !b.IsScheduledOut;
+                        <li class="flex flex-wrap items-center gap-4 p-4 @(inactive ? "opacity-60" : "")">
+                            <div class="flex-1 min-w-0">
+                                <p class="text-sm font-medium text-slate-800 dark:text-slate-100">@ThemeLabel(b.Title)</p>
+                                <p class="text-xs text-slate-500 dark:text-slate-400">@(b.StartsAt?.ToString("MMM d, yyyy HH:mm") ?? "now") → @(b.EndsAt?.ToString("MMM d, yyyy HH:mm") ?? "no end")</p>
+                            </div>
+                            @if (runningNow)
+                            {
+                                <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300">Live now</span>
+                            }
+                            else if (inactive)
+                            {
+                                <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300">Hidden</span>
+                            }
+                            else
+                            {
+                                <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300">Scheduled</span>
+                            }
+                            <div class="flex items-center gap-1">
+                                <button type="button" class="p-2 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800" title="Preview" onclick="previewFestival('@b.Title')"><i data-lucide="play" class="w-4 h-4"></i></button>
+                                @if (canEdit)
+                                {
+                                    <button type="button" class="p-2 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800" title="Edit"
+                                            onclick='editFestival(@Json.Serialize(new { id = b.BannerID, theme = b.Title, startsAt = Dt(b.StartsAt), endsAt = Dt(b.EndsAt) }))'><i data-lucide="pencil" class="w-4 h-4"></i></button>
+                                    <form method="post" asp-action="ToggleBanner">@Html.AntiForgeryToken()<input type="hidden" name="id" value="@b.BannerID" />
+                                        <button type="submit" class="p-2 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800" title="@(inactive ? "Show on site" : "Hide from site")"><i data-lucide="@(inactive ? "eye-off" : "eye")" class="w-4 h-4"></i></button></form>
+                                }
+                                @if (canDelete)
+                                {
+                                    <form method="post" asp-action="DeleteBanner" onsubmit="return confirm('Delete this festival effect?')">@Html.AntiForgeryToken()<input type="hidden" name="id" value="@b.BannerID" />
+                                        <button type="submit" class="p-2 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-red-600" title="Delete"><i data-lucide="trash-2" class="w-4 h-4"></i></button></form>
+                                }
+                            </div>
+                        </li>
+                    }
+                </ul>
+            }
+        </div>
     }
 
     @* ================= HOME PAGE IMAGES ================= *@
@@ -317,6 +488,10 @@
 </div>
 
 @section Scripts {
+    @if (tab == "festival")
+    {
+        <script src="~/js/festival-fx.js" asp-append-version="true"></script>
+    }
     <script>
         // ---------- Hero animation preview ----------
         const PREVIEW_LINES = ['Connecting Sri Lanka', '& China through', 'trusted solutions.'];
@@ -353,6 +528,111 @@
             }
         }
         previewHeroAnim();
+
+        // ---------- Slider transition preview ----------
+        let sliderTimer = null;
+        function startSliderPreview() {
+            const box = document.getElementById('slider-preview');
+            if (!box) return;
+            const urls = JSON.parse(box.dataset.slides || '[]');
+            const sel = document.querySelector('[name=heroTransition]');
+            const secs = Math.min(Math.max(parseInt(document.querySelector('[name=heroSlideSeconds]').value) || 6, 3), 20);
+            box.className = box.className.replace(/\bsp-tr-\w+/g, '') + ' sp-tr-' + sel.value;
+            box.style.setProperty('--slide-ms', secs * 1000 + 'ms');
+            document.getElementById('slider-preview-label').textContent = sel.options[sel.selectedIndex].text.split(' — ')[0] + ' · ' + secs + 's per photo';
+            box.querySelectorAll('.sp-slide').forEach(e => e.remove());
+            clearInterval(sliderTimer);
+            if (!urls.length) return;
+            const els = urls.map(u => {
+                const d = document.createElement('div');
+                d.className = 'sp-slide';
+                d.style.backgroundImage = 'url("' + u + '")';
+                box.prepend(d);
+                return d;
+            });
+            let cur = 0;
+            const show = () => els.forEach((e, i) => {
+                e.classList.toggle('is-active', i === cur);
+                e.classList.toggle('is-prev', els.length > 1 && i === (cur - 1 + els.length) % els.length);
+            });
+            requestAnimationFrame(show);
+            // at most 4 s per photo here, so the transition is quick to judge
+            sliderTimer = setInterval(() => { cur = (cur + 1) % els.length; show(); }, Math.min(secs, 4) * 1000);
+        }
+        startSliderPreview();
+
+        // ---------- Announcement bar preview ----------
+        let annTimer = null;
+        function startAnnPreview() {
+            const box = document.getElementById('ann-preview');
+            if (!box) return;
+            let items = JSON.parse(box.dataset.items || '[]');
+            if (!items.length) items = ['Your announcement text appears here', 'Add a second message to see it rotate'];
+            const anim = document.querySelector('[name=animation]').value;
+            const speed = document.querySelector('[name=speed]').value;
+            clearInterval(annTimer);
+            box.classList.toggle('apv-pulse', anim === 'Pulse');
+            box.innerHTML = '';
+            const esc = t => { const s = document.createElement('span'); s.textContent = t; return s.innerHTML; };
+            if (anim === 'Scroll') {
+                const pps = { Slow: 40, Normal: 70, Fast: 110 }[speed] || 70;
+                const chars = items.reduce((n, t) => n + t.length + 8, 0);
+                const copy = items.map(t => '<span class="px-8 inline-flex items-center">' + esc(t) + '<span class="ml-16 opacity-50">✦</span></span>').join('');
+                box.innerHTML = '<div class="apv-track py-2" style="animation-duration:' + Math.max(12, chars * 8 / pps) + 's"><div class="flex shrink-0">' + copy + '</div><div class="flex shrink-0">' + copy + '</div></div>';
+                return;
+            }
+            const line = document.createElement('div');
+            box.appendChild(line);
+            let i = 0;
+            const rotates = (anim === 'Fade' || anim === 'SlideUp') && items.length > 1;
+            const render = () => {
+                line.className = 'px-4 py-2 text-center';
+                void line.offsetWidth; // restart the CSS animation
+                if (rotates) line.classList.add('apv-' + anim);
+                line.textContent = items[i % items.length];
+            };
+            render();
+            if (rotates) annTimer = setInterval(() => { i++; render(); }, { Slow: 6000, Normal: 4200, Fast: 2800 }[speed] || 4200);
+        }
+        startAnnPreview();
+
+        // ---------- Festival effect preview (wwwroot/js/festival-fx.js) ----------
+        let festivalStop = null, festivalTheme = null;
+        function previewFestival(theme, btn) {
+            const canvas = document.getElementById('festival-preview');
+            if (!canvas || !window.startFestivalFx) return;
+            if (theme) festivalTheme = theme;
+            if (!festivalTheme) return;
+            if (festivalStop) festivalStop();
+            const density = parseFloat(document.getElementById('festival-density')?.value || '1');
+            festivalStop = window.startFestivalFx(canvas, festivalTheme, { density });
+            document.querySelectorAll('.fest-pick').forEach(b => {
+                const on = b.dataset.theme === festivalTheme;
+                b.classList.toggle('border-[#7c3aed]', on);
+                b.classList.toggle('bg-violet-50', on);
+            });
+            const label = document.querySelector('.fest-pick[data-theme="' + festivalTheme + '"] span');
+            document.getElementById('festival-preview-label').textContent = label ? label.textContent : festivalTheme;
+            const sel = document.querySelector('#festival-form [name=Title]');
+            if (sel && btn) sel.value = festivalTheme;
+        }
+        function editFestival(d) {
+            const f = document.getElementById('festival-form');
+            f.querySelector('[name=BannerID]').value = d.id;
+            f.querySelector('[name=Title]').value = d.theme;
+            f.querySelector('[name=StartsAt]').value = d.startsAt || '';
+            f.querySelector('[name=EndsAt]').value = d.endsAt || '';
+            document.getElementById('festival-form-title').textContent = 'Edit festival effect';
+            previewFestival(d.theme);
+            f.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+        function resetFestivalForm() {
+            const f = document.getElementById('festival-form');
+            f.reset();
+            f.querySelector('[name=BannerID]').value = 0;
+            document.getElementById('festival-form-title').textContent = 'Schedule a festival effect';
+        }
+        if (document.getElementById('festival-preview')) previewFestival('@(Model.FirstOrDefault(b => b.Placement == SiteContentCatalog.Festival)?.Title ?? "Christmas")');
 
         // ---------- Add / edit form (shared by every list on this page) ----------
         function openBannerForm(placement, data) {

@@ -42,6 +42,7 @@ namespace Web_Backend.Controllers.Api
                     textAnimation = S("HeroTextAnimation"),
                     transition = S("HeroTransition"),
                     slideSeconds = int.TryParse(S("HeroSlideSeconds"), out var secs) ? secs : 6,
+                    textRepeatSeconds = int.TryParse(S("HeroTextRepeatSeconds"), out var repeatSecs) ? repeatSecs : 0,
                     slides = Images(SiteContentCatalog.HeroSlide),
                 },
                 wheel = Images(SiteContentCatalog.HeroWheel),
@@ -57,6 +58,11 @@ namespace Web_Backend.Controllers.Api
                         .Select(b => new { text = b.Title, textChinese = b.TitleChinese, link = b.LinkURL })
                         .ToList(),
                 },
+                // First active, in-schedule festival effect (null = none running).
+                festival = banners
+                    .Where(b => b.Placement == SiteContentCatalog.Festival && !string.IsNullOrEmpty(b.Title))
+                    .Select(b => new { theme = b.Title, density = double.TryParse(S("FestivalDensity"), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var d) ? d : 1 })
+                    .FirstOrDefault(),
                 // Only slots an admin has replaced; the frontend keeps its own default otherwise.
                 homeImages = settings
                     .Where(kv => kv.Key.StartsWith(SiteContentCatalog.HomeImagePrefix) && !string.IsNullOrEmpty(kv.Value))

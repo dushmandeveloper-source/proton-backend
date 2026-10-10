@@ -78,7 +78,11 @@ namespace Web_Backend.Areas.Admin.Controllers
                 catch (InvalidOperationException ex) { return Fail(ex.Message, tab); }
             }
 
-            if (form.Placement == SiteContentCatalog.Announcement)
+            if (form.Placement == SiteContentCatalog.Festival)
+            {
+                if (!SiteContentCatalog.IsValid(SiteContentCatalog.FestivalThemes, form.Title)) return Fail("Please choose a festival theme.", tab);
+            }
+            else if (form.Placement == SiteContentCatalog.Announcement)
             {
                 if (string.IsNullOrWhiteSpace(form.Title)) return Fail("Announcement text is required.", tab);
             }
@@ -129,7 +133,7 @@ namespace Web_Backend.Areas.Admin.Controllers
         // ---------- Settings (animations, speeds, colours) ----------
 
         [HttpPost, ValidateAntiForgeryToken]
-        public async Task<IActionResult> SaveHeroSettings(string heroTextAnimation, string heroTransition, int heroSlideSeconds)
+        public async Task<IActionResult> SaveHeroSettings(string heroTextAnimation, string heroTransition, int heroSlideSeconds, int heroTextRepeatSeconds)
         {
             Auth.CheckPermission(PermissionCode.SiteContent, 'E');
             if (!SiteContentCatalog.IsValid(SiteContentCatalog.HeroTextAnimations, heroTextAnimation)
@@ -139,6 +143,7 @@ namespace Web_Backend.Areas.Admin.Controllers
             await rep.SetSetting("HeroTextAnimation", heroTextAnimation);
             await rep.SetSetting("HeroTransition", heroTransition);
             await rep.SetSetting("HeroSlideSeconds", Math.Clamp(heroSlideSeconds, 3, 20).ToString());
+            await rep.SetSetting("HeroTextRepeatSeconds", Math.Clamp(heroTextRepeatSeconds, 0, 60).ToString());
             TempData["SuccessMessage"] = "Banner settings saved.";
             return RedirectToAction("Index", new { tab = "hero" });
         }
@@ -159,6 +164,16 @@ namespace Web_Backend.Areas.Admin.Controllers
             await rep.SetSetting("AnnouncementTextColor", textColor.ToUpperInvariant());
             TempData["SuccessMessage"] = "Announcement bar settings saved.";
             return RedirectToAction("Index", new { tab = "announcement" });
+        }
+
+        [HttpPost, ValidateAntiForgeryToken]
+        public async Task<IActionResult> SaveFestivalSettings(string density)
+        {
+            Auth.CheckPermission(PermissionCode.SiteContent, 'E');
+            if (!SiteContentCatalog.IsValid(SiteContentCatalog.FestivalDensities, density)) return Fail("Please choose a valid option.", "festival");
+            await rep.SetSetting("FestivalDensity", density);
+            TempData["SuccessMessage"] = "Festival settings saved.";
+            return RedirectToAction("Index", new { tab = "festival" });
         }
 
         // ---------- Fixed home-page images ----------
@@ -230,6 +245,7 @@ namespace Web_Backend.Areas.Admin.Controllers
         {
             SiteContentCatalog.HeroWheel => "wheel",
             SiteContentCatalog.Announcement => "announcement",
+            SiteContentCatalog.Festival => "festival",
             _ => "hero",
         };
 
