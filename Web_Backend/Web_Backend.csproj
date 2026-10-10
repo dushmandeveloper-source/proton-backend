@@ -27,6 +27,15 @@
        freely and nothing needs patching afterwards. The local
        appsettings.Production.json (hosted-DB creds for migration tooling) and
        appsettings.Development.json must never reach the server either. -->
+  <!-- User uploads are runtime data, not part of the app: keep them out of
+       the build's static-asset manifest (a deleted upload otherwise breaks the
+       build) and out of every publish (local test files must never reach the
+       live server). Live uploads live outside the site (Uploads:Path). -->
+  <ItemGroup>
+    <Content Remove="wwwroot\Uploads\**" />
+    <None Remove="wwwroot\Uploads\**" />
+  </ItemGroup>
+
   <ItemGroup>
     <Content Update="appsettings.Production.json;appsettings.Development.json">
       <CopyToPublishDirectory>Never</CopyToPublishDirectory>

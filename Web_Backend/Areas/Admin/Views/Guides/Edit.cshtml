@@ -93,14 +93,21 @@
                 }
             </div>
             <div class="space-y-5">
-                <label class="block">
-                    <span class="text-sm font-medium text-slate-600 dark:text-slate-300">Web address</span>
-                    <div class="mt-1 flex items-center rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 overflow-hidden">
-                        <span class="px-3 text-xs text-slate-400 whitespace-nowrap">…/guides/</span>
-                        <input type="text" name="slug" id="slug" value="@Model.Slug" maxlength="120" class="flex-1 px-2 py-2 bg-white dark:bg-slate-800 text-sm border-0 outline-none" placeholder="made from the English title" />
+                <div>
+                    <span class="text-sm font-medium text-slate-600 dark:text-slate-300">Web address <span class="text-slate-400 font-normal">(automatic)</span></span>
+                    <div class="mt-1 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 px-3 py-2.5 text-sm break-all">
+                        <span class="text-slate-400">@(siteUrl.Replace("https://", "").Replace("http://", ""))/guides/</span><span id="slug-preview" class="font-medium text-slate-800 dark:text-slate-100"></span>
                     </div>
-                    <span class="text-xs text-slate-400">Lowercase words with dashes. Leave empty to create it from the English title.</span>
-                </label>
+                    <input type="hidden" name="slug" id="slug" value="@Model.Slug" />
+                    <p class="text-xs text-slate-500 dark:text-slate-400 mt-1.5" id="slug-help">
+                        @(isNew ? "Made automatically from the English title — you don't need to do anything." : "This is the guide's link. It stays the same so links people already shared (and Google) keep working.")
+                    </p>
+                    @if (!isNew)
+                    {
+                        <button type="button" id="slug-unlock" class="text-xs font-medium text-[#7c3aed] mt-1">Change it anyway</button>
+                    }
+                    <input type="text" id="slug-edit" maxlength="120" class="hidden @input mt-2" placeholder="e.g. study-in-china-from-sri-lanka" />
+                </div>
                 <label class="flex items-center gap-3 rounded-xl border border-slate-200 dark:border-slate-600 px-4 py-3 cursor-pointer">
                     <input type="checkbox" id="is-active" @(Model.IsActive == "A" ? "checked" : "") class="w-4 h-4 accent-[#7c3aed]" />
                     <input type="hidden" name="isActive" id="is-active-value" value="@Model.IsActive" />
@@ -205,6 +212,29 @@
         }
         showLang('en');
         refreshDots();
+
+        // ---------- web address (slug): automatic from the English title ----------
+        const slugify = t => (t || '').toLowerCase().normalize('NFKD').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 120);
+        const slugInput = document.getElementById('slug');
+        const slugPreview = document.getElementById('slug-preview');
+        const slugEdit = document.getElementById('slug-edit');
+        const enTitle = document.querySelector('.lang-panel[data-lang="en"] [data-field=title]');
+        let slugLocked = @(isNew ? "false" : "true");
+        function setSlug(v) {
+            slugInput.value = slugify(v);
+            slugPreview.textContent = slugInput.value || '(type the English title)';
+        }
+        setSlug(slugInput.value || enTitle.value);
+        enTitle.addEventListener('input', () => { if (!slugLocked) setSlug(enTitle.value); });
+        document.getElementById('slug-unlock')?.addEventListener('click', e => {
+            if (!confirm('Changing the web address breaks links people already shared and Google results until Google updates. Continue?')) return;
+            e.target.classList.add('hidden');
+            slugEdit.classList.remove('hidden');
+            slugEdit.value = slugInput.value;
+            slugEdit.focus();
+            document.getElementById('slug-help').textContent = 'Use English words separated by dashes. Spaces and capitals are fixed automatically.';
+        });
+        slugEdit.addEventListener('input', () => setSlug(slugEdit.value));
 
         // ---------- cover / status / submit ----------
         function previewCover(input) {
