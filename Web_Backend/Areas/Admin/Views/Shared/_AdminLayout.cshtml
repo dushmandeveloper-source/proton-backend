@@ -286,8 +286,8 @@ else
 
                 @if (canViewSiteContent)
                 {
-                    bool websiteOpen = activeController == "SiteContent" || activeController == "Guides" || activeController == "Testimonials";
-                    string activeTab = activeController == "Guides" ? "guides" : activeController == "Testimonials" ? "testimonials" : activeController == "SiteContent" ? (Context.Request.Query["tab"].ToString() is { Length: > 0 } t ? t : "hero") : "";
+                    bool websiteOpen = activeController == "SiteContent" || activeController == "Guides" || activeController == "Testimonials" || activeController == "Gallery";
+                    string activeTab = activeController == "Gallery" ? "gallery" : activeController == "Guides" ? "guides" : activeController == "Testimonials" ? "testimonials" : activeController == "SiteContent" ? (Context.Request.Query["tab"].ToString() is { Length: > 0 } t ? t : "hero") : "";
                     <div class="py-1 sidebar-group" data-open="@(websiteOpen ? "true" : "false")">
                         <button type="button" class="sidebar-group-toggle w-full flex items-center justify-between px-4 py-2 mt-1 group">
                             <span class="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Website</span>
@@ -302,10 +302,11 @@ else
                                 ("text", "Page Text", "type"),
                                 ("guides", "Study Guides", "book-open"),
                                 ("testimonials", "Testimonials", "message-square-quote"),
+                                ("gallery", "Gallery", "gallery-horizontal-end"),
                                 ("speed", "Image Speed", "gauge") })
                             {
                                 bool on = activeTab == tabKey;
-                                <a asp-area="Admin" asp-controller="@(tabKey == "guides" ? "Guides" : tabKey == "testimonials" ? "Testimonials" : "SiteContent")" asp-action="Index" asp-route-tab="@(tabKey is "guides" or "testimonials" ? null : tabKey)"
+                                <a asp-area="Admin" asp-controller="@(tabKey == "guides" ? "Guides" : tabKey == "testimonials" ? "Testimonials" : tabKey == "gallery" ? "Gallery" : "SiteContent")" asp-action="Index" asp-route-tab="@(tabKey is "guides" or "testimonials" or "gallery" ? null : tabKey)"
                                    class="w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-200 group @(on ? "bg-slate-50/80 dark:bg-slate-700/60 text-slate-900 dark:text-slate-100 font-semibold" : "text-slate-500 dark:text-slate-400 hover:bg-slate-50/50 dark:hover:bg-slate-700/40 hover:text-slate-900 dark:hover:text-slate-100")">
                                     <i data-lucide="@tabIcon" class="w-5 h-5 @(on ? "text-[#5a43f1] dark:text-[#a78bfa]" : "text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300")"></i>
                                     <span>@tabLabel</span>
