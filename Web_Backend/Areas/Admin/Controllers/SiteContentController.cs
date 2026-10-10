@@ -194,6 +194,24 @@ namespace Web_Backend.Areas.Admin.Controllers
             return RedirectToAction("Index", new { tab = "festival" });
         }
 
+        // ---------- Page text ----------
+
+        [HttpPost, ValidateAntiForgeryToken]
+        public async Task<IActionResult> SavePageText(Dictionary<string, string?> text)
+        {
+            Auth.CheckPermission(PermissionCode.SiteContent, 'E');
+            foreach (var slot in SiteContentCatalog.TextSlots)
+            {
+                text.TryGetValue(slot.Key, out var value);
+                value = (value ?? "").Trim();
+                if (value.Length > 500) value = value[..500];
+                // Saving the default (or blank) clears the override, so future default changes apply.
+                await rep.SetSetting(SiteContentCatalog.TextPrefix + slot.Key, value == slot.Default ? "" : value);
+            }
+            TempData["SuccessMessage"] = "Page text saved.";
+            return RedirectToAction("Index", new { tab = "text" });
+        }
+
         // ---------- Fixed home-page images ----------
 
         [HttpPost, ValidateAntiForgeryToken]

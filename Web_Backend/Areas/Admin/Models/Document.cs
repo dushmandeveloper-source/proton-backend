@@ -20,6 +20,9 @@ namespace Web_Backend.Areas.Admin.Models
         public string VisibilityScope { get; set; } = "All";
 
         public string IsActive { get; set; } = "A";
+
+        // 'Y' = agents may download the file; 'N' (default) = view-only preview.
+        public string AllowDownload { get; set; } = "N";
         public string CreatedByUserID { get; set; } = "";
         public DateTime CreatedDate { get; set; }
         public DateTime? UpdatedDate { get; set; }
@@ -59,6 +62,7 @@ namespace Web_Backend.Areas.Admin.Models
         public string Description { get; set; } = "";
         public string VisibilityScope { get; set; } = "All";
         public string IsActive { get; set; } = "A";
+        public bool AllowDownload { get; set; }
         public List<string> AgentUserIDs { get; set; } = new();
 
         // Display-only, carried through so Edit.cshtml can show the current
@@ -77,7 +81,10 @@ namespace Web_Backend.Areas.Admin.Models
         public string OriginalFileName { get; set; } = "";
         public string ContentType { get; set; } = "";
         public long FileSizeBytes { get; set; }
+        public string AllowDownload { get; set; } = "N";
         public DateTime CreatedDate { get; set; }
+
+        public bool CanDownload => AllowDownload == "Y";
 
         public string FileSizeLabel => FileSizeBytes < 1024 * 1024
             ? $"{FileSizeBytes / 1024.0:0.#} KB"

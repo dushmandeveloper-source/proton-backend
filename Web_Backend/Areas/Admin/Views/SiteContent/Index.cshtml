@@ -21,6 +21,7 @@
         ("announcement", "Announcement bar", "megaphone"),
         ("festival", "Festival effects", "party-popper"),
         ("images", "Home page images", "images"),
+        ("text", "Page text", "type"),
         ("speed", "Image speed", "gauge"),
     };
     var input = "w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm";
@@ -389,6 +390,43 @@
                 </ul>
             }
         </div>
+    }
+
+    @* ================= PAGE TEXT ================= *@
+    @if (tab == "text")
+    {
+        <form method="post" asp-action="SavePageText" class="@card p-6 mb-6">
+            @Html.AntiForgeryToken()
+            <h3 class="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-1">Page text</h3>
+            <p class="text-sm text-slate-500 dark:text-slate-400 mb-5">Change wording on the website (English). Clear a box to go back to the original wording.</p>
+            @foreach (var group in SiteContentCatalog.TextSlots.GroupBy(t => t.Section))
+            {
+                <h4 class="text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 mt-4 mb-3">@group.Key</h4>
+                <div class="grid grid-cols-1 gap-4">
+                    @foreach (var slot in group)
+                    {
+                        settings.TryGetValue(SiteContentCatalog.TextPrefix + slot.Key, out var current);
+                        var value = string.IsNullOrEmpty(current) ? slot.Default : current;
+                        <label class="block">
+                            <span class="text-sm font-medium text-slate-600 dark:text-slate-300">@slot.Label</span>
+                            @if (slot.Multiline)
+                            {
+                                <textarea name="text[@slot.Key]" rows="2" maxlength="500" class="@input mt-1">@value</textarea>
+                            }
+                            else
+                            {
+                                <input type="text" name="text[@slot.Key]" value="@value" maxlength="500" class="@input mt-1" />
+                            }
+                            <span class="text-xs text-slate-400">Original: @slot.Default</span>
+                        </label>
+                    }
+                </div>
+            }
+            @if (canEdit)
+            {
+                <button type="submit" class="@btnPrimary mt-6"><i data-lucide="save" class="w-4 h-4"></i> Save text</button>
+            }
+        </form>
     }
 
     @* ================= HOME PAGE IMAGES ================= *@

@@ -6,7 +6,7 @@
 <div class="max-w-4xl mx-auto page-enter">
     <div class="mb-6">
         <h2 class="text-3xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">Documents</h2>
-        <p class="text-slate-500 dark:text-slate-400 mt-2">Files shared with you by Proton. You can view these here, but they can't be downloaded.</p>
+        <p class="text-slate-500 dark:text-slate-400 mt-2">Files shared with you by Proton. Open any file to view it; files marked Downloadable can also be downloaded.</p>
     </div>
 
     <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
@@ -29,6 +29,10 @@
                             <p class="text-sm font-medium text-slate-800 dark:text-slate-100 truncate">@d.Title</p>
                             <p class="text-xs text-slate-500 dark:text-slate-400 truncate">@(string.IsNullOrEmpty(d.Description) ? d.OriginalFileName : d.Description)</p>
                         </div>
+                        @if (d.CanDownload)
+                        {
+                            <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 flex-shrink-0">Downloadable</span>
+                        }
                         <span class="text-xs text-slate-400 dark:text-slate-500 flex-shrink-0">@d.FileSizeLabel</span>
                         <i data-lucide="eye" class="w-4 h-4 text-slate-400 dark:text-slate-500 flex-shrink-0"></i>
                     </a>

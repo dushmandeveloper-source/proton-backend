@@ -33,6 +33,8 @@ namespace Web_Backend.Areas.Admin.Models
     public record SiteContentListModel(string Placement, string Heading, string Help, List<SiteBanner> Items,
                                        string SiteUrl, bool CanAdd, bool CanEdit, bool CanDelete);
 
+    public record TextSlot(string Key, string Label, string Section, string Default, bool Multiline = false);
+
     public record HomeImageSlot(string Key, string Label, string Section, string DefaultUrl);
 
     // Everything the admin can choose, plus code defaults (a missing
@@ -49,6 +51,16 @@ namespace Web_Backend.Areas.Admin.Models
         public static readonly string[] Placements = { HeroSlide, HeroWheel, Announcement, Festival };
 
         public const string HomeImagePrefix = "HomeImage:";
+        public const string TextPrefix = "Text:";
+
+        // Website wording an admin can change (English). Empty = the Default below.
+        public static readonly TextSlot[] TextSlots =
+        {
+            new("edu-unis-tag",     "Section label",   "Education page — universities section", "Where you can study"),
+            new("edu-unis-heading", "Heading",         "Education page — universities section", "Universities you can study at"),
+            new("edu-unis-intro",   "Intro line",      "Education page — universities section", "Recognised institutions across China — tap any campus for programs, intakes and costs.", true),
+            new("edu-unis-stat",    "Stat label (under 120+)", "Education page — top stats", "Universities available"),
+        };
 
         public static readonly SiteOption[] HeroTextAnimations =
         {

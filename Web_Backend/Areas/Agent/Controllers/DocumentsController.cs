@@ -76,8 +76,25 @@ namespace Web_Backend.Areas.AgentPortal.Controllers
             return File(stream, string.IsNullOrEmpty(doc.ContentType) ? "application/octet-stream" : doc.ContentType);
         }
 
+        // Download as an attachment — only for documents the admin marked
+        // "Allow download". Checked here on the server, so a view-only file
+        // can't be downloaded by typing this URL.
+        [HttpGet]
+        public async Task<IActionResult> Download(string id)
+        {
+            var doc = await rep.GetForAgent(id, Auth.GetUserId());
+            if (doc == null || doc.AllowDownload != "Y") return NotFound();
+
+            var stream = await storage.OpenReadAsync(doc.StoredFileName);
+            if (stream == null) return NotFound();
+
+            var type = string.IsNullOrEmpty(doc.ContentType) ? "application/octet-stream" : doc.ContentType;
+            return File(stream, type, doc.OriginalFileName);
+        }
+
         private static AgentDocumentView ToAgentView(Document d) => new()
         {
+            AllowDownload = d.AllowDownload,
             DocumentID = d.DocumentID,
             Title = d.Title,
             Description = d.Description,
