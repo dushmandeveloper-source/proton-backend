@@ -13,6 +13,7 @@ namespace Web_Backend.Areas.Admin.Data
         Task Save(Guide g);
         Task Delete(int id);
         Task Move(int id, int direction);
+        Task Reorder(IEnumerable<int> ids);
     }
 
     public class GuideData : IGuideData
@@ -42,6 +43,9 @@ namespace Web_Backend.Areas.Admin.Data
 
         public Task Delete(int id) =>
             db.ExecuteNonQuery("syst.Guide_Delete", new { APIKey = AppData.GetAPIKey(), GuideID = id });
+
+        public Task Reorder(IEnumerable<int> ids) =>
+            db.ExecuteNonQuery("syst.Guide_Reorder", new { APIKey = AppData.GetAPIKey(), IdsJSON = System.Text.Json.JsonSerializer.Serialize(ids) });
 
         public Task Move(int id, int direction) =>
             db.ExecuteNonQuery("syst.Guide_Move", new { APIKey = AppData.GetAPIKey(), GuideID = id, Direction = direction });

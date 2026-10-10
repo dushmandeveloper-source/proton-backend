@@ -23,6 +23,7 @@ namespace Web_Backend.Areas.Admin.Data
         Task<Testimonial?> Get(int id);
         Task Save(Testimonial t);
         Task Delete(int id);
+        Task Reorder(IEnumerable<int> ids);
     }
 
     public class TestimonialData : ITestimonialData
@@ -48,6 +49,9 @@ namespace Web_Backend.Areas.Admin.Data
                 Rating = (byte)Math.Clamp((int)t.Rating, 1, 5),
                 IsActive = t.IsActive == "I" ? "I" : "A",
             });
+
+        public Task Reorder(IEnumerable<int> ids) =>
+            db.ExecuteNonQuery("syst.Testimonial_Reorder", new { APIKey = AppData.GetAPIKey(), IdsJSON = System.Text.Json.JsonSerializer.Serialize(ids) });
 
         public Task Delete(int id) =>
             db.ExecuteNonQuery("syst.Testimonial_Delete", new { APIKey = AppData.GetAPIKey(), TestimonialID = id });
