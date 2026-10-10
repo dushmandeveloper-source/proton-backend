@@ -148,6 +148,7 @@ builder.Services.AddTransient<IUserPreferenceData, UserPreferenceData>();
 builder.Services.AddTransient<ISiteContentData, SiteContentData>();
 builder.Services.AddTransient<IGuideData, GuideData>();
 builder.Services.AddTransient<ITestimonialData, TestimonialData>();
+builder.Services.AddTransient<IGalleryData, GalleryData>();
 builder.Services.AddTransient<MessagingService>();
 builder.Services.AddSignalR();
 

@@ -13,7 +13,7 @@ namespace Web_Backend.Classes
     // so an admin's change shows on the public site immediately, not after TTL.
     public class PublicApiCache
     {
-        private static readonly string[] CachedPrefixes = { "/api/universities", "/api/courses", "/api/site", "/api/guides", "/api/testimonials" };
+        private static readonly string[] CachedPrefixes = { "/api/universities", "/api/courses", "/api/site", "/api/guides", "/api/testimonials", "/api/gallery" };
         private static readonly TimeSpan Ttl = TimeSpan.FromMinutes(2);
 
         private readonly IMemoryCache cache;
