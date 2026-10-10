@@ -133,7 +133,7 @@ namespace Web_Backend.Areas.Admin.Controllers
         // ---------- Settings (animations, speeds, colours) ----------
 
         [HttpPost, ValidateAntiForgeryToken]
-        public async Task<IActionResult> SaveHeroSettings(string heroTextAnimation, string heroTransition, int heroSlideSeconds, int heroTextRepeatSeconds)
+        public async Task<IActionResult> SaveHeroSettings(string heroTextAnimation, string heroTransition, int heroSlideSeconds, int heroTextRepeatSeconds, string heroReveal)
         {
             Auth.CheckPermission(PermissionCode.SiteContent, 'E');
             if (!SiteContentCatalog.IsValid(SiteContentCatalog.HeroTextAnimations, heroTextAnimation)
@@ -144,6 +144,8 @@ namespace Web_Backend.Areas.Admin.Controllers
             await rep.SetSetting("HeroTransition", heroTransition);
             await rep.SetSetting("HeroSlideSeconds", Math.Clamp(heroSlideSeconds, 3, 20).ToString());
             await rep.SetSetting("HeroTextRepeatSeconds", Math.Clamp(heroTextRepeatSeconds, 0, 60).ToString());
+            if (SiteContentCatalog.IsValid(SiteContentCatalog.HeroRevealOptions, heroReveal))
+                await rep.SetSetting("HeroReveal", heroReveal);
             TempData["SuccessMessage"] = "Banner settings saved.";
             return RedirectToAction("Index", new { tab = "hero" });
         }
@@ -197,19 +199,26 @@ namespace Web_Backend.Areas.Admin.Controllers
         // ---------- Page text ----------
 
         [HttpPost, ValidateAntiForgeryToken]
-        public async Task<IActionResult> SavePageText(Dictionary<string, string?> text)
+        public async Task<IActionResult> SavePageText(Dictionary<string, string?> text, string returnTab = "text")
         {
             Auth.CheckPermission(PermissionCode.SiteContent, 'E');
-            foreach (var slot in SiteContentCatalog.TextSlots)
+            if (returnTab != "hero") returnTab = "text";
+            // Only the boxes on the submitted form are touched (the banner panel
+            // and the Page Text tab post different groups).
+            foreach (var slot in SiteContentCatalog.TextSlots.Where(s => text.ContainsKey(s.Key)))
             {
-                text.TryGetValue(slot.Key, out var value);
-                value = (value ?? "").Trim();
+                var value = (text[slot.Key] ?? "").Trim();
                 if (value.Length > 500) value = value[..500];
+                if (slot.Kind == "link" && !IsSafeLink(value))
+                    return Fail($"{slot.Label} must start with / (a page on this site, e.g. /services/education or /#services) or https://.", returnTab);
+                if (slot.Kind == "color" && value != "" && !IsHexColor(value))
+                    return Fail($"{slot.Label} must be a colour like #70E4FD.", returnTab);
+                if (slot.Kind == "color") value = value.ToUpperInvariant();
                 // Saving the default (or blank) clears the override, so future default changes apply.
                 await rep.SetSetting(SiteContentCatalog.TextPrefix + slot.Key, value == slot.Default ? "" : value);
             }
-            TempData["SuccessMessage"] = "Page text saved.";
-            return RedirectToAction("Index", new { tab = "text" });
+            TempData["SuccessMessage"] = "Saved.";
+            return RedirectToAction("Index", new { tab = returnTab });
         }
 
         // ---------- Fixed home-page images ----------
