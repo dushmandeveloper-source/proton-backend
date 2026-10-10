@@ -19,6 +19,19 @@
     <ProjectReference Include="DBAccess/DBAccess.csproj" />
   </ItemGroup>
 
+  <!-- Never publish environment-specific settings. The live server keeps its
+       own appsettings.Production.json (real DB password, API key, CORS
+       origins, upload folders) which ASP.NET loads on top of the blank
+       appsettings.json template — so a deploy can overwrite appsettings.json
+       freely and nothing needs patching afterwards. The local
+       appsettings.Production.json (hosted-DB creds for migration tooling) and
+       appsettings.Development.json must never reach the server either. -->
+  <ItemGroup>
+    <Content Update="appsettings.Production.json;appsettings.Development.json">
+      <CopyToPublishDirectory>Never</CopyToPublishDirectory>
+    </Content>
+  </ItemGroup>
+
   <!-- DBAccess now lives inside this project's own folder (moved here so a
        deploy host whose build root is pinned to Web_Backend/ can still see
        it — see ENVIRONMENTS.md). The SDK's default **/*.cs glob would
