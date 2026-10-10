@@ -44,7 +44,9 @@ namespace Web_Backend.Areas.Admin.Models
         public const string HeroSlide = "HeroSlide";
         public const string HeroWheel = "HeroWheel";
         public const string Announcement = "Announcement";
-        public static readonly string[] Placements = { HeroSlide, HeroWheel, Announcement };
+        // Title holds the theme key (FestivalThemes) — runs while active and inside StartsAt/EndsAt.
+        public const string Festival = "Festival";
+        public static readonly string[] Placements = { HeroSlide, HeroWheel, Announcement, Festival };
 
         public const string HomeImagePrefix = "HomeImage:";
 
@@ -79,6 +81,27 @@ namespace Web_Backend.Areas.Admin.Models
             new("Static",  "Static",           "First message only, no motion"),
         };
 
+        // Keys must match frontend2/src/lib/festivalFx.js THEMES (and wwwroot/js/festival-fx.js).
+        public static readonly SiteOption[] FestivalThemes =
+        {
+            new("Christmas",            "Christmas",                  "Falling snowflakes"),
+            new("NewYear",              "New Year",                   "Fireworks bursting over the page"),
+            new("ChineseNewYear",       "Chinese New Year",           "Red lanterns, red envelopes and sparkles"),
+            new("SinhalaTamilNewYear",  "Sinhala & Tamil New Year",   "Falling flowers and leaves"),
+            new("Vesak",                "Vesak",                      "Lanterns and lotus flowers rising"),
+            new("Deepavali",            "Deepavali",                  "Oil lamps and sparkles rising"),
+            new("MidAutumn",            "Mid-Autumn Festival",        "Lanterns, mooncakes and full moons"),
+            new("Valentine",            "Valentine's Day",            "Floating hearts"),
+            new("Eid",                  "Eid",                        "Crescent moons and stars"),
+            new("SriLankaIndependence", "Sri Lanka Independence Day", "Confetti in the flag colours"),
+            new("ChinaNationalDay",     "China National Day",         "Red and gold confetti"),
+        };
+
+        public static readonly SiteOption[] FestivalDensities =
+        {
+            new("0.6", "Light"), new("1", "Normal"), new("1.6", "Heavy"),
+        };
+
         public static readonly SiteOption[] Speeds =
         {
             new("Slow", "Slow"), new("Normal", "Normal"), new("Fast", "Fast"),
@@ -90,11 +113,13 @@ namespace Web_Backend.Areas.Admin.Models
             ["HeroTextAnimation"] = "RiseTilt",
             ["HeroTransition"] = "KenBurns",
             ["HeroSlideSeconds"] = "6",
+            ["HeroTextRepeatSeconds"] = "0",
             ["AnnouncementEnabled"] = "1",
             ["AnnouncementAnimation"] = "Scroll",
             ["AnnouncementSpeed"] = "Normal",
             ["AnnouncementBgColor"] = "#0F172A",
             ["AnnouncementTextColor"] = "#FFFFFF",
+            ["FestivalDensity"] = "1",
         };
 
         // Fixed images on the home page. DefaultUrl is the file shipped in
