@@ -1,0 +1,86 @@
+@model List<Guide>
+@{
+    ViewData["Title"] = "Study Guides";
+    bool canAdd = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.SiteContent, 'A');
+    bool canEdit = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.SiteContent, 'E');
+    bool canDelete = Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.SiteContent, 'D');
+    string siteUrl = ViewBag.PublicSiteUrl as string ?? "";
+    string Img(string url) => url.StartsWith("/Uploads/", StringComparison.OrdinalIgnoreCase) ? url : siteUrl + url;
+    var iconBtn = "p-2 rounded-lg text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-30 disabled:pointer-events-none";
+}
+
+<div class="max-w-5xl mx-auto page-enter">
+    <div class="flex flex-col md:flex-row md:items-end justify-between mb-6 gap-4">
+        <div>
+            <h2 class="text-3xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">Study Guides</h2>
+            <p class="text-slate-500 dark:text-slate-400 mt-2">Articles on the website's Study Guides page — great for Google (e.g. "study in China from Sri Lanka"). Write each one like a blog post, in as many languages as you like.</p>
+        </div>
+        <div class="flex gap-2 shrink-0">
+            <a href="@siteUrl/guides" target="_blank" rel="noopener" class="px-4 py-2 rounded-xl font-medium bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-sm inline-flex items-center gap-2"><i data-lucide="external-link" class="w-4 h-4"></i> View on website</a>
+            @if (canAdd)
+            {
+                <a asp-action="Edit" class="px-4 py-2 rounded-xl font-medium bg-[#7c3aed] text-white hover:bg-[#6d28d9] shadow-sm text-sm inline-flex items-center gap-2"><i data-lucide="plus" class="w-4 h-4"></i> Write a new guide</a>
+            }
+        </div>
+    </div>
+
+    <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
+        @if (!Model.Any())
+        {
+            <div class="p-12 text-center text-sm text-slate-400">No guides yet. Click "Write a new guide" to add the first one.</div>
+        }
+        else
+        {
+            <ul class="divide-y divide-slate-100 dark:divide-slate-800">
+                @for (int i = 0; i < Model.Count; i++)
+                {
+                    var g = Model[i];
+                    var content = g.Content;
+                    var hidden = g.IsActive != "A";
+                    <li class="flex items-center gap-4 p-4 @(hidden ? "opacity-60" : "")">
+                        @if (!string.IsNullOrEmpty(g.CoverImageURL))
+                        {
+                            <img src="@Img(g.CoverImageURL)" alt="" class="w-24 aspect-video object-cover rounded-lg border border-slate-200 dark:border-slate-700 shrink-0" />
+                        }
+                        else
+                        {
+                            <div class="w-24 aspect-video rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0"><i data-lucide="book-open" class="w-5 h-5 text-slate-400"></i></div>
+                        }
+                        <div class="flex-1 min-w-0">
+                            <a asp-action="Edit" asp-route-id="@g.GuideID" class="block text-sm font-semibold text-slate-800 dark:text-slate-100 truncate hover:text-[#7c3aed]">@g.En.Title</a>
+                            <p class="text-xs text-slate-500 dark:text-slate-400 truncate">/guides/@g.Slug</p>
+                            <div class="flex flex-wrap gap-1.5 mt-1.5">
+                                @if (hidden)
+                                {
+                                    <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300">Hidden</span>
+                                }
+                                @foreach (var (code, label) in GuideLanguages.All)
+                                {
+                                    var has = content.TryGetValue(code, out var t) && !t.IsEmpty;
+                                    <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold @(has ? "bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300" : "bg-slate-100 dark:bg-slate-800 text-slate-400 line-through")" title="@(has ? "Translated" : "Not translated yet — shows English")">@code.ToUpperInvariant()</span>
+                                }
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-1 shrink-0">
+                            @if (canEdit)
+                            {
+                                <form method="post" asp-action="Move">@Html.AntiForgeryToken()<input type="hidden" name="id" value="@g.GuideID" /><input type="hidden" name="direction" value="-1" />
+                                    <button type="submit" class="@iconBtn" title="Move up" disabled="@(i == 0)"><i data-lucide="arrow-up" class="w-4 h-4"></i></button></form>
+                                <form method="post" asp-action="Move">@Html.AntiForgeryToken()<input type="hidden" name="id" value="@g.GuideID" /><input type="hidden" name="direction" value="1" />
+                                    <button type="submit" class="@iconBtn" title="Move down" disabled="@(i == Model.Count - 1)"><i data-lucide="arrow-down" class="w-4 h-4"></i></button></form>
+                                <form method="post" asp-action="Toggle">@Html.AntiForgeryToken()<input type="hidden" name="id" value="@g.GuideID" />
+                                    <button type="submit" class="@iconBtn" title="@(hidden ? "Show on website" : "Hide from website")"><i data-lucide="@(hidden ? "eye-off" : "eye")" class="w-4 h-4"></i></button></form>
+                                <a asp-action="Edit" asp-route-id="@g.GuideID" class="@iconBtn" title="Edit"><i data-lucide="pencil" class="w-4 h-4"></i></a>
+                            }
+                            @if (canDelete)
+                            {
+                                <form method="post" asp-action="Delete" onsubmit="return confirm('Delete this guide? This cannot be undone.')">@Html.AntiForgeryToken()<input type="hidden" name="id" value="@g.GuideID" />
+                                    <button type="submit" class="@iconBtn hover:text-red-600" title="Delete"><i data-lucide="trash-2" class="w-4 h-4"></i></button></form>
+                            }
+                        </div>
+                    </li>
+                }
+            </ul>
+        }
+    </div>
+</div>
