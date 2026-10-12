@@ -66,7 +66,10 @@ namespace Web_Backend.Areas.Admin.Data
                 s.EmergencyRelationship,
                 s.CreatedByUserID,
                 s.RegistrationSource,
-                s.IsActive
+                s.IsActive,
+                s.ProgrammeLevelID,
+                s.CSCAPurposeID,
+                s.SetRegistrationOptions
             });
 
         public Task<string> UpdateOwnProfile(string studentId, string userId, StudentProfileUpdateRequest request) =>

@@ -41,12 +41,15 @@ namespace Web_Backend.Areas.AgentPortal.Controllers
         private readonly IEmailSender emailSender;
         private readonly IConfiguration configuration;
         private readonly IAgentData agentRep;
+        private readonly IRegistrationOptionData optionRep;
 
         public StudentController(
             IStudentData rep, IUserData userRep, IUserAuthData authRep, IUserTypeData userTypeRep, IImageUploader uploader,
             ICourseRegistrationData registrationRep, ICourseData courseRep, ICourseScheduleData scheduleRep,
-            IExamAttemptData examAttemptRep, IEmailSender emailSender, IConfiguration configuration, IAgentData agentRep)
+            IExamAttemptData examAttemptRep, IEmailSender emailSender, IConfiguration configuration, IAgentData agentRep,
+            IRegistrationOptionData optionRep)
         {
+            this.optionRep = optionRep;
             this.rep = rep;
             this.userRep = userRep;
             this.authRep = authRep;
@@ -86,6 +89,11 @@ namespace Web_Backend.Areas.AgentPortal.Controllers
 
             var schedules = await scheduleRep.GetList(new CourseScheduleSearchView { IsActive = "A" });
             ViewBag.AvailableSchedules = schedules;
+
+            // Registration options (all rows, so the form can still show a
+            // student's current value after the admin deactivates it).
+            ViewBag.ProgrammeLevels = await optionRep.List(RegistrationOptionType.ProgrammeLevel);
+            ViewBag.CSCAPurposes = await optionRep.List(RegistrationOptionType.CSCAPurpose);
         }
 
         [HttpGet]
@@ -306,6 +314,27 @@ namespace Web_Backend.Areas.AgentPortal.Controllers
                 }
             }
 
+            var optionError = await optionRep.Validate(form.ProgrammeLevelID, form.CSCAPurposeID, requireProgrammeLevel: false, requireCscaPurpose: false,
+                storedStudent?.ProgrammeLevelID, storedStudent?.CSCAPurposeID);
+            if (optionError != null)
+                ModelState.AddModelError(optionError.Contains("CSCA") ? nameof(form.CSCAPurposeID) : nameof(form.ProgrammeLevelID), optionError);
+
+            // RequiresCSCA (0107): this form registers courses only for a new
+            // student, so enforce "at least one CSCA course" there; edits just
+            // show the hint next to the level select.
+            if (isNew && optionError == null && form.ProgrammeLevelID != null)
+            {
+                var hasCsca = false;
+                foreach (var cid in (form.SelectedCourseIDs ?? Enumerable.Empty<string>()).Where(c => !string.IsNullOrWhiteSpace(c)).Distinct())
+                {
+                    var c = await courseRep.Get(cid);
+                    if (string.Equals(c?.CourseType, "CSCA", StringComparison.OrdinalIgnoreCase)) { hasCsca = true; break; }
+                }
+                var cscaError = await optionRep.CheckRequiresCsca(form.ProgrammeLevelID, hasCsca);
+                if (cscaError != null)
+                    ModelState.AddModelError(nameof(form.ProgrammeLevelID), cscaError);
+            }
+
             if (!ModelState.IsValid)
             {
                 await PopulateCourseList();
@@ -386,6 +415,9 @@ namespace Web_Backend.Areas.AgentPortal.Controllers
                     EmergencyContactName = form.EmergencyContactName,
                     EmergencyContactPhone = form.EmergencyContactPhone,
                     EmergencyRelationship = form.EmergencyRelationship,
+                    ProgrammeLevelID = form.ProgrammeLevelID,
+                    CSCAPurposeID = form.CSCAPurposeID,
+                    SetRegistrationOptions = true, // optional fields on this form; empty = clear
                     CreatedByUserID = isNew ? agentUserId : storedStudent!.CreatedByUserID,
                     RegistrationSource = isNew ? "Agent" : storedStudent!.RegistrationSource,
                     IsActive = form.IsActive
@@ -526,6 +558,8 @@ namespace Web_Backend.Areas.AgentPortal.Controllers
             EmergencyContactName = s.EmergencyContactName,
             EmergencyContactPhone = s.EmergencyContactPhone,
             EmergencyRelationship = s.EmergencyRelationship,
+            ProgrammeLevelID = s.ProgrammeLevelID,
+            CSCAPurposeID = s.CSCAPurposeID,
             IsActive = s.IsActive
         };
 

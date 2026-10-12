@@ -22,14 +22,17 @@ namespace Web_Backend.Controllers.Api
         private readonly IUserAuthData authRep;
         private readonly IUserTypeData userTypeRep;
         private readonly IImageUploader uploader;
+        private readonly IRegistrationOptionData optionRep;
 
         public StudentsApiController(
             IStudentData studentRep,
             IUserData userRep,
             IUserAuthData authRep,
             IUserTypeData userTypeRep,
-            IImageUploader uploader)
+            IImageUploader uploader,
+            IRegistrationOptionData optionRep)
         {
+            this.optionRep = optionRep;
             this.studentRep = studentRep;
             this.userRep = userRep;
             this.authRep = authRep;
@@ -48,6 +51,9 @@ namespace Web_Backend.Controllers.Api
                 return BadRequest(new { message = "Phone number is required." });
             if (string.IsNullOrWhiteSpace(request.Password) || request.Password.Length < 8)
                 return BadRequest(new { message = "Password must be at least 8 characters." });
+            var optionError = await optionRep.Validate(request.ProgrammeLevelID, request.CSCAPurposeID, requireProgrammeLevel: false, requireCscaPurpose: false);
+            if (optionError != null)
+                return BadRequest(new { message = optionError });
 
             var existing = await userRep.GetByEmail(request.Email);
             if (existing != null)
@@ -99,6 +105,8 @@ namespace Web_Backend.Controllers.Api
                 EmergencyContactName = request.EmergencyContactName,
                 EmergencyContactPhone = request.EmergencyContactPhone,
                 EmergencyRelationship = request.EmergencyRelationship,
+                ProgrammeLevelID = request.ProgrammeLevelID,
+                CSCAPurposeID = request.CSCAPurposeID,
                 CreatedByUserID = "",
                 RegistrationSource = "Self",
                 IsActive = "A"

@@ -158,6 +158,11 @@ namespace Web_Backend.Areas.Admin.Models
     {
         public string CourseID { get; set; } = "";
 
+        // Registration options (0106) -- validated against ACTIVE rows and stored
+        // on the student via mst.Student_SetRegistrationOptions.
+        public int? ProgrammeLevelID { get; set; }
+        public int? CSCAPurposeID { get; set; }
+
         // Optional batch selection — only meaningful when the course has
         // schedules defined; left blank otherwise.
         public string ScheduleID { get; set; } = "";

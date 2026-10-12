@@ -39,6 +39,7 @@ namespace Web_Backend.Controllers.Api
         private readonly IImageUploader uploader;
         private readonly IEmailSender emailSender;
         private readonly IConfiguration configuration;
+        private readonly IRegistrationOptionData optionRep;
 
         public EnrollmentsApiController(
             ICourseRegistrationData registrationRep,
@@ -49,8 +50,10 @@ namespace Web_Backend.Controllers.Api
             ICourseData courseRep,
             IImageUploader uploader,
             IEmailSender emailSender,
-            IConfiguration configuration)
+            IConfiguration configuration,
+            IRegistrationOptionData optionRep)
         {
+            this.optionRep = optionRep;
             this.registrationRep = registrationRep;
             this.studentRep = studentRep;
             this.userRep = userRep;
@@ -77,6 +80,18 @@ namespace Web_Backend.Controllers.Api
                 return BadRequest(new { message = "Gender is required." });
             if (string.IsNullOrWhiteSpace(request.Nationality))
                 return BadRequest(new { message = "Nationality is required." });
+            // Registration options: programme level is always required (while
+            // the admin has at least one active level) and stored even when the
+            // visitor skips courses; CSCA purpose only when a selected course is
+            // a CSCA course (checked from the DB, never the client) and dropped
+            // otherwise. A level flagged RequiresCSCA (0107) can't be submitted
+            // without a CSCA course -- so it also blocks skipping courses.
+            var hasCsca = await RegistrationOptionsApply(request.CourseIDs);
+            if (!hasCsca) request.CSCAPurposeID = null;
+            var optionError = await optionRep.Validate(request.ProgrammeLevelID, request.CSCAPurposeID, requireProgrammeLevel: true, requireCscaPurpose: hasCsca)
+                ?? await optionRep.CheckRequiresCsca(request.ProgrammeLevelID, hasCsca);
+            if (optionError != null)
+                return BadRequest(new { message = optionError });
 
             var existing = await userRep.GetByEmail(request.Email);
             if (existing != null)
@@ -144,6 +159,8 @@ namespace Web_Backend.Controllers.Api
                     EmergencyContactName = request.EmergencyContactName,
                     EmergencyContactPhone = request.EmergencyContactPhone,
                     EmergencyRelationship = request.EmergencyRelationship,
+                    ProgrammeLevelID = request.ProgrammeLevelID,
+                    CSCAPurposeID = request.CSCAPurposeID,
                     CreatedByUserID = "",
                     RegistrationSource = "Self",
                     IsActive = "A"
@@ -281,6 +298,58 @@ namespace Web_Backend.Controllers.Api
             });
         }
 
+        // True when any of the given courses is a CSCA course (CourseType from
+        // the DB). Drives the CSCA purpose question and the RequiresCSCA rule.
+        private async Task<bool> RegistrationOptionsApply(IEnumerable<string> courseIds)
+        {
+            foreach (var id in courseIds.Where(id => !string.IsNullOrWhiteSpace(id)).Distinct())
+            {
+                var c = await courseRep.Get(id);
+                if (IsCsca(c?.CourseType)) return true;
+            }
+            return false;
+        }
+
+        private static bool IsCsca(string? courseType) => string.Equals(courseType, "CSCA", StringComparison.OrdinalIgnoreCase);
+
+        // Logged-in student already holds a CSCA registration (satisfies RequiresCSCA
+        // when they later add a non-CSCA course one call at a time).
+        private async Task<bool> HasCscaRegistration(string studentId) =>
+            (await registrationRep.GetByStudent(studentId)).Any(r => IsCsca(r.CourseType));
+
+        // The logged-in student's stored registration options, so /register can
+        // pre-fill them.
+        [HttpGet("my-options")]
+        public async Task<IActionResult> MyOptions()
+        {
+            if (Auth.GetUser() == null)
+                return Unauthorized();
+            var student = await studentRep.GetByUserID(Auth.GetUserId());
+            if (student == null)
+                return Ok(new { programmeLevelId = (int?)null, cscaPurposeId = (int?)null });
+            return Ok(new { programmeLevelId = student.ProgrammeLevelID, cscaPurposeId = student.CSCAPurposeID });
+        }
+
+        // Logged-in student skipping course registration on /register: still
+        // saves the chosen programme level. Rejected for a RequiresCSCA level
+        // unless the student already has a CSCA registration.
+        [HttpPost("my-options")]
+        public async Task<IActionResult> SaveMyOptions([FromBody] EnrollmentRegisterRequest request)
+        {
+            if (Auth.GetUser() == null)
+                return Unauthorized();
+            var student = await studentRep.GetByUserID(Auth.GetUserId());
+            if (student == null)
+                return BadRequest(new { message = "Complete your student profile first." });
+            var levelId = request.ProgrammeLevelID ?? student.ProgrammeLevelID;
+            var optionError = await optionRep.Validate(levelId, null, requireProgrammeLevel: true, requireCscaPurpose: false, student.ProgrammeLevelID)
+                ?? await optionRep.CheckRequiresCsca(levelId, await HasCscaRegistration(student.StudentID));
+            if (optionError != null)
+                return BadRequest(new { message = optionError });
+            await optionRep.SetOnStudent(student.StudentID, request.ProgrammeLevelID, null);
+            return Ok(new { programmeLevelId = levelId });
+        }
+
         [HttpPost("register")]
         public async Task<IActionResult> Register([FromBody] EnrollmentRegisterRequest request)
         {
@@ -293,8 +362,27 @@ namespace Web_Backend.Controllers.Api
 
             var course = await courseRep.Get(request.CourseID);
 
+            // Level: the one sent, else the student's stored level; required while
+            // active levels exist. RequiresCSCA is satisfied by this course being
+            // CSCA or an existing CSCA registration (the frontend submits CSCA
+            // courses first when registering several).
+            var isCsca = IsCsca(course?.CourseType);
+            var levelId = request.ProgrammeLevelID;
+            var effectiveLevelId = levelId ?? student.ProgrammeLevelID;
+            var purposeId = isCsca ? request.CSCAPurposeID : null;
+            var optionError = await optionRep.Validate(effectiveLevelId, purposeId ?? (isCsca ? student.CSCAPurposeID : null), requireProgrammeLevel: true, requireCscaPurpose: isCsca,
+                student.ProgrammeLevelID, student.CSCAPurposeID);
+            if (optionError == null && !isCsca)
+                optionError = await optionRep.CheckRequiresCsca(effectiveLevelId, await HasCscaRegistration(student.StudentID));
+            if (optionError != null)
+                return BadRequest(new { message = optionError });
+
             try
             {
+                // Saved before the registration so a retry after a "already
+                // registered" conflict still records the latest answers.
+                await optionRep.SetOnStudent(student.StudentID, levelId, purposeId);
+
                 // Unlike register-new (which may enroll several courses in one
                 // submission and so restricts the payment declaration to the
                 // first), this is always exactly one course per call — so any

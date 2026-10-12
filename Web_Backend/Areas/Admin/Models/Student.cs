@@ -56,6 +56,16 @@ namespace Web_Backend.Areas.Admin.Models
         public string CreatedByUserID { get; set; } = "";
         public string RegistrationSource { get; set; } = "Self"; // "Self" | "Admin"
 
+        // Registration options (0106_registration_options.sql): FKs into the
+        // admin-managed mst.ProgrammeLevel / mst.CSCAPurpose lookup lists.
+        public int? ProgrammeLevelID { get; set; }
+        public int? CSCAPurposeID { get; set; }
+        public string? ProgrammeLevelName { get; set; } // Student_Get only
+        public string? CSCAPurposeName { get; set; }    // Student_Get only
+        // Write-side flag for mst.Student_AddEdit: on UPDATE the two IDs above are
+        // only written when true (admin/agent forms). Other callers keep the stored values.
+        public bool SetRegistrationOptions { get; set; }
+
         public string IsActive { get; set; } = "A";
         public DateTime CreatedDate { get; set; }
         public DateTime? UpdatedDate { get; set; }
@@ -163,6 +173,11 @@ namespace Web_Backend.Areas.Admin.Models
         public string EmergencyContactName { get; set; } = "";
         public string EmergencyContactPhone { get; set; } = "";
         public string EmergencyRelationship { get; set; } = "";
+
+        // Required whenever the list has at least one active option — checked
+        // server-side by IRegistrationOptionData.Validate, not by [Required].
+        public int? ProgrammeLevelID { get; set; }
+        public int? CSCAPurposeID { get; set; }
 
         public string IsActive { get; set; } = "A";
 
@@ -279,6 +294,11 @@ namespace Web_Backend.Areas.Admin.Models
         public string EmergencyContactName { get; set; } = "";
         public string EmergencyContactPhone { get; set; } = "";
         public string EmergencyRelationship { get; set; } = "";
+
+        // Registration options — required when the list has active rows;
+        // validated server-side against ACTIVE rows (IRegistrationOptionData.Validate).
+        public int? ProgrammeLevelID { get; set; }
+        public int? CSCAPurposeID { get; set; }
 
         // Courses selected in the registration modal (Controllers/Api/EnrollmentsApiController.cs
         // register-new). Optional — a visitor can self-register without picking any course.

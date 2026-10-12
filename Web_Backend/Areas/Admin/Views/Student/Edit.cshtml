@@ -182,6 +182,63 @@
                 </div>
             </div>
 
+            @{
+                var roLevels = (ViewBag.ProgrammeLevels as List<Web_Backend.Areas.Admin.Data.RegistrationOption> ?? new())
+                    .Where(o => o.IsActive == "A" || o.ID == s.ProgrammeLevelID).ToList();
+                var roPurposes = (ViewBag.CSCAPurposes as List<Web_Backend.Areas.Admin.Data.RegistrationOption> ?? new())
+                    .Where(o => o.IsActive == "A" || o.ID == s.CSCAPurposeID).ToList();
+            }
+            @if (roLevels.Any() || roPurposes.Any())
+            {
+                <div class="@CardCls space-y-6">
+                    <div>
+                        <h3 class="font-semibold text-slate-800 dark:text-slate-100">Programme</h3>
+                        <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Optional. Options are managed under Registration Options.</p>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        @if (roLevels.Any())
+                        {
+                            <div class="space-y-1">
+                                <label class="@LabelCls" for="ProgrammeLevelID">Programme level</label>
+                                <select name="ProgrammeLevelID" id="ProgrammeLevelID" class="@InputCls">
+                                    <option value="">Not specified</option>
+                                    @foreach (var o in roLevels)
+                                    {
+                                        <option value="@o.ID" data-requires-csca="@(o.RequiresCSCA ? "1" : "0")" selected="@(o.ID == s.ProgrammeLevelID)">@o.Name@(o.RequiresCSCA ? " · CSCA mandatory" : "")@(o.IsActive == "A" ? "" : " (inactive)")</option>
+                                    }
+                                </select>
+                                <p id="ProgrammeLevelCscaHint" class="@(roLevels.Any(o => o.RequiresCSCA && o.ID == s.ProgrammeLevelID) ? "flex" : "hidden") items-start gap-1.5 mt-2 px-3 py-2 rounded-xl text-xs bg-amber-50 text-amber-800 ring-1 ring-amber-200 dark:bg-amber-900/20 dark:text-amber-300 dark:ring-amber-800">
+                                    <i data-lucide="shield-check" class="w-3.5 h-3.5 mt-px shrink-0"></i>
+                                    <span>This programme requires the CSCA course — include at least one CSCA course when registering a new student.</span>
+                                </p>
+                                <script>
+                                    (function () {
+                                        var sel = document.getElementById('ProgrammeLevelID'), hint = document.getElementById('ProgrammeLevelCscaHint');
+                                        if (!sel || !hint) return;
+                                        sel.addEventListener('change', function () {
+                                            var on = sel.selectedOptions[0] && sel.selectedOptions[0].dataset.requiresCsca === '1';
+                                            hint.classList.toggle('hidden', !on); hint.classList.toggle('flex', on);
+                                        });
+                                    })();
+                                </script>
+                            </div>
+                        }
+                        @if (roPurposes.Any())
+                        {
+                            <div class="space-y-1">
+                                <label class="@LabelCls" for="CSCAPurposeID">CSCA purpose</label>
+                                <select name="CSCAPurposeID" id="CSCAPurposeID" class="@InputCls">
+                                    <option value="">Not specified</option>
+                                    @foreach (var o in roPurposes)
+                                    {
+                                        <option value="@o.ID" selected="@(o.ID == s.CSCAPurposeID)">@o.Name@(o.IsActive == "A" ? "" : " (inactive)")</option>
+                                    }
+                                </select>
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
             <div class="@CardCls space-y-6">
                 <h3 class="font-semibold text-slate-800 dark:text-slate-100">Address</h3>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">

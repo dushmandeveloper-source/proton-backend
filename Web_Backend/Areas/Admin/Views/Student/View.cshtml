@@ -89,6 +89,8 @@
                 <div><p class="@LabelCls">Date of Birth</p><p class="text-slate-700 dark:text-slate-200 mt-1">@(Model_Student.DateOfBirth?.ToString("d MMM yyyy") ?? "—")</p></div>
                 <div><p class="@LabelCls">Gender</p><p class="text-slate-700 dark:text-slate-200 mt-1">@(string.IsNullOrEmpty(Model_Student.Gender) ? "—" : Model_Student.Gender)</p></div>
                 <div><p class="@LabelCls">Nationality</p><p class="text-slate-700 dark:text-slate-200 mt-1">@(string.IsNullOrEmpty(Model_Student.Nationality) ? "—" : Model_Student.Nationality)</p></div>
+                <div><p class="@LabelCls">Programme level</p><p class="text-slate-700 dark:text-slate-200 mt-1">@(string.IsNullOrEmpty(Model_Student.ProgrammeLevelName) ? "—" : Model_Student.ProgrammeLevelName)</p></div>
+                <div><p class="@LabelCls">CSCA purpose</p><p class="text-slate-700 dark:text-slate-200 mt-1">@(string.IsNullOrEmpty(Model_Student.CSCAPurposeName) ? "—" : Model_Student.CSCAPurposeName)</p></div>
             </div>
             <div class="pt-2 border-t border-slate-100 dark:border-slate-700">
                 <p class="@LabelCls mb-1">Address</p>
