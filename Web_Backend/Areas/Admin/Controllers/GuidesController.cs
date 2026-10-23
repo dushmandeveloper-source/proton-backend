@@ -25,7 +25,10 @@ namespace Web_Backend.Areas.Admin.Controllers
         {
             var s = new HtmlSanitizer();
             s.AllowedTags.Clear();
-            foreach (var t in new[] { "p", "br", "h2", "h3", "h4", "strong", "b", "em", "i", "u", "s", "blockquote", "ul", "ol", "li", "a", "img", "hr", "span" })
+            // Tables: guides carry fee / deadline / document tables (0109); without
+            // them here a re-save in the admin would strip those tables.
+            foreach (var t in new[] { "p", "br", "h2", "h3", "h4", "strong", "b", "em", "i", "u", "s", "blockquote", "ul", "ol", "li", "a", "img", "hr", "span",
+                                      "table", "thead", "tbody", "tr", "th", "td" })
                 s.AllowedTags.Add(t);
             s.AllowedAttributes.Clear();
             foreach (var a in new[] { "href", "src", "alt", "title", "target", "rel" })

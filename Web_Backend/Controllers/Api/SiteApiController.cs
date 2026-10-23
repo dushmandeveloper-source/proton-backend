@@ -72,6 +72,19 @@ namespace Web_Backend.Controllers.Api
                     .OrderByDescending(b => b.UpdatedDate)
                     .Select(b => new { theme = b.Title, density = double.TryParse(S("FestivalDensity"), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var d) ? d : 1 })
                     .FirstOrDefault(),
+                // About page lists; empty = that section stays hidden. The numbers
+                // (years / students / clients) arrive as texts["about-*"].
+                about = new
+                {
+                    team = banners
+                        .Where(b => b.Placement == SiteContentCatalog.AboutTeam && !string.IsNullOrWhiteSpace(b.Title))
+                        .Select(b => new { name = b.Title, nameChinese = b.TitleChinese, role = b.Subtitle, roleChinese = b.SubtitleChinese, imageUrl = b.ImageURL, link = b.LinkURL })
+                        .ToList(),
+                    partners = banners
+                        .Where(b => b.Placement == SiteContentCatalog.AboutPartner && !string.IsNullOrWhiteSpace(b.Title))
+                        .Select(b => new { name = b.Title, nameChinese = b.TitleChinese, desc = b.Subtitle, descChinese = b.SubtitleChinese, logoUrl = b.ImageURL, link = b.LinkURL })
+                        .ToList(),
+                },
                 // Admin-edited wording (English); missing key = frontend default.
                 texts = settings
                     .Where(kv => kv.Key.StartsWith(SiteContentCatalog.TextPrefix) && !string.IsNullOrEmpty(kv.Value))

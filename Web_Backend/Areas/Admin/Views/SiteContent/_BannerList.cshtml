@@ -2,9 +2,24 @@
 @using Web_Backend.Areas.Admin.Models
 @{
     bool isText = Model.Placement == SiteContentCatalog.Announcement;
+    bool isTeam = Model.Placement == SiteContentCatalog.AboutTeam;
+    bool isPartner = Model.Placement == SiteContentCatalog.AboutPartner;
+    bool isPhoto = !isText && !isTeam && !isPartner;
+    string itemName = isText ? "message" : isTeam ? "team member" : isPartner ? "partner" : "photo";
+    string emptyText = isText ? "No messages yet — the bar stays hidden until you add one."
+        : isTeam ? "No team members yet — the Team section stays hidden on the website until you add someone."
+        : isPartner ? "No partners yet — the Partners section stays hidden on the website until you add one."
+        : "No photos yet — the website shows its built-in photos until you add some.";
+    string thumbClass = isTeam ? "w-14 h-14 rounded-full object-cover"
+        : isPartner ? "w-28 h-14 object-contain bg-white p-1.5 rounded-lg"
+        : "w-28 aspect-video object-cover rounded-lg";
+    string previewClass = isTeam ? "w-32 aspect-square object-cover rounded-full"
+        : isPartner ? "w-48 h-24 object-contain bg-white p-2 rounded-xl"
+        : "w-48 aspect-video object-cover rounded-xl";
     string Img(string? url) => string.IsNullOrEmpty(url) ? "" : url.StartsWith("/Uploads/", StringComparison.OrdinalIgnoreCase) || url.StartsWith("http") ? url : Model.SiteUrl + url;
     string Dt(DateTime? d) => d?.ToString("yyyy-MM-ddTHH:mm") ?? "";
     var input = "w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm";
+    var label = "text-sm font-medium text-slate-600 dark:text-slate-300";
     var card = "bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700";
     var iconBtn = "p-2 rounded-lg text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-30 disabled:pointer-events-none";
 }
@@ -18,7 +33,7 @@
     {
         <button type="button" onclick="openBannerForm('@Model.Placement')"
                 class="px-4 py-2 rounded-xl font-medium bg-[#7c3aed] text-white hover:bg-[#6d28d9] shadow-sm text-sm flex items-center gap-2 w-fit shrink-0">
-            <i data-lucide="plus" class="w-4 h-4"></i> Add @(isText ? "message" : "photo")
+            <i data-lucide="plus" class="w-4 h-4"></i> Add @itemName
         </button>
     }
 </div>
@@ -34,43 +49,74 @@
             @if (!isText)
             {
                 <div class="md:col-span-2 flex flex-col sm:flex-row gap-4 items-start">
-                    <img class="banner-form-preview hidden w-48 aspect-video object-cover rounded-xl border border-slate-200 dark:border-slate-700" alt="" />
+                    <img class="banner-form-preview hidden @previewClass border border-slate-200 dark:border-slate-700" alt="" />
                     <label class="block flex-1">
-                        <span class="text-sm font-medium text-slate-600 dark:text-slate-300">Photo</span>
-                        <input type="file" name="image" accept="image/*" onchange="previewUpload(this)" class="@input mt-1" />
-                        <span class="text-xs text-slate-400">JPG, PNG, WebP or AVIF, up to 10 MB. Leave empty when editing to keep the current photo.</span>
+                        <span class="@label">@(isTeam ? "Photo" : isPartner ? "Logo" : "Photo") @if (isPartner) {<span class="text-slate-400">optional</span>}</span>
+                        <input type="file" name="image" accept="image/*" onchange="previewUpload(this)" data-optional="@(isPartner ? "1" : null)" class="@input mt-1" />
+                        <span class="text-xs text-slate-400">
+                            @(isTeam ? "A square photo of the face and shoulders. " : isPartner ? "PNG with a transparent or white background works best. " : "")JPG, PNG, WebP or AVIF, up to 10 MB. Leave empty when editing to keep the current @(isPartner ? "logo" : "photo").
+                        </span>
                     </label>
                 </div>
+            }
+            @if (isTeam || isPartner)
+            {
                 <label class="block">
-                    <span class="text-sm font-medium text-slate-600 dark:text-slate-300">Description <span class="text-slate-400">(for screen readers / SEO)</span></span>
+                    <span class="@label">@(isTeam ? "Name" : "Partner name")</span>
+                    <input type="text" name="Title" maxlength="300" required class="@input mt-1" placeholder="@(isTeam ? "e.g. Nimal Perera" : "e.g. Blue Ocean Human Resources")" />
+                </label>
+                <label class="block">
+                    <span class="@label">@(isTeam ? "Name" : "Partner name") (中文) <span class="text-slate-400">optional</span></span>
+                    <input type="text" name="TitleChinese" maxlength="300" class="@input mt-1" />
+                </label>
+                <label class="block">
+                    <span class="@label">@(isTeam ? "Role" : "What they do") @if (isPartner) {<span class="text-slate-400">optional</span>}</span>
+                    <input type="text" name="Subtitle" maxlength="300" class="@input mt-1" placeholder="@(isTeam ? "e.g. Student Services Manager" : "e.g. Human resources services, Qingdao")" />
+                </label>
+                <label class="block">
+                    <span class="@label">@(isTeam ? "Role" : "What they do") (中文) <span class="text-slate-400">optional</span></span>
+                    <input type="text" name="SubtitleChinese" maxlength="300" class="@input mt-1" />
+                </label>
+                <label class="block md:col-span-2">
+                    <span class="@label">@(isTeam ? "Profile link" : "Website") <span class="text-slate-400">optional</span></span>
+                    <input type="text" name="LinkURL" maxlength="500" class="@input mt-1" placeholder="@(isTeam ? "https://www.linkedin.com/in/…" : "https://…")" />
+                </label>
+            }
+            else if (isPhoto)
+            {
+                <label class="block">
+                    <span class="@label">Description <span class="text-slate-400">(for screen readers / SEO)</span></span>
                     <input type="text" name="Title" maxlength="300" class="@input mt-1" placeholder="e.g. Shanghai skyline at night" />
                 </label>
             }
             else
             {
                 <label class="block">
-                    <span class="text-sm font-medium text-slate-600 dark:text-slate-300">Message (English)</span>
+                    <span class="@label">Message (English)</span>
                     <input type="text" name="Title" maxlength="300" required class="@input mt-1" placeholder="e.g. 2027 intake applications are now open!" />
                 </label>
                 <label class="block">
-                    <span class="text-sm font-medium text-slate-600 dark:text-slate-300">Message (中文) <span class="text-slate-400">optional</span></span>
+                    <span class="@label">Message (中文) <span class="text-slate-400">optional</span></span>
                     <input type="text" name="TitleChinese" maxlength="300" class="@input mt-1" />
                 </label>
             }
-            <label class="block">
-                <span class="text-sm font-medium text-slate-600 dark:text-slate-300">Link <span class="text-slate-400">optional</span></span>
-                <input type="text" name="LinkURL" maxlength="500" class="@input mt-1" placeholder="/services/education or https://…" />
-            </label>
-            <div class="grid grid-cols-2 gap-3">
+            @if (isPhoto || isText)
+            {
                 <label class="block">
-                    <span class="text-sm font-medium text-slate-600 dark:text-slate-300">Show from <span class="text-slate-400">optional</span></span>
-                    <input type="datetime-local" name="StartsAt" class="@input mt-1" />
+                    <span class="@label">Link <span class="text-slate-400">optional</span></span>
+                    <input type="text" name="LinkURL" maxlength="500" class="@input mt-1" placeholder="/services/education or https://…" />
                 </label>
-                <label class="block">
-                    <span class="text-sm font-medium text-slate-600 dark:text-slate-300">Until <span class="text-slate-400">optional</span></span>
-                    <input type="datetime-local" name="EndsAt" class="@input mt-1" />
-                </label>
-            </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <label class="block">
+                        <span class="@label">Show from <span class="text-slate-400">optional</span></span>
+                        <input type="datetime-local" name="StartsAt" class="@input mt-1" />
+                    </label>
+                    <label class="block">
+                        <span class="@label">Until <span class="text-slate-400">optional</span></span>
+                        <input type="datetime-local" name="EndsAt" class="@input mt-1" />
+                    </label>
+                </div>
+            }
         </div>
         <div class="flex gap-2 mt-5">
             <button type="submit" class="px-4 py-2 rounded-xl font-medium bg-[#7c3aed] text-white hover:bg-[#6d28d9] text-sm">Save</button>
@@ -82,9 +128,7 @@
 <div class="@card overflow-hidden mb-6">
     @if (!Model.Items.Any())
     {
-        <div class="p-12 text-center text-sm text-slate-400 dark:text-slate-500">
-            @(isText ? "No messages yet — the bar stays hidden until you add one." : "No photos yet — the website shows its built-in photos until you add some.")
-        </div>
+        <div class="p-12 text-center text-sm text-slate-400 dark:text-slate-500">@emptyText</div>
     }
     else
     {
@@ -95,15 +139,23 @@
                 var inactive = b.IsActive != "A";
                 <li class="flex items-center gap-4 p-4 @(inactive ? "opacity-60" : "")">
                     <span class="w-6 text-center text-sm font-semibold text-slate-400">@(i + 1)</span>
-                    @if (!isText)
+                    @if (!isText && string.IsNullOrEmpty(b.ImageURL))
                     {
-                        <img src="@Img(b.ImageURL)" alt="" loading="lazy" class="w-28 aspect-video object-cover rounded-lg border border-slate-200 dark:border-slate-700 shrink-0" />
+                        <span class="@thumbClass flex items-center justify-center border border-dashed border-slate-300 dark:border-slate-600 text-[10px] text-slate-400 shrink-0">No logo</span>
+                    }
+                    else if (!isText)
+                    {
+                        <img src="@Img(b.ImageURL)" alt="" loading="lazy" class="@thumbClass border border-slate-200 dark:border-slate-700 shrink-0" />
                     }
                     <div class="flex-1 min-w-0">
                         <p class="text-sm font-medium text-slate-800 dark:text-slate-100 truncate">@(string.IsNullOrEmpty(b.Title) ? "(no description)" : b.Title)</p>
-                        @if (!string.IsNullOrEmpty(b.TitleChinese))
+                        @if (!string.IsNullOrEmpty(b.Subtitle))
                         {
-                            <p class="text-xs text-slate-500 dark:text-slate-400 truncate">@b.TitleChinese</p>
+                            <p class="text-xs text-slate-600 dark:text-slate-300 truncate">@b.Subtitle</p>
+                        }
+                        @if (!string.IsNullOrEmpty(b.TitleChinese) || !string.IsNullOrEmpty(b.SubtitleChinese))
+                        {
+                            <p class="text-xs text-slate-500 dark:text-slate-400 truncate">@b.TitleChinese@(!string.IsNullOrEmpty(b.TitleChinese) && !string.IsNullOrEmpty(b.SubtitleChinese) ? " · " : "")@b.SubtitleChinese</p>
                         }
                         <div class="flex flex-wrap gap-2 mt-1">
                             @if (inactive)
@@ -134,7 +186,7 @@
                             <form method="post" asp-action="ToggleBanner">@Html.AntiForgeryToken()<input type="hidden" name="id" value="@b.BannerID" />
                                 <button type="submit" class="@iconBtn" title="@(inactive ? "Show on site" : "Hide from site")"><i data-lucide="@(inactive ? "eye-off" : "eye")" class="w-4 h-4"></i></button></form>
                             <button type="button" class="@iconBtn" title="Edit"
-                                    onclick='openBannerForm(@Json.Serialize(Model.Placement), @Json.Serialize(new { id = b.BannerID, title = b.Title, titleChinese = b.TitleChinese, link = b.LinkURL, startsAt = Dt(b.StartsAt), endsAt = Dt(b.EndsAt), imageUrl = Img(b.ImageURL) }))'>
+                                    onclick='openBannerForm(@Json.Serialize(Model.Placement), @Json.Serialize(new { id = b.BannerID, title = b.Title, titleChinese = b.TitleChinese, subtitle = b.Subtitle, subtitleChinese = b.SubtitleChinese, link = b.LinkURL, startsAt = Dt(b.StartsAt), endsAt = Dt(b.EndsAt), imageUrl = Img(b.ImageURL) }))'>
                                 <i data-lucide="pencil" class="w-4 h-4"></i>
                             </button>
                         }

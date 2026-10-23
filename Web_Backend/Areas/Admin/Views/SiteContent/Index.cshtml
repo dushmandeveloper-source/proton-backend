@@ -21,6 +21,7 @@
         ("announcement", "Announcement bar", "megaphone"),
         ("festival", "Festival effects", "party-popper"),
         ("images", "Home page images", "images"),
+        ("about", "About page", "users"),
         ("text", "Page text", "type"),
         ("speed", "Image speed", "gauge"),
     };
@@ -46,7 +47,7 @@
     <div class="flex flex-col md:flex-row md:items-end justify-between mb-6 gap-4">
         <div>
             <h2 class="text-3xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">Site Content</h2>
-            <p class="text-slate-500 dark:text-slate-400 mt-2">Change the public website's banner, animations, announcement bar and home page images. Changes appear on the site right away.</p>
+            <p class="text-slate-500 dark:text-slate-400 mt-2">Change the public website's banner, animations, announcement bar, home page images and About page. Changes appear on the site right away.</p>
         </div>
         @if (!string.IsNullOrEmpty(siteUrl))
         {
@@ -406,11 +407,78 @@
         </div>
     }
 
+    @* ================= ABOUT PAGE ================= *@
+    @if (tab == "about")
+    {
+        // Saved value, else the catalog default (blank for the numbers).
+        string T(string key) => settings.TryGetValue(SiteContentCatalog.TextPrefix + key, out var v) && !string.IsNullOrEmpty(v)
+            ? v : SiteContentCatalog.TextSlots.First(s => s.Key == key).Default;
+        // Card colours match the website (frontend2 AboutPage.jsx STATS).
+        var statRows = new (string Key, string Title, string Example, string Card, string Label)[]
+        {
+            ("about-years", "Years", "e.g. 5+", "bg-[#70e4fd] text-[#131313]", "text-black/60"),
+            ("about-students", "Students", "e.g. 1,200+", "bg-[#131313] text-white", "text-white/60"),
+            ("about-clients", "Clients", "e.g. 300+", "bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100", "text-slate-500 dark:text-slate-400"),
+        };
+
+        <form method="post" asp-action="SavePageText" id="about-stats-form" class="@card p-6 mb-8">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="returnTab" value="about" />
+            <h3 class="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-1">Our numbers</h3>
+            <p class="text-sm text-slate-500 dark:text-slate-400 mb-5">The big numbers near the top of the About Us page. Leave a number empty to hide it — the whole strip stays hidden until at least one is filled. Labels you type show on the English site; the other languages keep their own translation.</p>
+
+            <p class="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-2">Live preview</p>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+                @foreach (var (key, _, _, cardClass, labelClass) in statRows)
+                {
+                    <div data-stat-preview="@key" class="rounded-2xl px-5 py-6 transition-opacity @cardClass">
+                        <p class="stat-num text-4xl font-bold"></p>
+                        <p class="stat-label mt-1 text-sm @labelClass"></p>
+                        <p class="stat-hidden hidden mt-1 text-[10px] font-semibold uppercase tracking-wide @labelClass">Hidden on website</p>
+                    </div>
+                }
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                @foreach (var (key, title, example, _, _) in statRows)
+                {
+                    <section class="rounded-2xl border border-slate-100 dark:border-slate-700 bg-slate-50/60 dark:bg-slate-800/40 p-4">
+                        <h4 class="font-semibold text-slate-800 dark:text-slate-100 mb-3">@title</h4>
+                        <label class="block">
+                            <span class="text-sm font-medium text-slate-600 dark:text-slate-300">Number</span>
+                            <input type="text" name="text[@key]" value="@T(key)" maxlength="12" placeholder="@example" oninput="aboutStatsPreview()" class="@input mt-1 font-semibold" />
+                        </label>
+                        <label class="block mt-3">
+                            <span class="text-sm font-medium text-slate-600 dark:text-slate-300">Label</span>
+                            <input type="text" name="text[@(key)-label]" value="@T(key + "-label")" maxlength="60" oninput="aboutStatsPreview()" class="@input mt-1"
+                                   data-default="@SiteContentCatalog.TextSlots.First(s => s.Key == key + "-label").Default" placeholder="@SiteContentCatalog.TextSlots.First(s => s.Key == key + "-label").Default" />
+                        </label>
+                    </section>
+                }
+            </div>
+            <p class="text-xs text-slate-400 mt-3">Numbers count up when a visitor scrolls to them. Keep them honest — use real figures you can back up.</p>
+            @if (canEdit)
+            {
+                <button type="submit" class="@btnPrimary mt-5"><i data-lucide="save" class="w-4 h-4"></i> Save numbers</button>
+            }
+        </form>
+
+        @await Html.PartialAsync("_BannerList", new SiteContentListModel(
+            SiteContentCatalog.AboutTeam, "Our team",
+            "People shown in the Team section, in this order. Square photos of the face and shoulders work best (at least 600 × 600). The section stays hidden until you add someone.",
+            Model.Where(b => b.Placement == SiteContentCatalog.AboutTeam).ToList(), siteUrl, canAdd, canEdit, canDelete))
+
+        @await Html.PartialAsync("_BannerList", new SiteContentListModel(
+            SiteContentCatalog.AboutPartner, "Our partners",
+            "Partner organisations shown with their logo and a link to their website. Logos with a transparent or white background look best. No logo? The partner's name is shown instead.",
+            Model.Where(b => b.Placement == SiteContentCatalog.AboutPartner).ToList(), siteUrl, canAdd, canEdit, canDelete))
+    }
+
     @* ================= PAGE TEXT ================= *@
     @if (tab == "text")
     {
         @await Html.PartialAsync("_TextSlotsForm", new TextSlotsFormModel(
-            SiteContentCatalog.TextSlots.Where(t => t.Section != SiteContentCatalog.Banner).ToList(), settings, "text", canEdit,
+            SiteContentCatalog.TextSlots.Where(t => t.Section != SiteContentCatalog.Banner && t.Section != SiteContentCatalog.AboutNumbers).ToList(), settings, "text", canEdit,
             "Page text", "Change wording on the website (English). Clear a box to go back to the original."))
     }
 
@@ -716,18 +784,39 @@
         }
         if (document.getElementById('festival-preview')) previewFestival('@(Model.FirstOrDefault(b => b.Placement == SiteContentCatalog.Festival)?.Title ?? "Christmas")');
 
+        // ---------- About page numbers preview ----------
+        function aboutStatsPreview() {
+            const f = document.getElementById('about-stats-form');
+            if (!f) return;
+            f.querySelectorAll('[data-stat-preview]').forEach(card => {
+                const key = card.dataset.statPreview;
+                const num = f.querySelector('[name="text[' + key + ']"]').value.trim();
+                // A cleared label falls back to the default on the website, so show that here too.
+                const labelInput = f.querySelector('[name="text[' + key + '-label]"]');
+                const label = labelInput.value.trim() || labelInput.dataset.default;
+                card.querySelector('.stat-num').textContent = num || '—';
+                card.querySelector('.stat-label').textContent = label;
+                card.querySelector('.stat-hidden').classList.toggle('hidden', !!num);
+                card.classList.toggle('opacity-40', !num);
+            });
+        }
+        aboutStatsPreview();
+
         // ---------- Add / edit form (shared by every list on this page) ----------
         function openBannerForm(placement, data) {
             const f = document.getElementById('banner-form-' + placement);
             if (!f) return;
             data = data || {};
+            const set = (name, v) => { const el = f.querySelector('[name=' + name + ']'); if (el) el.value = v || ''; };
             f.querySelector('[name=BannerID]').value = data.id || 0;
-            f.querySelector('[name=Title]').value = data.title || '';
-            const zh = f.querySelector('[name=TitleChinese]'); if (zh) zh.value = data.titleChinese || '';
-            f.querySelector('[name=LinkURL]').value = data.link || '';
-            f.querySelector('[name=StartsAt]').value = data.startsAt || '';
-            f.querySelector('[name=EndsAt]').value = data.endsAt || '';
-            const img = f.querySelector('[name=image]'); if (img) { img.value = ''; img.required = !data.id; }
+            set('Title', data.title);
+            set('TitleChinese', data.titleChinese);
+            set('Subtitle', data.subtitle);
+            set('SubtitleChinese', data.subtitleChinese);
+            set('LinkURL', data.link);
+            set('StartsAt', data.startsAt);
+            set('EndsAt', data.endsAt);
+            const img = f.querySelector('[name=image]'); if (img) { img.value = ''; img.required = !data.id && !img.dataset.optional; }
             const prev = f.querySelector('.banner-form-preview');
             if (prev) { prev.src = data.imageUrl || ''; prev.classList.toggle('hidden', !data.imageUrl); }
             f.querySelector('.banner-form-title').textContent = data.id ? 'Edit' : 'Add new';

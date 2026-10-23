@@ -49,6 +49,8 @@ namespace Web_Backend.Controllers.Api
                 return BadRequest(new { message = "First and last name are required." });
             if (string.IsNullOrWhiteSpace(request.Email))
                 return BadRequest(new { message = "Email is required." });
+            if (!string.IsNullOrEmpty(request.Password) && request.Password.Length < 8)
+                return BadRequest(new { message = "Password must be at least 8 characters." });
             if (string.IsNullOrWhiteSpace(request.Phone))
                 return BadRequest(new { message = "Phone is required." });
             if (string.IsNullOrWhiteSpace(request.CompanyName))
@@ -97,8 +99,8 @@ namespace Web_Backend.Controllers.Api
                     IsActive = "A"
                 });
 
-                tempPassword = TempPassword.Generate();
-                var (hash, salt) = PasswordHasher.Hash(tempPassword);
+                tempPassword = string.IsNullOrEmpty(request.Password) ? TempPassword.Generate() : "";
+                var (hash, salt) = PasswordHasher.Hash(string.IsNullOrEmpty(request.Password) ? tempPassword : request.Password);
                 await authRep.AddEdit("", userId, request.Email, request.Email, hash, salt);
 
                 agentId = await agentRep.AddEdit(new Agent
@@ -154,9 +156,10 @@ namespace Web_Backend.Controllers.Api
                 var description =
                     $"Your Proton agent account has been created and is pending administrator approval.<br/><br/>" +
                     $"Agent portal: <strong>{loginUrl}</strong><br/>" +
-                    $"Email: <strong>{request.Email}</strong><br/>" +
-                    $"Temporary Password: <strong>{tempPassword}</strong><br/><br/>" +
-                    "You can sign in now, but won't be able to register students until an administrator approves your account. Please sign in and change your password as soon as possible.";
+                    $"Username: <strong>{request.Email}</strong><br/>" +
+                    (tempPassword == "" ? "" : $"Temporary Password: <strong>{tempPassword}</strong><br/>") +
+                    "<br/>You can sign in now, but won't be able to register students until an administrator approves your account." +
+                    (tempPassword == "" ? " Sign in with the password you chose when registering." : " Please sign in and change your password as soon as possible.");
                 await emailSender.SendTemplateEmailAsync(request.Email, fullName, "AGENT_WELCOME_EMAIL", description, "Sign In to Agent Portal", loginUrl, "");
             }
             catch (Exception)

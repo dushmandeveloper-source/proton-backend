@@ -1,3 +1,4 @@
+using Dapper;
 using DBAccess;
 using Web_Backend.Areas.Admin.Models;
 using Web_Backend.Classes;
@@ -28,8 +29,12 @@ namespace Web_Backend.Areas.Admin.Data
         public Task<SiteBanner?> GetBanner(int id) =>
             db.Get<SiteBanner, object>("syst.SiteBanner_Get", new { APIKey = AppData.GetAPIKey(), BannerID = id });
 
-        public Task SaveBanner(SiteBanner b) =>
-            db.ExecuteNonQuery("syst.SiteBanner_AddEdit", new
+        // @Subtitle/@SubtitleChinese (0108) are sent only for the About placements
+        // that use them, so hero/wheel/announcement/festival saves keep working on
+        // a database where 0108 hasn't been applied yet.
+        public Task SaveBanner(SiteBanner b)
+        {
+            var p = new DynamicParameters(new
             {
                 APIKey = AppData.GetAPIKey(),
                 b.BannerID,
@@ -42,6 +47,13 @@ namespace Web_Backend.Areas.Admin.Data
                 b.EndsAt,
                 IsActive = b.IsActive == "I" ? "I" : "A",
             });
+            if (b.Placement is SiteContentCatalog.AboutTeam or SiteContentCatalog.AboutPartner)
+            {
+                p.Add("Subtitle", b.Subtitle ?? "");
+                p.Add("SubtitleChinese", b.SubtitleChinese ?? "");
+            }
+            return db.ExecuteNonQuery("syst.SiteBanner_AddEdit", p);
+        }
 
         public Task DeleteBanner(int id) =>
             db.ExecuteNonQuery("syst.SiteBanner_Delete", new { APIKey = AppData.GetAPIKey(), BannerID = id });

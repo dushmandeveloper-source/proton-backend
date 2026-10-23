@@ -74,6 +74,8 @@ namespace Web_Backend.Controllers.Api
                 return BadRequest(new { message = "Email is required." });
             if (string.IsNullOrWhiteSpace(request.Phone))
                 return BadRequest(new { message = "Phone is required." });
+            if (!string.IsNullOrEmpty(request.Password) && request.Password.Length < 8)
+                return BadRequest(new { message = "Password must be at least 8 characters." });
             if (request.DateOfBirth == null)
                 return BadRequest(new { message = "Date of birth is required." });
             if (string.IsNullOrWhiteSpace(request.Gender))
@@ -130,14 +132,12 @@ namespace Web_Backend.Controllers.Api
                     IsActive = "A"
                 });
 
-                // Unlike the admin-created-student flow (where InitialPassword is an
-                // optional admin override), the public registration form no longer
-                // asks the visitor to type a password at all — a secure temp
-                // password is always generated and emailed instead (see the
-                // mandatory SendTemplateEmailAsync call below), mirroring
-                // StudentController.Save's auto-generated-password path exactly.
-                tempPassword = TempPassword.Generate();
-                var (hash, salt) = PasswordHasher.Hash(tempPassword);
+                // The registration form asks the visitor to choose a password; the
+                // welcome email then carries only the username + login link. An
+                // older frontend that sends none still gets a generated temp
+                // password emailed (StudentController.Save's path).
+                tempPassword = string.IsNullOrEmpty(request.Password) ? TempPassword.Generate() : "";
+                var (hash, salt) = PasswordHasher.Hash(string.IsNullOrEmpty(request.Password) ? tempPassword : request.Password);
                 await authRep.AddEdit("", userId, request.Email, request.Email, hash, salt);
 
                 studentId = await studentRep.AddEdit(new Student
@@ -263,9 +263,10 @@ namespace Web_Backend.Controllers.Api
                 var description =
                     $"Your Proton student account has been created.<br/><br/>" +
                     $"Student portal: <strong>{loginUrl}</strong><br/>" +
-                    $"Email: <strong>{request.Email}</strong><br/>" +
-                    $"Temporary Password: <strong>{tempPassword}</strong><br/><br/>" +
-                    "Please sign in and change your password as soon as possible.";
+                    $"Username: <strong>{request.Email}</strong><br/>" +
+                    (tempPassword == ""
+                        ? "<br/>Sign in with the password you chose when registering."
+                        : $"Temporary Password: <strong>{tempPassword}</strong><br/><br/>Please sign in and change your password as soon as possible.");
                 await emailSender.SendTemplateEmailAsync(request.Email, fullName, "STUDENT_WELCOME_EMAIL", description, "Sign In to Student Portal", loginUrl, "");
             }
             catch (Exception)

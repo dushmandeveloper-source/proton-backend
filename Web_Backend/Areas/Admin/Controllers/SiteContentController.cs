@@ -8,7 +8,8 @@ namespace Web_Backend.Areas.Admin.Controllers
     // Admin → Site Content: everything on the public marketing site (frontend2)
     // that admins can change without a code deploy — hero banner slides and
     // text animation, the 3D wheel photos, the top announcement bar, fixed
-    // home-page images, and the upload image optimizer.
+    // home-page images, the About page (numbers, team, partners), and the
+    // upload image optimizer.
     //
     // Public site reads it all through GET /api/site/content
     // (Controllers/Api/SiteApiController.cs). Every successful POST here clears
@@ -57,6 +58,14 @@ namespace Web_Backend.Areas.Admin.Controllers
                 return Fail("Unknown placement.", tab);
             if (!IsSafeLink(form.LinkURL))
                 return Fail("Link must start with / (a page on this site) or https://.", tab);
+            form.Title = form.Title?.Trim() ?? "";
+            form.TitleChinese = form.TitleChinese?.Trim() ?? "";
+            form.Subtitle = form.Subtitle?.Trim() ?? "";
+            form.SubtitleChinese = form.SubtitleChinese?.Trim() ?? "";
+            // Column sizes (syst.SiteBanner) — a friendly message instead of a SQL truncation error.
+            if (new[] { form.Title, form.TitleChinese, form.Subtitle, form.SubtitleChinese }.Any(s => s.Length > 300)
+                || (form.LinkURL?.Length ?? 0) > 500)
+                return Fail("Text is too long — keep each box under 300 characters (links under 500).", tab);
             if (form.StartsAt.HasValue && form.EndsAt.HasValue && form.EndsAt <= form.StartsAt)
                 return Fail("End date must be after the start date.", tab);
 
@@ -85,6 +94,16 @@ namespace Web_Backend.Areas.Admin.Controllers
             else if (form.Placement == SiteContentCatalog.Announcement)
             {
                 if (string.IsNullOrWhiteSpace(form.Title)) return Fail("Announcement text is required.", tab);
+            }
+            else if (form.Placement == SiteContentCatalog.AboutPartner)
+            {
+                // Logo optional — the website shows the name instead.
+                if (string.IsNullOrWhiteSpace(form.Title)) return Fail("Partner name is required.", tab);
+            }
+            else if (form.Placement == SiteContentCatalog.AboutTeam)
+            {
+                if (string.IsNullOrWhiteSpace(form.Title)) return Fail("Name is required.", tab);
+                if (string.IsNullOrWhiteSpace(form.ImageURL)) return Fail("Please choose a photo.", tab);
             }
             else if (string.IsNullOrWhiteSpace(form.ImageURL))
             {
@@ -202,7 +221,7 @@ namespace Web_Backend.Areas.Admin.Controllers
         public async Task<IActionResult> SavePageText(Dictionary<string, string?> text, string returnTab = "text")
         {
             Auth.CheckPermission(PermissionCode.SiteContent, 'E');
-            if (returnTab != "hero") returnTab = "text";
+            if (returnTab != "hero" && returnTab != "about") returnTab = "text";
             // Only the boxes on the submitted form are touched (the banner panel
             // and the Page Text tab post different groups).
             foreach (var slot in SiteContentCatalog.TextSlots.Where(s => text.ContainsKey(s.Key)))
@@ -213,6 +232,8 @@ namespace Web_Backend.Areas.Admin.Controllers
                     return Fail($"{slot.Label} must start with / (a page on this site, e.g. /services/education or /#services) or https://.", returnTab);
                 if (slot.Kind == "color" && value != "" && !IsHexColor(value))
                     return Fail($"{slot.Label} must be a colour like #70E4FD.", returnTab);
+                if (slot.Kind == "stat" && value.Length > 12)
+                    return Fail($"{slot.Label} must be short, like 10+ or 1,200+.", returnTab);
                 if (slot.Kind == "color") value = value.ToUpperInvariant();
                 // Saving the default (or blank) clears the override, so future default changes apply.
                 await rep.SetSetting(SiteContentCatalog.TextPrefix + slot.Key, value == slot.Default ? "" : value);
@@ -291,6 +312,7 @@ namespace Web_Backend.Areas.Admin.Controllers
             SiteContentCatalog.HeroWheel => "wheel",
             SiteContentCatalog.Announcement => "announcement",
             SiteContentCatalog.Festival => "festival",
+            SiteContentCatalog.AboutTeam or SiteContentCatalog.AboutPartner => "about",
             _ => "hero",
         };
 

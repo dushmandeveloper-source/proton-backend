@@ -208,7 +208,7 @@
                         {
                             <div class="border border-slate-100 dark:border-slate-700 rounded-2xl p-4">
                                 <div class="flex items-start justify-between gap-3 mb-2">
-                                    <div class="flex-1">
+                                    <div class="flex-1 min-w-0">
                                         <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase @(q.IsMCQ ? "bg-sky-100 dark:bg-sky-950 text-sky-700 dark:text-sky-300" : "bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300")">@q.QuestionType</span>
                                         <span class="text-xs text-slate-400 dark:text-slate-500 ml-2">@q.Marks marks</span>
                                         <div class="katex-render mt-2 text-sm text-slate-800 dark:text-slate-100" data-latex="@q.QuestionTextLatex"></div>
@@ -356,6 +356,13 @@
             </div>
         </div>
 
+        <style>
+            /* KaTeX lays each expression out as one unbreakable line, so long
+               questions ran past the card edge — let the text wrap. */
+            .katex-wrap { display: block; min-width: 0; max-width: 100%; overflow-wrap: anywhere; }
+            .katex-wrap .katex, .katex-wrap .katex-html { white-space: normal; }
+            .katex-wrap .katex .base { display: inline; white-space: normal; }
+        </style>
         <script>
             const examId = '@e.ExamID';
             const antiForgeryToken = document.querySelector('#af-token-holder input[name="__RequestVerificationToken"]')?.value || '';
@@ -367,15 +374,22 @@
             // it on every math-field, present now or added later for MCQ
             // options, so the physical keyboard behaves like a normal text
             // field.
+            // Extends the field's OWN default keybindings: MathfieldElement has no
+            // static keybindings in this MathLive version, so spreading it gave
+            // [] and wiped Backspace/Delete/arrows from every option field.
+            // Waits for the element to be defined, since the deferred MathLive
+            // script may not have run yet.
             function fixMathFieldSpaceKey(field) {
                 if (!field || field.dataset.spaceFixed === '1') return;
                 field.dataset.spaceFixed = '1';
-                field.mode = 'text';
-                field.keybindings = [
-                    ...(window.MathfieldElement?.keybindings || []),
-                    { key: 'spacebar', ifMode: 'text', command: ['insert', ' '] },
-                    { key: 'shift+spacebar', ifMode: 'text', command: ['insert', ' '] }
-                ];
+                customElements.whenDefined('math-field').then(() => {
+                    field.mode = 'text';
+                    field.keybindings = [
+                        ...(field.keybindings || []),
+                        { key: 'spacebar', ifMode: 'text', command: ['insert', ' '] },
+                        { key: 'shift+spacebar', ifMode: 'text', command: ['insert', ' '] }
+                    ];
+                });
             }
             function applyMathFieldFixes(root) {
                 (root || document).querySelectorAll('math-field').forEach(fixMathFieldSpaceKey);
@@ -397,12 +411,15 @@
             // whole string in \text{} before handing it to KaTeX preserves
             // spaces for plain content; math sub-expressions MathLive emits
             // (e.g. \(x^2\)) still switch back into math mode inside \text{}.
+            // throwOnError must be true: with false KaTeX never throws — it paints
+            // the raw source in red (e.g. "\text{-2∉A}", since ∉ isn't valid in
+            // text mode) and the fallbacks below never ran. Order: as text, as
+            // math, then plain text with the \text{} wrapper stripped.
             function renderMixedLatex(latex, el) {
-                try { katex.render('\\text{' + latex + '}', el, { throwOnError: false }); }
-                catch {
-                    try { katex.render(latex, el, { throwOnError: false }); }
-                    catch { el.textContent = latex; }
-                }
+                el.classList.add('katex-wrap');
+                try { katex.render('\\text{' + latex + '}', el, { throwOnError: true }); return; } catch { }
+                try { katex.render(latex, el, { throwOnError: true }); return; } catch { }
+                el.textContent = latex.replace(/\\text\{([^{}]*)\}/g, '$1');
             }
 
             function renderKatex() {

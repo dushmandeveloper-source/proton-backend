@@ -1,12 +1,16 @@
 namespace Web_Backend.Areas.Admin.Models
 {
-    // syst.SiteBanner (0098): one row per hero slide / wheel photo / announcement.
+    // syst.SiteBanner (0098): one row per hero slide / wheel photo / announcement,
+    // plus About page team members and partners (0108 — see SiteContentCatalog).
     public class SiteBanner
     {
         public int BannerID { get; set; }
         public string Placement { get; set; } = "";
         public string Title { get; set; } = "";
         public string TitleChinese { get; set; } = "";
+        // Team: role. Partner: what they do. Unused by the other placements.
+        public string Subtitle { get; set; } = "";
+        public string SubtitleChinese { get; set; } = "";
         public string ImageURL { get; set; } = "";
         public string LinkURL { get; set; } = "";
         public int SortOrder { get; set; }
@@ -33,7 +37,7 @@ namespace Web_Backend.Areas.Admin.Models
     public record SiteContentListModel(string Placement, string Heading, string Help, List<SiteBanner> Items,
                                        string SiteUrl, bool CanAdd, bool CanEdit, bool CanDelete);
 
-    // Kind: "text" | "multiline" | "link" | "color" (#RRGGBB).
+    // Kind: "text" | "multiline" | "link" | "color" (#RRGGBB) | "stat" (short number, e.g. 1,200+).
     public record TextSlot(string Key, string Label, string Section, string Default, string Kind = "text")
     {
         public bool Multiline => Kind == "multiline";
@@ -56,11 +60,16 @@ namespace Web_Backend.Areas.Admin.Models
         public const string Announcement = "Announcement";
         // Title holds the theme key (FestivalThemes) — runs while active and inside StartsAt/EndsAt.
         public const string Festival = "Festival";
-        public static readonly string[] Placements = { HeroSlide, HeroWheel, Announcement, Festival };
+        // About page lists (0108): Title = name, Subtitle = role / what they do.
+        public const string AboutTeam = "AboutTeam";
+        public const string AboutPartner = "AboutPartner";
+        public static readonly string[] Placements = { HeroSlide, HeroWheel, Announcement, Festival, AboutTeam, AboutPartner };
 
         public const string HomeImagePrefix = "HomeImage:";
         public const string TextPrefix = "Text:";
         public const string Banner = "Home page — banner";
+        // Edited on the About page tab, not on Page Text.
+        public const string AboutNumbers = "About page — numbers";
 
         // Website wording an admin can change (English). Empty = the Default below.
         public static readonly TextSlot[] TextSlots =
@@ -84,6 +93,13 @@ namespace Web_Backend.Areas.Admin.Models
             new("edu-unis-heading", "Heading",         "Education page — universities section", "Universities you can study at"),
             new("edu-unis-intro",   "Intro line",      "Education page — universities section", "Recognised institutions across China — tap any campus for programs, intakes and costs.", "multiline"),
             new("edu-unis-stat",    "Stat label (under 120+)", "Education page — top stats", "Universities available"),
+            // Blank number = that stat is hidden on the website ("stat" = max 12 characters, e.g. 1,200+).
+            new("about-years",          "Years number",    AboutNumbers, "", "stat"),
+            new("about-years-label",    "Years label",     AboutNumbers, "Years of experience"),
+            new("about-students",       "Students number", AboutNumbers, "", "stat"),
+            new("about-students-label", "Students label",  AboutNumbers, "Students helped"),
+            new("about-clients",        "Clients number",  AboutNumbers, "", "stat"),
+            new("about-clients-label",  "Clients label",   AboutNumbers, "Clients served"),
         };
 
         public static readonly SiteOption[] HeroTextAnimations =
