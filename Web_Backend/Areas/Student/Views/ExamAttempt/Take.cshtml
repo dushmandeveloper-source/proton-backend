@@ -7,6 +7,10 @@
     var ordered = answers.OrderBy(a => a.SortOrder).ToList();
 }
 
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.18.4/dist/katex.min.css" integrity="sha384-u1zONI5gPXUx0UKI62c75/zww972y0v2rSK5ZYlVdS6xEuWDeZWUI66v6t1gvlXJ" crossorigin="anonymous">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.18.4/dist/katex.min.js" integrity="sha384-ykMNcWQhhTUb0YV9SPpPUFURHZ+tWmubkakGBP+OgNK/UXdO2gtzglWx0Rj9hnO3" crossorigin="anonymous"></script>
+<script defer src="~/js/exam-math.js" asp-append-version="true"></script>
+
 <div class="max-w-3xl mx-auto space-y-6 page-enter">
 
     @* Screen-share's native picker reliably knocks the browser out of
@@ -210,7 +214,12 @@
                         </div>
                         <span class="text-xs font-medium text-slate-400 dark:text-slate-500">Question @(i + 1) of @ordered.Count</span>
                     </div>
-                    <p class="text-sm font-medium text-slate-800 dark:text-slate-100 mb-4">@ans.QuestionTextLatex</p>
+                    <div class="katex-render text-sm font-medium leading-relaxed text-slate-800 dark:text-slate-100 mb-4" data-latex="@ans.QuestionTextLatex">@ans.QuestionTextLatex</div>
+                    @if (!string.IsNullOrEmpty(ans.ImageURL))
+                    {
+                        <img src="@ans.ImageURL" alt="Question @(i + 1) figure" loading="@(i == 0 ? "eager" : "lazy")" decoding="async"
+                             class="block max-w-full sm:max-w-md h-auto mx-auto mb-4 rounded-xl border border-slate-100 dark:border-slate-700 bg-white p-2" />
+                    }
 
                     @if (ans.IsMCQ)
                     {
@@ -221,7 +230,7 @@
                                 <label class="flex items-center gap-3 px-4 py-3 rounded-xl border border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 cursor-pointer hover:border-indigo-200 dark:hover:border-indigo-700 transition-colors">
                                     <input type="radio" name="mcq-@ans.QuestionID" value="@opt.OptionID" class="mcq-option-input w-4 h-4 accent-indigo-600"
                                            data-question-id="@ans.QuestionID" @(opt.OptionID == ans.SelectedOptionID ? "checked" : "") />
-                                    <span class="text-sm text-slate-700 dark:text-slate-200">@opt.OptionTextLatex</span>
+                                    <span class="katex-render flex-1 min-w-0 text-sm text-slate-700 dark:text-slate-200" data-latex="@opt.OptionTextLatex">@opt.OptionTextLatex</span>
                                 </label>
                             }
                         </div>

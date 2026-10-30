@@ -6,6 +6,10 @@
     var ordered = Model.OrderBy(a => a.SortOrder).ToList();
 }
 
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.18.4/dist/katex.min.css" integrity="sha384-u1zONI5gPXUx0UKI62c75/zww972y0v2rSK5ZYlVdS6xEuWDeZWUI66v6t1gvlXJ" crossorigin="anonymous">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.18.4/dist/katex.min.js" integrity="sha384-ykMNcWQhhTUb0YV9SPpPUFURHZ+tWmubkakGBP+OgNK/UXdO2gtzglWx0Rj9hnO3" crossorigin="anonymous"></script>
+<script defer src="~/js/exam-math.js" asp-append-version="true"></script>
+
 <div class="max-w-4xl mx-auto page-enter space-y-6">
     @if (attempt.IsFullyGraded)
     {
@@ -41,11 +45,17 @@
             var ans = ordered[i];
             <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 p-6">
                 <div class="flex items-start justify-between gap-4 mb-4">
-                    <div class="flex items-start gap-3">
+                    <div class="flex items-start gap-3 min-w-0">
                         <span class="flex-shrink-0 w-7 h-7 rounded-full bg-[#ede7fc] dark:bg-slate-700 text-[#7c3aed] dark:text-[#a78bfa] text-xs font-semibold flex items-center justify-center mt-0.5">
                             @(i + 1)
                         </span>
-                        <p class="text-slate-800 dark:text-slate-100 font-medium leading-relaxed">@ans.QuestionTextLatex</p>
+                        <div class="min-w-0 flex-1">
+                            <div class="katex-render text-slate-800 dark:text-slate-100 font-medium leading-relaxed" data-latex="@ans.QuestionTextLatex">@ans.QuestionTextLatex</div>
+                            @if (!string.IsNullOrEmpty(ans.ImageURL))
+                            {
+                                <img src="@ans.ImageURL" alt="Question @(i + 1) figure" loading="lazy" decoding="async" class="block max-w-full sm:max-w-md h-auto mt-3 rounded-xl border border-slate-100 dark:border-slate-700 bg-white p-2" />
+                            }
+                        </div>
                     </div>
                     <span class="flex-shrink-0 text-xs font-medium text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-full px-3 py-1 whitespace-nowrap">
                         @(ans.IsMCQ ? "MCQ" : "Written") &middot; @ans.Marks marks

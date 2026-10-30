@@ -19,6 +19,7 @@
      edited (question lists, read-only views). -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.18.4/dist/katex.min.css" integrity="sha384-u1zONI5gPXUx0UKI62c75/zww972y0v2rSK5ZYlVdS6xEuWDeZWUI66v6t1gvlXJ" crossorigin="anonymous">
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.18.4/dist/katex.min.js" integrity="sha384-ykMNcWQhhTUb0YV9SPpPUFURHZ+tWmubkakGBP+OgNK/UXdO2gtzglWx0Rj9hnO3" crossorigin="anonymous"></script>
+<script defer src="~/js/exam-math.js" asp-append-version="true"></script>
 
 <div class="max-w-5xl mx-auto page-enter">
     <div class="flex items-center gap-3 mb-6">
@@ -276,7 +277,7 @@
 
                 <div class="p-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
                     <!-- Left: the actual authoring form -->
-                    <div class="space-y-4">
+                    <div class="space-y-4 min-w-0">
                         <input type="hidden" id="q-id" />
 
                         <div class="flex flex-wrap gap-4">
@@ -332,7 +333,7 @@
                     </div>
 
                     <!-- Right: live preview of how the question will render -->
-                    <div>
+                    <div class="min-w-0">
                         <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Preview <span class="text-slate-400 font-normal">(how it will look)</span></label>
                         <div class="rounded-2xl border border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/60 p-5 min-h-[20rem]">
                             <div class="flex items-center gap-2 mb-3">
@@ -356,13 +357,6 @@
             </div>
         </div>
 
-        <style>
-            /* KaTeX lays each expression out as one unbreakable line, so long
-               questions ran past the card edge — let the text wrap. */
-            .katex-wrap { display: block; min-width: 0; max-width: 100%; overflow-wrap: anywhere; }
-            .katex-wrap .katex, .katex-wrap .katex-html { white-space: normal; }
-            .katex-wrap .katex .base { display: inline; white-space: normal; }
-        </style>
         <script>
             const examId = '@e.ExamID';
             const antiForgeryToken = document.querySelector('#af-token-holder input[name="__RequestVerificationToken"]')?.value || '';
@@ -415,12 +409,8 @@
             // the raw source in red (e.g. "\text{-2∉A}", since ∉ isn't valid in
             // text mode) and the fallbacks below never ran. Order: as text, as
             // math, then plain text with the \text{} wrapper stripped.
-            function renderMixedLatex(latex, el) {
-                el.classList.add('katex-wrap');
-                try { katex.render('\\text{' + latex + '}', el, { throwOnError: true }); return; } catch { }
-                try { katex.render(latex, el, { throwOnError: true }); return; } catch { }
-                el.textContent = latex.replace(/\\text\{([^{}]*)\}/g, '$1');
-            }
+            // renderMixedLatex lives in wwwroot/js/exam-math.js (shared with
+            // the student exam and grading pages).
 
             function renderKatex() {
                 if (typeof katex === 'undefined') return;
