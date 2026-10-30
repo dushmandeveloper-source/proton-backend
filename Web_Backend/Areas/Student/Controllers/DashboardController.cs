@@ -225,7 +225,7 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
 
                 var hasPendingReview = studentAttempts.Any(a =>
                     a.ExamID == seg.ExamID &&
-                    a.Status != "InProgress" &&
+                    a.Status != "InProgress" && a.Status != "Voided" &&
                     !a.ResultReleasedDate.HasValue);
 
                 var examReg = string.IsNullOrEmpty(exam.CourseID)

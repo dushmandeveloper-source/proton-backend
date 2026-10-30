@@ -155,7 +155,7 @@ namespace Web_Backend.Areas.LecturerPortal.Controllers
         // remark into account, then re-approves through the normal flow.
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Reject(string attemptId, string remark)
+        public async Task<IActionResult> Reject(string attemptId, string remark, bool allowRetake = false)
         {
             Auth.CheckUser();
             var user = Auth.GetUser();
@@ -168,8 +168,16 @@ namespace Web_Backend.Areas.LecturerPortal.Controllers
 
             try
             {
-                await attemptRep.TeacherReject(attemptId, user!.Id, remark);
-                TempData["SuccessMessage"] = "Attempt rejected and sent back for re-grading.";
+                if (allowRetake)
+                {
+                    await attemptRep.GrantRetake(attemptId, user!.Id, remark);
+                    TempData["SuccessMessage"] = "Attempt rejected — the student can now take this exam again.";
+                }
+                else
+                {
+                    await attemptRep.TeacherReject(attemptId, user!.Id, remark);
+                    TempData["SuccessMessage"] = "Attempt rejected and sent back for re-grading.";
+                }
             }
             catch (Exception ex)
             {

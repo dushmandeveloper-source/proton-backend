@@ -165,7 +165,9 @@
                                 </a>
                                 <button type="button"
                                         class="reject-btn px-3 py-1.5 rounded-xl font-medium text-xs border border-red-200 dark:border-red-900 text-red-600 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-950/40 transition-all whitespace-nowrap"
-                                        data-attempt-id="@attempt.AttemptID">
+                                        data-attempt-id="@attempt.AttemptID"
+                                        data-exam="@attempt.ExamTitle"
+                                        data-student="@attempt.StudentName">
                                     Reject
                                 </button>
                             </div>
@@ -174,11 +176,58 @@
                 </div>
             </form>
 
-            <form asp-action="Reject" asp-controller="ExamReview" asp-area="Lecturer" method="post" id="rejectForm">
-                @Html.AntiForgeryToken()
-                <input type="hidden" name="attemptId" id="rejectAttemptId" />
-                <input type="hidden" name="remark" id="rejectRemark" />
-            </form>
+            <div id="rejectModal" class="hidden fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="rejectTitle">
+                <form asp-action="Reject" asp-controller="ExamReview" asp-area="Lecturer" method="post" id="rejectForm"
+                      class="w-full max-w-lg bg-white dark:bg-slate-900 rounded-[24px] shadow-2xl border border-slate-100 dark:border-slate-700 p-6">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="attemptId" id="rejectAttemptId" />
+
+                    <div class="flex items-start gap-3 mb-5">
+                        <span class="flex-shrink-0 w-10 h-10 rounded-full bg-red-50 dark:bg-red-950/60 text-red-600 dark:text-red-300 flex items-center justify-center">
+                            <i data-lucide="x-circle" class="w-5 h-5"></i>
+                        </span>
+                        <div class="min-w-0">
+                            <h2 id="rejectTitle" class="text-lg font-semibold text-slate-800 dark:text-slate-100">Reject attempt</h2>
+                            <p id="rejectSubtitle" class="text-sm text-slate-500 dark:text-slate-400 truncate"></p>
+                        </div>
+                    </div>
+
+                    <p class="text-sm font-medium text-slate-700 dark:text-slate-200 mb-2">What should happen next?</p>
+                    <div class="grid gap-2 mb-5">
+                        <label class="block cursor-pointer">
+                            <input type="radio" name="allowRetake" value="false" checked class="peer sr-only" />
+                            <span class="flex flex-col p-3 rounded-2xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/60 peer-checked:border-[#7c3aed] peer-checked:bg-[#7c3aed]/10 peer-focus-visible:ring-2 peer-focus-visible:ring-[#7c3aed]/40 transition-all">
+                                <span class="block text-sm font-medium text-slate-800 dark:text-slate-100">Send back for re-grading</span>
+                                <span class="block text-xs text-slate-500 dark:text-slate-400">Keep the student's answers and grade them again.</span>
+                            </span>
+                        </label>
+                        <label class="block cursor-pointer">
+                            <input type="radio" name="allowRetake" value="true" class="peer sr-only" />
+                            <span class="flex flex-col p-3 rounded-2xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/60 peer-checked:border-[#7c3aed] peer-checked:bg-[#7c3aed]/10 peer-focus-visible:ring-2 peer-focus-visible:ring-[#7c3aed]/40 transition-all">
+                                <span class="block text-sm font-medium text-slate-800 dark:text-slate-100">Let the student redo the exam</span>
+                                <span class="block text-xs text-slate-500 dark:text-slate-400">This attempt is voided and won't count. The student can start the exam again while its schedule window is open.</span>
+                            </span>
+                        </label>
+                    </div>
+
+                    <label for="rejectRemark" class="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-1">Reason <span class="text-red-500">*</span></label>
+                    <textarea name="remark" id="rejectRemark" rows="3" maxlength="1000"
+                              placeholder="e.g. Camera was off for most of the exam — please sit it again."
+                              class="w-full rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm text-slate-800 dark:text-slate-100 placeholder-slate-400 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#7c3aed]/40 focus:border-[#7c3aed] resize-none"></textarea>
+                    <p id="rejectError" class="hidden text-xs text-red-600 dark:text-red-300 mt-1">Please enter a reason — the student and admin will see it.</p>
+
+                    <div class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 mt-6">
+                        <button type="button" data-close-reject
+                                class="px-4 py-2 rounded-xl font-medium text-sm border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-all">
+                            Cancel
+                        </button>
+                        <button type="submit"
+                                class="px-4 py-2 rounded-xl font-medium text-sm bg-red-600 text-white hover:bg-red-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-red-500/40 transition-all">
+                            Reject attempt
+                        </button>
+                    </div>
+                </form>
+            </div>
         }
     </div>
 </div>
@@ -213,18 +262,36 @@
         });
     });
 
-    document.querySelectorAll('.reject-btn').forEach(function (btn) {
-        btn.addEventListener('click', function () {
-            var remark = window.prompt('Reason for rejecting this attempt (required):');
-            if (remark === null) return;
-            remark = remark.trim();
-            if (!remark) {
-                window.alert('A remark is required to reject an attempt.');
-                return;
-            }
-            document.getElementById('rejectAttemptId').value = btn.dataset.attemptId;
-            document.getElementById('rejectRemark').value = remark;
-            document.getElementById('rejectForm').submit();
+    (function () {
+        var modal = document.getElementById('rejectModal');
+        if (!modal) return;
+        var form = document.getElementById('rejectForm');
+        var remark = document.getElementById('rejectRemark');
+        var error = document.getElementById('rejectError');
+
+        function close() { modal.classList.add('hidden'); }
+
+        document.querySelectorAll('.reject-btn').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                document.getElementById('rejectAttemptId').value = btn.dataset.attemptId;
+                document.getElementById('rejectSubtitle').textContent = btn.dataset.student + ' · ' + btn.dataset.exam;
+                form.reset();
+                error.classList.add('hidden');
+                modal.classList.remove('hidden');
+                remark.focus();
+            });
         });
-    });
+
+        form.addEventListener('submit', function (e) {
+            if (!remark.value.trim()) {
+                e.preventDefault();
+                error.classList.remove('hidden');
+                remark.focus();
+            }
+        });
+        remark.addEventListener('input', function () { error.classList.add('hidden'); });
+        modal.querySelector('[data-close-reject]').addEventListener('click', close);
+        modal.addEventListener('click', function (e) { if (e.target === modal) close(); });
+        document.addEventListener('keydown', function (e) { if (e.key === 'Escape') close(); });
+    })();
 </script>

@@ -99,6 +99,16 @@ namespace Web_Backend.Areas.Admin.Data
                 Remark = remark
             });
 
+        // Reject + void the attempt so the student can sit the exam again (0111).
+        public Task GrantRetake(string attemptId, string reviewedByUserId, string remark) =>
+            db.ExecuteNonQuery("edu.ExamAttempt_GrantRetake", new
+            {
+                APIKey = AppData.GetAPIKey(),
+                AttemptID = attemptId,
+                ReviewedByUserID = reviewedByUserId,
+                Remark = remark
+            });
+
         public Task<List<ExamAttempt>> ListAdminReviewQueue() =>
             db.GetList<ExamAttempt, object>("edu.ExamAttempt_ListAdminReviewQueue", new { APIKey = AppData.GetAPIKey() });
 

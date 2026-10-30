@@ -12,7 +12,7 @@
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.18.4/dist/contrib/mhchem.min.js" integrity="sha384-fB8BH//9nBzROkMUsu/Dr35jWHIbnKesUo9rW0hfEgw8mZGnkAyBAjKX9F98OVuo" crossorigin="anonymous"></script>
 <script defer src="~/js/exam-math.js" asp-append-version="true"></script>
 
-<div class="max-w-3xl mx-auto space-y-6 page-enter">
+<div class="max-w-3xl mx-auto space-y-6 page-enter pb-32">
 
     @* Screen-share's native picker reliably knocks the browser out of
        fullscreen on most browsers, and a fresh requestFullscreen() call
@@ -139,9 +139,9 @@
     </div>
 
     @* ---------- Small always-visible camera/screen preview dock, bottom-right ---------- *@
-    <div id="monitorDock" class="fixed bottom-4 right-4 z-40 flex gap-2">
+    <div id="monitorDock" class="fixed bottom-3 right-3 z-40 flex gap-1.5 opacity-90 hover:opacity-100 transition-opacity">
         <div class="space-y-1">
-            <div class="relative rounded-xl overflow-hidden bg-slate-900 border-2 border-slate-200 dark:border-slate-700 shadow-lg w-[130px] h-[98px]">
+            <div class="relative rounded-xl overflow-hidden bg-slate-900 border-2 border-slate-200 dark:border-slate-700 shadow-lg w-[84px] h-[63px] sm:w-[104px] sm:h-[78px]">
                 <video id="dockCameraPreview" class="w-full h-full object-cover" autoplay playsinline muted></video>
                 <span id="dockCameraLiveBadge" class="hidden absolute top-1 right-1 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-semibold uppercase tracking-wide bg-red-50/90 dark:bg-red-950/90 text-red-600 dark:text-red-300">
                     <span class="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse"></span> Live
@@ -150,7 +150,7 @@
             <p class="text-center text-[10px] font-medium text-slate-500 dark:text-slate-400">Camera</p>
         </div>
         <div class="space-y-1">
-            <div class="relative rounded-xl overflow-hidden bg-slate-900 border-2 border-slate-200 dark:border-slate-700 shadow-lg w-[130px] h-[98px]">
+            <div class="relative rounded-xl overflow-hidden bg-slate-900 border-2 border-slate-200 dark:border-slate-700 shadow-lg w-[84px] h-[63px] sm:w-[104px] sm:h-[78px]">
                 <video id="dockScreenPreview" class="w-full h-full object-cover" autoplay playsinline muted></video>
                 <span id="dockScreenLiveBadge" class="hidden absolute top-1 right-1 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-semibold uppercase tracking-wide bg-red-50/90 dark:bg-red-950/90 text-red-600 dark:text-red-300">
                     <span class="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse"></span> Live

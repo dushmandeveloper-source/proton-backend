@@ -1,4 +1,6 @@
 using System.Collections.Concurrent;
+using System.Security.Claims;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
 using Web_Backend.Areas.Admin.Data;
 using Web_Backend.Classes;
@@ -18,6 +20,14 @@ namespace Web_Backend.Hubs
     // exactly one intended recipient rather than broadcast to a group
     // (a later lecturer's RequestWatch simply overwrites who "the" watcher
     // is for that attempt -- see RequestWatch).
+    //
+    // Identity comes from Context.User (authenticated once at connect time
+    // against the Student/Lecturer cookies below), not Auth.GetUserId():
+    // Auth reads IHttpContextAccessor, whose HttpContext is null for hub
+    // calls over Server-Sent Events / long polling -- the fallback IIS uses
+    // when WebSockets are unavailable -- which crashed RequestWatch with
+    // "An unexpected error occurred invoking 'RequestWatch'".
+    [Authorize(AuthenticationSchemes = Auth.StudentScheme + "," + Auth.LecturerScheme)]
     public class ExamWatchHub : Hub
     {
         private static readonly ConcurrentDictionary<string, string> _studentConnectionByAttempt = new();
@@ -27,11 +37,34 @@ namespace Web_Backend.Hubs
         private readonly IStudentData studentRep;
         private readonly IExamScheduleData examScheduleRep;
 
-        public ExamWatchHub(IExamAttemptData attemptRep, IStudentData studentRep, IExamScheduleData examScheduleRep)
+        private readonly ILogger<ExamWatchHub> logger;
+
+        public ExamWatchHub(IExamAttemptData attemptRep, IStudentData studentRep, IExamScheduleData examScheduleRep, ILogger<ExamWatchHub> logger)
         {
             this.attemptRep = attemptRep;
             this.studentRep = studentRep;
             this.examScheduleRep = examScheduleRep;
+            this.logger = logger;
+        }
+
+        // A browser can hold both portal cookies at once, so pick the
+        // identity signed in through the portal this call belongs to.
+        private string UserIdFor(string scheme) =>
+            Context.User?.Identities
+                .FirstOrDefault(i => i.IsAuthenticated && i.AuthenticationType == scheme)
+                ?.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "";
+
+        // Anything other than a HubException reaches the browser only as
+        // "unexpected error" -- log the real cause and send a readable one.
+        private async Task Guard(string method, Func<Task> body)
+        {
+            try { await body(); }
+            catch (HubException) { throw; }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "ExamWatchHub.{Method} failed", method);
+                throw new HubException("Live view is unavailable right now. Please try again in a moment.");
+            }
         }
 
         // Called once from Take.cshtml when the exam page loads. Registers
@@ -40,9 +73,9 @@ namespace Web_Backend.Hubs
         // action in Student/ExamAttemptController (attempt.StudentID must
         // match the caller's own StudentID) -- a hub call bypasses no
         // authorization a controller action would have applied.
-        public async Task JoinAsStudent(string attemptId)
+        public Task JoinAsStudent(string attemptId) => Guard(nameof(JoinAsStudent), async () =>
         {
-            var userId = Auth.GetUserId();
+            var userId = UserIdFor(Auth.StudentScheme);
             if (string.IsNullOrEmpty(userId))
                 throw new HubException("Not signed in.");
 
@@ -52,7 +85,7 @@ namespace Web_Backend.Hubs
                 throw new HubException("This attempt does not belong to you.");
 
             _studentConnectionByAttempt[attemptId] = Context.ConnectionId;
-        }
+        });
 
         // Called from the Lecturer watch screen when a tile is clicked
         // (initial watch, or switching from a different student). Verifies
@@ -60,9 +93,9 @@ namespace Web_Backend.Hubs
         // reusing the exact rule ExamScheduleController already uses for
         // "which exams can this lecturer see" -- then tells the student's
         // connection a watcher wants to negotiate.
-        public async Task RequestWatch(string attemptId)
+        public Task RequestWatch(string attemptId) => Guard(nameof(RequestWatch), async () =>
         {
-            var userId = Auth.GetUserId();
+            var userId = UserIdFor(Auth.LecturerScheme);
             if (string.IsNullOrEmpty(userId))
                 throw new HubException("Not signed in.");
 
@@ -81,7 +114,7 @@ namespace Web_Backend.Hubs
             _watcherByAttempt[attemptId] = Context.ConnectionId;
 
             await Clients.Client(studentConnectionId).SendAsync("WatchRequested", attemptId, Context.ConnectionId);
-        }
+        });
 
         // Generic signaling relay -- carries SDP offer/answer and ICE
         // candidates in both directions. Re-validates the sender is either

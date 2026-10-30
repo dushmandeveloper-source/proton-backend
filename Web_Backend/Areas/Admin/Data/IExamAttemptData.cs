@@ -25,6 +25,7 @@ namespace Web_Backend.Areas.Admin.Data
         Task<List<ExamAttempt>> ListTeacherReviewQueue();
         Task TeacherApprove(string attemptId, string reviewedByUserId);
         Task TeacherReject(string attemptId, string reviewedByUserId, string remark);
+        Task GrantRetake(string attemptId, string reviewedByUserId, string remark);
         Task<List<ExamAttempt>> ListAdminReviewQueue();
         Task<ExamAttempt?> AdminApprove(string attemptId, string reviewedByUserId);
         Task AdminReject(string attemptId, string reviewedByUserId, string remark);
