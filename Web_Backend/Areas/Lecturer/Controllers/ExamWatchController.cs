@@ -26,7 +26,15 @@ namespace Web_Backend.Areas.LecturerPortal.Controllers
         {
             Auth.CheckUser();
             ViewBag.CurrentUser = Auth.GetUser();
-            var inProgress = await attemptRep.ListInProgressForInstructor(Auth.GetUserId());
+            // A closed browser never submits, so the row stays 'InProgress' --
+            // drop ones whose timer has run out (ExpiresDate is UTC since 0071).
+            var inProgress = (await attemptRep.ListInProgressForInstructor(Auth.GetUserId()))
+                .Where(a => a.ExpiresDate > DateTime.UtcNow)
+                .ToList();
+            ViewBag.OnlineIds = inProgress
+                .Where(a => Web_Backend.Hubs.ExamWatchHub.IsStudentConnected(a.AttemptID))
+                .Select(a => a.AttemptID)
+                .ToHashSet();
             return View(inProgress);
         }
     }

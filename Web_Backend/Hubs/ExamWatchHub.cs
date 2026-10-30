@@ -40,15 +40,57 @@ namespace Web_Backend.Hubs
         private readonly ILogger<ExamWatchHub> logger;
 
         private readonly IceServerProvider iceServers;
+        private readonly IServiceScopeFactory scopeFactory;
 
-        public ExamWatchHub(IExamAttemptData attemptRep, IStudentData studentRep, IExamScheduleData examScheduleRep, ILogger<ExamWatchHub> logger, IceServerProvider iceServers)
+        // How long a closed exam page has to come back (refresh, network
+        // blip, automatic reconnect) before the attempt is ended for good.
+        private static readonly TimeSpan ClosedPageGrace = TimeSpan.FromSeconds(60);
+
+        public ExamWatchHub(IExamAttemptData attemptRep, IStudentData studentRep, IExamScheduleData examScheduleRep, ILogger<ExamWatchHub> logger, IceServerProvider iceServers, IServiceScopeFactory scopeFactory)
         {
             this.attemptRep = attemptRep;
             this.studentRep = studentRep;
             this.examScheduleRep = examScheduleRep;
             this.logger = logger;
             this.iceServers = iceServers;
+            this.scopeFactory = scopeFactory;
         }
+
+        // Closing the exam browser ends the exam: if the page hasn't
+        // re-registered within ClosedPageGrace, submit the attempt with
+        // whatever answers were already saved (forced -- unanswered questions
+        // don't block it). Runs after the hub instance is gone, so it uses
+        // its own DI scope. A normal Submit has already finalized the
+        // attempt, so the Status check makes this a no-op then.
+        private void EndAttemptIfPageStaysClosed(string attemptId)
+        {
+            var scopes = scopeFactory;
+            var log = logger;
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await Task.Delay(ClosedPageGrace);
+                    if (_studentConnectionByAttempt.ContainsKey(attemptId)) return; // came back
+
+                    using var scope = scopes.CreateScope();
+                    var attempts = scope.ServiceProvider.GetRequiredService<IExamAttemptData>();
+                    var attempt = await attempts.Get(attemptId);
+                    if (attempt == null || attempt.Status != "InProgress") return;
+
+                    await attempts.Submit(attemptId, isForced: true);
+                    log.LogInformation("Attempt {AttemptId} auto-submitted: exam page closed", attemptId);
+                }
+                catch (Exception ex)
+                {
+                    log.LogError(ex, "Auto-submit after closed exam page failed for {AttemptId}", attemptId);
+                }
+            });
+        }
+
+        // Whether the student's exam page is open right now (it registers on
+        // load and drops out on close) -- drives the watch list's Live/Left badge.
+        public static bool IsStudentConnected(string attemptId) => _studentConnectionByAttempt.ContainsKey(attemptId);
 
         // STUN + TURN servers for the RTCPeerConnection on both sides.
         public Task<object> GetIceServers() => iceServers.GetAsync();
@@ -167,6 +209,7 @@ namespace Web_Backend.Hubs
             foreach (var kv in _studentConnectionByAttempt.Where(kv => kv.Value == Context.ConnectionId).ToList())
             {
                 _studentConnectionByAttempt.TryRemove(kv.Key, out _);
+                EndAttemptIfPageStaysClosed(kv.Key);
                 if (_watcherByAttempt.TryRemove(kv.Key, out var watcherConnectionId))
                 {
                     await Clients.Client(watcherConnectionId).SendAsync("ExamEnded", kv.Key);

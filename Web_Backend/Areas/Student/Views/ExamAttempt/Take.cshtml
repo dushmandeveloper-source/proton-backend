@@ -362,8 +362,11 @@
         return pc;
     }
 
+    // Connects whether or not live viewing was accepted: the connection is
+    // also how the lecturer's list knows this exam page is still open.
+    // Video is only ever sent when liveViewAccepted.
     async function setupLiveViewIfAccepted() {
-        if (!liveViewAccepted) return;
+        if (watchHubConnection) return;
 
         watchHubConnection = new signalR.HubConnectionBuilder()
             .withUrl('/hubs/exam-watch')
@@ -371,6 +374,10 @@
             .build();
 
         watchHubConnection.on('WatchRequested', async function (attemptId, watcherConnectionId) {
+            if (!liveViewAccepted) {
+                watchHubConnection.invoke('SendSignal', attemptId, watcherConnectionId, { type: 'declined' }).catch(function () { });
+                return;
+            }
             // A new watcher supersedes any previous one -- exactly one
             // lecturer is ever connected at a time.
             if (watchPeerConnection) {
@@ -452,6 +459,7 @@
     declineLiveViewBtn.addEventListener('click', function () {
         liveViewAccepted = false;
         liveViewConsentModal.classList.add('hidden');
+        setupLiveViewIfAccepted();
     });
 
     function beginGraceWindow() {
@@ -626,6 +634,7 @@
                 reenterFullscreenPrompt.classList.remove('hidden');
             }
 
+            setupLiveViewIfAccepted(); // presence + close-detection from here on
             liveViewConsentModal.classList.remove('hidden');
         });
     });
@@ -660,9 +669,11 @@
         }
     });
 
+    // keepalive lets the request finish even while the tab is closing.
     function saveAnswer(questionId, attemptId, selectedOptionId, writtenAnswerText) {
         fetch('/Student/ExamAttempt/SaveAnswer', {
             method: 'POST',
+            keepalive: true,
             headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'RequestVerificationToken': token },
             body: new URLSearchParams({
                 attemptId: attemptId,
@@ -755,6 +766,27 @@
             updatePalette();
             updateSubmitGate();
         });
+    });
+
+    // Closing the browser ends the exam with what's on the server (see
+    // ExamWatchHub), so written answers are saved while typing and on close,
+    // not only when the box loses focus.
+    var writtenDirty = {};
+    function saveWritten(el) {
+        var q = el.closest('.exam-question');
+        delete writtenDirty[q.getAttribute('data-question-id')];
+        saveAnswer(q.getAttribute('data-question-id'), q.getAttribute('data-attempt-id'), null, el.value);
+    }
+    document.querySelectorAll('.written-answer-input').forEach(function (el) {
+        var timer = null;
+        el.addEventListener('input', function () {
+            writtenDirty[el.closest('.exam-question').getAttribute('data-question-id')] = el;
+            clearTimeout(timer);
+            timer = setTimeout(function () { saveWritten(el); }, 1500);
+        });
+    });
+    window.addEventListener('pagehide', function () {
+        Object.keys(writtenDirty).forEach(function (id) { saveWritten(writtenDirty[id]); });
     });
 
     document.querySelectorAll('.written-answer-input').forEach(function (el) {

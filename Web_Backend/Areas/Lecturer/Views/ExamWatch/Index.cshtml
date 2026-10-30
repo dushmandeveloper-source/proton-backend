@@ -18,7 +18,7 @@
         </div>
         <span id="liveCount" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold uppercase tracking-wide bg-slate-900 text-emerald-400">
             <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-            @Model.Count in progress
+            @((ViewBag.OnlineIds as HashSet<string>)?.Count ?? 0) live now
         </span>
     </div>
 
@@ -29,10 +29,12 @@
         <p class="text-xs text-slate-400 dark:text-slate-500 mt-1">Students appear here automatically when they start.</p>
     </div>
         <div id="watchGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            @{ var onlineIds = ViewBag.OnlineIds as HashSet<string> ?? new HashSet<string>(); }
             @foreach (var a in Model)
             {
-                <div class="watch-tile group relative rounded-2xl overflow-hidden bg-slate-950 border border-slate-800 shadow-lg shadow-black/30 cursor-pointer transition-all hover:ring-2 hover:ring-[#7c3aed] hover:-translate-y-0.5"
-                     data-attempt-id="@a.AttemptID" data-student-name="@a.StudentName" data-exam-title="@a.ExamTitle">
+                var online = onlineIds.Contains(a.AttemptID);
+                <div class="watch-tile group relative rounded-2xl overflow-hidden bg-slate-950 border border-slate-800 shadow-lg shadow-black/30 cursor-pointer transition-all hover:ring-2 hover:ring-[#7c3aed] hover:-translate-y-0.5 @(online ? "" : "opacity-60")"
+                     data-attempt-id="@a.AttemptID" data-student-name="@a.StudentName" data-exam-title="@a.ExamTitle" data-online="@(online ? "1" : "0")">
                     <div class="relative aspect-video bg-slate-900 flex items-center justify-center">
                         <video class="tile-video w-full h-full object-cover hidden" autoplay playsinline muted></video>
                         <div class="tile-placeholder flex flex-col items-center gap-2 text-slate-600">
@@ -40,8 +42,19 @@
                             <span class="text-[10px] uppercase tracking-wider">No feed</span>
                         </div>
 
-                        <span class="absolute top-2 left-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wide bg-black/60 backdrop-blur-sm text-emerald-400">
-                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> Live
+                        <span class="tile-status absolute top-2 left-2">
+                            @if (online)
+                            {
+                                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wide bg-black/60 backdrop-blur-sm text-emerald-400">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> Live
+                                </span>
+                            }
+                            else
+                            {
+                                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wide bg-black/60 backdrop-blur-sm text-amber-300" title="The exam page is closed. The attempt stays open until its timer runs out.">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-amber-300"></span> Left exam page
+                                </span>
+                            }
                         </span>
 
                         @if (a.StrikeCount > 0)
@@ -354,10 +367,24 @@ function setActiveSwitcherButton(attemptId) {
             return { attemptId: el.dataset.attemptId, studentName: el.dataset.studentName, examTitle: el.dataset.examTitle };
         }
 
+        function showToastOnTile(tile, message) {
+            var note = document.createElement('div');
+            note.className = 'absolute inset-x-2 bottom-2 rounded-xl bg-black/80 text-amber-200 text-xs text-center px-3 py-2 pointer-events-none';
+            note.textContent = message;
+            tile.querySelector('.aspect-video').appendChild(note);
+            setTimeout(function () { note.remove(); }, 2500);
+        }
+
         // Delegated, so tiles/buttons added by refreshList() work too.
         document.addEventListener('click', function (e) {
             var el = e.target.closest('.watch-tile, .switcher-btn');
-            if (el) watch(tileDescriptor(el));
+            if (!el) return;
+            var tile = document.querySelector('.watch-tile[data-attempt-id="' + el.dataset.attemptId + '"]');
+            if (tile && tile.dataset.online === '0') {
+                showToastOnTile(tile, 'This student has closed the exam page.');
+                return;
+            }
+            watch(tileDescriptor(el));
         });
 
         focusCloseBtn.addEventListener('click', stopWatching);
@@ -374,8 +401,14 @@ function setActiveSwitcherButton(attemptId) {
             var freshIds = {};
             fresh.querySelectorAll(selector).forEach(function (el) {
                 freshIds[el.dataset.attemptId] = true;
-                if (!container.querySelector(selector + '[data-attempt-id="' + el.dataset.attemptId + '"]')) {
+                var existing = container.querySelector(selector + '[data-attempt-id="' + el.dataset.attemptId + '"]');
+                if (!existing) {
                     container.appendChild(document.importNode(el, true));
+                } else if (el.dataset.online !== undefined && existing.dataset.online !== el.dataset.online) {
+                    // Student opened/closed the exam page since the last poll.
+                    existing.dataset.online = el.dataset.online;
+                    existing.classList.toggle('opacity-60', el.dataset.online !== '1');
+                    existing.querySelector('.tile-status').innerHTML = el.querySelector('.tile-status').innerHTML;
                 }
             });
             container.querySelectorAll(selector).forEach(function (el) {
@@ -393,7 +426,7 @@ function setActiveSwitcherButton(attemptId) {
                 var count = watchGrid.querySelectorAll('.watch-tile').length;
                 document.getElementById('watchEmpty').classList.toggle('hidden', count > 0);
                 var liveCount = document.getElementById('liveCount');
-                liveCount.lastChild.textContent = ' ' + count + ' in progress';
+                liveCount.lastChild.textContent = ' ' + watchGrid.querySelectorAll('.watch-tile[data-online="1"]').length + ' live now';
                 if (window.lucide) lucide.createIcons();
             } catch (e) { }
         }
