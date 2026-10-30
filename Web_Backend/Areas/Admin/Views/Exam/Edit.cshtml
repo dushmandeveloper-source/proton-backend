@@ -19,6 +19,7 @@
      edited (question lists, read-only views). -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.18.4/dist/katex.min.css" integrity="sha384-u1zONI5gPXUx0UKI62c75/zww972y0v2rSK5ZYlVdS6xEuWDeZWUI66v6t1gvlXJ" crossorigin="anonymous">
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.18.4/dist/katex.min.js" integrity="sha384-ykMNcWQhhTUb0YV9SPpPUFURHZ+tWmubkakGBP+OgNK/UXdO2gtzglWx0Rj9hnO3" crossorigin="anonymous"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.18.4/dist/contrib/mhchem.min.js" integrity="sha384-fB8BH//9nBzROkMUsu/Dr35jWHIbnKesUo9rW0hfEgw8mZGnkAyBAjKX9F98OVuo" crossorigin="anonymous"></script>
 <script defer src="~/js/exam-math.js" asp-append-version="true"></script>
 
 <div class="max-w-5xl mx-auto page-enter">
@@ -276,10 +277,27 @@
                     <button type="button" onclick="closeEquation()" class="p-1 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"><i data-lucide="x" class="w-4 h-4"></i></button>
                 </div>
                 <div class="px-5 pb-4 space-y-3">
-                    <p class="text-xs text-slate-500 dark:text-slate-400">Type with the on-screen maths keyboard, or e.g. <span class="font-mono">x^2</span>, <span class="font-mono">sqrt</span>, <span class="font-mono">1/2</span>.</p>
-                    <math-field id="eq-field" virtual-keyboard-mode="onfocus" oninput="renderEquationPreview()"
-                                onkeydown="if (event.key === 'Enter') { event.preventDefault(); insertEquation(); }"
-                                class="block w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-lg"></math-field>
+                    <div class="inline-flex p-1 rounded-xl bg-slate-100 dark:bg-slate-800 text-sm" role="tablist">
+                        <button type="button" data-eq-tab="math" onclick="setEquationTab('math')" class="eq-tab px-3 py-1.5 rounded-lg font-medium transition">Maths / Physics</button>
+                        <button type="button" data-eq-tab="chem" onclick="setEquationTab('chem')" class="eq-tab px-3 py-1.5 rounded-lg font-medium transition">Chemistry</button>
+                    </div>
+                    <div id="eq-pane-math" class="space-y-2">
+                        <p class="text-xs text-slate-500 dark:text-slate-400">Type with the on-screen maths keyboard, or e.g. <span class="font-mono">x^2</span>, <span class="font-mono">sqrt</span>, <span class="font-mono">1/2</span>.</p>
+                        <math-field id="eq-field" virtual-keyboard-mode="onfocus" oninput="renderEquationPreview()"
+                                    onkeydown="if (event.key === 'Enter') { event.preventDefault(); insertEquation(); }"
+                                    class="block w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-lg"></math-field>
+                    </div>
+                    <div id="eq-pane-chem" class="hidden space-y-2">
+                        <p class="text-xs text-slate-500 dark:text-slate-400">
+                            Type the formula as plain text — numbers become subscripts automatically.
+                            Examples: <span class="font-mono">H2SO4</span>, <span class="font-mono">Fe^3+</span>, <span class="font-mono">SO4^2-</span>,
+                            <span class="font-mono">2H2 + O2 -> 2H2O</span>, <span class="font-mono">N2 + 3H2 &lt;=&gt; 2NH3</span>,
+                            <span class="font-mono">CaCO3 ->[heat] CaO + CO2 ^</span>, <span class="font-mono">AgCl v</span> (precipitate).
+                        </p>
+                        <input id="eq-chem" type="text" autocomplete="off" spellcheck="false" placeholder="e.g. 2H2 + O2 -> 2H2O" oninput="renderEquationPreview()"
+                               onkeydown="if (event.key === 'Enter') { event.preventDefault(); insertEquation(); }"
+                               class="block w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-base font-mono text-slate-800 dark:text-slate-100 focus:outline-none focus:border-[#7c3aed] focus:ring-2 focus:ring-[#7c3aed]/20" />
+                    </div>
                     <div class="rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700 px-3 py-2 min-h-[2.5rem] text-sm text-slate-700 dark:text-slate-200">
                         <div id="eq-preview" class="text-slate-400">Your equation will appear here</div>
                     </div>
@@ -404,16 +422,36 @@
             }
             document.addEventListener('input', e => { if (e.target.classList?.contains('eq-text')) autoGrow(e.target); });
 
-            let eqTarget = null, eqSelStart = 0, eqSelEnd = 0;
+            // Chemistry tab: mhchem syntax (KaTeX contrib/mhchem.min.js), stored as \(\ce{...}\).
+            let eqTarget = null, eqSelStart = 0, eqSelEnd = 0, eqTab = 'math';
+            function setEquationTab(tab) {
+                eqTab = tab;
+                document.querySelectorAll('.eq-tab').forEach(b => {
+                    const on = b.dataset.eqTab === tab;
+                    b.classList.toggle('bg-white', on); b.classList.toggle('dark:bg-slate-700', on); b.classList.toggle('shadow-sm', on);
+                    b.classList.toggle('text-[#7c3aed]', on); b.classList.toggle('text-slate-500', !on);
+                });
+                document.getElementById('eq-pane-math').classList.toggle('hidden', tab !== 'math');
+                document.getElementById('eq-pane-chem').classList.toggle('hidden', tab !== 'chem');
+                if (tab !== 'math' && window.mathVirtualKeyboard) mathVirtualKeyboard.hide();
+                renderEquationPreview();
+                setTimeout(() => document.getElementById(tab === 'chem' ? 'eq-chem' : 'eq-field').focus(), 50);
+            }
+            function currentEquationLatex() {
+                if (eqTab === 'chem') {
+                    const ce = (document.getElementById('eq-chem').value || '').trim();
+                    return ce ? '\\ce{' + ce + '}' : '';
+                }
+                return (document.getElementById('eq-field').value || '').trim();
+            }
             function openEquation(target) {
                 eqTarget = target;
                 eqSelStart = target.selectionStart ?? target.value.length;
                 eqSelEnd = target.selectionEnd ?? eqSelStart;
-                const field = document.getElementById('eq-field');
-                field.value = '';
-                renderEquationPreview();
+                document.getElementById('eq-field').value = '';
+                document.getElementById('eq-chem').value = '';
                 document.getElementById('eq-modal').classList.remove('hidden');
-                setTimeout(() => field.focus(), 50);
+                setEquationTab(eqTab);
             }
             function closeEquation() {
                 document.getElementById('eq-modal').classList.add('hidden');
@@ -421,7 +459,7 @@
                 eqTarget?.focus();
             }
             function insertEquation() {
-                const latex = (document.getElementById('eq-field').value || '').trim();
+                const latex = currentEquationLatex();
                 if (latex && eqTarget) {
                     const v = eqTarget.value, snippet = '\\(' + latex + '\\)';
                     eqTarget.value = v.slice(0, eqSelStart) + snippet + v.slice(eqSelEnd);
@@ -433,7 +471,7 @@
                 closeEquation();
             }
             function renderEquationPreview() {
-                const latex = document.getElementById('eq-field').value || '';
+                const latex = currentEquationLatex();
                 const out = document.getElementById('eq-preview');
                 out.classList.toggle('text-slate-400', !latex.trim());
                 if (!latex.trim()) { out.textContent = 'Your equation will appear here'; return; }
