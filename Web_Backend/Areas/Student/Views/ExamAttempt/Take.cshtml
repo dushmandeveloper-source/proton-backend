@@ -345,8 +345,15 @@
     var acceptLiveViewBtn = document.getElementById('acceptLiveView');
     var declineLiveViewBtn = document.getElementById('declineLiveView');
 
+    // Public STUN servers let the two browsers find each other across home
+    // routers/NAT; with no iceServers the video only ever worked on one LAN.
+    var WATCH_ICE = { iceServers: [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302', 'stun:stun.cloudflare.com:3478'] }] };
+    // ICE candidates can arrive before the answer is applied -- hold them.
+    var pendingWatchCandidates = [];
+
     function createWatchPeerConnection(watcherConnectionId) {
-        var pc = new RTCPeerConnection();
+        pendingWatchCandidates = [];
+        var pc = new RTCPeerConnection(WATCH_ICE);
         pc.onicecandidate = function (e) {
             if (e.candidate) {
                 watchHubConnection.invoke('SendSignal', '@attempt.AttemptID', watcherConnectionId, { type: 'ice-candidate', candidate: e.candidate });
@@ -399,8 +406,11 @@
             if (!watchPeerConnection || fromConnectionId !== currentWatcherConnectionId) return;
             if (payload.type === 'answer') {
                 await watchPeerConnection.setRemoteDescription({ type: 'answer', sdp: payload.sdp });
+                var queued = pendingWatchCandidates; pendingWatchCandidates = [];
+                for (var i = 0; i < queued.length; i++) await watchPeerConnection.addIceCandidate(queued[i]).catch(function () { });
             } else if (payload.type === 'ice-candidate' && payload.candidate) {
-                await watchPeerConnection.addIceCandidate(payload.candidate);
+                if (!watchPeerConnection.remoteDescription) pendingWatchCandidates.push(payload.candidate);
+                else await watchPeerConnection.addIceCandidate(payload.candidate).catch(function () { });
             }
         });
 
@@ -412,12 +422,25 @@
             currentWatcherConnectionId = null;
         });
 
-        try {
-            await watchHubConnection.start();
-            await watchHubConnection.invoke('JoinAsStudent', '@attempt.AttemptID');
-        } catch (err) {
-            console.warn('Live-view hub connection failed to start:', err);
+        // A reconnect gets a new connection id, so register again -- otherwise
+        // the lecturer gets "Student is not currently connected".
+        watchHubConnection.onreconnected(function () {
+            watchHubConnection.invoke('JoinAsStudent', '@attempt.AttemptID').catch(function () { });
+        });
+
+        // Keep trying for the whole exam: the automatic reconnect gives up
+        // after ~45s, and a short network drop shouldn't end live viewing.
+        async function connectWatchHub() {
+            try {
+                await watchHubConnection.start();
+                await watchHubConnection.invoke('JoinAsStudent', '@attempt.AttemptID');
+            } catch (err) {
+                console.warn('Live-view hub connection failed to start:', err);
+                setTimeout(connectWatchHub, 5000);
+            }
         }
+        watchHubConnection.onclose(function () { setTimeout(connectWatchHub, 3000); });
+        await connectWatchHub();
     }
 
     acceptLiveViewBtn.addEventListener('click', function () {

@@ -22,15 +22,12 @@
         </span>
     </div>
 
-    @if (!Model.Any())
-    {
-        <div class="rounded-[24px] border-2 border-dashed border-slate-200 dark:border-slate-700 p-16 text-center">
-            <i data-lucide="video-off" class="w-10 h-10 text-slate-300 dark:text-slate-600 mx-auto mb-3"></i>
-            <p class="text-sm text-slate-400 dark:text-slate-500">No exams currently in progress.</p>
-        </div>
-    }
-    else
-    {
+    @* Both always rendered: the page polls itself and adds/removes tiles live. *@
+    <div id="watchEmpty" class="@(Model.Any() ? "hidden " : "")rounded-[24px] border-2 border-dashed border-slate-200 dark:border-slate-700 p-16 text-center">
+        <i data-lucide="video-off" class="w-10 h-10 text-slate-300 dark:text-slate-600 mx-auto mb-3"></i>
+        <p class="text-sm text-slate-400 dark:text-slate-500">No exams currently in progress.</p>
+        <p class="text-xs text-slate-400 dark:text-slate-500 mt-1">Students appear here automatically when they start.</p>
+    </div>
         <div id="watchGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             @foreach (var a in Model)
             {
@@ -67,7 +64,6 @@
                 </div>
             }
         </div>
-    }
 </div>
 
 @* ---------- Focused/expanded view: Zoom-style call layout -- the
@@ -146,6 +142,26 @@
         var peerConnection = null;
         var currentAttemptId = null;
         var currentStreamRoles = {}; // MediaStream.id -> 'camera' | 'screen', from the offer's payload
+        // Same public STUN servers as the student side (Take.cshtml).
+        var WATCH_ICE = { iceServers: [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302', 'stun:stun.cloudflare.com:3478'] }] };
+        var studentConnectionId = null; // learned from the student's offer
+        var outgoingCandidates = [];    // ours, gathered before we know where to send them
+        var incomingCandidates = [];    // theirs, arrived before the offer was applied
+
+        // invoke() throws "Cannot send data if the connection is not in the
+        // 'Connected' State" while the hub is still starting or reconnecting
+        // -- wait for it (or restart it) first.
+        async function ensureConnected() {
+            for (var i = 0; i < 60; i++) {
+                var state = hubConnection.state;
+                if (state === signalR.HubConnectionState.Connected) return;
+                if (state === signalR.HubConnectionState.Disconnected) {
+                    try { await hubConnection.start(); return; } catch (e) { }
+                }
+                await new Promise(function (r) { setTimeout(r, 250); });
+            }
+            throw new Error('Could not reach the live-view server. Check your internet connection and try again.');
+        }
 
         var focusOverlay = document.getElementById('focusOverlay');
         var focusScreenVideo = document.getElementById('focusScreenVideo');
@@ -160,13 +176,19 @@
         hubConnection.on('SignalReceived', async function (attemptId, fromConnectionId, payload) {
             if (attemptId !== currentAttemptId || !peerConnection) return;
             if (payload.type === 'offer') {
+                studentConnectionId = fromConnectionId;
                 currentStreamRoles = payload.streamRoles || {};
                 await peerConnection.setRemoteDescription({ type: 'offer', sdp: payload.sdp });
+                var queuedIn = incomingCandidates; incomingCandidates = [];
+                for (var i = 0; i < queuedIn.length; i++) await peerConnection.addIceCandidate(queuedIn[i]).catch(function () { });
                 var answer = await peerConnection.createAnswer();
                 await peerConnection.setLocalDescription(answer);
                 await hubConnection.invoke('SendSignal', attemptId, fromConnectionId, { type: 'answer', sdp: answer.sdp });
+                var queuedOut = outgoingCandidates; outgoingCandidates = [];
+                queuedOut.forEach(function (c) { hubConnection.invoke('SendSignal', attemptId, fromConnectionId, { type: 'ice-candidate', candidate: c }).catch(function () { }); });
             } else if (payload.type === 'ice-candidate' && payload.candidate) {
-                await peerConnection.addIceCandidate(payload.candidate);
+                if (!peerConnection.remoteDescription) incomingCandidates.push(payload.candidate);
+                else await peerConnection.addIceCandidate(payload.candidate).catch(function () { });
             }
         });
 
@@ -234,22 +256,32 @@ function setActiveSwitcherButton(attemptId) {
             if (attemptId === currentAttemptId) return; // already watching this one
 
             if (peerConnection) {
-                if (currentAttemptId) await hubConnection.invoke('StopWatching', currentAttemptId);
+                if (currentAttemptId) hubConnection.invoke('StopWatching', currentAttemptId).catch(function () { });
                 peerConnection.close();
                 peerConnection = null;
             }
 
             currentAttemptId = attemptId;
+            studentConnectionId = null;
+            outgoingCandidates = [];
+            incomingCandidates = [];
             resetFocusVideo();
             focusStudentName.textContent = descriptor.studentName;
             focusExamTitle.textContent = descriptor.examTitle;
             focusOverlay.classList.remove('hidden');
             setActiveSwitcherButton(attemptId);
 
-            peerConnection = new RTCPeerConnection();
+            peerConnection = new RTCPeerConnection(WATCH_ICE);
+            // Our candidates go to the STUDENT's connection (this used to send
+            // them to our own connection id, so the student never got them).
             peerConnection.onicecandidate = function (e) {
-                if (e.candidate) {
-                    hubConnection.invoke('SendSignal', attemptId, hubConnection.connectionId, { type: 'ice-candidate', candidate: e.candidate });
+                if (!e.candidate) return;
+                if (!studentConnectionId) { outgoingCandidates.push(e.candidate); return; }
+                hubConnection.invoke('SendSignal', attemptId, studentConnectionId, { type: 'ice-candidate', candidate: e.candidate }).catch(function () { });
+            };
+            peerConnection.onconnectionstatechange = function () {
+                if (peerConnection && peerConnection.connectionState === 'failed') {
+                    showFocusError('The video connection could not be established (the student\'s or your network may be blocking it). Try again, or try another network.');
                 }
             };
             peerConnection.ontrack = function (e) {
@@ -270,16 +302,27 @@ function setActiveSwitcherButton(attemptId) {
             };
 
             try {
+                await ensureConnected();
                 await hubConnection.invoke('RequestWatch', attemptId);
             } catch (err) {
-                focusPlaceholder.innerHTML = '<i data-lucide="circle-x" class="w-8 h-8 text-red-400"></i><span class="text-sm text-red-300">' + (err.message || 'Could not connect') + '</span>';
-                if (window.lucide) lucide.createIcons();
+                // HubException text arrives wrapped ("...HubException: <msg>") -- show just the message.
+                showFocusError(String(err.message || 'Could not connect').replace(/^.*HubException:\s*/, ''));
             }
+        }
+
+        function showFocusError(message) {
+            var span = document.createElement('span');
+            span.className = 'text-sm text-red-300 max-w-md text-center px-6';
+            span.textContent = message;
+            focusPlaceholder.innerHTML = '<i data-lucide="circle-x" class="w-8 h-8 text-red-400"></i>';
+            focusPlaceholder.appendChild(span);
+            focusPlaceholder.classList.remove('hidden');
+            if (window.lucide) lucide.createIcons();
         }
 
         async function stopWatching() {
             if (peerConnection && currentAttemptId) {
-                await hubConnection.invoke('StopWatching', currentAttemptId);
+                hubConnection.invoke('StopWatching', currentAttemptId).catch(function () { });
                 peerConnection.close();
                 peerConnection = null;
             }
@@ -308,11 +351,10 @@ function setActiveSwitcherButton(attemptId) {
             return { attemptId: el.dataset.attemptId, studentName: el.dataset.studentName, examTitle: el.dataset.examTitle };
         }
 
-        document.querySelectorAll('.watch-tile').forEach(function (tile) {
-            tile.addEventListener('click', function () { watch(tileDescriptor(tile)); });
-        });
-        document.querySelectorAll('.switcher-btn').forEach(function (btn) {
-            btn.addEventListener('click', function () { watch(tileDescriptor(btn)); });
+        // Delegated, so tiles/buttons added by refreshList() work too.
+        document.addEventListener('click', function (e) {
+            var el = e.target.closest('.watch-tile, .switcher-btn');
+            if (el) watch(tileDescriptor(el));
         });
 
         focusCloseBtn.addEventListener('click', stopWatching);
@@ -320,6 +362,41 @@ function setActiveSwitcherButton(attemptId) {
             if (e.key === 'Escape' && !focusOverlay.classList.contains('hidden')) stopWatching();
         });
 
-        hubConnection.start();
+        // Live list: re-fetch this page every 10s and add students who just
+        // started / drop ones who finished. Existing tiles are left in place
+        // so a playing feed isn't interrupted.
+        var watchGrid = document.getElementById('watchGrid');
+        var focusSwitcher = document.getElementById('focusSwitcher');
+        function syncChildren(container, fresh, selector) {
+            var freshIds = {};
+            fresh.querySelectorAll(selector).forEach(function (el) {
+                freshIds[el.dataset.attemptId] = true;
+                if (!container.querySelector(selector + '[data-attempt-id="' + el.dataset.attemptId + '"]')) {
+                    container.appendChild(document.importNode(el, true));
+                }
+            });
+            container.querySelectorAll(selector).forEach(function (el) {
+                if (!freshIds[el.dataset.attemptId] && el.dataset.attemptId !== currentAttemptId) el.remove();
+            });
+        }
+        async function refreshList() {
+            if (document.hidden) return;
+            try {
+                var res = await fetch(location.pathname, { credentials: 'same-origin', cache: 'no-store' });
+                if (!res.ok || res.redirected) return;
+                var doc = new DOMParser().parseFromString(await res.text(), 'text/html');
+                syncChildren(watchGrid, doc.getElementById('watchGrid'), '.watch-tile');
+                syncChildren(focusSwitcher, doc.getElementById('focusSwitcher'), '.switcher-btn');
+                var count = watchGrid.querySelectorAll('.watch-tile').length;
+                document.getElementById('watchEmpty').classList.toggle('hidden', count > 0);
+                var liveCount = document.getElementById('liveCount');
+                liveCount.lastChild.textContent = ' ' + count + ' in progress';
+                if (window.lucide) lucide.createIcons();
+            } catch (e) { }
+        }
+        setInterval(refreshList, 10000);
+        document.addEventListener('visibilitychange', function () { if (!document.hidden) refreshList(); });
+
+        ensureConnected().catch(function () { });
     })();
 </script>
