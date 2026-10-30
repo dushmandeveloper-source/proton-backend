@@ -39,13 +39,19 @@ namespace Web_Backend.Hubs
 
         private readonly ILogger<ExamWatchHub> logger;
 
-        public ExamWatchHub(IExamAttemptData attemptRep, IStudentData studentRep, IExamScheduleData examScheduleRep, ILogger<ExamWatchHub> logger)
+        private readonly IceServerProvider iceServers;
+
+        public ExamWatchHub(IExamAttemptData attemptRep, IStudentData studentRep, IExamScheduleData examScheduleRep, ILogger<ExamWatchHub> logger, IceServerProvider iceServers)
         {
             this.attemptRep = attemptRep;
             this.studentRep = studentRep;
             this.examScheduleRep = examScheduleRep;
             this.logger = logger;
+            this.iceServers = iceServers;
         }
+
+        // STUN + TURN servers for the RTCPeerConnection on both sides.
+        public Task<object> GetIceServers() => iceServers.GetAsync();
 
         // A browser can hold both portal cookies at once, so pick the
         // identity signed in through the portal this call belongs to.

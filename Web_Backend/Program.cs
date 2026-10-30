@@ -169,6 +169,7 @@ builder.Services.AddMemoryCache();
 builder.Services.AddSingleton<PublicApiCache>();
 builder.Services.AddSingleton<UploadPaths>();
 builder.Services.AddSingleton<ImageOptimizer>();
+builder.Services.AddSingleton<IceServerProvider>();
 builder.Services.AddHostedService<ImageBackfillService>();
 
 var app = builder.Build();

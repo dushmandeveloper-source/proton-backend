@@ -434,6 +434,7 @@
             try {
                 await watchHubConnection.start();
                 await watchHubConnection.invoke('JoinAsStudent', '@attempt.AttemptID');
+                try { WATCH_ICE.iceServers = await watchHubConnection.invoke('GetIceServers'); } catch (e) { }
             } catch (err) {
                 console.warn('Live-view hub connection failed to start:', err);
                 setTimeout(connectWatchHub, 5000);

@@ -271,6 +271,9 @@ function setActiveSwitcherButton(attemptId) {
             focusOverlay.classList.remove('hidden');
             setActiveSwitcherButton(attemptId);
 
+            // TURN credentials come from the server (see IceServerProvider).
+            try { await ensureConnected(); WATCH_ICE.iceServers = await hubConnection.invoke('GetIceServers'); } catch (e) { }
+            if (attemptId !== currentAttemptId) return; // switched student while waiting
             peerConnection = new RTCPeerConnection(WATCH_ICE);
             // Our candidates go to the STUDENT's connection (this used to send
             // them to our own connection id, so the student never got them).
