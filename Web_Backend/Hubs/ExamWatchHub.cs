@@ -92,6 +92,9 @@ namespace Web_Backend.Hubs
         // load and drops out on close) -- drives the watch list's Live/Left badge.
         public static bool IsStudentConnected(string attemptId) => _studentConnectionByAttempt.ContainsKey(attemptId);
 
+        public static string? StudentConnectionFor(string attemptId) =>
+            _studentConnectionByAttempt.TryGetValue(attemptId, out var id) ? id : null;
+
         // STUN + TURN servers for the RTCPeerConnection on both sides.
         public Task<object> GetIceServers() => iceServers.GetAsync();
 

@@ -421,6 +421,11 @@
             }
         });
 
+        // The lecturer ended this attempt (it's already submitted server-side).
+        watchHubConnection.on('ExamEndedByLecturer', function () {
+            window.location.href = '/Student/ExamAttempt/Result?attemptId=' + encodeURIComponent('@attempt.AttemptID');
+        });
+
         watchHubConnection.on('WatchStopped', function () {
             if (watchPeerConnection) {
                 watchPeerConnection.close();

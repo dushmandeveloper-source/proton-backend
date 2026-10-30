@@ -99,11 +99,19 @@
                                             <span class="text-xs text-slate-300 dark:text-slate-600">-</span>
                                         }
                                     </td>
-                                    <td class="px-6 py-3 text-right">
+                                    <td class="px-6 py-3 text-right whitespace-nowrap">
                                         <a asp-action="Grade" asp-controller="ExamReview" asp-area="Lecturer" asp-route-attemptId="@a.AttemptID"
                                            class="px-3 py-1.5 rounded-xl font-medium bg-[#7c3aed] text-white hover:bg-[#6d28d9] shadow-sm text-xs">
                                             Grade
                                         </a>
+                                        @* Ended early (accident, closed browser...) -- reject or allow a redo without grading first. *@
+                                        <button type="button"
+                                                class="reject-btn ml-1 px-3 py-1.5 rounded-xl font-medium text-xs border border-red-200 dark:border-red-900 text-red-600 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-950/40 transition-all"
+                                                data-attempt-id="@a.AttemptID"
+                                                data-exam="@a.ExamTitle"
+                                                data-student="@a.StudentName">
+                                            Reject
+                                        </button>
                                     </td>
                                 </tr>
                             }
@@ -176,6 +184,10 @@
                 </div>
             </form>
 
+        }
+    </div>
+</div>
+
             <div id="rejectModal" class="hidden fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="rejectTitle">
                 <form asp-action="Reject" asp-controller="ExamReview" asp-area="Lecturer" method="post" id="rejectForm"
                       class="w-full max-w-lg bg-white dark:bg-slate-900 rounded-[24px] shadow-2xl border border-slate-100 dark:border-slate-700 p-6">
@@ -228,10 +240,6 @@
                     </div>
                 </form>
             </div>
-        }
-    </div>
-</div>
-
 <script>
     (function () {
         var tabs = {

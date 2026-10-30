@@ -70,9 +70,15 @@
                             </span>
                         </div>
                     </div>
-                    <div class="px-3 py-2.5 bg-slate-900">
-                        <p class="text-sm font-semibold text-slate-100 truncate">@a.StudentName</p>
-                        <p class="text-xs text-slate-400 truncate">@a.ExamTitle</p>
+                    <div class="px-3 py-2.5 bg-slate-900 flex items-center gap-2">
+                        <div class="min-w-0 flex-1">
+                            <p class="text-sm font-semibold text-slate-100 truncate">@a.StudentName</p>
+                            <p class="text-xs text-slate-400 truncate">@a.ExamTitle</p>
+                        </div>
+                        <button type="button" class="end-exam-btn flex-shrink-0 inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold text-red-300 bg-red-500/10 hover:bg-red-500/20 focus:outline-none focus:ring-2 focus:ring-red-400/50 transition-colors"
+                                title="Stop this exam and send it to review">
+                            <i data-lucide="square" class="w-3 h-3"></i> End exam
+                        </button>
                     </div>
                 </div>
             }
@@ -149,9 +155,40 @@
     </div>
 </div>
 
+@* ---------- Confirm: end a student's exam ---------- *@
+<div id="endExamModal" class="hidden fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="endExamTitle">
+    <div class="w-full max-w-md bg-white dark:bg-slate-900 rounded-[24px] shadow-2xl border border-slate-100 dark:border-slate-700 p-6">
+        @Html.AntiForgeryToken()
+        <div class="flex items-start gap-3 mb-4">
+            <span class="flex-shrink-0 w-10 h-10 rounded-full bg-red-50 dark:bg-red-950/60 text-red-600 dark:text-red-300 flex items-center justify-center">
+                <i data-lucide="octagon-x" class="w-5 h-5"></i>
+            </span>
+            <div class="min-w-0">
+                <h2 id="endExamTitle" class="text-lg font-semibold text-slate-800 dark:text-slate-100">End this exam?</h2>
+                <p id="endExamSubtitle" class="text-sm text-slate-500 dark:text-slate-400 truncate"></p>
+            </div>
+        </div>
+        <p class="text-sm text-slate-600 dark:text-slate-300 rounded-2xl bg-slate-50 dark:bg-slate-800/60 p-3">
+            The exam stops now and every answer saved so far is kept. It goes to <strong>Exam Grading &amp; Review</strong>,
+            where you can grade it, <strong>reject</strong> it, or <strong>let the student redo</strong> the exam.
+        </p>
+        <p id="endExamError" class="hidden text-xs text-red-600 dark:text-red-300 mt-3"></p>
+        <div class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 mt-6">
+            <button type="button" id="endExamCancel"
+                    class="px-4 py-2 rounded-xl font-medium text-sm border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-all">
+                Cancel
+            </button>
+            <button type="button" id="endExamConfirm"
+                    class="px-4 py-2 rounded-xl font-medium text-sm bg-red-600 text-white hover:bg-red-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-red-500/40 disabled:opacity-50 transition-all">
+                End exam &amp; send to review
+            </button>
+        </div>
+    </div>
+</div>
+
 <script>
     (function () {
-        var hubConnection = new signalR.HubConnectionBuilder().withUrl('/hubs/exam-watch').withAutomaticReconnect().build();
+        var hubConnection =new signalR.HubConnectionBuilder().withUrl('/hubs/exam-watch').withAutomaticReconnect().build();
         var peerConnection = null;
         var currentAttemptId = null;
         var currentStreamRoles = {}; // MediaStream.id -> 'camera' | 'screen', from the offer's payload
@@ -375,8 +412,56 @@ function setActiveSwitcherButton(attemptId) {
             setTimeout(function () { note.remove(); }, 2500);
         }
 
+        // ---------- End exam ----------
+        var endModal = document.getElementById('endExamModal');
+        var endConfirm = document.getElementById('endExamConfirm');
+        var endError = document.getElementById('endExamError');
+        var endTarget = null;
+        function closeEndModal() { endModal.classList.add('hidden'); endTarget = null; }
+        document.getElementById('endExamCancel').addEventListener('click', closeEndModal);
+        endModal.addEventListener('click', function (e) { if (e.target === endModal) closeEndModal(); });
+        document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !endModal.classList.contains('hidden')) closeEndModal(); });
+        endConfirm.addEventListener('click', async function () {
+            if (!endTarget) return;
+            endConfirm.disabled = true;
+            endError.classList.add('hidden');
+            try {
+                var token = endModal.querySelector('input[name="__RequestVerificationToken"]').value;
+                var res = await fetch('/Lecturer/ExamWatch/End', {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'RequestVerificationToken': token },
+                    body: new URLSearchParams({ attemptId: endTarget.dataset.attemptId, __RequestVerificationToken: token })
+                });
+                var data = await res.json();
+                if (!data.success) throw new Error(data.message || 'Could not end the exam.');
+                var id = endTarget.dataset.attemptId;
+                if (id === currentAttemptId) stopWatching();
+                endTarget.remove();
+                var sw = document.querySelector('.switcher-btn[data-attempt-id="' + id + '"]');
+                if (sw) sw.remove();
+                closeEndModal();
+                refreshList();
+            } catch (err) {
+                endError.textContent = err.message;
+                endError.classList.remove('hidden');
+            } finally {
+                endConfirm.disabled = false;
+            }
+        });
+
         // Delegated, so tiles/buttons added by refreshList() work too.
         document.addEventListener('click', function (e) {
+            var endBtn = e.target.closest('.end-exam-btn');
+            if (endBtn) {
+                e.stopPropagation();
+                endTarget = endBtn.closest('.watch-tile');
+                document.getElementById('endExamSubtitle').textContent = endTarget.dataset.studentName + ' · ' + endTarget.dataset.examTitle;
+                endError.classList.add('hidden');
+                endModal.classList.remove('hidden');
+                endConfirm.focus();
+                return;
+            }
             var el = e.target.closest('.watch-tile, .switcher-btn');
             if (!el) return;
             var tile = document.querySelector('.watch-tile[data-attempt-id="' + el.dataset.attemptId + '"]');
