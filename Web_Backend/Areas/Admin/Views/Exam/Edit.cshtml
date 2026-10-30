@@ -21,6 +21,7 @@
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.18.4/dist/katex.min.js" integrity="sha384-ykMNcWQhhTUb0YV9SPpPUFURHZ+tWmubkakGBP+OgNK/UXdO2gtzglWx0Rj9hnO3" crossorigin="anonymous"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.18.4/dist/contrib/mhchem.min.js" integrity="sha384-fB8BH//9nBzROkMUsu/Dr35jWHIbnKesUo9rW0hfEgw8mZGnkAyBAjKX9F98OVuo" crossorigin="anonymous"></script>
 <script defer src="~/js/exam-math.js" asp-append-version="true"></script>
+<script defer src="~/js/exam-import.js" asp-append-version="true"></script>
 
 <div class="max-w-5xl mx-auto page-enter">
     <div class="flex items-center gap-3 mb-6">
@@ -192,9 +193,14 @@
                 <h3 class="font-semibold text-slate-800 dark:text-slate-100">Questions (@Model.Questions.Count) <span class="text-sm font-normal text-slate-400 dark:text-slate-500">&middot; @e.TotalMarks marks total</span></h3>
                 @if (canEdit)
                 {
-                    <button type="button" onclick="openQuestionModal()" class="px-4 py-2 rounded-xl font-medium bg-[#7c3aed] text-white hover:bg-[#6d28d9] text-sm flex items-center gap-2">
-                        <i data-lucide="plus" class="w-4 h-4"></i> Add Question
-                    </button>
+                    <div class="flex flex-wrap items-center justify-end gap-2">
+                        <button type="button" onclick="openWordImport()" class="px-4 py-2 rounded-xl font-medium bg-white dark:bg-slate-800 text-[#7c3aed] dark:text-[#a78bfa] border border-[#d9ccfb] dark:border-slate-600 hover:bg-[#f5f1fe] dark:hover:bg-slate-700 text-sm flex items-center gap-2 transition">
+                            <i data-lucide="file-up" class="w-4 h-4"></i> Import from Word
+                        </button>
+                        <button type="button" onclick="openQuestionModal()" class="px-4 py-2 rounded-xl font-medium bg-[#7c3aed] text-white hover:bg-[#6d28d9] text-sm flex items-center gap-2">
+                            <i data-lucide="plus" class="w-4 h-4"></i> Add Question
+                        </button>
+                    </div>
                 }
             </div>
 
@@ -269,6 +275,144 @@
         </div>
 
         <!-- ============ Add/Edit Question modal ============ -->
+        <!-- Import from Word: upload → review/fix → import (logic in wwwroot/js/exam-import.js) -->
+        <div id="wi-modal" data-exam-id="@e.ExamID" data-template-url="@Url.Action("WordTemplate")" data-read-url="@Url.Action("ReadWord")" data-import-url="@Url.Action("ImportQuestions")"
+             class="hidden fixed inset-0 z-[85] flex items-center justify-center bg-black/40 backdrop-blur-sm p-2 sm:p-4">
+            <div class="w-full max-w-5xl max-h-[94vh] flex flex-col rounded-[24px] bg-white dark:bg-slate-900 shadow-xl border border-slate-100 dark:border-slate-700 overflow-hidden">
+                <div class="px-6 py-4 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between gap-3">
+                    <div>
+                        <h3 class="text-lg font-semibold text-slate-800 dark:text-slate-100">Import questions from Word</h3>
+                        <p id="wi-subtitle" class="text-xs text-slate-500 dark:text-slate-400">Step 1 of 2 — choose the file</p>
+                    </div>
+                    <button type="button" onclick="closeWordImport()" class="p-2 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"><i data-lucide="x" class="w-5 h-5"></i></button>
+                </div>
+
+                <!-- Step 1: upload -->
+                <div id="wi-step-upload" class="p-6 overflow-y-auto space-y-5">
+                    <label id="wi-drop" for="wi-file"
+                           class="flex flex-col items-center justify-center gap-3 px-6 py-10 rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-800/60 text-center cursor-pointer hover:border-[#7c3aed] hover:bg-[#f5f1fe] dark:hover:bg-slate-800 transition">
+                        <span class="w-12 h-12 rounded-2xl bg-[#ede7fc] dark:bg-slate-700 flex items-center justify-center"><i data-lucide="file-text" class="w-6 h-6 text-[#7c3aed] dark:text-[#a78bfa]"></i></span>
+                        <span class="text-sm font-medium text-slate-700 dark:text-slate-200">Drop a Word file here, or <span class="text-[#7c3aed] dark:text-[#a78bfa] underline">browse</span></span>
+                        <span class="text-xs text-slate-400">.docx — nothing is saved until you review and confirm</span>
+                        <input id="wi-file" type="file" accept=".docx,.doc,application/vnd.openxmlformats-officedocument.wordprocessingml.document" class="sr-only" />
+                    </label>
+                    <div id="wi-reading" class="hidden flex items-center justify-center gap-2 text-sm text-slate-500 dark:text-slate-400">
+                        <i data-lucide="loader-circle" class="w-4 h-4 animate-spin"></i> Reading the file…
+                    </div>
+                    <div id="wi-error" class="hidden rounded-xl border border-red-200 dark:border-red-900 bg-red-50 dark:bg-red-950 px-4 py-3 text-sm text-red-700 dark:text-red-300"></div>
+
+                    <div class="rounded-2xl border border-slate-100 dark:border-slate-700 p-5 flex flex-col sm:flex-row sm:items-start gap-4">
+                        <div class="flex-1 space-y-2 text-sm text-slate-600 dark:text-slate-300">
+                            <p class="font-medium text-slate-800 dark:text-slate-100">How the file should look</p>
+                            <ul class="list-disc pl-5 space-y-1 text-[13px]">
+                                <li>Each question starts on its own line: <b>Question 1</b>, <b>Q1</b>, <b>1.</b> or <b>第 1 题</b></li>
+                                <li>Options: <b>(A) …</b> or <b>A. …</b> — one per line, or several on one line</li>
+                                <li>Correct answer: <b>Answer: B</b> under the question, or an <b>Answer key</b> at the end</li>
+                                <li>Optional: <b>Marks: 2</b>, <b>Type: Written</b>. Pictures and Word equations are brought in automatically</li>
+                            </ul>
+                        </div>
+                        <a id="wi-template" href="#" class="shrink-0 inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-sm font-medium bg-[#ede7fc] dark:bg-slate-700 text-[#7c3aed] dark:text-[#a78bfa] hover:bg-[#ddd2fa] dark:hover:bg-slate-600 transition">
+                            <i data-lucide="download" class="w-4 h-4"></i> Download template
+                        </a>
+                    </div>
+
+                    <!-- Ready-made prompt so Claude/ChatGPT can put any questions into the import layout -->
+                    <div class="rounded-2xl border border-[#e4dafc] dark:border-slate-700 bg-[#faf8ff] dark:bg-slate-800/40 p-5 space-y-3">
+                        <div class="flex flex-wrap items-start justify-between gap-3">
+                            <div class="flex items-start gap-3">
+                                <span class="w-9 h-9 shrink-0 rounded-xl bg-[#ede7fc] dark:bg-slate-700 flex items-center justify-center"><i data-lucide="sparkles" class="w-4.5 h-4.5 text-[#7c3aed] dark:text-[#a78bfa]"></i></span>
+                                <div>
+                                    <p class="text-sm font-medium text-slate-800 dark:text-slate-100">Questions in another layout? Let AI format them</p>
+                                    <p class="text-xs text-slate-500 dark:text-slate-400">Works with Claude or ChatGPT.</p>
+                                </div>
+                            </div>
+                            <button type="button" id="wi-copy-prompt" onclick="wiCopyPrompt()" class="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-sm font-medium bg-[#7c3aed] text-white hover:bg-[#6d28d9] transition">
+                                <i data-lucide="copy" class="w-4 h-4"></i> <span>Copy prompt</span>
+                            </button>
+                        </div>
+                        <ol class="list-decimal pl-5 space-y-0.5 text-[13px] text-slate-600 dark:text-slate-300">
+                            <li>Click <b>Copy prompt</b> and paste it into Claude or ChatGPT.</li>
+                            <li>Under <b>MY QUESTIONS</b>, paste your questions or attach your file (Word, PDF or a photo), then send.</li>
+                            <li>Download the Word file it gives you. Open it and, wherever it says <b>[FIGURE]</b>, delete that line and paste the picture there.</li>
+                            <li>Upload the file above. <b>Check the answers on the review screen</b> — AI can make mistakes.</li>
+                        </ol>
+                        <details class="group">
+                            <summary class="cursor-pointer text-xs font-medium text-[#7c3aed] dark:text-[#a78bfa] select-none">Show the prompt</summary>
+                            <textarea id="wi-prompt" readonly rows="14" class="mt-2 block w-full resize-y rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 px-3 py-2 font-mono text-xs leading-relaxed text-slate-700 dark:text-slate-200">TASK
+Create a Microsoft Word document (.docx) containing the exam questions I give you under MY QUESTIONS (typed below, or in the attached file), and give it to me as a downloadable file named exam-questions.docx. My exam system imports this file automatically, so the layout must be exactly as described. Do not reply with the questions as chat text — create the actual .docx file.
+
+LAYOUT — every item is its own paragraph (its own line) in the Word file:
+Question 1
+&lt;question text&gt;
+(A) &lt;option A&gt;
+(B) &lt;option B&gt;
+(C) &lt;option C&gt;
+(D) &lt;option D&gt;
+Answer: &lt;letter&gt;
+Marks: 2
+&lt;empty line, then the next question&gt;
+
+EXAMPLE OF ONE FINISHED QUESTION
+Question 1
+What is the sum of 130 + 125 + 191?
+(A) 335
+(B) 456
+(C) 446
+(D) 426
+Answer: C
+Marks: 2
+
+RULES
+1. Include ONLY the questions. Leave out titles, instructions, headings, page text, website links, "Also read" lists, explanations, working, solutions and any line that comes after an answer (such as "8² = 8 × 8 = 64").
+2. Number the questions Question 1, Question 2, Question 3 … in order with no gaps, even if the source numbers them differently (Q.1, 1), No. 1, 第1题 …). The "Question N" line contains nothing else.
+3. Copy every question and option word for word. Do not shorten, reword, correct, translate, merge, split or add questions. If a question is in two languages, put the Chinese on one line and the English on the next line.
+4. Every option on its own paragraph starting with (A), (B), (C), (D) … in the source's order. Change other labels such as "A." "a)" "1." into (A) (B) …. Keep all options, however many there are.
+5. "Answer: " followed by the option LETTER only (e.g. Answer: B) — never the option text. If the source gives the answer (including forms like "Answer B", "Ans: b", "Correct option: 2"), convert it to the matching letter. If no answer is given, solve the question carefully and give the correct letter.
+6. "Marks: 2" for every question, unless the source shows a different mark for it.
+7. True/False and Yes/No questions without options: give them two options, (A) True (B) False — or (A) Yes (B) No — and the Answer letter.
+8. Any other question that has no options (short answer, fill in the blank, explain, calculate): write the question, then "Type: Written" and "Marks: 2". Do not write an Answer line for it.
+9. Write maths and science with plain Unicode characters: x², x³, a³, v₀, 10⁻¹⁹, √, ∛, π, θ, Δ, μ, Ω, ±, ×, ÷, ·, ≤, ≥, ≠, ≈, →, ⇌, °, ½, ∞, H₂O, SO₄²⁻, Fe³⁺. Write fractions as a/b, e.g. 22/7 or (x+1)/2. Fix powers the source lost in copying when the meaning is certain (e.g. "8 raised to the power 0" written "80" means 8⁰).
+10. If a question needs a diagram, graph, table or picture, put a paragraph containing only [FIGURE] right after the question text, before the options.
+11. Plain formatting only: normal paragraphs, one font, no tables, text boxes, bullet points, Word automatic numbering, headers, footers, bold labels, LaTeX, $ signs or Markdown.
+12. Before you finish, check: the number of questions matches the source; numbering has no gaps; every multiple-choice question has its options and one "Answer: letter" line; every question without options has "Type: Written"; no extra text was added.
+13. Only if you truly cannot create files: reply with exactly the same content as plain text and nothing else (no introduction or notes), so I can paste it into Word myself.
+
+MY QUESTIONS:
+</textarea>
+                        </details>
+                    </div>
+                </div>
+
+                <!-- Step 2: review -->
+                <div id="wi-step-review" class="hidden flex-1 min-h-0 flex flex-col">
+                    <div class="px-6 py-3 border-b border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/60 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
+                        <span id="wi-summary" class="font-medium text-slate-700 dark:text-slate-200"></span>
+                        <label class="flex items-center gap-2 text-slate-600 dark:text-slate-300">
+                            Marks for all
+                            <input id="wi-all-marks" type="number" min="0.5" step="0.5" value="1" class="w-20 px-2 py-1 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" />
+                            <button type="button" onclick="wiApplyMarks()" class="px-2.5 py-1 rounded-lg text-xs font-medium bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 hover:border-[#7c3aed]">Apply</button>
+                        </label>
+                        <label class="flex items-center gap-2 text-slate-600 dark:text-slate-300 cursor-pointer">
+                            <input id="wi-only-issues" type="checkbox" onchange="wiFilter()" class="w-4 h-4 accent-[#7c3aed]" /> Show only ones needing attention
+                        </label>
+                    </div>
+                    <div id="wi-file-warnings" class="hidden mx-6 mt-4 rounded-xl border border-amber-200 dark:border-amber-900 bg-amber-50 dark:bg-amber-950 px-4 py-3 text-sm text-amber-800 dark:text-amber-200"></div>
+                    <div id="wi-list" class="flex-1 overflow-y-auto px-6 py-4 space-y-4"></div>
+                </div>
+
+                <div class="px-6 py-4 bg-slate-50 dark:bg-slate-900/60 border-t border-slate-100 dark:border-slate-700 flex flex-wrap items-center justify-between gap-3">
+                    <p id="wi-footer-note" class="text-xs text-slate-500 dark:text-slate-400"></p>
+                    <div class="flex gap-2 ml-auto">
+                        <button type="button" id="wi-back" onclick="wiBack()" class="hidden px-4 py-2 rounded-xl font-medium bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-600 text-sm">Choose another file</button>
+                        <button type="button" onclick="closeWordImport()" class="px-4 py-2 rounded-xl font-medium bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-600 text-sm">Cancel</button>
+                        <button type="button" id="wi-import" onclick="wiImport()" class="hidden px-4 py-2 rounded-xl font-medium bg-[#7c3aed] text-white hover:bg-[#6d28d9] disabled:opacity-50 disabled:cursor-not-allowed text-sm flex items-center gap-2">
+                            <i data-lucide="check" class="w-4 h-4"></i> <span id="wi-import-label">Import</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Equation popup: MathLive editor whose result is inserted as \(...\) at the cursor -->
         <div id="eq-modal" class="hidden fixed inset-0 z-[90] flex items-start sm:items-center justify-center bg-black/40 backdrop-blur-sm p-4" onclick="if (event.target === this) closeEquation()">
             <div class="w-full max-w-lg mt-10 sm:mt-0 rounded-2xl bg-white dark:bg-slate-900 shadow-xl border border-slate-100 dark:border-slate-700 overflow-hidden">

@@ -59,7 +59,7 @@
 
     const style = document.createElement('style');
     style.textContent =
-        '.katex-wrap{display:block;min-width:0;max-width:100%;overflow-wrap:anywhere;word-break:normal}' +
+        '.katex-wrap{display:block;min-width:0;max-width:100%;overflow-wrap:anywhere;word-break:normal;white-space:pre-line}' +
         'span.katex-wrap{display:inline}' +
         '.katex-wrap .katex,.katex-wrap .katex-html{white-space:normal}' +
         '.katex-wrap .katex .base{display:inline;white-space:normal;width:auto}' +
