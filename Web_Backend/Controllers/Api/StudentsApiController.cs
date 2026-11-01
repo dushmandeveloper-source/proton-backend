@@ -43,6 +43,7 @@ namespace Web_Backend.Controllers.Api
 
         [HttpPost("register")]
         [EnableRateLimiting("register")]
+        [RequireTurnstile]
         public async Task<IActionResult> Register([FromForm] StudentRegistrationRequest request, [FromForm] IFormFile? passportPhoto)
         {
             if (string.IsNullOrWhiteSpace(request.FirstName) || string.IsNullOrWhiteSpace(request.LastName))

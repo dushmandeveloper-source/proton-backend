@@ -1,3 +1,4 @@
+using Web_Backend.Classes;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.Mvc;
 using System.Net;
@@ -43,6 +44,7 @@ namespace Web_Backend.Controllers.Api
 
         [HttpPost]
         [EnableRateLimiting("email")]
+        [RequireTurnstile]
         public IActionResult Submit([FromBody] ContactSubmission submission)
         {
             if (string.IsNullOrWhiteSpace(submission.FullName) ||

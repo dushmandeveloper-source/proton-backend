@@ -68,6 +68,7 @@ namespace Web_Backend.Controllers.Api
 
         [HttpPost("register-new")]
         [EnableRateLimiting("register")]
+        [RequireTurnstile]
         public async Task<IActionResult> RegisterNew([FromBody] StudentRegistrationRequest request)
         {
             if (string.IsNullOrWhiteSpace(request.FirstName) || string.IsNullOrWhiteSpace(request.LastName))

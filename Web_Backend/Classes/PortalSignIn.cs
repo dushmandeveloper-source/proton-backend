@@ -80,7 +80,7 @@ namespace Web_Backend.Classes
                 return new SignInOutcome { Success = false, ErrorMessage = "Invalid email or password." };
 
             if (auth.IsLocked)
-                return new SignInOutcome { Success = false, ErrorMessage = "This account is locked after too many failed attempts. Contact an administrator." };
+                return new SignInOutcome { Success = false, ErrorMessage = "This account is locked after too many failed attempts. Try again in 15 minutes, or contact an administrator." };
 
             if (auth.AuthIsActive != "A" || auth.UserIsActive != "A")
                 return new SignInOutcome { Success = false, ErrorMessage = "This account has been deactivated. Please contact the administration to have it reactivated." };
@@ -90,6 +90,8 @@ namespace Web_Backend.Classes
                 await authRep.RecordLoginResult(auth.AuthID, success: false);
                 return new SignInOutcome { Success = false, ErrorMessage = "Invalid email or password." };
             }
+
+            await UpgradeHashIfNeeded(auth, password);
 
             var accountPortal = await GetPortalForUserType(auth.UserTypeID);
             if (accountPortal != portal)
@@ -178,13 +180,28 @@ namespace Web_Backend.Classes
             return (true, auth.Email, auth.FullName, token);
         }
 
+        // Re-hash a legacy (100k-iteration) password at the stronger setting,
+        // right after it was verified and before the session cookie is
+        // issued (the cookie's password stamp is taken from the new hash).
+        public async Task UpgradeHashIfNeeded(UserAuthRecord auth, string password)
+        {
+            if (!PasswordHasher.NeedsUpgrade(auth.PasswordSalt)) return;
+            var (hash, salt) = PasswordHasher.Hash(password);
+            await authRep.EditPassword(auth.AuthID, hash, salt);
+        }
+
         public Task<PasswordResetTokenRecord?> ValidateResetTokenAsync(string token) => resetRep.Validate(token);
 
-        public async Task ApplyNewPasswordAsync(string token, string authId, string newPassword)
+        // Consumes the token first (atomically), so a second request racing
+        // with the same link changes nothing.
+        public async Task<bool> ApplyNewPasswordAsync(string token, string authId, string newPassword)
         {
+            var record = await resetRep.Consume(token);
+            if (record == null || record.AuthID != authId) return false;
+
             var (hash, salt) = PasswordHasher.Hash(newPassword);
             await authRep.EditPassword(authId, hash, salt);
-            await resetRep.MarkUsed(token);
+            return true;
         }
     }
 }

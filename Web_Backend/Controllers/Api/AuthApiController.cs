@@ -54,6 +54,14 @@ namespace Web_Backend.Controllers.Api
                 return Unauthorized(new { message = "Invalid email or password." });
             }
 
+            // Re-hash a legacy (100k-iteration) password before the cookie is
+            // issued -- same as PortalSignIn.UpgradeHashIfNeeded.
+            if (PasswordHasher.NeedsUpgrade(auth.PasswordSalt))
+            {
+                var (newHash, newSalt) = PasswordHasher.Hash(request.Password);
+                await authRep.EditPassword(auth.AuthID, newHash, newSalt);
+            }
+
             // Same "wrong sign-in page" enforcement Classes/PortalSignIn.cs
             // applies to the MVC Razor login pages — a Student's credentials
             // shouldn't work from the Agent login form and land them
@@ -108,6 +116,7 @@ namespace Web_Backend.Controllers.Api
 
         [HttpPost("forgot-password")]
         [EnableRateLimiting("email")]
+        [RequireTurnstile]
         public async Task<IActionResult> ForgotPassword(ForgotPasswordRequest request)
         {
             var auth = await authRep.FindForLogin(request.Email);
@@ -150,13 +159,12 @@ namespace Web_Backend.Controllers.Api
             if (string.IsNullOrWhiteSpace(request.NewPassword) || request.NewPassword.Length < 8)
                 return BadRequest(new { message = "Password must be at least 8 characters." });
 
-            var record = await resetRep.Validate(request.Token);
+            var record = await resetRep.Consume(request.Token);
             if (record == null)
                 return BadRequest(new { message = "This reset token is invalid or has expired." });
 
             var (hash, salt) = PasswordHasher.Hash(request.NewPassword);
             await authRep.EditPassword(record.AuthID, hash, salt);
-            await resetRep.MarkUsed(request.Token);
 
             return Ok(new { message = "Password reset." });
         }
