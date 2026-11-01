@@ -184,6 +184,232 @@ namespace Web_Backend.Controllers.Api
             return Ok(new { name = s.StudentName, items });
         }
 
+        // ---------------- Exams ----------------
+        // Same rules as the portal's Student/ExamAttemptController, as JSON:
+        // ExamJoinRules before starting, ownership on every attempt call,
+        // and never IsCorrect / marks while the attempt is in progress.
+
+        [HttpGet("exams/{examId}")]
+        public async Task<IActionResult> ExamInfo(string examId)
+        {
+            var student = await CurrentStudent();
+            if (student == null) return Unauthorized();
+            var exam = await examRep.Get(examId);
+            if (exam == null) return NotFound(new { message = "Exam not found." });
+
+            var blocked = await Areas.StudentPortal.ExamJoinRules.WhyCannotStart(exam, student.StudentID, examScheduleRep, registrationRep);
+            var resume = await ResumableAttempt(examId, student.StudentID);
+            return Ok(new
+            {
+                examId = exam.ExamID,
+                title = exam.ExamTitle,
+                description = exam.Description,
+                durationMinutes = exam.DurationMinutes,
+                questionCount = exam.QuestionCount,
+                totalMarks = exam.TotalMarks,
+                maxAttempts = exam.MaxAttempts,
+                attemptsUsed = await attemptRep.CountByExamAndStudent(examId, student.StudentID),
+                canStart = blocked == null || resume != null,
+                blockedReason = resume != null ? null : blocked,
+                resumeAttemptId = resume?.AttemptID
+            });
+        }
+
+        public record StartExamRequest(string ConfirmEmail);
+
+        [HttpPost("exams/{examId}/start")]
+        public async Task<IActionResult> StartExam(string examId, [FromBody] StartExamRequest request)
+        {
+            var student = await CurrentStudent();
+            var user = Auth.GetUser();
+            if (student == null || user == null) return Unauthorized();
+
+            if (!string.Equals(request.ConfirmEmail?.Trim(), user.Email, StringComparison.OrdinalIgnoreCase))
+                return UnprocessableEntity(new { message = "The email you entered doesn't match your account email." });
+
+            // A still-running attempt (app closed, phone restarted) carries on.
+            var resume = await ResumableAttempt(examId, student.StudentID);
+            if (resume != null) return Ok(new { attemptId = resume.AttemptID, resumed = true });
+
+            var exam = await examRep.Get(examId);
+            if (exam == null) return NotFound(new { message = "Exam not found." });
+            var blocked = await Areas.StudentPortal.ExamJoinRules.WhyCannotStart(exam, student.StudentID, examScheduleRep, registrationRep);
+            if (blocked != null) return Conflict(new { message = blocked });
+
+            try
+            {
+                var attemptId = await attemptRep.Start(examId, student.StudentID);
+                return Ok(new { attemptId, resumed = false });
+            }
+            catch (Exception ex)
+            {
+                return Conflict(new { message = "Could not start the exam: " + CleanSqlMessage(ex.Message) });
+            }
+        }
+
+        [HttpGet("attempts/{attemptId}")]
+        public async Task<IActionResult> Attempt(string attemptId)
+        {
+            var (student, attempt) = await OwnAttempt(attemptId);
+            if (student == null) return Unauthorized();
+            if (attempt == null) return NotFound(new { message = "Attempt not found." });
+
+            var exam = await examRep.Get(attempt.ExamID);
+            var answers = (await attemptRep.ListAnswers(attemptId)).OrderBy(a => a.SortOrder).ToList();
+            var questions = new List<object>();
+            foreach (var a in answers)
+            {
+                var options = a.IsMCQ
+                    ? (await examRep.GetOptions(a.QuestionID)).OrderBy(o => o.SortOrder)
+                        .Select(o => new { id = o.OptionID, text = o.OptionTextLatex }).ToList<object>()
+                    : new List<object>();
+                questions.Add(new
+                {
+                    id = a.QuestionID,
+                    type = a.QuestionType,
+                    text = a.QuestionTextLatex,
+                    imageUrl = a.ImageURL,
+                    audioUrl = a.AudioURL,
+                    videoUrl = a.VideoURL,
+                    marks = a.Marks,
+                    options,
+                    selectedOptionId = a.SelectedOptionID,
+                    writtenAnswer = a.WrittenAnswerText
+                });
+            }
+
+            return Ok(new
+            {
+                attemptId = attempt.AttemptID,
+                examTitle = attempt.ExamTitle,
+                status = attempt.Status,
+                secondsRemaining = attempt.SecondsRemaining,
+                strikeCount = attempt.StrikeCount,
+                totalMarks = attempt.TotalMarks,
+                description = exam?.Description ?? "",
+                questions
+            });
+        }
+
+        public record SaveAnswerRequest(string? SelectedOptionId, string? WrittenAnswer);
+
+        [HttpPut("attempts/{attemptId}/answers/{questionId}")]
+        public async Task<IActionResult> SaveAnswer(string attemptId, string questionId, [FromBody] SaveAnswerRequest request)
+        {
+            var (student, attempt) = await OwnAttempt(attemptId);
+            if (student == null) return Unauthorized();
+            if (attempt == null) return NotFound(new { message = "Attempt not found." });
+
+            var written = request.WrittenAnswer ?? "";
+            if (written.Length > 20000) return UnprocessableEntity(new { message = "Answer is too long." });
+
+            // Question must be this attempt's own; an MCQ choice one of its options.
+            var question = (await attemptRep.ListAnswers(attemptId)).FirstOrDefault(a => a.QuestionID == questionId);
+            if (question == null) return NotFound(new { message = "Question not part of this exam." });
+            if (!string.IsNullOrEmpty(request.SelectedOptionId) &&
+                (!question.IsMCQ || !(await examRep.GetOptions(questionId)).Any(o => o.OptionID == request.SelectedOptionId)))
+                return UnprocessableEntity(new { message = "That option isn't part of this question." });
+
+            try
+            {
+                await attemptRep.SaveAnswer(attemptId, questionId, request.SelectedOptionId, written);
+                return Ok(new { saved = true });
+            }
+            catch (Exception ex)
+            {
+                // e.g. "Attempt is no longer accepting answers" (time up / ended).
+                return Conflict(new { message = CleanSqlMessage(ex.Message) });
+            }
+        }
+
+        public record ViolationRequest(string Type);
+
+        [HttpPost("attempts/{attemptId}/violations")]
+        public async Task<IActionResult> Violation(string attemptId, [FromBody] ViolationRequest request)
+        {
+            var (student, attempt) = await OwnAttempt(attemptId);
+            if (student == null) return Unauthorized();
+            if (attempt == null) return NotFound(new { message = "Attempt not found." });
+            try
+            {
+                // The server keeps the count; 3 strikes terminates the attempt.
+                var (strikeCount, status) = await attemptRep.ReportViolation(attemptId, request.Type);
+                return Ok(new { strikeCount, status });
+            }
+            catch (Exception ex)
+            {
+                return UnprocessableEntity(new { message = CleanSqlMessage(ex.Message) });
+            }
+        }
+
+        public record SubmitRequest(bool Forced);
+
+        [HttpPost("attempts/{attemptId}/submit")]
+        public async Task<IActionResult> Submit(string attemptId, [FromBody] SubmitRequest request)
+        {
+            var (student, attempt) = await OwnAttempt(attemptId);
+            if (student == null) return Unauthorized();
+            if (attempt == null) return NotFound(new { message = "Attempt not found." });
+            if (!attempt.IsInProgress) return Ok(new { status = attempt.Status, alreadyFinished = true });
+
+            try
+            {
+                await attemptRep.Submit(attemptId, request.Forced);
+                await ExamGraderNotifier.NotifyAsync(attempt, student, examRep, registrationRep,
+                    HttpContext.RequestServices.GetRequiredService<NotificationService>());
+                var after = await attemptRep.Get(attemptId);
+                return Ok(new { status = after?.Status ?? "Submitted" });
+            }
+            catch (Exception ex)
+            {
+                // e.g. "Answer every question before submitting".
+                return UnprocessableEntity(new { message = CleanSqlMessage(ex.Message) });
+            }
+        }
+
+        [HttpGet("attempts/{attemptId}/result")]
+        public async Task<IActionResult> Result(string attemptId)
+        {
+            var (student, attempt) = await OwnAttempt(attemptId);
+            if (student == null) return Unauthorized();
+            if (attempt == null) return NotFound(new { message = "Attempt not found." });
+
+            var released = attempt.ResultReleasedDate.HasValue;
+            return Ok(new
+            {
+                attemptId = attempt.AttemptID,
+                examTitle = attempt.ExamTitle,
+                status = attempt.Status,
+                submittedAt = attempt.SubmittedDate,
+                strikeCount = attempt.StrikeCount,
+                released,
+                // Marks only once the result is released, like MyResults.
+                marks = released ? attempt.TotalMarksAwarded : null,
+                totalMarks = attempt.TotalMarks,
+                passed = released ? attempt.Passed : null
+            });
+        }
+
+        private async Task<Areas.Admin.Models.ExamAttempt?> ResumableAttempt(string examId, string studentId) =>
+            (await attemptRep.ListForStudent(studentId))
+                .FirstOrDefault(a => a.ExamID == examId && a.IsInProgress && a.SecondsRemaining > 0);
+
+        private async Task<(Areas.Admin.Models.Student? Student, Areas.Admin.Models.ExamAttempt? Attempt)> OwnAttempt(string attemptId)
+        {
+            var student = await CurrentStudent();
+            if (student == null) return (null, null);
+            var attempt = await attemptRep.Get(attemptId);
+            return (student, attempt != null && attempt.StudentID == student.StudentID ? attempt : null);
+        }
+
+        // "Maximum attempts reached. Script: edu.ExamAttempt_Start" -> "Maximum attempts reached."
+        private static string CleanSqlMessage(string message)
+        {
+            var i = message.IndexOf(". Script:", StringComparison.Ordinal);
+            var m = (i > 0 ? message[..i] : message).Trim();
+            return m.EndsWith('.') ? m : m + ".";
+        }
+
         private static object Row(string kind, string title, string subtitle, string value = "", string tone = "info") =>
             new { kind, title, subtitle, value, tone };
 
