@@ -3,7 +3,8 @@
     ViewData["Title"] = "View Exam Attempt";
     var attempt = (ExamAttempt)ViewBag.Attempt;
     var ordered = ((List<ExamAttemptAnswer>)ViewBag.Answers).OrderBy(a => a.SortOrder).ToList();
-    var canApprove = attempt.TeacherReviewStatus == "Approved" && attempt.AdminReviewStatus != "Approved";
+    var optionsByQuestion = ViewBag.OptionsByQuestion as Dictionary<string, List<ExamQuestionOption>> ?? new();
+    var canApprove =attempt.TeacherReviewStatus == "Approved" && attempt.AdminReviewStatus != "Approved";
 }
 
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.18.4/dist/katex.min.css" integrity="sha384-u1zONI5gPXUx0UKI62c75/zww972y0v2rSK5ZYlVdS6xEuWDeZWUI66v6t1gvlXJ" crossorigin="anonymous">
@@ -108,17 +109,8 @@
 
                 @if (ans.IsMCQ)
                 {
-                    <div class="ml-10 flex items-center gap-3 flex-wrap">
-                        <div class="rounded-xl border @(ans.IsCorrect == true ? "border-emerald-200 dark:border-emerald-900 bg-emerald-50 dark:bg-emerald-950" : "border-red-200 dark:border-red-900 bg-red-50 dark:bg-red-950") px-4 py-2">
-                            <p class="text-xs text-slate-500 dark:text-slate-400">Selected Option</p>
-                            <p class="text-sm font-medium text-slate-800 dark:text-slate-100">@(ans.SelectedOptionID ?? "No answer")</p>
-                        </div>
-                        <span class="inline-flex items-center gap-1.5 text-sm font-medium @(ans.IsCorrect == true ? "text-emerald-600 dark:text-emerald-300" : ans.IsCorrect == false ? "text-red-600 dark:text-red-300" : "text-slate-400 dark:text-slate-500")">
-                            <i data-lucide="@(ans.IsCorrect == true ? "check-circle" : ans.IsCorrect == false ? "circle-x" : "minus-circle")" class="w-4 h-4"></i>
-                            @(ans.IsCorrect == true ? "Correct" : ans.IsCorrect == false ? "Incorrect" : "Not answered")
-                        </span>
-                        <span class="text-sm text-slate-500 dark:text-slate-400 ml-auto">Marks: @(ans.MarksAwarded?.ToString() ?? "0")</span>
-                    </div>
+                    <partial name="~/Views/Shared/_McqAnswerReview.cshtml" model="ans"
+                             view-data="@(new ViewDataDictionary(ViewData) { ["Options"] = optionsByQuestion.GetValueOrDefault(ans.QuestionID) })" />
                 }
                 else
                 {

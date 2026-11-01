@@ -1,0 +1,58 @@
+@model Web_Backend.Areas.Admin.Models.ExamAttemptAnswer
+@*
+    Grader's view of one MCQ answer (Lecturer ExamReview/Grade, Admin
+    ExamGrading/Grade): the chosen option's text instead of its id, and the
+    correct option when the answer was wrong. Options come in through
+    ViewData["Options"] (that question's options, any order). Option text is
+    LaTeX, rendered by exam-math.js via .katex-render like the question.
+*@
+@{
+    var ans = Model;
+    var options = (ViewData["Options"] as List<Web_Backend.Areas.Admin.Models.ExamQuestionOption> ?? new())
+        .OrderBy(o => o.SortOrder).ToList();
+    string Letter(int i) => ((char)('A' + i)).ToString();
+    var selectedIndex = options.FindIndex(o => o.OptionID == ans.SelectedOptionID);
+    var correctIndex = options.FindIndex(o => o.IsCorrect);
+    var answered = !string.IsNullOrEmpty(ans.SelectedOptionID);
+}
+<div class="ml-10 space-y-2">
+    <div class="flex items-start gap-3 flex-wrap">
+        <div class="flex-1 min-w-[16rem] rounded-xl border @(ans.IsCorrect == true ? "border-emerald-200 dark:border-emerald-900 bg-emerald-50 dark:bg-emerald-950" : answered ? "border-red-200 dark:border-red-900 bg-red-50 dark:bg-red-950" : "border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60") px-4 py-2.5">
+            <p class="text-xs text-slate-500 dark:text-slate-400 mb-1">Student's answer</p>
+            @if (!answered)
+            {
+                <p class="text-sm font-medium text-slate-500 dark:text-slate-400">No answer</p>
+            }
+            else if (selectedIndex < 0)
+            {
+                @* Option deleted since the attempt -- keep the id so it's traceable. *@
+                <p class="text-sm font-medium text-slate-800 dark:text-slate-100">Option no longer exists (@ans.SelectedOptionID)</p>
+            }
+            else
+            {
+                <div class="flex items-start gap-2 text-sm font-medium text-slate-800 dark:text-slate-100">
+                    <span class="inline-flex items-center justify-center w-6 h-6 shrink-0 rounded-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-bold">@Letter(selectedIndex)</span>
+                    <span class="katex-render min-w-0 leading-relaxed" data-latex="@options[selectedIndex].OptionTextLatex">@options[selectedIndex].OptionTextLatex</span>
+                </div>
+            }
+        </div>
+        <div class="flex items-center gap-4 pt-2">
+            <span class="inline-flex items-center gap-1.5 text-sm font-medium @(ans.IsCorrect == true ? "text-emerald-600 dark:text-emerald-300" : ans.IsCorrect == false ? "text-red-600 dark:text-red-300" : "text-slate-400 dark:text-slate-500")">
+                <i data-lucide="@(ans.IsCorrect == true ? "check-circle" : ans.IsCorrect == false ? "circle-x" : "minus-circle")" class="w-4 h-4"></i>
+                @(ans.IsCorrect == true ? "Correct" : ans.IsCorrect == false ? "Incorrect" : "Not answered")
+            </span>
+            <span class="text-sm text-slate-500 dark:text-slate-400">Marks: @(ans.MarksAwarded?.ToString() ?? "0")</span>
+        </div>
+    </div>
+
+    @if (ans.IsCorrect != true && correctIndex >= 0)
+    {
+        <div class="rounded-xl border border-emerald-200 dark:border-emerald-900 bg-white dark:bg-slate-900 px-4 py-2.5">
+            <p class="text-xs text-emerald-700 dark:text-emerald-300 mb-1">Correct answer</p>
+            <div class="flex items-start gap-2 text-sm text-slate-800 dark:text-slate-100">
+                <span class="inline-flex items-center justify-center w-6 h-6 shrink-0 rounded-full bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 text-xs font-bold">@Letter(correctIndex)</span>
+                <span class="katex-render min-w-0 leading-relaxed" data-latex="@options[correctIndex].OptionTextLatex">@options[correctIndex].OptionTextLatex</span>
+            </div>
+        </div>
+    }
+</div>

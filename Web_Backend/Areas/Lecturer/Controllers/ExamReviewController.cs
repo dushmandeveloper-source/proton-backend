@@ -118,6 +118,7 @@ namespace Web_Backend.Areas.LecturerPortal.Controllers
 
             ViewBag.CurrentUser = Auth.GetUser();
             ViewBag.Attempt = attempt;
+            ViewBag.OptionsByQuestion = await ExamAnswerOptions.ForMcq(answers, examRep);
             return View(answers);
         }
 

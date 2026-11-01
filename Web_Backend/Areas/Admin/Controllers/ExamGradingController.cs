@@ -20,9 +20,11 @@ namespace Web_Backend.Areas.Admin.Controllers
         private readonly IExamAttemptData attemptRep;
         private readonly IEmailSender emailSender;
         private readonly IStudentData studentRep;
+        private readonly IExamData examRep;
 
-        public ExamGradingController(IExamAttemptData attemptRep, IEmailSender emailSender, IStudentData studentRep)
+        public ExamGradingController(IExamAttemptData attemptRep, IEmailSender emailSender, IStudentData studentRep, IExamData examRep)
         {
+            this.examRep = examRep;
             this.attemptRep = attemptRep;
             this.emailSender = emailSender;
             this.studentRep = studentRep;
@@ -63,6 +65,7 @@ namespace Web_Backend.Areas.Admin.Controllers
             ViewBag.CurrentUser = Auth.GetUser();
             ViewBag.Attempt = attempt;
             ViewBag.Answers = answers;
+            ViewBag.OptionsByQuestion = await ExamAnswerOptions.ForMcq(answers, examRep);
             return View();
         }
 
