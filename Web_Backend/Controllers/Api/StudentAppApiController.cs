@@ -193,6 +193,26 @@ namespace Web_Backend.Controllers.Api
             return string.IsNullOrEmpty(userId) ? null : await studentRep.GetByUserID(userId);
         }
 
+        // Latest released app build, for the in-app "Check for updates".
+        // Set on the server in appsettings.Production.json:
+        //   "StudentApp": { "LatestVersion": "1.1.0", "LatestBuild": 2,
+        //                   "MinBuild": 1, "ApkUrl": "https://.../proton.apk", "Notes": "..." }
+        // MinBuild lets a release force older apps to update. Readable signed
+        // out too, so the update check works from the login screen.
+        [HttpGet("version")]
+        public IActionResult Version([FromServices] IConfiguration config)
+        {
+            var s = config.GetSection("ApplicationSettings:StudentApp");
+            return Ok(new
+            {
+                latestVersion = s["LatestVersion"] ?? "",
+                latestBuild = int.TryParse(s["LatestBuild"], out var b) ? b : 0,
+                minBuild = int.TryParse(s["MinBuild"], out var m) ? m : 0,
+                apkUrl = SafeUrl.OrEmpty(s["ApkUrl"]),
+                notes = s["Notes"] ?? ""
+            });
+        }
+
         // Header/drawer summary: name, email, photo, verification state.
         [HttpGet("me")]
         public async Task<IActionResult> Me()
