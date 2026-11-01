@@ -36,9 +36,10 @@ namespace Web_Backend.Controllers
             var n = await rep.MarkRead(id, userId);
             var link = n?.LinkUrl ?? "";
             // Only ever redirect within this app.
-            if (string.IsNullOrEmpty(link) || !link.StartsWith('/') || link.StartsWith("//"))
-                return Redirect(Request.Headers.Referer.FirstOrDefault() ?? "/");
-            return Redirect(link);
+            // IsLocalUrl also rejects "/\evil.com", which browsers treat as //evil.com.
+            if (!Url.IsLocalUrl(link))
+                return LocalRedirect("/");
+            return LocalRedirect(link);
         }
 
         [HttpPost("MarkAllRead"), ValidateAntiForgeryToken]

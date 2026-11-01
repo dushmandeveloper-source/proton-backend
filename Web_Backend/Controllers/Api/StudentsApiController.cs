@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.Mvc;
 using Web_Backend.Areas.Admin.Data;
 using Web_Backend.Areas.Admin.Models;
@@ -41,6 +42,7 @@ namespace Web_Backend.Controllers.Api
         }
 
         [HttpPost("register")]
+        [EnableRateLimiting("register")]
         public async Task<IActionResult> Register([FromForm] StudentRegistrationRequest request, [FromForm] IFormFile? passportPhoto)
         {
             if (string.IsNullOrWhiteSpace(request.FirstName) || string.IsNullOrWhiteSpace(request.LastName))

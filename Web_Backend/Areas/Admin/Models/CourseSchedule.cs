@@ -91,7 +91,8 @@ namespace Web_Backend.Areas.Admin.Models
         // lecturer (CourseScheduleSegment_UpdateMeetingLinks, scoped to
         // their own batches) — one link can be pasted once and applied to
         // several selected periods, or set per-period.
-        public string MeetingLink { get; set; } = "";
+        private string _meetingLink = "";
+        public string MeetingLink { get => _meetingLink; set => _meetingLink = Web_Backend.Classes.SafeUrl.CleanMeetingLink(value); }
 
         // Per-date time overrides — see SegmentTimeOverrides for the format.
         public string TimeOverrides { get; set; } = "";

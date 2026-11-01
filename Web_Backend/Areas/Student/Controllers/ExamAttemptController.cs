@@ -15,27 +15,28 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
         private readonly IExamAttemptData attemptRep;
         private readonly IExamData examRep;
         private readonly ICourseRegistrationData registrationRep;
+        private readonly IExamScheduleData examScheduleRep;
 
-        public ExamAttemptController(IStudentData studentRep, IExamAttemptData attemptRep, IExamData examRep, ICourseRegistrationData registrationRep)
+        public ExamAttemptController(IStudentData studentRep, IExamAttemptData attemptRep, IExamData examRep, ICourseRegistrationData registrationRep, IExamScheduleData examScheduleRep)
         {
+            this.examScheduleRep = examScheduleRep;
             this.studentRep = studentRep;
             this.attemptRep = attemptRep;
             this.examRep = examRep;
             this.registrationRep = registrationRep;
         }
 
-        // An exam tied to a course (Exam.CourseID non-blank) is only
-        // attemptable while that course's registration has FullAccess -- a
-        // standalone exam (no CourseID) has nothing to check against and is
-        // never gated this way. Shared by Start/ConfirmStart so the check
-        // can't be bypassed by skipping straight to ConfirmStart.
-        private async Task<bool> HasFullAccessForExam(Exam exam, string studentId)
+        // The question must be one of this attempt's own, and an MCQ choice
+        // one of that question's options -- the save proc only checks the
+        // attempt, so without this an answer could be written against any
+        // question/option id.
+        private async Task<bool> IsValidAnswerTarget(string attemptId, string questionId, string? selectedOptionId)
         {
-            if (string.IsNullOrEmpty(exam.CourseID)) return true;
-
-            var registrations = await registrationRep.GetByStudent(studentId);
-            var reg = registrations.FirstOrDefault(r => r.CourseID == exam.CourseID && r.IsActive == "A");
-            return reg == null || reg.FullAccess;
+            var question = (await attemptRep.ListAnswers(attemptId)).FirstOrDefault(a => a.QuestionID == questionId);
+            if (question == null) return false;
+            if (string.IsNullOrEmpty(selectedOptionId)) return true;
+            if (!question.IsMCQ) return false;
+            return (await examRep.GetOptions(questionId)).Any(o => o.OptionID == selectedOptionId);
         }
 
         // Rules + email-confirmation gate, shown BEFORE edu.ExamAttempt_Start
@@ -55,9 +56,10 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
             if (exam == null)
                 return RedirectToAction("Index", "Dashboard");
 
-            if (!await HasFullAccessForExam(exam, student.StudentID))
+            var blocked = await ExamJoinRules.WhyCannotStart(exam, student.StudentID, examScheduleRep, registrationRep);
+            if (blocked != null)
             {
-                TempData["ErrorMessage"] = "This exam is locked until full access is granted for its course.";
+                TempData["ErrorMessage"] = blocked;
                 return RedirectToAction("Index", "Dashboard");
             }
 
@@ -83,9 +85,12 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
             }
 
             var exam = await examRep.Get(examId);
-            if (exam == null || !await HasFullAccessForExam(exam, student.StudentID))
+            var blocked = exam == null
+                ? "Exam not found."
+                : await ExamJoinRules.WhyCannotStart(exam, student.StudentID, examScheduleRep, registrationRep);
+            if (blocked != null)
             {
-                TempData["ErrorMessage"] = "This exam is locked until full access is granted for its course.";
+                TempData["ErrorMessage"] = blocked;
                 return RedirectToAction("Index", "Dashboard");
             }
 
@@ -149,6 +154,9 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
             var attempt = await attemptRep.Get(attemptId);
             if (attempt == null || attempt.StudentID != student.StudentID)
                 return Json(new { success = false, message = "Attempt not found" });
+
+            if (!await IsValidAnswerTarget(attemptId, questionId, selectedOptionId))
+                return Json(new { success = false, message = "Question not part of this exam" });
 
             try
             {

@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.Mvc;
 using Web_Backend.Areas.Admin.Data;
 using Web_Backend.Areas.Admin.Models;
@@ -35,6 +36,7 @@ namespace Web_Backend.Areas.AgentPortal.Controllers
         }
 
         [HttpPost, ValidateAntiForgeryToken]
+        [EnableRateLimiting("auth")]
         public async Task<IActionResult> Login(LoginViewModel model)
         {
             if (!ModelState.IsValid)
@@ -54,6 +56,7 @@ namespace Web_Backend.Areas.AgentPortal.Controllers
         public IActionResult ForgotPassword() => View(new ForgotPasswordViewModel());
 
         [HttpPost, ValidateAntiForgeryToken]
+        [EnableRateLimiting("email")]
         public async Task<IActionResult> ForgotPassword(ForgotPasswordViewModel model)
         {
             if (!ModelState.IsValid)
@@ -91,6 +94,7 @@ namespace Web_Backend.Areas.AgentPortal.Controllers
         }
 
         [HttpPost, ValidateAntiForgeryToken]
+        [EnableRateLimiting("auth")]
         public async Task<IActionResult> ResetPassword(ResetPasswordViewModel model)
         {
             if (!ModelState.IsValid)

@@ -112,7 +112,7 @@ namespace Web_Backend.Areas.Admin.Data
             {
                 APIKey = AppData.GetAPIKey(),
                 SegmentID = segmentId,
-                MeetingLink = meetingLink
+                MeetingLink = SafeUrl.NormalizeMeetingLink(meetingLink)
             });
 
         public Task Deactivate(string id) =>

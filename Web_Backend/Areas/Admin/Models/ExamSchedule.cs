@@ -88,7 +88,8 @@ namespace Web_Backend.Areas.Admin.Models
         // Optional Zoom/VooV/Teams (or any other) online meeting URL for
         // this period. Set by Admin only in this phase (no Lecturer
         // self-service link editing — read-only Lecturer calendar).
-        public string MeetingLink { get; set; } = "";
+        private string _meetingLink = "";
+        public string MeetingLink { get => _meetingLink; set => _meetingLink = Web_Backend.Classes.SafeUrl.CleanMeetingLink(value); }
 
         // Per-date time overrides — see SegmentTimeOverrides (CourseSchedule.cs, 0082).
         public string TimeOverrides { get; set; } = "";
@@ -138,7 +139,8 @@ namespace Web_Backend.Areas.Admin.Models
         public TimeSpan? EndTime { get; set; }
         public string ExceptionDates { get; set; } = "";
         public string TimeOverrides { get; set; } = "";
-        public string MeetingLink { get; set; } = "";
+        private string _meetingLink = "";
+        public string MeetingLink { get => _meetingLink; set => _meetingLink = Web_Backend.Classes.SafeUrl.CleanMeetingLink(value); }
         public string InstructorNames { get; set; } = "";
 
         public ExamScheduleInstructorSegment ShallowCopy() => (ExamScheduleInstructorSegment)MemberwiseClone();

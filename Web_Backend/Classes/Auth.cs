@@ -63,9 +63,37 @@ namespace Web_Backend.Classes
         // Student) for some roles and a literal ("INSTRUCTOR"/"AGENT") for
         // others, not a stable value this static class can pattern-match on
         // without its own DB lookup.
-        public static async Task SignIn(SessionUser user, Portal portal, bool rememberMe = false)
+        public static Task SignIn(SessionUser user, Portal portal, bool rememberMe = false) =>
+            SignInWith(user, SchemeFor(portal), new AuthenticationProperties
+            {
+                IsPersistent = rememberMe,
+                ExpiresUtc = rememberMe ? DateTimeOffset.UtcNow.AddDays(30) : null
+            });
+
+        // After the signed-in user changes their OWN password: re-issue this
+        // cookie with the new password stamp (keeping Remember Me), so only
+        // their other sessions are signed out, not this one.
+        public static async Task RefreshAfterOwnPasswordChange(Portal portal)
         {
             var scheme = SchemeFor(portal);
+            var result = await HttpContext.AuthenticateAsync(scheme);
+            var json = result.Principal?.FindFirst(UserClaimType)?.Value;
+            var user = string.IsNullOrEmpty(json) ? null : JsonSerializer.Deserialize<SessionUser>(json);
+            if (user == null) return;
+            await SignInWith(user, scheme, result.Properties ?? new AuthenticationProperties());
+        }
+
+        public static string PasswordStampFor(string passwordHash) =>
+            Convert.ToBase64String(System.Security.Cryptography.SHA256.HashData(
+                System.Text.Encoding.UTF8.GetBytes(passwordHash ?? "")))[..16];
+
+        private static async Task SignInWith(SessionUser user, string scheme, AuthenticationProperties properties)
+        {
+            var auth = await HttpContext.RequestServices
+                .GetRequiredService<Web_Backend.Areas.Admin.Data.IUserAuthData>()
+                .FindByUserId(user.Id);
+            user.PasswordStamp = auth == null ? null : PasswordStampFor(auth.PasswordHash);
+
             var claims = new List<Claim>
             {
                 new(ClaimTypes.NameIdentifier, user.Id),
@@ -77,11 +105,7 @@ namespace Web_Backend.Classes
             var identity = new ClaimsIdentity(claims, scheme);
             var principal = new ClaimsPrincipal(identity);
 
-            await HttpContext.SignInAsync(scheme, principal, new AuthenticationProperties
-            {
-                IsPersistent = rememberMe,
-                ExpiresUtc = rememberMe ? DateTimeOffset.UtcNow.AddDays(30) : null
-            });
+            await HttpContext.SignInAsync(scheme, principal, properties);
         }
 
         public static void SignOut()
@@ -145,7 +169,8 @@ namespace Web_Backend.Classes
                 {
                     var signIn = HttpContext.RequestServices.GetRequiredService<PortalSignIn>();
                     var fresh = signIn.ReloadAsync(user.Id).GetAwaiter().GetResult();
-                    if (fresh == null)
+                    // Password changed since this cookie was issued -> signed out.
+                    if (fresh == null || (user.PasswordStamp != null && user.PasswordStamp != fresh.Value.passwordStamp))
                     {
                         user = null;
                     }

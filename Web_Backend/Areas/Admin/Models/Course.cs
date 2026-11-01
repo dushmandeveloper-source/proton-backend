@@ -34,7 +34,8 @@ namespace Web_Backend.Areas.Admin.Models
         public string HandbookTitle { get; set; } = "";
         public string HandbookFileURL { get; set; } = "";
         public string ShortDescription { get; set; } = "";
-        public string AboutHtml { get; set; } = "";
+        private string _aboutHtml = "";
+        public string AboutHtml { get => _aboutHtml; set => _aboutHtml = Web_Backend.Classes.HtmlCleaner.Rich(value); }
 
         public bool EnableExperiencePricing { get; set; }
         public bool EnableComboOffer { get; set; }

@@ -15,19 +15,64 @@ namespace Web_Backend.Areas.LecturerPortal.Controllers
     // area controller in this codebase (ExamScheduleController,
     // DashboardController, etc. -- none of them do a finer-grained
     // permission check; a logged-in Lecturer-area session is itself the
-    // authorization boundary). Actionable rows are limited server-side to
-    // fully-graded, finalized attempts by ExamAttempt_ListTeacherReviewQueue
-    // itself, so there is no separate ownership check needed here.
+    // authorization boundary). Every list and action is additionally
+    // limited to attempts of exams this lecturer is tied to -- see
+    // ReviewAccess below.
     [Area("Lecturer")]
     public class ExamReviewController : Controller
     {
         private readonly IExamAttemptData attemptRep;
         private readonly ICourseScheduleData scheduleRep;
+        private readonly IExamScheduleData examScheduleRep;
+        private readonly IExamData examRep;
 
-        public ExamReviewController(IExamAttemptData attemptRep, ICourseScheduleData scheduleRep)
+        public ExamReviewController(IExamAttemptData attemptRep, ICourseScheduleData scheduleRep, IExamScheduleData examScheduleRep, IExamData examRep)
         {
             this.attemptRep = attemptRep;
             this.scheduleRep = scheduleRep;
+            this.examScheduleRep = examScheduleRep;
+            this.examRep = examRep;
+        }
+
+        // A lecturer may only see/grade/approve attempts of exams they are
+        // tied to: assigned to one of the exam's sittings, or teaching a
+        // batch of the exam's course (the same lecturers NotifyGraders
+        // alerts). Standalone exams are graded by admin Exams staff.
+        private async Task<Func<ExamAttempt, Task<bool>>> ReviewAccess()
+        {
+            var userId = Auth.GetUserId();
+            var examIds = (await examScheduleRep.GetListForInstructor(userId))
+                .Select(s => s.ExamID).ToHashSet();
+            var courseIds = (await scheduleRep.GetListForInstructor(userId))
+                .Select(s => s.CourseID).Where(c => !string.IsNullOrEmpty(c)).ToHashSet();
+            var examCourse = new Dictionary<string, string>();
+
+            return async attempt =>
+            {
+                if (examIds.Contains(attempt.ExamID)) return true;
+                if (!examCourse.TryGetValue(attempt.ExamID, out var courseId))
+                {
+                    courseId = (await examRep.Get(attempt.ExamID))?.CourseID ?? "";
+                    examCourse[attempt.ExamID] = courseId;
+                }
+                return courseId != "" && courseIds.Contains(courseId);
+            };
+        }
+
+        private async Task<ExamAttempt?> GetReviewableAttempt(string attemptId)
+        {
+            var attempt = await attemptRep.Get(attemptId);
+            if (attempt == null) return null;
+            var canReview = await ReviewAccess();
+            return await canReview(attempt) ? attempt : null;
+        }
+
+        private static async Task<List<ExamAttempt>> FilterAsync(IEnumerable<ExamAttempt> attempts, Func<ExamAttempt, Task<bool>> canReview)
+        {
+            var result = new List<ExamAttempt>();
+            foreach (var a in attempts)
+                if (await canReview(a)) result.Add(a);
+            return result;
         }
 
         // Combined "Exam Grading + Results Review" screen -- one page, two
@@ -45,8 +90,9 @@ namespace Web_Backend.Areas.LecturerPortal.Controllers
             Auth.CheckUser();
             ViewBag.CurrentUser = Auth.GetUser();
             ViewBag.InitialTab = tab == "review" ? "review" : "grading";
-            var grading = await attemptRep.ListPendingGrading();
-            var review = await attemptRep.ListTeacherReviewQueue();
+            var canReview = await ReviewAccess();
+            var grading = await FilterAsync(await attemptRep.ListPendingGrading(), canReview);
+            var review = await FilterAsync(await attemptRep.ListTeacherReviewQueue(), canReview);
             return View((grading, review));
         }
 
@@ -64,7 +110,7 @@ namespace Web_Backend.Areas.LecturerPortal.Controllers
         public async Task<IActionResult> Grade(string attemptId)
         {
             Auth.CheckUser();
-            var attempt = await attemptRep.Get(attemptId);
+            var attempt = await GetReviewableAttempt(attemptId);
             if (attempt == null)
                 return RedirectToAction("GradingQueue");
 
@@ -80,6 +126,8 @@ namespace Web_Backend.Areas.LecturerPortal.Controllers
         public async Task<IActionResult> SaveGrade(string attemptId, string questionId, decimal marksAwarded)
         {
             Auth.CheckUser();
+            if (await GetReviewableAttempt(attemptId) == null)
+                return RedirectToAction("GradingQueue");
 
             try
             {
@@ -118,9 +166,16 @@ namespace Web_Backend.Areas.LecturerPortal.Controllers
 
             int successCount = 0;
             var failures = new List<string>();
+            var canReview = await ReviewAccess();
 
             foreach (var attemptId in attemptIds)
             {
+                var attempt = await attemptRep.Get(attemptId);
+                if (attempt == null || !await canReview(attempt))
+                {
+                    failures.Add($"{attemptId} (not one of your exams)");
+                    continue;
+                }
                 try
                 {
                     await attemptRep.TeacherApprove(attemptId, user!.Id);
@@ -163,6 +218,12 @@ namespace Web_Backend.Areas.LecturerPortal.Controllers
             if (string.IsNullOrWhiteSpace(remark))
             {
                 TempData["ErrorMessage"] = "A remark is required to reject an attempt.";
+                return RedirectToAction("Index", new { tab = "review" });
+            }
+
+            if (await GetReviewableAttempt(attemptId) == null)
+            {
+                TempData["ErrorMessage"] = "This attempt is not one of your exams.";
                 return RedirectToAction("Index", new { tab = "review" });
             }
 

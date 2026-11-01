@@ -158,6 +158,7 @@ namespace Web_Backend.Areas.AgentPortal.Controllers
 
             var (hash, salt) = PasswordHasher.Hash(form.NewPassword);
             await authRep.EditPassword(auth.AuthID, hash, salt);
+            await Auth.RefreshAfterOwnPasswordChange(Portal.Agent);
 
             TempData["SuccessMessage"] = "Password changed.";
             return RedirectToAction("Index");

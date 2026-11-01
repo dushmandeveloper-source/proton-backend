@@ -180,6 +180,11 @@ namespace Web_Backend.Hubs
             if (!isRegisteredStudent && !isRegisteredWatcher)
                 throw new HubException("Not part of this exam's signaling session.");
 
+            // Only ever relay to the other side of this attempt's pair.
+            var peer = isRegisteredStudent ? watcherId : studentId;
+            if (peer == null || peer != toConnectionId)
+                throw new HubException("Not part of this exam's signaling session.");
+
             return Clients.Client(toConnectionId).SendAsync("SignalReceived", attemptId, Context.ConnectionId, payload);
         }
 
@@ -191,6 +196,10 @@ namespace Web_Backend.Hubs
         // signal to tear down the now-unwanted peer connection.
         public Task StopWatching(string attemptId)
         {
+            // Only the lecturer currently watching may stop the view.
+            if (!_watcherByAttempt.TryGetValue(attemptId, out var watcherId) || watcherId != Context.ConnectionId)
+                return Task.CompletedTask;
+
             if (_watcherByAttempt.TryRemove(attemptId, out _) &&
                 _studentConnectionByAttempt.TryGetValue(attemptId, out var studentConnectionId))
             {

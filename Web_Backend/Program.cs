@@ -1,3 +1,4 @@
+using System.Threading.RateLimiting;
 using DBAccess;
 using Microsoft.AspNetCore.ResponseCompression;
 using Web_Backend.Areas.Admin.Data;
@@ -104,6 +105,32 @@ builder.Services.AddCors(options =>
               .AllowCredentials());
 });
 
+// Per-IP limits on endpoints a script could hammer: password guessing
+// (auth), mail-bombing through forgot-password/contact (email) and bulk
+// fake sign-ups (register). Attached with [EnableRateLimiting("...")].
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.OnRejected = async (ctx, token) =>
+    {
+        var response = ctx.HttpContext.Response;
+        const string message = "Too many attempts. Please wait a few minutes and try again.";
+        if (ctx.HttpContext.Request.Path.StartsWithSegments("/api"))
+            await response.WriteAsJsonAsync(new { message }, token);
+        else
+            await response.WriteAsync(message, token);
+    };
+
+    void AddPerIp(string name, int permitLimit, TimeSpan window) =>
+        options.AddPolicy(name, http => RateLimitPartition.GetFixedWindowLimiter(
+            http.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            _ => new FixedWindowRateLimiterOptions { PermitLimit = permitLimit, Window = window, QueueLimit = 0 }));
+
+    AddPerIp("auth", 10, TimeSpan.FromMinutes(1));
+    AddPerIp("email", 3, TimeSpan.FromMinutes(10));
+    AddPerIp("register", 5, TimeSpan.FromHours(1));
+});
+
 builder.Services.AddSingleton<IDBAccess>(new MSSQLDataAccess(AppData.GetMSSQLDBCon()));
 
 builder.Services.AddTransient<IUserData, UserData>();
@@ -202,7 +229,10 @@ app.UseStaticFiles(new StaticFileOptions
         var path = ctx.Context.Request.Path.Value ?? "";
         var headers = ctx.Context.Response.Headers;
         if (path.StartsWith("/Uploads/", StringComparison.OrdinalIgnoreCase))
+        {
             headers.CacheControl = "public, max-age=31536000, immutable";
+            UploadSafety.ApplyHeaders(ctx.Context);
+        }
         else if (ctx.Context.Request.Query.ContainsKey("v"))
             headers.CacheControl = "public, max-age=31536000, immutable";
         else
@@ -224,7 +254,7 @@ if (uploadPaths.IsCustom)
         OnPrepareResponse = ctx =>
         {
             ctx.Context.Response.Headers.CacheControl = "public, max-age=31536000, immutable";
-            ctx.Context.Response.Headers["X-Content-Type-Options"] = "nosniff";
+            UploadSafety.ApplyHeaders(ctx.Context);
         }
     });
 }
@@ -235,6 +265,7 @@ app.UseCors(PublicSiteCors);
 // cached hits still get the CORS headers the public site needs.
 var publicApiCache = app.Services.GetRequiredService<PublicApiCache>();
 app.Use((ctx, next) => publicApiCache.InvokeAsync(ctx, _ => next()));
+app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 

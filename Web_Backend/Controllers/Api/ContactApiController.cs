@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.Mvc;
 using System.Net;
 using Web_Backend.Areas.Admin.Data;
@@ -41,6 +42,7 @@ namespace Web_Backend.Controllers.Api
         }
 
         [HttpPost]
+        [EnableRateLimiting("email")]
         public IActionResult Submit([FromBody] ContactSubmission submission)
         {
             if (string.IsNullOrWhiteSpace(submission.FullName) ||

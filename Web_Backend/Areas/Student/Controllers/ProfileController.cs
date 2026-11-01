@@ -204,6 +204,7 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
 
             var (hash, salt) = PasswordHasher.Hash(form.NewPassword);
             await authRep.EditPassword(auth.AuthID, hash, salt);
+            await Auth.RefreshAfterOwnPasswordChange(Portal.Student);
 
             TempData["SuccessMessage"] = "Password changed.";
             return RedirectToAction("Index");

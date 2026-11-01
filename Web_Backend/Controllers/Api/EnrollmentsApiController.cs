@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
 using Web_Backend.Areas.Admin.Data;
@@ -66,6 +67,7 @@ namespace Web_Backend.Controllers.Api
         }
 
         [HttpPost("register-new")]
+        [EnableRateLimiting("register")]
         public async Task<IActionResult> RegisterNew([FromBody] StudentRegistrationRequest request)
         {
             if (string.IsNullOrWhiteSpace(request.FirstName) || string.IsNullOrWhiteSpace(request.LastName))

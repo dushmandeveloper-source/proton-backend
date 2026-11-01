@@ -29,7 +29,8 @@ namespace Web_Backend.Areas.Admin.Models
         public string LogoURL { get; set; } = "";
         public string CoverImageURL { get; set; } = "";
         public string ShortDescription { get; set; } = "";
-        public string AboutHtml { get; set; } = "";
+        private string _aboutHtml = "";
+        public string AboutHtml { get => _aboutHtml; set => _aboutHtml = Web_Backend.Classes.HtmlCleaner.Rich(value); }
         public int? StudentCount { get; set; }
         public int? InternationalStudentCount { get; set; }
 
@@ -46,8 +47,10 @@ namespace Web_Backend.Areas.Admin.Models
         public decimal? LivingCostMin { get; set; }
         public decimal? LivingCostMax { get; set; }
 
-        public string AdmissionRequirementsHtml { get; set; } = "";
-        public string RequiredDocumentsHtml { get; set; } = "";
+        private string _admissionRequirementsHtml = "";
+        public string AdmissionRequirementsHtml { get => _admissionRequirementsHtml; set => _admissionRequirementsHtml = Web_Backend.Classes.HtmlCleaner.Rich(value); }
+        private string _requiredDocumentsHtml = "";
+        public string RequiredDocumentsHtml { get => _requiredDocumentsHtml; set => _requiredDocumentsHtml = Web_Backend.Classes.HtmlCleaner.Rich(value); }
         public string LanguageRequirement { get; set; } = "";
 
         public bool IsFeatured { get; set; }

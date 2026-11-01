@@ -125,7 +125,8 @@ namespace Web_Backend.Areas.Admin.Models
 
         // Optional Zoom/VooV/Teams (or any other) online meeting URL for
         // this specific period — see edu.CourseScheduleSegment.MeetingLink.
-        public string MeetingLink { get; set; } = "";
+        private string _meetingLink = "";
+        public string MeetingLink { get => _meetingLink; set => _meetingLink = Web_Backend.Classes.SafeUrl.CleanMeetingLink(value); }
 
         // Per-date time overrides — see SegmentTimeOverrides (CourseSchedule.cs).
         // Applied by ScheduleExpansion.ForDay, so per-day consumers see the

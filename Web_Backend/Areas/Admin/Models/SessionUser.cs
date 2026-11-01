@@ -11,5 +11,10 @@ namespace Web_Backend.Areas.Admin.Models
         // already applied), computed once at sign-in — see AccountController
         // and Auth.HasPermission. Keyed by PermissionCode module string.
         public Dictionary<string, PermissionGridViewModel> Permissions { get; set; } = new();
+
+        // Fingerprint of the password hash at sign-in (Auth.PasswordStampFor).
+        // A password change/reset alters it, which signs out every other
+        // session. Null on cookies issued before this existed.
+        public string? PasswordStamp { get; set; }
     }
 }

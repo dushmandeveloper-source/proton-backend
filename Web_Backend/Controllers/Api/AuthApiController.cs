@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.RateLimiting;
 using System.Security.Cryptography;
 using Microsoft.AspNetCore.Mvc;
 using Web_Backend.Areas.Admin.Data;
@@ -40,6 +41,7 @@ namespace Web_Backend.Controllers.Api
         }
 
         [HttpPost("login")]
+        [EnableRateLimiting("auth")]
         public async Task<IActionResult> Login(LoginRequest request)
         {
             var auth = await authRep.FindForLogin(request.Email);
@@ -105,6 +107,7 @@ namespace Web_Backend.Controllers.Api
         }
 
         [HttpPost("forgot-password")]
+        [EnableRateLimiting("email")]
         public async Task<IActionResult> ForgotPassword(ForgotPasswordRequest request)
         {
             var auth = await authRep.FindForLogin(request.Email);
@@ -116,11 +119,16 @@ namespace Web_Backend.Controllers.Api
 
                 // The link points back at the public site's own reset page,
                 // not a portal route — this endpoint serves the React front
-                // end. Falls back to the request origin so local dev needs no
-                // config.
+                // end. Falls back to the request origin in Development only --
+                // in production a forged Host header would otherwise send the
+                // token to an attacker's domain.
                 var siteBase = (configuration["ApplicationSettings:PublicSiteUrl"] ?? "").TrimEnd('/');
                 if (string.IsNullOrWhiteSpace(siteBase))
+                {
+                    if (!HttpContext.RequestServices.GetRequiredService<IWebHostEnvironment>().IsDevelopment())
+                        return Ok(new { message = "If that email exists, a reset link has been sent." });
                     siteBase = $"{Request.Scheme}://{Request.Host}";
+                }
 
                 var resetUrl = $"{siteBase}/reset-password?token={Uri.EscapeDataString(token)}";
                 var description = "We received a request to reset your Proton account password. This link expires in 30 minutes.";
@@ -136,8 +144,12 @@ namespace Web_Backend.Controllers.Api
         }
 
         [HttpPost("reset-password")]
+        [EnableRateLimiting("auth")]
         public async Task<IActionResult> ResetPassword(ResetPasswordRequest request)
         {
+            if (string.IsNullOrWhiteSpace(request.NewPassword) || request.NewPassword.Length < 8)
+                return BadRequest(new { message = "Password must be at least 8 characters." });
+
             var record = await resetRep.Validate(request.Token);
             if (record == null)
                 return BadRequest(new { message = "This reset token is invalid or has expired." });

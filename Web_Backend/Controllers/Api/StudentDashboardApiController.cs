@@ -143,6 +143,7 @@ namespace Web_Backend.Controllers.Api
 
             var (hash, salt) = PasswordHasher.Hash(request.NewPassword);
             await authRep.EditPassword(auth.AuthID, hash, salt);
+            await Auth.RefreshAfterOwnPasswordChange(Portal.Student);
 
             return Ok();
         }
@@ -172,6 +173,16 @@ namespace Web_Backend.Controllers.Api
             }
 
             var segments = await scheduleRep.GetSegmentsForStudent(student.StudentID, fromDate, toDate);
+
+            // Same rule as the dashboard's Join button: no meeting link for a
+            // content-restricted student or a course without full access.
+            var registrations = await registrationRep.GetByStudent(student.StudentID);
+            foreach (var seg in segments)
+            {
+                var locked = student.IsContentRestricted
+                    || registrations.Any(r => r.CourseID == seg.CourseID && r.IsActive == "A" && !r.FullAccess);
+                seg.MeetingLink = locked ? "" : SafeUrl.OrEmpty(seg.MeetingLink);
+            }
             return Ok(segments);
         }
 
