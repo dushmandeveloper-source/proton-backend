@@ -133,48 +133,6 @@ else
             </div>
         </nav>
 
-        @* Everyone else (computer, iPhone): where to get the Android app.
-           Hidden on Android, which gets the download card below instead. *@
-        <div data-app-hint class="flex-shrink-0 mb-3 p-3.5 rounded-2xl bg-[#7c3aed]/[0.07] dark:bg-[#7c3aed]/15 border border-[#7c3aed]/20">
-            <div class="flex items-center gap-2.5">
-                <div class="w-9 h-9 rounded-xl bg-[#7c3aed] text-white flex items-center justify-center flex-shrink-0">
-                    <i data-lucide="smartphone" class="w-[18px] h-[18px]"></i>
-                </div>
-                <div class="min-w-0">
-                    <p class="text-sm font-semibold text-slate-800 dark:text-slate-100 leading-tight">App available for Android</p>
-                    <p class="text-xs text-slate-500 dark:text-slate-400">Schedule, exams &amp; alerts</p>
-                </div>
-            </div>
-            <ol class="mt-2.5 space-y-1 text-xs text-slate-600 dark:text-slate-300 list-decimal pl-4 marker:text-[#7c3aed] marker:font-semibold">
-                <li>Open this portal on your Android phone</li>
-                <li>Tap <b>Get app</b> at the top</li>
-                <li>Install and sign in with your portal login</li>
-            </ol>
-        </div>
-
-        @* Android only (shown by the app-offer script below). *@
-        <div data-app-offer class="hidden flex-shrink-0 mb-3 p-4 rounded-2xl bg-gradient-to-br from-[#5a43f1] to-[#7c3aed] text-white shadow-md">
-            <div class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-xl bg-white/15 flex items-center justify-center flex-shrink-0">
-                    <i data-lucide="smartphone" class="w-5 h-5"></i>
-                </div>
-                <div class="min-w-0">
-                    <p class="text-sm font-semibold leading-tight">Proton Student app</p>
-                    <p class="text-xs text-white/75 leading-snug" data-app-status>Schedule, exams and alerts on your phone</p>
-                </div>
-            </div>
-            <div class="mt-3 flex gap-2">
-                <button type="button" data-app-download
-                        class="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-white text-[#5a43f1] text-sm font-semibold hover:bg-white/90 transition-colors disabled:bg-white/25 disabled:text-white/70 disabled:cursor-not-allowed">
-                    <i data-lucide="download" class="w-4 h-4"></i><span>Download</span>
-                </button>
-                <a data-app-open href="#"
-                   class="hidden flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-white text-[#5a43f1] text-sm font-semibold hover:bg-white/90 transition-colors">
-                    <i data-lucide="external-link" class="w-4 h-4"></i>Open app
-                </a>
-            </div>
-        </div>
-
         <div class="flex-shrink-0 pt-4 border-t border-slate-100 dark:border-slate-700 space-y-1">
             <a asp-area="Student" asp-controller="Profile" asp-action="Index"
                class="w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-200 group @(activeController == "Profile" ? "bg-slate-50/80 dark:bg-slate-700/60 text-slate-900 dark:text-slate-100 font-semibold" : "text-slate-500 dark:text-slate-400 hover:bg-slate-50/50 dark:hover:bg-slate-700/40 hover:text-slate-900 dark:hover:text-slate-100")">
