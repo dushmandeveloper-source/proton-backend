@@ -46,6 +46,12 @@ namespace Web_Backend.Hubs
         // blip, automatic reconnect) before the attempt is ended for good.
         private static readonly TimeSpan ClosedPageGrace = TimeSpan.FromSeconds(60);
 
+        // The mobile app reopens straight into the exam, so it gets a shorter
+        // window (product rule: closed app not back within 20 s = submitted).
+        // The app connects with ?client=app.
+        private static readonly TimeSpan ClosedAppGrace = TimeSpan.FromSeconds(20);
+        private static readonly ConcurrentDictionary<string, bool> _appAttempts = new();
+
         public ExamWatchHub(IExamAttemptData attemptRep, IStudentData studentRep, IExamScheduleData examScheduleRep, ILogger<ExamWatchHub> logger, IceServerProvider iceServers, IServiceScopeFactory scopeFactory)
         {
             this.attemptRep = attemptRep;
@@ -70,7 +76,7 @@ namespace Web_Backend.Hubs
             {
                 try
                 {
-                    await Task.Delay(ClosedPageGrace);
+                    await Task.Delay(_appAttempts.ContainsKey(attemptId) ? ClosedAppGrace : ClosedPageGrace);
                     if (_studentConnectionByAttempt.ContainsKey(attemptId)) return; // came back
 
                     using var scope = scopes.CreateScope();
@@ -136,6 +142,8 @@ namespace Web_Backend.Hubs
                 throw new HubException("This attempt does not belong to you.");
 
             _studentConnectionByAttempt[attemptId] = Context.ConnectionId;
+            if (Context.GetHttpContext()?.Request.Query["client"].ToString() == "app")
+                _appAttempts[attemptId] = true;
         });
 
         // Called from the Lecturer watch screen when a tile is clicked
