@@ -148,6 +148,14 @@ namespace Web_Backend.Areas.LecturerPortal.Controllers
                 HasAssignedBatches = batches.Count > 0
             };
 
+            // 0115: sittings limited to chosen students -> their names, per sitting.
+            var picked = new Dictionary<string, List<string>>();
+            foreach (var sid in segments.Select(s => s.ScheduleID).Distinct())
+            {
+                var names = (await scheduleRep.ListStudents(sid)).Select(s => s.FullName).ToList();
+                if (names.Count > 0) picked[sid] = names;
+            }
+            ViewBag.SelectedStudents = picked;
             ViewBag.CurrentUser = Auth.GetUser();
             return View(model);
         }

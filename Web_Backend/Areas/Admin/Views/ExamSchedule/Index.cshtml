@@ -135,6 +135,46 @@
                         }
                     </div>
                 </div>
+                @* 0115: optionally limit this sitting to chosen students of the batch
+                   (e.g. a make-up exam). Default = everyone in the batch. *@
+                <div class="md:col-span-4" id="students-block">
+                    <input type="hidden" name="StudentIDsJSON" id="student-ids-json" value="[]" />
+                    <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Who sits this exam?</label>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <label class="student-mode flex items-start gap-3 p-3 rounded-xl border border-slate-200 dark:border-slate-600 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/40 has-[:checked]:border-[#7c3aed] has-[:checked]:bg-purple-50 dark:has-[:checked]:bg-purple-950/40 transition-colors">
+                            <input type="radio" name="studentMode" value="all" checked class="mt-0.5 accent-[#7c3aed]" />
+                            <span>
+                                <span class="block text-sm font-medium text-slate-800 dark:text-slate-100">All students in the batch</span>
+                                <span class="block text-xs text-slate-500 dark:text-slate-400">Everyone registered in the batch can take it.</span>
+                            </span>
+                        </label>
+                        <label class="student-mode flex items-start gap-3 p-3 rounded-xl border border-slate-200 dark:border-slate-600 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/40 has-[:checked]:border-[#7c3aed] has-[:checked]:bg-purple-50 dark:has-[:checked]:bg-purple-950/40 transition-colors">
+                            <input type="radio" name="studentMode" value="selected" class="mt-0.5 accent-[#7c3aed]" />
+                            <span>
+                                <span class="block text-sm font-medium text-slate-800 dark:text-slate-100">Only selected students</span>
+                                <span class="block text-xs text-slate-500 dark:text-slate-400">For a make-up exam: only the students you tick see and take it.</span>
+                            </span>
+                        </label>
+                    </div>
+                    <p id="students-need-batch" class="hidden mt-2 text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                        <i data-lucide="info" class="w-3.5 h-3.5"></i> Choose a batch above to pick students from it.
+                    </p>
+                    <div id="students-panel" class="hidden mt-3 rounded-xl border border-slate-200 dark:border-slate-600 overflow-hidden">
+                        <div class="flex flex-wrap items-center gap-2 p-3 border-b border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60">
+                            <div class="relative flex-1 min-w-[12rem]">
+                                <i data-lucide="search" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                                <input type="search" id="students-search" placeholder="Search name or email"
+                                       class="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" />
+                            </div>
+                            <button type="button" id="students-all" class="px-3 py-2 rounded-xl text-xs font-medium border border-slate-200 dark:border-slate-600 hover:bg-white dark:hover:bg-slate-700">Select all</button>
+                            <button type="button" id="students-none" class="px-3 py-2 rounded-xl text-xs font-medium border border-slate-200 dark:border-slate-600 hover:bg-white dark:hover:bg-slate-700">Clear</button>
+                            <span id="students-count" class="text-xs font-semibold text-[#7c3aed] dark:text-purple-300 ml-auto">0 selected</span>
+                        </div>
+                        <div id="students-list" class="max-h-64 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-700">
+                            <p class="p-4 text-sm text-slate-400">Loading students…</p>
+                        </div>
+                    </div>
+                </div>
                 <div class="md:col-span-4">
                     <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Notes (optional)</label>
                     <input type="text" name="Notes" placeholder="Notes (optional)"
@@ -227,6 +267,13 @@
                                         @if (!string.IsNullOrEmpty(s.BatchName))
                                         {
                                             <div class="text-xs text-slate-400 dark:text-slate-500">Batch: @s.BatchName</div>
+                                            @if (s.SelectedStudents.Any())
+                                            {
+                                                <div class="mt-1 inline-flex items-center gap-1 text-[11px] font-medium text-[#7c3aed] dark:text-purple-300 bg-purple-50 dark:bg-purple-950/40 rounded-full px-2 py-0.5"
+                                                     title="@string.Join(", ", s.SelectedStudents.Select(x => x.FullName))">
+                                                    <i data-lucide="users" class="w-3 h-3"></i> @s.SelectedStudents.Count selected student@(s.SelectedStudents.Count == 1 ? "" : "s")
+                                                </div>
+                                            }
                                         }
                                     </td>
                                     <td class="px-6 py-3">
@@ -270,7 +317,8 @@
                                                             timeOverrides = seg.TimeOverrides,
                                                             meetingLink = seg.MeetingLink
                                                         }),
-                                                        instructorIDs = s.Instructors.Select(i => i.UserID)
+                                                        instructorIDs = s.Instructors.Select(i => i.UserID),
+                                                        studentIDs = s.SelectedStudents.Select(x => x.StudentID)
                                                     }))'>
                                                 <i data-lucide="pencil" class="w-4 h-4"></i>
                                             </button>
@@ -903,7 +951,102 @@
                 return dates;
             }
 
+            // ---------- Who sits this exam (0115) ----------
+            const studentPicker = (() => {
+                const batch = form.querySelector('[name="CourseScheduleID"]');
+                const panel = document.getElementById('students-panel');
+                const list = document.getElementById('students-list');
+                const search = document.getElementById('students-search');
+                const count = document.getElementById('students-count');
+                const needBatch = document.getElementById('students-need-batch');
+                const hidden = document.getElementById('student-ids-json');
+                const modes = form.querySelectorAll('input[name="studentMode"]');
+                let students = [];
+                let selected = new Set();
+                let loadedFor = null;
+
+                const mode = () => form.querySelector('input[name="studentMode"]:checked').value;
+                const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+                function render() {
+                    const q = (search.value || '').toLowerCase();
+                    const shown = students.filter(s => !q || s.name.toLowerCase().includes(q) || (s.email || '').toLowerCase().includes(q));
+                    list.innerHTML = shown.length ? shown.map(s => `
+                        <label class="flex items-center gap-3 px-4 py-2.5 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/40">
+                            <input type="checkbox" class="student-cb w-4 h-4 accent-[#7c3aed]" value="${esc(s.id)}" ${selected.has(s.id) ? 'checked' : ''} />
+                            <span class="min-w-0">
+                                <span class="block text-sm font-medium text-slate-800 dark:text-slate-100 truncate">${esc(s.name)}</span>
+                                <span class="block text-xs text-slate-500 dark:text-slate-400 truncate">${esc(s.email)}</span>
+                            </span>
+                        </label>`).join('')
+                        : `<p class="p-4 text-sm text-slate-400">${students.length ? 'No students match your search.' : 'No students are registered in this batch.'}</p>`;
+                    count.textContent = `${selected.size} of ${students.length} selected`;
+                }
+
+                async function loadBatch() {
+                    const id = batch.value;
+                    if (!id) { students = []; loadedFor = null; return; }
+                    if (loadedFor === id) return;
+                    list.innerHTML = '<p class="p-4 text-sm text-slate-400">Loading students…</p>';
+                    const res = await fetch(`@Url.Action("BatchStudents", "ExamSchedule", new { area = "Admin" })?courseScheduleId=${encodeURIComponent(id)}`);
+                    students = res.ok ? await res.json() : [];
+                    loadedFor = id;
+                    // Keep only ticks that belong to this batch.
+                    selected = new Set([...selected].filter(x => students.some(s => s.id === x)));
+                }
+
+                async function refresh() {
+                    const picking = mode() === 'selected';
+                    needBatch.classList.toggle('hidden', !(picking && !batch.value));
+                    panel.classList.toggle('hidden', !(picking && batch.value));
+                    if (picking && batch.value) { await loadBatch(); render(); }
+                }
+
+                list.addEventListener('change', e => {
+                    if (!e.target.classList.contains('student-cb')) return;
+                    e.target.checked ? selected.add(e.target.value) : selected.delete(e.target.value);
+                    count.textContent = `${selected.size} of ${students.length} selected`;
+                });
+                search.addEventListener('input', render);
+                document.getElementById('students-all').addEventListener('click', () => {
+                    const q = (search.value || '').toLowerCase();
+                    students.filter(s => !q || s.name.toLowerCase().includes(q) || (s.email || '').toLowerCase().includes(q)).forEach(s => selected.add(s.id));
+                    render();
+                });
+                document.getElementById('students-none').addEventListener('click', () => { selected.clear(); render(); });
+                modes.forEach(r => r.addEventListener('change', refresh));
+                batch.addEventListener('change', () => { loadedFor = null; refresh(); });
+
+                return {
+                    reset() {
+                        selected = new Set(); search.value = '';
+                        form.querySelector('input[name="studentMode"][value="all"]').checked = true;
+                        refresh();
+                    },
+                    async load(ids) {
+                        selected = new Set(ids || []); search.value = ''; loadedFor = null;
+                        form.querySelector(`input[name="studentMode"][value="${(ids || []).length ? 'selected' : 'all'}"]`).checked = true;
+                        await refresh();
+                    },
+                    // false = block submit (picking mode with nobody ticked)
+                    commit() {
+                        if (mode() === 'selected' && batch.value) {
+                            if (selected.size === 0) return false;
+                            hidden.value = JSON.stringify([...selected]);
+                        } else {
+                            hidden.value = '[]';
+                        }
+                        return true;
+                    }
+                };
+            })();
+
             form.addEventListener('submit', (e) => {
+                if (!studentPicker.commit()) {
+                    e.preventDefault();
+                    showToast('Tick at least one student, or choose "All students in the batch".', 'error');
+                    return;
+                }
                 const segments = [];
                 const rows = Array.from(container.querySelectorAll('.period-row'));
                 const missingRange = rows.some(row => !row._calendar.getRange().startDate);
@@ -992,6 +1135,7 @@
 
                 const picker = form.querySelector('.instructor-picker');
                 form.querySelectorAll('.instructor-checkbox').forEach(cb => { cb.checked = false; });
+                studentPicker.reset();
                 if (picker && picker._picker) picker._picker.renderSelected();
 
                 if (submitBtn) submitBtn.textContent = 'Save';
@@ -1027,6 +1171,7 @@
                     form.querySelectorAll('.instructor-checkbox').forEach(cb => {
                         cb.checked = instructorIDs.includes(cb.value);
                     });
+                    studentPicker.load(data.studentIDs || []);
                     if (picker && picker._picker) picker._picker.renderSelected();
 
                     if (submitBtn) submitBtn.textContent = 'Update sitting';

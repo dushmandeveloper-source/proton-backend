@@ -115,6 +115,20 @@ namespace Web_Backend.Areas.Admin.Data
                 MeetingLink = SafeUrl.NormalizeMeetingLink(meetingLink)
             });
 
+        public Task SetStudents(string scheduleId, IEnumerable<string> studentIds) =>
+            db.ExecuteNonQuery("edu.ExamScheduleStudent_Set", new
+            {
+                APIKey = AppData.GetAPIKey(),
+                ScheduleID = scheduleId,
+                StudentIDsJSON = JsonSerializer.Serialize(studentIds.Distinct().ToList())
+            });
+
+        public Task<List<ExamScheduleStudentRow>> ListStudents(string scheduleId) =>
+            db.GetList<ExamScheduleStudentRow, object>("edu.ExamScheduleStudent_List", new { APIKey = AppData.GetAPIKey(), ScheduleID = scheduleId });
+
+        public Task<List<ExamScheduleStudentRow>> BatchStudents(string courseScheduleId) =>
+            db.GetList<ExamScheduleStudentRow, object>("edu.ExamSchedule_BatchStudents", new { APIKey = AppData.GetAPIKey(), CourseScheduleID = courseScheduleId });
+
         public Task Deactivate(string id) =>
             db.ExecuteNonQuery("edu.ExamSchedule_Deactivate", new { APIKey = AppData.GetAPIKey(), ID = id });
 

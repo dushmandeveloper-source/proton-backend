@@ -17,6 +17,10 @@ namespace Web_Backend.Areas.Admin.Data
         Task<List<ExamScheduleInstructorSegment>> GetSegmentsForStudent(string userId, DateTime fromDate, DateTime toDate);
         // Admin-only: sets one segment's meeting link directly.
         Task SetSegmentMeetingLink(string segmentId, string meetingLink);
+        // 0115: optional subset of the batch who sit this exam (empty = all).
+        Task SetStudents(string scheduleId, IEnumerable<string> studentIds);
+        Task<List<ExamScheduleStudentRow>> ListStudents(string scheduleId);
+        Task<List<ExamScheduleStudentRow>> BatchStudents(string courseScheduleId);
         Task Deactivate(string id);
         Task DeletePermanently(string id);
     }

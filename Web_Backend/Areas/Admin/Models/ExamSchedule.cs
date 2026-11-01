@@ -34,6 +34,9 @@ namespace Web_Backend.Areas.Admin.Models
         // Joined from edu.CourseSchedule via CourseScheduleID, when set.
         public string BatchName { get; set; } = "";
 
+        // 0115: chosen students (empty = whole batch). Filled by the controllers.
+        public List<ExamScheduleStudentRow> SelectedStudents { get; set; } = new();
+
         public string StatusLabel => IsActive == "A" ? "Active" : "Inactive";
 
         // Child collection, JSON-serialized on save (see
@@ -148,5 +151,13 @@ namespace Web_Backend.Areas.Admin.Models
         // Discriminator distinguishing this exam-schedule segment from an
         // ordinary course-schedule segment — see StudentScheduleSegment.Kind.
         public string Kind { get; set; } = "Exam";
+    }
+
+    // A student chosen for (or eligible in) an exam sitting -- 0115.
+    public class ExamScheduleStudentRow
+    {
+        public string StudentID { get; set; } = "";
+        public string FullName { get; set; } = "";
+        public string Email { get; set; } = "";
     }
 }

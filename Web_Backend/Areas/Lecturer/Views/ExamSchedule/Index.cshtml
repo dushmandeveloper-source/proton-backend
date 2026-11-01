@@ -1,6 +1,7 @@
 @model Web_Backend.Areas.LecturerPortal.Models.LecturerCalendarViewModel
 @{
     ViewData["Title"] = "Examination Scheduling";
+    var selectedStudents = ViewBag.SelectedStudents as Dictionary<string, List<string>> ?? new();
 }
 
 <div class="max-w-6xl mx-auto space-y-8 page-enter">
@@ -81,6 +82,7 @@
                                     endTime = seg.EndTime.ToString(@"hh\:mm\:ss"),
                                     location = seg.Location,
                                     instructorNames = seg.InstructorNames,
+                                    students = selectedStudents.TryGetValue(seg.ScheduleID, out var names) ? names : new List<string>(),
                                     meetingLink = seg.MeetingLink,
                                     isMakeup = seg.CourseTitle.EndsWith("(Makeup Exam)")
                                 })
@@ -169,6 +171,7 @@
                                 ${e.time ? `<div class="flex items-center gap-1"><i data-lucide="clock" class="w-3 h-3"></i> ${e.time}</div>` : ''}
                                 ${e.location ? `<div class="flex items-center gap-1"><i data-lucide="map-pin" class="w-3 h-3"></i> ${e.location}</div>` : ''}
                                 ${e.instructorNames ? `<div class="flex items-center gap-1"><i data-lucide="user" class="w-3 h-3"></i> ${e.instructorNames}</div>` : ''}
+                                ${(e.students || []).length ? `<div class="mt-1 flex items-start gap-1 text-[#7c3aed] dark:text-purple-300 font-medium"><i data-lucide="users" class="w-3 h-3 mt-0.5"></i> <span>Only these students: ${e.students.map(n => String(n).replace(/[<>&]/g, '')).join(', ')}</span></div>` : `<div class="mt-1 text-slate-400 dark:text-slate-500">All students in the batch</div>`}
                             </div>
                         </div>
                         <div class="flex flex-col items-end gap-2 flex-shrink-0">

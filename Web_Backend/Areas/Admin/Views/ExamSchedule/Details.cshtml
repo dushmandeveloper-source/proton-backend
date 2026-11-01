@@ -36,6 +36,23 @@
             <div class="@CardCls">
                 <p class="@LabelCls mb-1">Batch</p>
                 <p class="text-slate-800 dark:text-slate-100">@Model.BatchName</p>
+                <p class="mt-2 text-xs @(Model.SelectedStudents.Any() ? "text-[#7c3aed] dark:text-purple-300 font-medium" : "text-slate-500 dark:text-slate-400")">
+                    @(Model.SelectedStudents.Any() ? $"Only {Model.SelectedStudents.Count} selected student{(Model.SelectedStudents.Count == 1 ? "" : "s")}" : "All students in the batch")
+                </p>
+            </div>
+        }
+        @if (Model.SelectedStudents.Any())
+        {
+            <div class="@CardCls md:col-span-3">
+                <p class="@LabelCls mb-2">Students sitting this exam (@Model.SelectedStudents.Count)</p>
+                <div class="flex flex-wrap gap-2">
+                    @foreach (var st in Model.SelectedStudents)
+                    {
+                        <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-purple-50 dark:bg-purple-950/40 text-[#7c3aed] dark:text-purple-300 border border-purple-100 dark:border-purple-900" title="@st.Email">
+                            <i data-lucide="user" class="w-3 h-3"></i> @st.FullName
+                        </span>
+                    }
+                </div>
             </div>
         }
         <div class="@CardCls">

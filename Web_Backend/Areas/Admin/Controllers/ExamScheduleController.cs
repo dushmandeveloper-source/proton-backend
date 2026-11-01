@@ -49,6 +49,8 @@ namespace Web_Backend.Areas.Admin.Controllers
                 ExamID = ExamID,
                 IsActive = showInactive ? "" : "A"
             });
+            foreach (var s in list)
+                s.SelectedStudents = await rep.ListStudents(s.ScheduleID);
 
             // Same "load everything once, navigate client-side" approach as
             // the schedule list above — a wide static window (today ± 2
@@ -66,17 +68,28 @@ namespace Web_Backend.Areas.Admin.Controllers
             return View(list);
         }
 
+        // Students registered in a batch, for the "Who sits this exam" picker.
+        [HttpGet]
+        public async Task<IActionResult> BatchStudents(string courseScheduleId)
+        {
+            Auth.CheckPermission(PermissionCode.Exams, 'V');
+            if (string.IsNullOrEmpty(courseScheduleId)) return Json(Array.Empty<object>());
+            var list = await rep.BatchStudents(courseScheduleId);
+            return Json(list.Select(s => new { id = s.StudentID, name = s.FullName, email = s.Email }));
+        }
+
         public async Task<IActionResult> Details(string id)
         {
             Auth.CheckPermission(PermissionCode.Exams, 'V');
             var schedule = await rep.Get(id);
             if (schedule == null) return NotFound();
+            schedule.SelectedStudents = await rep.ListStudents(id);
 
             return View(schedule);
         }
 
         [HttpPost, ValidateAntiForgeryToken]
-        public async Task<IActionResult> Save(ExamSchedule form, string SegmentJSON = "[]", string InstructorUserIDsJSON = "[]")
+        public async Task<IActionResult> Save(ExamSchedule form, string SegmentJSON = "[]", string InstructorUserIDsJSON = "[]", string StudentIDsJSON = "[]")
         {
             var isNew = string.IsNullOrEmpty(form.ScheduleID);
             Auth.CheckPermission(PermissionCode.Exams, isNew ? 'A' : 'E');
@@ -97,7 +110,19 @@ namespace Web_Backend.Areas.Admin.Controllers
                 }
                 form.Instructors = await ResolveInstructors(InstructorUserIDsJSON);
                 form.IsActive = isNew ? "A" : form.IsActive;
-                await rep.AddEdit(form);
+                var savedId = await rep.AddEdit(form);
+                if (string.IsNullOrEmpty(savedId)) savedId = form.ScheduleID;
+
+                // Optional subset of the batch (empty / no batch = everyone).
+                // Only students actually registered in the chosen batch count.
+                var picked = JsonSerializer.Deserialize<List<string>>(StudentIDsJSON ?? "[]") ?? new List<string>();
+                if (string.IsNullOrEmpty(form.CourseScheduleID)) picked.Clear();
+                else if (picked.Count > 0)
+                {
+                    var eligible = (await rep.BatchStudents(form.CourseScheduleID)).Select(s => s.StudentID).ToHashSet();
+                    picked = picked.Where(eligible.Contains).ToList();
+                }
+                if (!string.IsNullOrEmpty(savedId)) await rep.SetStudents(savedId, picked);
                 TempData["SuccessMessage"] = isNew ? "Schedule created." : "Schedule saved.";
             }
             catch (Exception ex)
