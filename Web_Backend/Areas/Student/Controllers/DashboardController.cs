@@ -46,83 +46,10 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
         // the popup shows on the first dashboard load after sign-in only.
         public const string ShowLoginSummaryKey = "ShowLoginSummary";
 
-        private async Task<LoginSummaryViewModel> BuildLoginSummary(Student student, List<CourseRegistration> registrations, Dictionary<string, List<PaymentInstallment>> installments, int pendingDocumentCount, string userId)
-        {
-            var active = registrations.Where(r => r.IsActive == "A").ToList();
-            var plans = installments;
-            // Courses whose payment reminders an admin switched off (0092).
-            var remindersOff = await registrationRep.GetRemindersOff(student.StudentID);
-            var remind = active.Where(r => !remindersOff.Contains(r.RegistrationID)).ToList();
-            var today0 = Web_Backend.Classes.SriLankaTime.Today;
-            var summary = new LoginSummaryViewModel
-            {
-                StudentName = student.FullName,
-                AccountVerificationStatus = student.AccountVerificationStatus,
-                PassportVerificationStatus = student.PassportVerificationStatus,
-                // With a plan only this month's (and overdue) installments are owed now.
-                PendingPayments = remind.Where(r => r.BalanceDue > 0 && !plans.ContainsKey(r.RegistrationID)).ToList(),
-                DueInstallments = remind.Where(r => plans.ContainsKey(r.RegistrationID))
-                    .SelectMany(r => plans[r.RegistrationID].Where(i => i.IsDueBy(today0)).Select(i => (r, i, plans[r.RegistrationID].Count)))
-                    .OrderBy(x => x.i.DueDate).ToList(),
-                Discounts = active.Where(r => r.HasPersonalDiscount || r.HasDiscount).ToList(),
-                LockedCourses = active.Where(r => !r.FullAccess).ToList(),
-                PendingDocumentRequests = pendingDocumentCount
-            };
-
-            if (!student.IsContentRestricted)
-            {
-                var materials = await materialRep.ListForStudent(student.StudentID);
-                var submissions = (await submissionRep.ListForStudent(student.StudentID)).ToDictionary(x => x.MaterialID);
-                var today = Web_Backend.Classes.SriLankaTime.Today;
-                summary.HomeworkDue = materials
-                    .Where(m => m.IsSubmittable
-                        && (!submissions.TryGetValue(m.MaterialID, out var sub) || sub.ResubmissionRequested)
-                        && (m.DueDate == null || m.DueDate.Value.Date >= today))
-                    .OrderBy(m => m.DueDate ?? DateTime.MaxValue)
-                    .Take(5).ToList();
-                var cutoff = DateTime.Now.AddDays(-14);
-                summary.GradedHomework = materials
-                    .Where(m => submissions.TryGetValue(m.MaterialID, out var sub) && sub.IsGraded && sub.GradedDate >= cutoff)
-                    .Select(m => (m, submissions[m.MaterialID]))
-                    .Take(5).ToList();
-            }
-
-            var releasedCutoff = DateTime.Now.AddDays(-14);
-            summary.ReleasedResults = (await attemptRep.ListForStudent(student.StudentID))
-                .Where(a => a.ResultReleasedDate.HasValue && a.ResultReleasedDate >= releasedCutoff)
-                .OrderByDescending(a => a.ResultReleasedDate)
-                .Take(5).ToList();
-
-            // Full balances (no installment plan) aren't shown in the popup;
-            // they go to the bell instead, once per course while unread.
-            try
-            {
-                if (summary.PendingPayments.Count > 0)
-                {
-                    var notifier = HttpContext.RequestServices.GetRequiredService<NotificationService>();
-                    var recent = await notificationRep.ListForUser(userId, 100);
-                    foreach (var r in summary.PendingPayments)
-                    {
-                        if (recent.Any(n => !n.IsRead && n.EventType == "BalanceDue" && n.RefID == r.RegistrationID)) continue;
-                        await notifier.NotifyUser(userId, "BalanceDue", "Payment due",
-                            $"{r.CourseTitle}: {r.CurrencyCode} {r.BalanceDue:N2} outstanding.",
-                            $"/Student/Courses/Details?registrationId={Uri.EscapeDataString(r.RegistrationID)}#hl-{r.RegistrationID}",
-                            r.RegistrationID, includeSelf: true);
-                    }
-                }
-            }
-            catch { }
-
-            try { summary.UnreadNotifications = await notificationRep.UnreadCount(userId); } catch { }
-            try
-            {
-                var messaging = HttpContext.RequestServices.GetRequiredService<MessagingService>();
-                var me = await messaging.Me();
-                if (me != null) summary.UnreadMessages = await messaging.UnreadTotal(me);
-            }
-            catch { }
-            return summary;
-        }
+        // Shared with the mobile app -- see Classes/StudentLoginSummaryService.
+        private Task<LoginSummaryViewModel> BuildLoginSummary(Student student, List<CourseRegistration> registrations, Dictionary<string, List<PaymentInstallment>> installments, int pendingDocumentCount, string userId) =>
+            HttpContext.RequestServices.GetRequiredService<StudentLoginSummaryService>()
+                .BuildAsync(student, registrations, installments, pendingDocumentCount, userId);
 
         [HttpGet]
         public async Task<IActionResult> Index(string? welcome = null)

@@ -134,6 +134,7 @@ builder.Services.AddRateLimiter(options =>
 builder.Services.AddSingleton<IDBAccess>(new MSSQLDataAccess(AppData.GetMSSQLDBCon()));
 
 builder.Services.AddTransient<IUserData, UserData>();
+builder.Services.AddTransient<StudentLoginSummaryService>();
 builder.Services.AddTransient<IUserAuthData, UserAuthData>();
 builder.Services.AddTransient<IUserTypeData, UserTypeData>();
 builder.Services.AddTransient<PortalSignIn>();
