@@ -1,0 +1,60 @@
+@model List<Web_Backend.Areas.Admin.Models.ExamAttemptViolation>
+@*
+    Why each strike happened, in plain words (Lecturer ExamReview/Grade +
+    ViolationTrail, Admin ExamGrading/Grade + ViolationTrail). The stored
+    ViolationType codes come from Student/ExamAttempt/Take.cshtml's listeners.
+*@
+@{
+    (string Title, string Detail, string Icon) Describe(string type) => type switch
+    {
+        "TabSwitch" => ("Left the exam", "Switched to another tab, app or window while the exam was open.", "app-window"),
+        "WindowBlur" => ("Clicked away from the exam", "The exam window lost focus (another window or app was used).", "mouse-pointer-click"),
+        "FullscreenExit" => ("Left full-screen mode", "Exited the required full-screen view.", "minimize"),
+        "CopyPaste" => ("Tried to copy or paste", "Copying is blocked during the exam; the attempt was recorded.", "clipboard-x"),
+        "RightClick" => ("Right-clicked", "Opened the right-click menu, which is blocked during the exam.", "mouse-pointer-2"),
+        _ => (type, "Rule broken during the exam.", "alert-triangle")
+    };
+    var events = Model.OrderBy(v => v.OccurredDate).ToList();
+    var strikes = events.Count(v => v.CountsAsStrike);
+}
+<div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 p-6">
+    <div class="flex items-center gap-3 mb-4">
+        <span class="w-9 h-9 rounded-xl flex items-center justify-center @(strikes > 0 ? "bg-red-50 dark:bg-red-950 text-red-600 dark:text-red-300" : "bg-emerald-50 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-300")">
+            <i data-lucide="@(strikes > 0 ? "alert-octagon" : "shield-check")" class="w-5 h-5"></i>
+        </span>
+        <div>
+            <h2 class="font-semibold text-slate-800 dark:text-slate-100">Strikes</h2>
+            <p class="text-xs text-slate-500 dark:text-slate-400">
+                @(strikes == 0 ? "No rule violations were recorded in this attempt." : $"{strikes} of 3 strikes recorded{(strikes >= 3 ? " — the exam was ended automatically" : "")}.")
+            </p>
+        </div>
+    </div>
+
+    @if (events.Any())
+    {
+        <ol class="relative ml-4 border-l border-slate-200 dark:border-slate-700 space-y-4">
+            @foreach (var v in events)
+            {
+                var (title, detail, icon) = Describe(v.ViolationType);
+                <li class="ml-6">
+                    <span class="absolute -left-[13px] flex items-center justify-center w-6 h-6 rounded-full ring-4 ring-white dark:ring-slate-900 @(v.CountsAsStrike ? "bg-red-100 dark:bg-red-950 text-red-600 dark:text-red-300" : "bg-slate-100 dark:bg-slate-800 text-slate-500")">
+                        <i data-lucide="@icon" class="w-3.5 h-3.5"></i>
+                    </span>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <p class="text-sm font-medium text-slate-800 dark:text-slate-100">@title</p>
+                        @if (v.CountsAsStrike && v.StrikeNumber.HasValue)
+                        {
+                            <span class="text-[11px] font-semibold text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-950 rounded-full px-2 py-0.5">Strike @v.StrikeNumber of 3</span>
+                        }
+                        else if (!v.CountsAsStrike)
+                        {
+                            <span class="text-[11px] font-medium text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 rounded-full px-2 py-0.5">Not counted</span>
+                        }
+                    </div>
+                    <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">@detail</p>
+                    <p class="text-[11px] text-slate-400 dark:text-slate-500 mt-1 font-mono">@v.OccurredDate.ToString("d MMM yyyy, HH:mm:ss")</p>
+                </li>
+            }
+        </ol>
+    }
+</div>

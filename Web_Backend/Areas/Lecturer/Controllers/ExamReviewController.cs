@@ -119,6 +119,7 @@ namespace Web_Backend.Areas.LecturerPortal.Controllers
             ViewBag.CurrentUser = Auth.GetUser();
             ViewBag.Attempt = attempt;
             ViewBag.OptionsByQuestion = await ExamAnswerOptions.ForMcq(answers, examRep);
+            ViewBag.Violations = await attemptRep.ListViolations(attemptId);
             return View(answers);
         }
 
@@ -314,15 +315,13 @@ namespace Web_Backend.Areas.LecturerPortal.Controllers
 
         // Read-only violation trail for one attempt -- lecturer-area
         // equivalent of Admin/ExamGrading/ViolationTrail, reusing the same
-        // ListViolations repo call. No extra ownership check here beyond
-        // Auth.CheckUser(), matching every other Lecturer-area detail view
-        // in this controller (Grade, etc.) -- an attemptId isn't guessable
-        // enumeration surface any worse than the existing Grade action.
+        // ListViolations repo call, limited to this lecturer's own exams
+        // (ReviewAccess), like Grade.
         [HttpGet]
         public async Task<IActionResult> ViolationTrail(string attemptId)
         {
             Auth.CheckUser();
-            var attempt = await attemptRep.Get(attemptId);
+            var attempt = await GetReviewableAttempt(attemptId);
             if (attempt == null)
                 return RedirectToAction("Index");
 

@@ -66,6 +66,7 @@ namespace Web_Backend.Areas.Admin.Controllers
             ViewBag.Attempt = attempt;
             ViewBag.Answers = answers;
             ViewBag.OptionsByQuestion = await ExamAnswerOptions.ForMcq(answers, examRep);
+            ViewBag.Violations = await attemptRep.ListViolations(attemptId);
             return View();
         }
 
