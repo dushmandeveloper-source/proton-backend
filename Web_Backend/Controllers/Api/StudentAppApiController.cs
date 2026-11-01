@@ -434,7 +434,10 @@ namespace Web_Backend.Controllers.Api
                 latestVersion = s["LatestVersion"] ?? "",
                 latestBuild = int.TryParse(s["LatestBuild"], out var b) ? b : 0,
                 minBuild = int.TryParse(s["MinBuild"], out var m) ? m : 0,
-                apkUrl = SafeUrl.OrEmpty(s["ApkUrl"]),
+                // Blank ApkUrl = the copy this site serves itself.
+                apkUrl = string.IsNullOrWhiteSpace(s["ApkUrl"])
+                    ? $"{Request.Scheme}://{Request.Host}{StudentAppDownloadController.ApkRoute}"
+                    : SafeUrl.OrEmpty(s["ApkUrl"]),
                 notes = s["Notes"] ?? ""
             });
         }

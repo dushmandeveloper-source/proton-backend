@@ -21,6 +21,7 @@
         }
     </script>
     <link rel="stylesheet" href="~/css/tailwind.css" asp-append-version="true" />
+    <link rel="manifest" href="/student-app.webmanifest" />
     <script src="~/lib/lucide/lucide.min.js" asp-append-version="true"></script>
     <script src="https://cdn.jsdelivr.net/npm/@@microsoft/signalr@8.0.7/dist/browser/signalr.min.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -132,6 +133,29 @@ else
             </div>
         </nav>
 
+        @* Android only (shown by the app-offer script below). *@
+        <div data-app-offer class="hidden flex-shrink-0 mb-3 p-4 rounded-2xl bg-gradient-to-br from-[#5a43f1] to-[#7c3aed] text-white shadow-md">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-white/15 flex items-center justify-center flex-shrink-0">
+                    <i data-lucide="smartphone" class="w-5 h-5"></i>
+                </div>
+                <div class="min-w-0">
+                    <p class="text-sm font-semibold leading-tight">Proton Student app</p>
+                    <p class="text-xs text-white/75 leading-snug" data-app-status>Schedule, exams and alerts on your phone</p>
+                </div>
+            </div>
+            <div class="mt-3 flex gap-2">
+                <button type="button" data-app-download
+                        class="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-white text-[#5a43f1] text-sm font-semibold hover:bg-white/90 transition-colors disabled:bg-white/25 disabled:text-white/70 disabled:cursor-not-allowed">
+                    <i data-lucide="download" class="w-4 h-4"></i><span>Download</span>
+                </button>
+                <a data-app-open href="#"
+                   class="hidden flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-white text-[#5a43f1] text-sm font-semibold hover:bg-white/90 transition-colors">
+                    <i data-lucide="external-link" class="w-4 h-4"></i>Open app
+                </a>
+            </div>
+        </div>
+
         <div class="flex-shrink-0 pt-4 border-t border-slate-100 dark:border-slate-700 space-y-1">
             <a asp-area="Student" asp-controller="Profile" asp-action="Index"
                class="w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-200 group @(activeController == "Profile" ? "bg-slate-50/80 dark:bg-slate-700/60 text-slate-900 dark:text-slate-100 font-semibold" : "text-slate-500 dark:text-slate-400 hover:bg-slate-50/50 dark:hover:bg-slate-700/40 hover:text-slate-900 dark:hover:text-slate-100")">
@@ -164,6 +188,10 @@ else
             </div>
 
             <div class="flex items-center gap-4">
+                <button type="button" data-app-offer data-app-download title="Get the Proton Student app"
+                        class="hidden items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-medium border border-[#7c3aed]/30 text-[#5a43f1] dark:text-[#a78bfa] hover:bg-[#7c3aed]/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                    <i data-lucide="smartphone" class="w-4 h-4"></i><span class="hidden sm:inline" data-app-label>Get app</span>
+                </button>
                 <button type="button" id="theme-toggle" class="p-2 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl transition-colors">
                     <i data-lucide="sun" id="theme-icon-light" class="w-5 h-5 hidden"></i>
                     <i data-lucide="moon" id="theme-icon-dark" class="w-5 h-5 hidden"></i>
@@ -183,6 +211,65 @@ else
         </div>
     </main>
 </div>
+
+@* Shown after Download: Android never installs an APK by itself, so walk
+   the student through the three taps it does need. *@
+<div id="app-install-guide" class="hidden fixed inset-0 z-[90] bg-black/50 backdrop-blur-sm items-end sm:items-center justify-center p-4">
+    <div class="w-full max-w-sm bg-white dark:bg-slate-800 rounded-3xl p-6 shadow-xl border border-white/60 dark:border-slate-700">
+        <div class="flex items-center gap-3 mb-4">
+            <div class="w-11 h-11 rounded-2xl bg-[#7c3aed]/10 text-[#5a43f1] dark:text-[#a78bfa] flex items-center justify-center">
+                <i data-lucide="download" class="w-5 h-5"></i>
+            </div>
+            <div>
+                <h3 class="font-semibold text-slate-900 dark:text-slate-100">Downloading the app…</h3>
+                <p class="text-xs text-slate-500 dark:text-slate-400">Then install it in three taps</p>
+            </div>
+        </div>
+        <ol class="space-y-3 text-sm text-slate-600 dark:text-slate-300">
+            <li class="flex gap-3"><span class="w-6 h-6 rounded-full bg-[#7c3aed] text-white text-xs font-bold flex items-center justify-center flex-shrink-0">1</span><span>When the download finishes, tap <b>Open</b> at the bottom of the screen (or open it from your notifications).</span></li>
+            <li class="flex gap-3"><span class="w-6 h-6 rounded-full bg-[#7c3aed] text-white text-xs font-bold flex items-center justify-center flex-shrink-0">2</span><span>If asked, allow your browser to <b>install unknown apps</b> — only the first time.</span></li>
+            <li class="flex gap-3"><span class="w-6 h-6 rounded-full bg-[#7c3aed] text-white text-xs font-bold flex items-center justify-center flex-shrink-0">3</span><span>Tap <b>Install</b>, then <b>Open</b>, and sign in with your portal email and password.</span></li>
+        </ol>
+        <button type="button" id="app-install-guide-close"
+                class="mt-6 w-full py-2.5 rounded-xl bg-[#7c3aed] text-white text-sm font-semibold hover:bg-[#6d28d9] transition-colors">Got it</button>
+    </div>
+</div>
+
+<script>
+    // ---------- Android app offer ----------
+    // Android phones/tablets only. If Chrome reports the app is installed
+    // (getInstalledRelatedApps, via /student-app.webmanifest + the app's
+    // asset_statements) Download is disabled and "Open app" shows instead.
+    (function () {
+        if (!/Android/i.test(navigator.userAgent)) return;
+        const offers = document.querySelectorAll('[data-app-offer]');
+        offers.forEach(el => { el.classList.remove('hidden'); if (el.tagName === 'BUTTON') el.classList.add('inline-flex'); });
+
+        const guide = document.getElementById('app-install-guide');
+        const showGuide = (on) => { guide.classList.toggle('hidden', !on); guide.classList.toggle('flex', on); };
+        document.getElementById('app-install-guide-close').addEventListener('click', () => showGuide(false));
+        guide.addEventListener('click', e => { if (e.target === guide) showGuide(false); });
+
+        document.querySelectorAll('[data-app-download]').forEach(btn => btn.addEventListener('click', () => {
+            if (btn.disabled) return;
+            window.location.href = '@Web_Backend.Controllers.StudentAppDownloadController.ApkRoute';
+            showGuide(true);
+        }));
+
+        if (!navigator.getInstalledRelatedApps) return;
+        navigator.getInstalledRelatedApps().then(apps => {
+            if (!apps.some(a => a.id === '@Web_Backend.Controllers.StudentAppDownloadController.PackageId')) return;
+            document.querySelectorAll('[data-app-download]').forEach(b => { b.disabled = true; b.title = 'The app is already installed'; });
+            document.querySelectorAll('[data-app-download] span:not([data-app-label])').forEach(s => s.textContent = 'Installed');
+            document.querySelectorAll('[data-app-label]').forEach(s => s.textContent = 'Installed');
+            document.querySelectorAll('[data-app-status]').forEach(s => s.textContent = 'Installed on this device');
+            document.querySelectorAll('[data-app-open]').forEach(a => {
+                a.href = 'intent://open#Intent;scheme=protonstudent;package=@Web_Backend.Controllers.StudentAppDownloadController.PackageId;end';
+                a.classList.remove('hidden');
+            });
+        }).catch(() => {});
+    })();
+</script>
 }
 
 @RenderSection("Scripts", required: false)

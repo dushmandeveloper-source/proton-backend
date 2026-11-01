@@ -49,3 +49,6 @@ Web_Backend/run_stderr.log
 
 # Full-size originals of shrunk uploads (Classes/ImageOptimizer.cs) — runtime data
 Web_Backend/App_Data/
+
+# Released Android app (uploaded to the server, not committed)
+Web_Backend/AppRelease/
