@@ -133,6 +133,25 @@ else
             </div>
         </nav>
 
+        @* Everyone else (computer, iPhone): where to get the Android app.
+           Hidden on Android, which gets the download card below instead. *@
+        <div data-app-hint class="flex-shrink-0 mb-3 p-3.5 rounded-2xl bg-[#7c3aed]/[0.07] dark:bg-[#7c3aed]/15 border border-[#7c3aed]/20">
+            <div class="flex items-center gap-2.5">
+                <div class="w-9 h-9 rounded-xl bg-[#7c3aed] text-white flex items-center justify-center flex-shrink-0">
+                    <i data-lucide="smartphone" class="w-[18px] h-[18px]"></i>
+                </div>
+                <div class="min-w-0">
+                    <p class="text-sm font-semibold text-slate-800 dark:text-slate-100 leading-tight">App available for Android</p>
+                    <p class="text-xs text-slate-500 dark:text-slate-400">Schedule, exams &amp; alerts</p>
+                </div>
+            </div>
+            <ol class="mt-2.5 space-y-1 text-xs text-slate-600 dark:text-slate-300 list-decimal pl-4 marker:text-[#7c3aed] marker:font-semibold">
+                <li>Open this portal on your Android phone</li>
+                <li>Tap <b>Get app</b> at the top</li>
+                <li>Install and sign in with your portal login</li>
+            </ol>
+        </div>
+
         @* Android only (shown by the app-offer script below). *@
         <div data-app-offer class="hidden flex-shrink-0 mb-3 p-4 rounded-2xl bg-gradient-to-br from-[#5a43f1] to-[#7c3aed] text-white shadow-md">
             <div class="flex items-center gap-3">
@@ -221,8 +240,16 @@ else
                 <i data-lucide="download" class="w-5 h-5"></i>
             </div>
             <div>
-                <h3 class="font-semibold text-slate-900 dark:text-slate-100">Downloading the app…</h3>
+                <h3 class="font-semibold text-slate-900 dark:text-slate-100" id="app-dl-title">Downloading the app…</h3>
                 <p class="text-xs text-slate-500 dark:text-slate-400">Then install it in three taps</p>
+            </div>
+        </div>
+        <div id="app-dl-progress" class="mb-5">
+            <div class="h-2.5 rounded-full bg-slate-100 dark:bg-slate-700 overflow-hidden">
+                <div id="app-dl-bar" class="h-full w-0 rounded-full bg-gradient-to-r from-[#5a43f1] to-[#7c3aed] transition-[width] duration-200"></div>
+            </div>
+            <div class="mt-1.5 flex justify-between text-xs tabular-nums text-slate-500 dark:text-slate-400">
+                <span id="app-dl-size">Starting…</span><span id="app-dl-pct" class="font-semibold text-[#5a43f1] dark:text-[#a78bfa]"></span>
             </div>
         </div>
         <ol class="space-y-3 text-sm text-slate-600 dark:text-slate-300">
@@ -242,6 +269,7 @@ else
     // asset_statements) Download is disabled and "Open app" shows instead.
     (function () {
         if (!/Android/i.test(navigator.userAgent)) return;
+        document.querySelectorAll('[data-app-hint]').forEach(el => el.classList.add('hidden'));
         const offers = document.querySelectorAll('[data-app-offer]');
         offers.forEach(el => { el.classList.remove('hidden'); if (el.tagName === 'BUTTON') el.classList.add('inline-flex'); });
 
@@ -250,10 +278,52 @@ else
         document.getElementById('app-install-guide-close').addEventListener('click', () => showGuide(false));
         guide.addEventListener('click', e => { if (e.target === guide) showGuide(false); });
 
+        // Downloaded by the page (not a plain link) so it can show live
+        // progress; the finished file is then handed to the browser to save,
+        // which offers "Open" -> install. Falls back to a plain link on error.
+        const apkUrl = '@Web_Backend.Controllers.StudentAppDownloadController.ApkRoute';
+        const bar = document.getElementById('app-dl-bar'), size = document.getElementById('app-dl-size'),
+              pct = document.getElementById('app-dl-pct'), title = document.getElementById('app-dl-title');
+        const mb = n => (n / 1048576).toFixed(1);
+        let downloading = false;
+
+        async function download() {
+            downloading = true;
+            title.textContent = 'Downloading the app…';
+            bar.style.width = '0'; pct.textContent = ''; size.textContent = 'Starting…';
+            showGuide(true);
+            try {
+                const res = await fetch(apkUrl);
+                if (!res.ok || !res.body) throw new Error(res.status);
+                const total = +res.headers.get('Content-Length') || 0;
+                const reader = res.body.getReader(), chunks = [];
+                let got = 0;
+                for (;;) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    chunks.push(value); got += value.length;
+                    size.textContent = total ? `${mb(got)} of ${mb(total)} MB` : `${mb(got)} MB`;
+                    if (total) { const p = Math.round(got * 100 / total); bar.style.width = p + '%'; pct.textContent = p + '%'; }
+                }
+                const url = URL.createObjectURL(new Blob(chunks, { type: 'application/vnd.android.package-archive' }));
+                const a = Object.assign(document.createElement('a'), { href: url, download: 'Proton Student.apk' });
+                document.body.appendChild(a); a.click(); a.remove();
+                setTimeout(() => URL.revokeObjectURL(url), 60000);
+                bar.style.width = '100%'; pct.textContent = '100%';
+                title.textContent = 'Downloaded — now install it';
+            } catch {
+                title.textContent = 'Downloading the app…';
+                size.textContent = 'See your browser\'s download bar';
+                window.location.href = apkUrl;
+            } finally {
+                downloading = false;
+            }
+        }
+
         document.querySelectorAll('[data-app-download]').forEach(btn => btn.addEventListener('click', () => {
             if (btn.disabled) return;
-            window.location.href = '@Web_Backend.Controllers.StudentAppDownloadController.ApkRoute';
-            showGuide(true);
+            if (downloading) { showGuide(true); return; }
+            download();
         }));
 
         if (!navigator.getInstalledRelatedApps) return;
