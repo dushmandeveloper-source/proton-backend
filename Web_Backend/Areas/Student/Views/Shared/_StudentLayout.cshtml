@@ -309,17 +309,26 @@ else
         }));
 
         if (!navigator.getInstalledRelatedApps) return;
-        navigator.getInstalledRelatedApps().then(apps => {
-            if (!apps.some(a => a.id === '@Web_Backend.Controllers.StudentAppDownloadController.PackageId')) return;
-            document.querySelectorAll('[data-app-download]').forEach(b => { b.disabled = true; b.title = 'The app is already installed'; });
-            document.querySelectorAll('[data-app-download] span:not([data-app-label])').forEach(s => s.textContent = 'Installed');
-            document.querySelectorAll('[data-app-label]').forEach(s => s.textContent = 'Installed');
-            document.querySelectorAll('[data-app-status]').forEach(s => s.textContent = 'Installed on this device');
-            document.querySelectorAll('[data-app-open]').forEach(a => {
-                a.href = 'intent://open#Intent;scheme=protonstudent;package=@Web_Backend.Controllers.StudentAppDownloadController.PackageId;end';
-                a.classList.remove('hidden');
+        const pkg = '@Web_Backend.Controllers.StudentAppDownloadController.PackageId';
+        const all = sel => document.querySelectorAll(sel);
+        const statusText = all('[data-app-status]')[0]?.textContent || '';
+        function setInstalled(on) {
+            all('[data-app-download]').forEach(b => { b.disabled = on; b.title = on ? 'Already installed: look for "Proton" in your apps' : 'Get the Proton Student app'; });
+            all('[data-app-download] span:not([data-app-label])').forEach(s => s.textContent = on ? 'Installed' : 'Download');
+            // Phone top bar shows the label only once installed (icon alone otherwise).
+            all('[data-app-label]').forEach(s => { s.textContent = on ? 'Installed' : 'Get app'; s.classList.toggle('hidden', !on); });
+            all('[data-app-status]').forEach(s => s.innerHTML = on ? 'Installed &middot; find <b>&ldquo;Proton&rdquo;</b> in your apps' : statusText);
+            all('[data-app-open]').forEach(a => {
+                a.href = `intent://open#Intent;scheme=protonstudent;package=${pkg};end`;
+                a.classList.toggle('hidden', !on);
             });
-        }).catch(() => {});
+        }
+        // Checked on load and again whenever the student comes back to this
+        // tab (e.g. straight from the installer), so no reload is needed.
+        const check = () => navigator.getInstalledRelatedApps()
+            .then(apps => setInstalled(apps.some(a => a.id === pkg))).catch(() => {});
+        check();
+        document.addEventListener('visibilitychange', () => { if (!document.hidden) check(); });
     })();
 </script>
 }
