@@ -210,6 +210,13 @@ else
                 <span id="app-dl-size">Starting…</span><span id="app-dl-pct" class="font-semibold text-[#5a43f1] dark:text-[#a78bfa]"></span>
             </div>
         </div>
+        <p id="app-desktop-note" class="hidden mb-4 p-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 text-xs text-amber-800 dark:text-amber-300"><b>On a computer?</b> Send this file to your Android phone (WhatsApp, email, USB), or open this portal on the phone — then follow these steps there.</p>
+        @* In-app browsers (WhatsApp, Facebook...) often can't download files: send them to Chrome. *@
+        <div id="app-inapp" class="hidden mb-4 p-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900">
+            <p class="text-xs text-amber-800 dark:text-amber-300 mb-2.5"><b>This browser can't download apps.</b> Open this page in Chrome (or your phone's browser), then tap Download again.</p>
+            <a id="app-open-chrome" href="#" class="w-full inline-flex items-center justify-center gap-1.5 py-2 rounded-xl bg-[#7c3aed] text-white text-sm font-semibold hover:bg-[#6d28d9] transition-colors"><i data-lucide="globe" class="w-4 h-4"></i>Open in Chrome</a>
+        </div>
+        <p class="mb-4 p-3 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700 text-xs text-slate-600 dark:text-slate-300"><i data-lucide="info" class="inline w-3.5 h-3.5 -mt-0.5 mr-1 text-[#7c3aed]"></i><b>Download not working?</b> Open the direct link instead: <a href="@Web_Backend.Controllers.StudentAppDownloadController.ApkRoute" class="font-semibold text-[#5a43f1] dark:text-[#a78bfa] underline underline-offset-2 break-all">@(Context.Request.Host)@Web_Backend.Controllers.StudentAppDownloadController.ApkRoute</a> — or copy it from the app box on your dashboard.</p>
         @{ const string StepNum = "w-6 h-6 rounded-full bg-[#7c3aed] text-white text-xs font-bold flex items-center justify-center flex-shrink-0"; }
         <ol class="space-y-4 text-sm text-slate-600 dark:text-slate-300">
             <li class="flex gap-3"><span class="@StepNum">1</span><span>When the download finishes, tap <b>Open</b> at the bottom of the screen (or tap the download in your notifications).</span></li>
@@ -251,14 +258,24 @@ else
 
 <script>
     // ---------- Android app offer ----------
-    // Android phones/tablets only. If Chrome reports the app is installed
-    // (getInstalledRelatedApps, via /student-app.webmanifest + the app's
-    // asset_statements) Download is disabled and "Open app" shows instead.
+    // Download (with progress) and the copy-link button work everywhere.
+    // Android only: the top-bar "Get app" button, and -- when Chrome reports
+    // the app installed (getInstalledRelatedApps, via /student-app.webmanifest
+    // + the app's asset_statements) -- Download disabled and "Open" shown.
     (function () {
-        if (!/Android/i.test(navigator.userAgent)) return;
-        document.querySelectorAll('[data-app-hint]').forEach(el => el.classList.add('hidden'));
-        const offers = document.querySelectorAll('[data-app-offer]');
-        offers.forEach(el => { el.classList.remove('hidden'); if (el.tagName === 'BUTTON') el.classList.add('inline-flex'); });
+        const isAndroid = /Android/i.test(navigator.userAgent);
+        if (isAndroid) {
+            document.querySelectorAll('[data-app-offer]').forEach(el => { el.classList.remove('hidden'); if (el.tagName === 'BUTTON') el.classList.add('inline-flex'); });
+        } else {
+            document.getElementById('app-desktop-note')?.classList.remove('hidden');
+        }
+
+        document.querySelectorAll('[data-app-copy]').forEach(btn => btn.addEventListener('click', async () => {
+            const label = btn.querySelector('span');
+            try { await navigator.clipboard.writeText(new URL('@Web_Backend.Controllers.StudentAppDownloadController.ApkRoute', location.origin).href); label.textContent = 'Copied'; }
+            catch { label.textContent = 'Copy failed'; }
+            setTimeout(() => label.textContent = 'Copy link', 2000);
+        }));
 
         const guide = document.getElementById('app-install-guide');
         const showGuide = (on) => { guide.classList.toggle('hidden', !on); guide.classList.toggle('flex', on); };
@@ -274,11 +291,38 @@ else
         const mb = n => (n / 1048576).toFixed(1);
         let downloading = false;
 
+        // In-page download only in real Chrome: Samsung Internet, MIUI/Opera/
+        // Edge and in-app browsers (WhatsApp, Facebook: "; wv)") can fail the
+        // blob save silently, so they get the plain browser download instead.
+        const ua = navigator.userAgent;
+        const inApp = isAndroid && /; wv\)|FBAN|FBAV|Instagram|Line\/|WhatsApp|Snapchat|TikTok|musical_ly/.test(ua);
+        const inPageOk = !inApp && /Chrome\//.test(ua) && !/SamsungBrowser|MiuiBrowser|XiaoMi|OPR\/|EdgA|EdgiOS/.test(ua);
+        // Reopens this same page in Chrome (or, without Chrome, the phone's
+        // default browser via the fallback URL).
+        document.getElementById('app-open-chrome').href =
+            `intent://${location.host}${location.pathname}${location.search}#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url=${encodeURIComponent(location.href)};end`;
+
         async function download() {
             downloading = true;
             title.textContent = 'Downloading the app…';
             bar.style.width = '0'; pct.textContent = ''; size.textContent = 'Starting…';
+            document.getElementById('app-dl-progress').classList.remove('hidden');
             showGuide(true);
+            if (inApp) {
+                // Most in-app browsers drop downloads: offer Chrome instead.
+                document.getElementById('app-dl-progress').classList.add('hidden');
+                document.getElementById('app-inapp').classList.remove('hidden');
+                title.textContent = 'Open in Chrome to download';
+                downloading = false;
+                return;
+            }
+            if (!inPageOk) {
+                document.getElementById('app-dl-progress').classList.add('hidden');
+                title.textContent = 'Downloading — see your browser\'s downloads';
+                window.location.href = apkUrl;
+                downloading = false;
+                return;
+            }
             try {
                 const res = await fetch(apkUrl);
                 if (!res.ok || !res.body) throw new Error(res.status);
@@ -313,7 +357,7 @@ else
             download();
         }));
 
-        if (!navigator.getInstalledRelatedApps) return;
+        if (!isAndroid || !navigator.getInstalledRelatedApps) return;
         const pkg = '@Web_Backend.Controllers.StudentAppDownloadController.PackageId';
         const all = sel => document.querySelectorAll(sel);
         const statusText = all('[data-app-status]')[0]?.textContent || '';
