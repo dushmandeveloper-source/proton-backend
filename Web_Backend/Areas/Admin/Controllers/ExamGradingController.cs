@@ -37,14 +37,25 @@ namespace Web_Backend.Areas.Admin.Controllers
         // which one shows first (defaults to "grading") so old Index/
         // AdminReview links/bookmarks still land on the right tab.
         [HttpGet]
-        public async Task<IActionResult> Index(string tab = "grading")
+        public async Task<IActionResult> Index([FromQuery] ExamQueueFilter filter, string tab = "grading")
         {
             Auth.CheckPermission(PermissionCode.Exams, 'V');
             ViewBag.CurrentUser = Auth.GetUser();
             ViewBag.InitialTab = tab == "review" ? "review" : "grading";
             var grading = await attemptRep.ListPendingGrading();
             var review = await attemptRep.ListAdminReviewQueue();
-            return View((grading, review));
+
+            var services = HttpContext.RequestServices;
+            var batches = (await services.GetRequiredService<ICourseScheduleData>().GetList(new CourseScheduleSearchView { IsActive = "A" }))
+                .Select(b => (b.ScheduleID, Name: string.IsNullOrEmpty(b.CourseTitle) ? b.ScheduleName : $"{b.CourseTitle} — {b.ScheduleName}"))
+                .ToList();
+            var resolver = new AttemptBatchResolver(examRep, services.GetRequiredService<ICourseRegistrationData>());
+            await ExamQueueView.Prepare(ViewBag, filter, grading, review, batches, resolver);
+            var shownGrading = await resolver.Apply(grading, filter);
+            var shownReview = await resolver.Apply(review, filter);
+            ViewBag.FilteredGrading = shownGrading.Count;
+            ViewBag.FilteredReview = shownReview.Count;
+            return View((shownGrading, shownReview));
         }
 
         // Read-only: Written-answer grading itself now belongs to the

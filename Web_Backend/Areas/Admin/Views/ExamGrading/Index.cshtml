@@ -5,6 +5,7 @@
     var initialTab = ViewBag.InitialTab as string ?? "grading";
     var grading = Model.Grading;
     var review = Model.Review;
+    var batchOf = ViewBag.BatchOfAttempt as Dictionary<string, string> ?? new();
 }
 
 <div class="max-w-6xl mx-auto page-enter space-y-4">
@@ -28,15 +29,17 @@
         </div>
     }
 
+    <partial name="~/Views/Shared/_ExamQueueFilters.cshtml" />
+
     <div class="flex items-center gap-2 border-b border-slate-100 dark:border-slate-700">
-        <button type="button" id="tab-btn-grading" class="tab-btn px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors">
+        <button type="button" id="tab-btn-grading" data-tab="grading" class="tab-btn px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors">
             Grading
             @if (grading.Any())
             {
                 <span class="ml-1.5 inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1 rounded-full text-xs bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">@grading.Count</span>
             }
         </button>
-        <button type="button" id="tab-btn-review" class="tab-btn px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors">
+        <button type="button" id="tab-btn-review" data-tab="review" class="tab-btn px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors">
             Review
             @if (review.Any())
             {
@@ -63,6 +66,7 @@
                             <tr class="border-b border-slate-100 dark:border-slate-700 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide">
                                 <th class="px-6 py-3">Exam</th>
                                 <th class="px-6 py-3">Student</th>
+                                <th class="px-6 py-3">Batch</th>
                                 <th class="px-6 py-3">Submitted</th>
                                 <th class="px-6 py-3">Status</th>
                                 <th class="px-6 py-3">Partial Marks</th>
@@ -75,6 +79,7 @@
                                 <tr class="border-b border-slate-50 dark:border-slate-800 last:border-0 hover:bg-slate-50/60 dark:hover:bg-slate-800/40">
                                     <td class="px-6 py-3 text-slate-800 dark:text-slate-100 font-medium">@a.ExamTitle</td>
                                     <td class="px-6 py-3 text-slate-600 dark:text-slate-300">@a.StudentName</td>
+                                    <td class="px-6 py-3 text-slate-500 dark:text-slate-400 text-xs">@(batchOf.TryGetValue(a.AttemptID, out var bn) && bn != "" ? bn : "-")</td>
                                     <td class="px-6 py-3 text-slate-600 dark:text-slate-300">@(a.SubmittedDate?.ToString("g") ?? "-")</td>
                                     <td class="px-6 py-3 text-slate-600 dark:text-slate-300">@a.Status</td>
                                     <td class="px-6 py-3 text-slate-600 dark:text-slate-300">@a.TotalMarksAwarded / @a.TotalMarks</td>
@@ -108,7 +113,7 @@
                         <div class="min-w-0">
                             <p class="font-medium text-slate-800 dark:text-slate-100">@attempt.ExamTitle</p>
                             <p class="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-2 flex-wrap">
-                                <span>@attempt.StudentName &middot; Status: @attempt.Status &middot; Teacher-approved by @(attempt.TeacherReviewedByName ?? "-") on @(attempt.TeacherReviewedDate?.ToString("g") ?? "-")</span>
+                                <span>@attempt.StudentName@(batchOf.TryGetValue(attempt.AttemptID, out var rbn) && rbn != "" ? " · " + rbn : "") &middot; Status: @attempt.Status &middot; Teacher-approved by @(attempt.TeacherReviewedByName ?? "-") on @(attempt.TeacherReviewedDate?.ToString("g") ?? "-")</span>
                                 @if (attempt.StrikeCount > 0)
                                 {
                                     <a asp-action="ViolationTrail" asp-route-attemptId="@attempt.AttemptID" title="See what each strike was for" class="inline-flex items-center gap-1 text-xs font-medium text-red-600 dark:text-red-300 bg-red-50 dark:bg-red-950 rounded-full px-2 py-0.5 hover:underline hover:bg-red-100 dark:hover:bg-red-900 transition-colors">

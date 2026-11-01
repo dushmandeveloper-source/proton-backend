@@ -85,7 +85,7 @@ namespace Web_Backend.Areas.LecturerPortal.Controllers
         // (defaults to "grading") so old GradingQueue/Index links/bookmarks
         // still land on the right tab.
         [HttpGet]
-        public async Task<IActionResult> Index(string tab = "grading")
+        public async Task<IActionResult> Index([FromQuery] ExamQueueFilter filter, string tab = "grading")
         {
             Auth.CheckUser();
             ViewBag.CurrentUser = Auth.GetUser();
@@ -93,7 +93,19 @@ namespace Web_Backend.Areas.LecturerPortal.Controllers
             var canReview = await ReviewAccess();
             var grading = await FilterAsync(await attemptRep.ListPendingGrading(), canReview);
             var review = await FilterAsync(await attemptRep.ListTeacherReviewQueue(), canReview);
-            return View((grading, review));
+
+            // Filter bar: exams in the queues, this lecturer's own batches.
+            var batches = (await scheduleRep.GetListForInstructor(Auth.GetUserId()))
+                .Select(b => (b.ScheduleID, Name: string.IsNullOrEmpty(b.CourseTitle) ? b.ScheduleName : $"{b.CourseTitle} — {b.ScheduleName}"))
+                .ToList();
+            var resolver = new AttemptBatchResolver(examRep,
+                HttpContext.RequestServices.GetRequiredService<ICourseRegistrationData>());
+            await ExamQueueView.Prepare(ViewBag, filter, grading, review, batches, resolver);
+            var shownGrading = await resolver.Apply(grading, filter);
+            var shownReview = await resolver.Apply(review, filter);
+            ViewBag.FilteredGrading = shownGrading.Count;
+            ViewBag.FilteredReview = shownReview.Count;
+            return View((shownGrading, shownReview));
         }
 
         // Back-compat alias for the old separate GradingQueue page/links.
