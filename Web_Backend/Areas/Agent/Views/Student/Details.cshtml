@@ -168,7 +168,7 @@
                         <div>
                             <p class="text-sm font-medium text-slate-800 dark:text-slate-100">@attempt.ExamTitle</p>
                             <p class="text-xs text-slate-400 dark:text-slate-500">
-                                @attempt.StartedDate.ToString("MMM d, yyyy")
+                                @Web_Backend.Classes.SriLankaTime.FromUtc(attempt.StartedDate).ToString("MMM d, yyyy")
                                 @if (attempt.TotalMarksAwarded.HasValue)
                                 {
                                     <text> &middot; @attempt.TotalMarksAwarded.Value.ToString("N1") / @attempt.TotalMarks.ToString("N1")</text>

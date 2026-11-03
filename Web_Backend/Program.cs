@@ -199,6 +199,8 @@ builder.Services.AddSingleton<UploadPaths>();
 builder.Services.AddSingleton<ImageOptimizer>();
 builder.Services.AddSingleton<IceServerProvider>();
 builder.Services.AddHostedService<ImageBackfillService>();
+// Force-submits exam attempts still InProgress after their time ran out.
+builder.Services.AddHostedService<ExamAttemptSweeper>();
 
 var app = builder.Build();
 

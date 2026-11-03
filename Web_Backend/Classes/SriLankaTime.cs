@@ -27,5 +27,10 @@ namespace Web_Backend.Classes
         public static DateTime Now => TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, Zone);
 
         public static DateTime Today => Now.Date;
+
+        // A UTC timestamp from the database (e.g. ExamAttempt.StartedDate,
+        // migration 0071) as Sri Lanka wall-clock time, for display.
+        public static DateTime FromUtc(DateTime utc) =>
+            TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(utc, DateTimeKind.Utc), Zone);
     }
 }

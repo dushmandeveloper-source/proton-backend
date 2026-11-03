@@ -14,6 +14,7 @@ namespace Web_Backend.Areas.Admin.Data
         Task<List<ExamAttempt>> ListPendingGrading();
         Task GradeWritten(string attemptId, string questionId, decimal marksAwarded);
         Task<int> CountByExamAndStudent(string examId, string studentId);
+        Task<List<ExamAttempt>> ListOverdue(int graceSeconds);
 
         // Phase 3: server-authoritative violation reporting. Returns the
         // running strike count (0-3) and the attempt's Status AFTER this

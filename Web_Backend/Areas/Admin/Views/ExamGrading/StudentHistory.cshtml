@@ -60,7 +60,7 @@
                         {
                             <tr class="border-b border-slate-50 dark:border-slate-800 last:border-0 hover:bg-slate-50/60 dark:hover:bg-slate-800/40">
                                 <td class="px-6 py-3 text-slate-800 dark:text-slate-100 font-medium whitespace-nowrap">@a.ExamTitle</td>
-                                <td class="px-6 py-3 text-slate-600 dark:text-slate-300 whitespace-nowrap">@a.StartedDate.ToString("g")</td>
+                                <td class="px-6 py-3 text-slate-600 dark:text-slate-300 whitespace-nowrap">@Web_Backend.Classes.SriLankaTime.FromUtc(a.StartedDate).ToString("g")</td>
                                 <td class="px-6 py-3 text-slate-600 dark:text-slate-300 whitespace-nowrap">@a.Status</td>
                                 <td class="px-6 py-3 text-slate-600 dark:text-slate-300 whitespace-nowrap">@a.TotalMarksAwarded / @a.TotalMarks</td>
                                 <td class="px-6 py-3 whitespace-nowrap">

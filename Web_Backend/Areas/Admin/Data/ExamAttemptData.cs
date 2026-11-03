@@ -135,6 +135,10 @@ namespace Web_Backend.Areas.Admin.Data
         public Task<List<ExamAttempt>> ListAllForAdmin() =>
             db.GetList<ExamAttempt, object>("edu.ExamAttempt_ListAllForAdmin", new { APIKey = AppData.GetAPIKey() });
 
+        // InProgress past ExpiresDate + grace (ExamAttemptSweeper).
+        public Task<List<ExamAttempt>> ListOverdue(int graceSeconds) =>
+            db.GetList<ExamAttempt, object>("edu.ExamAttempt_ListOverdue", new { APIKey = AppData.GetAPIKey(), GraceSeconds = graceSeconds });
+
         public Task<List<ExamAttempt>> ListInProgressForInstructor(string userId) =>
             db.GetList<ExamAttempt, object>("edu.ExamAttempt_ListInProgressForInstructor", new { APIKey = AppData.GetAPIKey(), UserID = userId });
     }
