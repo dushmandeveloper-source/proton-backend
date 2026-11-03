@@ -48,6 +48,7 @@ namespace Web_Backend.Controllers.Api
                 shortDescription = course?.ShortDescription ?? "",
                 duration = course?.Duration ?? "",
                 deliveryMethod = course?.DeliveryMethod ?? "",
+                imageUrl = AbsoluteUrl(course?.CourseImageURL),
                 about = HtmlToText(course?.AboutHtml),
                 introVideoUrl = AbsoluteUrl(course?.VideoURL),
                 paymentStatus = reg.PaymentStatus,
@@ -309,6 +310,7 @@ namespace Web_Backend.Controllers.Api
             materialId = m.MaterialID,
             title = m.Title,
             courseTitle = m.CourseTitle,
+            batchName = m.ScheduleName,
             category = m.Category, // LectureNote | Video | Homework | Assignment
             date = m.MaterialDate,
             fileType = m.FileType,

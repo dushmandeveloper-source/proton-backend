@@ -100,6 +100,10 @@ namespace Web_Backend.Controllers.Api
                 deliveryMethod = c.DeliveryMethod,
                 currency = c.CurrencyCode,
                 total = PriceFor(c, c.CurrencyCode, c.Fee ?? 0).Total,
+                discount = PriceFor(c, c.CurrencyCode, c.Fee ?? 0).Discount,
+                imageUrl = AbsoluteUrl(c.CourseImageURL),
+                categoryName = c.CategoryName,
+                batchCount = c.ScheduleCount,
                 enrolled = enrolled.Contains(c.CourseID)
             }));
         }
@@ -129,6 +133,14 @@ namespace Web_Backend.Controllers.Api
                 shortDescription = course.ShortDescription,
                 duration = course.Duration,
                 deliveryMethod = course.DeliveryMethod,
+                imageUrl = AbsoluteUrl(course.CourseImageURL),
+                categoryName = course.CategoryName,
+                courseType = course.CourseType,
+                certificateValidity = course.CertificateValidity,
+                handbookTitle = course.HandbookTitle,
+                handbookUrl = AbsoluteUrl(course.HandbookFileURL),
+                outcomes = course.Outcomes.OrderBy(o => o.SortOrder).Select(o => o.OutcomeDescription),
+                requirements = course.Requirements.OrderBy(r => r.SortOrder).Select(r => r.RequirementText),
                 about = HtmlToText(course.AboutHtml),
                 introVideoUrl = AbsoluteUrl(course.VideoURL),
                 subjects = subjects.Select(s => s.SubjectName),
@@ -138,7 +150,14 @@ namespace Web_Backend.Controllers.Api
                     var p = PriceFor(course, c.Code, c.Fee);
                     return new { currency = c.Code, fee = c.Fee, discount = p.Discount, discountLabel = p.Label, charges = p.Charges, total = p.Total };
                 }),
-                batches = batches.Select(b => new { scheduleId = b.ScheduleID, name = b.ScheduleName }),
+                batches = batches.Select(b => new
+                {
+                    scheduleId = b.ScheduleID,
+                    name = b.ScheduleName,
+                    location = b.Location,
+                    startDate = b.EarliestStartDate,
+                    endDate = b.LatestEndDate
+                }),
                 methods = PaymentMethods
             });
         }

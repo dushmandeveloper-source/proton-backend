@@ -394,7 +394,7 @@ namespace Web_Backend.Controllers.Api
         // payments and alerts, in one call (same queries and rules as
         // Student/DashboardController + its view).
         [HttpGet("dashboard")]
-        public async Task<IActionResult> Dashboard([FromServices] IDocumentRequestData documentRequestRep)
+        public async Task<IActionResult> Dashboard([FromServices] IDocumentRequestData documentRequestRep, [FromServices] ICourseData courseRep)
         {
             var student = await CurrentStudent();
             if (student == null) return Unauthorized();
@@ -404,6 +404,9 @@ namespace Web_Backend.Controllers.Api
             var plans = (await registrationRep.GetInstallmentsByStudent(student.StudentID))
                 .GroupBy(i => i.RegistrationID).ToDictionary(g => g.Key, g => g.OrderBy(i => i.SeqNo).ToList());
             var pendingDocuments = (await documentRequestRep.ListForStudent(student.StudentID)).Count(i => i.CanSubmit);
+            // Course pictures for the course cards (one list call).
+            var images = registrations.Count == 0 ? new Dictionary<string, string>()
+                : (await courseRep.GetList(new Areas.Admin.Models.CourseSearchView())).GroupBy(c => c.CourseID).ToDictionary(g => g.Key, g => g.First().CourseImageURL);
             var today = SriLankaTime.Today;
 
             return Ok(new
@@ -422,6 +425,7 @@ namespace Web_Backend.Controllers.Api
                     registrationId = r.RegistrationID,
                     courseTitle = r.CourseTitle,
                     courseCode = r.CourseCode,
+                    imageUrl = AbsoluteUrl(images.GetValueOrDefault(r.CourseID)),
                     paymentStatus = r.PaymentStatus,
                     currency = r.CurrencyCode,
                     fee = r.CourseFee,
