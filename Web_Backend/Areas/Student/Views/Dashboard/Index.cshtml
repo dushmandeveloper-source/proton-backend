@@ -142,10 +142,10 @@
                             {
                                 var isExam = seg.Kind == "Exam";
 
-                                // Course rows: Join unlocks 15 min before StartTime and stays
-                                // enabled indefinitely after (classes don't reliably end on
-                                // the dot, so there's no auto-disable at EndTime).
+                                // Course rows: Join unlocks 15 min before StartTime and closes
+                                // 30 min after EndTime (classes often run a little over).
                                 var joinAt = day.Date.Date.Add(seg.StartTime).AddMinutes(-15);
+                                var joinUntil = day.Date.Date.Add(seg.EndTime).AddMinutes(30);
 
                                 // Exam rows: Join is gated by the exam's own availability
                                 // window + MaxAttempts (edu.ExamAttempt_Start enforces this
@@ -218,7 +218,7 @@
                                     {
                                         @if (isToday)
                                         {
-                                            <a href="@seg.MeetingLink" target="_blank" rel="noopener" data-join-link data-join-at="@joinAt.ToString("yyyy-MM-ddTHH:mm:ss")+05:30"
+                                            <a href="@seg.MeetingLink" target="_blank" rel="noopener" data-join-link data-join-at="@joinAt.ToString("yyyy-MM-ddTHH:mm:ss")+05:30" data-join-until="@joinUntil.ToString("yyyy-MM-ddTHH:mm:ss")+05:30"
                                                class="join-link px-3 py-1.5 rounded-lg font-medium text-xs bg-[#7c3aed] text-white hover:bg-[#6d28d9] transition-colors flex items-center gap-1 flex-shrink-0">
                                                 <i data-lucide="video" class="w-3.5 h-3.5"></i> <span class="join-label">Join</span>
                                             </a>
@@ -249,7 +249,8 @@
     </div>
     <script>
         (function () {
-            // Gates each course Join link until 15 min before its class start
+            // Gates each course Join link from 15 min before its class start
+            // to 30 min after its end
             // time (see joinAt computed server-side above). Exam Join buttons
             // are NOT covered by this script — their enabled/disabled state is
             // decided server-side per request from the exam's own availability
@@ -265,8 +266,13 @@
                 var now = new Date();
                 document.querySelectorAll('[data-join-link]').forEach(function (link) {
                     var joinAt = new Date(link.dataset.joinAt);
+                    var joinUntil = link.dataset.joinUntil ? new Date(link.dataset.joinUntil) : null;
                     var label = link.querySelector('.join-label');
-                    if (now >= joinAt) {
+                    if (joinUntil && now > joinUntil) {
+                        link.classList.add('opacity-40', 'cursor-not-allowed', 'pointer-events-none');
+                        link.setAttribute('aria-disabled', 'true');
+                        if (label) label.textContent = 'Class ended';
+                    } else if (now >= joinAt) {
                         link.classList.remove('opacity-40', 'cursor-not-allowed', 'pointer-events-none');
                         link.removeAttribute('aria-disabled');
                         if (label) label.textContent = 'Join';
