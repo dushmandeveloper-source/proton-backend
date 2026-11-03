@@ -390,6 +390,93 @@ namespace Web_Backend.Controllers.Api
             });
         }
 
+        // Home screen: the portal dashboard's numbers, courses, pending
+        // payments and alerts, in one call (same queries and rules as
+        // Student/DashboardController + its view).
+        [HttpGet("dashboard")]
+        public async Task<IActionResult> Dashboard([FromServices] IDocumentRequestData documentRequestRep)
+        {
+            var student = await CurrentStudent();
+            if (student == null) return Unauthorized();
+
+            var summary = await registrationRep.GetSummaryForStudent(student.StudentID);
+            var registrations = (await registrationRep.GetByStudent(student.StudentID)).ToList();
+            var plans = (await registrationRep.GetInstallmentsByStudent(student.StudentID))
+                .GroupBy(i => i.RegistrationID).ToDictionary(g => g.Key, g => g.OrderBy(i => i.SeqNo).ToList());
+            var pendingDocuments = (await documentRequestRep.ListForStudent(student.StudentID)).Count(i => i.CanSubmit);
+            var today = SriLankaTime.Today;
+
+            return Ok(new
+            {
+                studentName = student.FullName,
+                passportStatus = student.PassportVerificationStatus,
+                contentRestricted = student.IsContentRestricted,
+                pendingDocuments,
+                courseCount = summary?.CourseCount ?? 0,
+                totalPaid = summary?.TotalPaid ?? 0,
+                totalBalance = summary?.TotalBalance ?? 0,
+                // Shown next to the totals only when every course uses it.
+                currency = registrations.Select(r => r.CurrencyCode).Distinct().Count() == 1 ? registrations[0].CurrencyCode : "",
+                courses = registrations.Select(r => new
+                {
+                    registrationId = r.RegistrationID,
+                    courseTitle = r.CourseTitle,
+                    courseCode = r.CourseCode,
+                    paymentStatus = r.PaymentStatus,
+                    currency = r.CurrencyCode,
+                    fee = r.CourseFee,
+                    paid = r.AmountPaid,
+                    balance = r.BalanceDue,
+                    fullAccess = r.FullAccess,
+                    active = r.IsActive == "A"
+                }),
+                pendingPayments = registrations.Where(r => r.BalanceDue > 0).Select(r =>
+                {
+                    var plan = plans.TryGetValue(r.RegistrationID, out var p) ? p : null;
+                    var due = plan?.Where(i => i.IsDueBy(today)).ToList() ?? new();
+                    var next = plan?.FirstOrDefault(i => i.Remaining > 0);
+                    return new
+                    {
+                        registrationId = r.RegistrationID,
+                        courseTitle = r.CourseTitle,
+                        currency = r.CurrencyCode,
+                        balance = r.BalanceDue,
+                        planParts = plan?.Count ?? 0,
+                        dueNow = due.Sum(i => i.Remaining),
+                        // e.g. "Installment 2 of 4 · overdue since 5 Oct"
+                        dueLabel = string.Join(" + ", due.Select(i =>
+                            $"Installment {i.SeqNo} of {plan!.Count} · {(i.DueDate.Date < today ? "overdue since" : "due")} {i.DueDate:d MMM}")),
+                        nextAmount = next?.Remaining ?? 0,
+                        nextLabel = next == null ? "" : $"Installment {next.SeqNo} on {next.DueDate:d MMM yyyy}",
+                        payUrl = $"{Request.Scheme}://{Request.Host}/Student/Courses/PayBalance?registrationId={Uri.EscapeDataString(r.RegistrationID)}"
+                    };
+                })
+            });
+        }
+
+        // My Results: every attempt, newest first. No marks here (same as
+        // the portal list); the result screen shows them once released.
+        [HttpGet("results")]
+        public async Task<IActionResult> Results()
+        {
+            var student = await CurrentStudent();
+            if (student == null) return Unauthorized();
+
+            var attempts = await attemptRep.ListForStudent(student.StudentID);
+            return Ok(attempts
+                .OrderByDescending(a => a.SubmittedDate ?? a.StartedDate)
+                .Select(a => new
+                {
+                    attemptId = a.AttemptID,
+                    examTitle = a.ExamTitle,
+                    submittedAt = a.SubmittedDate,
+                    status = a.Status,
+                    released = a.ResultReleasedDate.HasValue,
+                    releasedAt = a.ResultReleasedDate,
+                    passed = a.ResultReleasedDate.HasValue ? a.Passed : null
+                }));
+        }
+
         private async Task<Areas.Admin.Models.ExamAttempt?> ResumableAttempt(string examId, string studentId) =>
             (await attemptRep.ListForStudent(studentId))
                 .FirstOrDefault(a => a.ExamID == examId && a.IsInProgress && a.SecondsRemaining > 0);
@@ -419,26 +506,41 @@ namespace Web_Backend.Controllers.Api
             return string.IsNullOrEmpty(userId) ? null : await studentRep.GetByUserID(userId);
         }
 
-        // Latest released app build, for the in-app "Check for updates".
-        // Set on the server in appsettings.Production.json:
+        // Latest released app build. The app checks this on every launch and
+        // resume and, when `force` is true, can't be used until it updates.
+        // Version and size are read from the uploaded APK itself
+        // (AppRelease/proton-student.apk), "what's new" from an optional
+        // AppRelease/notes.txt beside it -- uploading the APK is the release.
+        // Optional override in appsettings.Production.json (used when
+        // LatestBuild > 0):
         //   "StudentApp": { "LatestVersion": "1.1.0", "LatestBuild": 2,
-        //                   "MinBuild": 1, "ApkUrl": "https://.../proton.apk", "Notes": "..." }
-        // MinBuild lets a release force older apps to update. Readable signed
-        // out too, so the update check works from the login screen.
+        //                   "MinBuild": 1, "ApkUrl": "https://.../proton.apk",
+        //                   "Notes": "...", "ForceUpdate": true }
+        // Readable signed out too, so the check runs before the login screen.
         [HttpGet("version")]
-        public IActionResult Version([FromServices] IConfiguration config)
+        public IActionResult Version([FromServices] IConfiguration config, [FromServices] IWebHostEnvironment env)
         {
             var s = config.GetSection("ApplicationSettings:StudentApp");
+            var apkPath = StudentAppDownloadController.ApkPath(env);
+            var apk = ApkVersionReader.Read(apkPath);
+            var overrideBuild = int.TryParse(s["LatestBuild"], out var b) ? b : 0;
+
+            var notesPath = Path.Combine(Path.GetDirectoryName(apkPath)!, "notes.txt");
+            var fileNotes = System.IO.File.Exists(notesPath) ? System.IO.File.ReadAllText(notesPath).Trim() : "";
+
             return Ok(new
             {
-                latestVersion = s["LatestVersion"] ?? "",
-                latestBuild = int.TryParse(s["LatestBuild"], out var b) ? b : 0,
+                latestVersion = overrideBuild > 0 ? s["LatestVersion"] ?? "" : apk?.VersionName ?? "",
+                latestBuild = overrideBuild > 0 ? overrideBuild : apk?.VersionCode ?? 0,
                 minBuild = int.TryParse(s["MinBuild"], out var m) ? m : 0,
                 // Blank ApkUrl = the copy this site serves itself.
                 apkUrl = string.IsNullOrWhiteSpace(s["ApkUrl"])
                     ? $"{Request.Scheme}://{Request.Host}{StudentAppDownloadController.ApkRoute}"
                     : SafeUrl.OrEmpty(s["ApkUrl"]),
-                notes = s["Notes"] ?? ""
+                apkSize = apk?.SizeBytes ?? 0,
+                notes = !string.IsNullOrWhiteSpace(s["Notes"]) ? s["Notes"]! : fileNotes,
+                // Every newer build is required unless switched off here.
+                force = !string.Equals(s["ForceUpdate"], "false", StringComparison.OrdinalIgnoreCase)
             });
         }
 
