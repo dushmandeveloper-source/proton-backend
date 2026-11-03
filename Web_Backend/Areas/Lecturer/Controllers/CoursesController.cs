@@ -87,6 +87,7 @@ namespace Web_Backend.Areas.LecturerPortal.Controllers
             try
             {
                 await scheduleRep.UpdateSegmentMeetingLinks(scheduleId, userId, segmentIds, MeetingLink ?? "");
+                await HttpContext.RequestServices.GetRequiredService<StudentNotices>().ClassLinkChanged(scheduleId);
                 TempData["SuccessMessage"] = "Meeting link saved.";
             }
             catch (Exception ex)
@@ -114,6 +115,7 @@ namespace Web_Backend.Areas.LecturerPortal.Controllers
             try
             {
                 await scheduleRep.UpdateSegmentMeetingLinks(scheduleId, userId, new List<string> { segmentId }, meetingLink ?? "");
+                await HttpContext.RequestServices.GetRequiredService<StudentNotices>().ClassLinkChanged(scheduleId);
                 return Json(new { success = true, meetingLink });
             }
             catch (Exception ex)

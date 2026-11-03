@@ -759,7 +759,7 @@ namespace Web_Backend.Areas.Admin.Controllers
                 var course = await courseRep.Get(courseId);
                 var discount = await registrationRep.ResolveDiscount(courseId, course?.CurrencyCode ?? "CNY", course?.Fee ?? 0);
                 var feeChargesTotal = SumFeeCharges(course);
-                await registrationRep.AddEdit(new CourseRegistration
+                var newRegistrationId = await registrationRep.AddEdit(new CourseRegistration
                 {
                     StudentID = studentId,
                     CourseID = courseId,
@@ -772,6 +772,8 @@ namespace Web_Backend.Areas.Admin.Controllers
                     RegistrationSource = "Admin",
                     CreatedByUserID = Auth.GetUserId()
                 }, scheduleId: scheduleId);
+                await HttpContext.RequestServices.GetRequiredService<StudentNotices>()
+                    .Enrolled(studentId, course?.CourseTitle ?? "a course", newRegistrationId ?? "");
                 TempData["SuccessMessage"] = "Course enrollment added.";
             }
             catch (Exception ex)
@@ -918,6 +920,9 @@ namespace Web_Backend.Areas.Admin.Controllers
                     CreatedByUserID = registration.CreatedByUserID,
                     IsActive = registration.IsActive
                 }, scheduleId: scheduleId);
+                if ((registration.ScheduleID ?? "") != (scheduleId ?? ""))
+                    await HttpContext.RequestServices.GetRequiredService<StudentNotices>()
+                        .BatchChanged(registration.StudentID, registration.CourseTitle, registration.RegistrationID);
                 TempData["SuccessMessage"] = "Batch updated.";
             }
             catch (Exception ex)
@@ -1075,7 +1080,11 @@ namespace Web_Backend.Areas.Admin.Controllers
             Auth.CheckPermission(PermissionCode.Enrollments, 'D');
             try
             {
+                var cancelled = await registrationRep.Get(registrationId);
                 await registrationRep.Delete(registrationId);
+                if (cancelled != null)
+                    await HttpContext.RequestServices.GetRequiredService<StudentNotices>()
+                        .EnrollmentCancelled(cancelled.StudentID, cancelled.CourseTitle, registrationId);
                 TempData["SuccessMessage"] = "Registration cancelled.";
             }
             catch (Exception ex)

@@ -117,7 +117,11 @@ namespace Web_Backend.Areas.Admin.Controllers
                 }
                 form.Instructors = await ResolveInstructors(InstructorUserIDsJSON);
                 form.IsActive = isNew ? "A" : form.IsActive;
+                var before = isNew ? null : StudentNotices.Timing((await rep.Get(form.ScheduleID))?.Segments);
                 await rep.AddEdit(form);
+                // Existing batch whose dates/times/links changed: tell its students.
+                if (!isNew && before != StudentNotices.Timing(form.Segments))
+                    await HttpContext.RequestServices.GetRequiredService<StudentNotices>().ClassScheduleChanged(form.ScheduleID);
                 TempData["SuccessMessage"] = isNew ? "Schedule created." : "Schedule saved.";
             }
             catch (Exception ex)
@@ -152,6 +156,7 @@ namespace Web_Backend.Areas.Admin.Controllers
             try
             {
                 await rep.Deactivate(id);
+                await HttpContext.RequestServices.GetRequiredService<StudentNotices>().ClassCancelled(id);
                 TempData["SuccessMessage"] = "Schedule deactivated.";
             }
             catch (Exception ex)

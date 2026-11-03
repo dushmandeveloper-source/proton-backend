@@ -119,7 +119,9 @@ namespace Web_Backend.Areas.Admin.Controllers
 
             try
             {
-                await requestRep.Create(title, instructions, Auth.GetUserId(), items);
+                var newRequestId = await requestRep.Create(title, instructions, Auth.GetUserId(), items);
+                await HttpContext.RequestServices.GetRequiredService<StudentNotices>()
+                    .DocumentRequested(items.Select(i => i.StudentID), title, newRequestId);
                 TempData["SuccessMessage"] = "Document request sent.";
             }
             catch (Exception ex)
@@ -204,6 +206,10 @@ namespace Web_Backend.Areas.Admin.Controllers
             try
             {
                 await requestRep.RequestResubmission(itemId, remark);
+                var resubmitItem = await requestRep.GetItem(itemId);
+                if (resubmitItem != null)
+                    await HttpContext.RequestServices.GetRequiredService<StudentNotices>()
+                        .DocumentResubmit(resubmitItem.StudentID, resubmitItem.TypeName, remark ?? "", itemId);
                 TempData["SuccessMessage"] = "Resubmission requested.";
             }
             catch (Exception ex)

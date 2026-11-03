@@ -99,6 +99,8 @@ namespace Web_Backend.Areas.Admin.Controllers
                     UploadedByUserID = Auth.GetUserId(),
                     UploadedByRole = "Admin"
                 });
+                await HttpContext.RequestServices.GetRequiredService<StudentNotices>()
+                    .VideoPosted(courseId, scheduleId, visibilityScope == "BatchOnly", title, "");
 
                 TempData["SuccessMessage"] = "Course video added.";
             }

@@ -582,6 +582,8 @@ namespace Web_Backend.Controllers.Api
                     title = n.Title,
                     body = n.Body,
                     isRead = n.IsRead,
+                    // Website path; the app maps it to its own screen (tap to open).
+                    link = n.LinkUrl,
                     createdAt = n.CreatedDate
                 })
             });

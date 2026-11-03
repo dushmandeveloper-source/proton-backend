@@ -109,6 +109,8 @@ namespace Web_Backend.Areas.LecturerPortal.Controllers
                     UploadedByUserID = userId,
                     UploadedByRole = "Lecturer"
                 });
+                await HttpContext.RequestServices.GetRequiredService<StudentNotices>()
+                    .VideoPosted(batch.CourseID, scheduleId, visibilityScope == "BatchOnly", title, "");
 
                 TempData["SuccessMessage"] = "Course video added.";
             }

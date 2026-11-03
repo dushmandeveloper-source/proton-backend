@@ -54,7 +54,12 @@ namespace Web_Backend.Areas.Admin.Controllers
             Auth.CheckPermission(PermissionCode.LectureSchedule, 'E');
             try
             {
+                var request = (await rescheduleRep.ListPending()).FirstOrDefault(r => r.RescheduleID == rescheduleId);
                 await rescheduleRep.Approve(rescheduleId, Auth.GetUserId(), adminRemark);
+                if (request != null)
+                    await HttpContext.RequestServices.GetRequiredService<StudentNotices>().ClassRescheduled(request.ScheduleID,
+                        string.IsNullOrEmpty(request.CourseTitle) ? request.ScheduleName : $"{request.CourseTitle} ({request.ScheduleName})",
+                        request.OriginalDate, request.ProposedNewDate);
                 TempData["SuccessMessage"] = "Reschedule approved — the calendar now reflects the skip and makeup date.";
             }
             catch (Exception ex)

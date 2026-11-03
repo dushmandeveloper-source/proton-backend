@@ -110,6 +110,8 @@ namespace Web_Backend.Areas.Admin.Controllers
                 }
                 form.Instructors = await ResolveInstructors(InstructorUserIDsJSON);
                 form.IsActive = isNew ? "A" : form.IsActive;
+                // Timing before the edit, to notify students only when it changed.
+                var before = isNew ? null : StudentNotices.Timing((await rep.Get(form.ScheduleID))?.Segments);
                 var savedId = await rep.AddEdit(form);
                 if (string.IsNullOrEmpty(savedId)) savedId = form.ScheduleID;
 
@@ -123,6 +125,11 @@ namespace Web_Backend.Areas.Admin.Controllers
                     picked = picked.Where(eligible.Contains).ToList();
                 }
                 if (!string.IsNullOrEmpty(savedId)) await rep.SetStudents(savedId, picked);
+                if (!string.IsNullOrEmpty(savedId) && (isNew || before != StudentNotices.Timing(form.Segments)))
+                {
+                    form.ScheduleID = savedId;
+                    await HttpContext.RequestServices.GetRequiredService<StudentNotices>().ExamScheduled(form, isNew, picked);
+                }
                 TempData["SuccessMessage"] = isNew ? "Schedule created." : "Schedule saved.";
             }
             catch (Exception ex)

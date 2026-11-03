@@ -170,6 +170,7 @@ builder.Services.AddSingleton<IImageUploader, ImageUploader>();
 builder.Services.AddSingleton<IDocumentStorage, DocumentStorage>();
 builder.Services.AddTransient<INotificationData, NotificationData>();
 builder.Services.AddTransient<NotificationService>();
+builder.Services.AddTransient<StudentNotices>(); // student notifications for staff actions
 builder.Services.AddTransient<IMessagingData, MessagingData>();
 builder.Services.AddTransient<IFinanceData, FinanceData>();
 builder.Services.AddTransient<IUserPreferenceData, UserPreferenceData>();
