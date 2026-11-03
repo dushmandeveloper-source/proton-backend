@@ -207,6 +207,57 @@ namespace Web_Backend.Controllers.Api
             return Ok(new { whatsAppUrl = WhatsAppLink.RequestAccess(user.Name ?? "", user.Email ?? "", reg.CourseTitle) });
         }
 
+        // Homework/Submit from the app (multipart "file"). Same upload rules
+        // as the portal (HomeworkController's folder, file types, 100 MB),
+        // plus the checks the portal leaves to its page: the item must be
+        // this student's, submittable, in an unlocked batch, and not graded
+        // unless a resubmission was asked for.
+        [HttpPost("homework/{materialId}/submit")]
+        [RequestFormLimits(MultipartBodyLengthLimit = 110_000_000)]
+        [RequestSizeLimit(110_000_000)]
+        public async Task<IActionResult> SubmitHomework(string materialId, IFormFile? file,
+            [FromServices] ILectureMaterialData materialRep, [FromServices] IHomeworkSubmissionData submissionRep,
+            [FromServices] IImageUploader uploader, [FromServices] NotificationService notifier)
+        {
+            var student = await CurrentStudent();
+            if (student == null) return Unauthorized();
+            if (file == null || file.Length == 0) return BadRequest(new { message = "Please choose a file to submit." });
+            if (student.IsContentRestricted)
+                return StatusCode(403, new { message = "Classroom content unlocks once an administrator verifies your account." });
+
+            var material = (await materialRep.ListForStudent(student.StudentID)).FirstOrDefault(m => m.MaterialID == materialId);
+            if (material == null || !material.IsSubmittable) return NotFound(new { message = "Homework not found." });
+
+            var regs = (await registrationRep.GetByStudent(student.StudentID)).Where(r => r.IsActive == "A").ToList();
+            var batch = (await StudentBatches(regs)).FirstOrDefault(x => x.Batch.ScheduleID == material.ScheduleID);
+            if (batch.Batch == null || !batch.FullAccess)
+                return StatusCode(403, new { message = "This classroom unlocks once your course fee is paid or an administrator grants full access." });
+
+            var existing = (await submissionRep.ListForStudent(student.StudentID)).FirstOrDefault(s => s.MaterialID == materialId);
+            if (existing != null && !existing.CanSubmit)
+                return Conflict(new { message = "This homework has already been graded." });
+
+            try
+            {
+                var fileUrl = await uploader.SaveMediaAsync(file,
+                    Areas.StudentPortal.Controllers.HomeworkController.SubmissionFolder,
+                    Areas.StudentPortal.Controllers.HomeworkController.AllowedExtensions,
+                    Areas.StudentPortal.Controllers.HomeworkController.MaxBytes);
+                if (fileUrl == null) return BadRequest(new { message = "Please choose a file to submit." });
+
+                await submissionRep.Upsert(materialId, student.StudentID, fileUrl);
+                await notifier.NotifyScheduleInstructors(material.ScheduleID, "HomeworkSubmitted",
+                    "New homework submission", $"{student.FullName} submitted \"{material.Title}\".",
+                    $"/Lecturer/Notes/Submissions?materialId={Uri.EscapeDataString(materialId)}", student.StudentID);
+                return Ok(new { fileUrl = AbsoluteUrl(fileUrl) });
+            }
+            catch (InvalidOperationException ex)
+            {
+                // Uploader's own message (wrong type, too large...).
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
         // LectureMaterials/Index (everything except homework) + the courses
         // still locked behind the full fee.
         [HttpGet("materials")]
