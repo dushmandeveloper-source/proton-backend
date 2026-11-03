@@ -13,7 +13,7 @@ namespace Web_Backend.Controllers.Api
     [ApiController]
     [Route("api/student-app")]
     [RequireAppHeader]
-    public class StudentAppApiController : ControllerBase
+    public partial class StudentAppApiController : ControllerBase
     {
         private readonly IStudentData studentRep;
         private readonly INotificationData notificationRep;
