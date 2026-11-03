@@ -30,25 +30,30 @@ namespace Web_Backend.Areas.LecturerPortal.Controllers
         // Lecturer stops an attempt (accident, cheating, student left): submits
         // it with the answers saved so far, so it lands in Exam Grading &
         // Review where it can be graded, rejected or sent back for a redo.
-        // Same "assigned to this exam today" rule as ExamWatchHub.RequestWatch.
+        // Also posted as a plain form from Student Exam History (returnUrl
+        // set): it then redirects back with a message instead of JSON.
+        // Allowed when the exam is on this lecturer's schedule today, or the
+        // attempt is on their live list (same assignment, any day -- so a
+        // retake or an exam started on another day can be stopped too).
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> End(string attemptId)
+        public async Task<IActionResult> End(string attemptId, string? returnUrl = null)
         {
             Auth.CheckUser();
             var userId = Auth.GetUserId();
 
             var attempt = await attemptRep.Get(attemptId);
             if (attempt == null)
-                return Json(new { success = false, message = "Attempt not found." });
+                return Done(false, "Attempt not found.", returnUrl);
 
             var today = SriLankaTime.Today;
             var segments = await examScheduleRep.GetSegmentsForInstructor(userId, today, today);
-            if (!segments.Any(s => s.ExamID == attempt.ExamID))
-                return Json(new { success = false, message = "You are not assigned to this exam." });
+            if (!segments.Any(s => s.ExamID == attempt.ExamID)
+                && !(await attemptRep.ListInProgressForInstructor(userId)).Any(a => a.AttemptID == attemptId))
+                return Done(false, "You are not assigned to this exam.", returnUrl);
 
             if (attempt.Status != "InProgress")
-                return Json(new { success = true, message = "This exam had already ended." });
+                return Done(true, "This exam had already ended.", returnUrl);
 
             try
             {
@@ -56,7 +61,7 @@ namespace Web_Backend.Areas.LecturerPortal.Controllers
             }
             catch (Exception ex)
             {
-                return Json(new { success = false, message = "Could not end the exam: " + ex.Message });
+                return Done(false, "Could not end the exam: " + ex.Message, returnUrl);
             }
 
             // If the student still has the exam open, close it for them.
@@ -64,7 +69,16 @@ namespace Web_Backend.Areas.LecturerPortal.Controllers
             if (connectionId != null)
                 await watchHub.Clients.Client(connectionId).SendAsync("ExamEndedByLecturer", attemptId);
 
-            return Json(new { success = true });
+            return Done(true, null, returnUrl);
+        }
+
+        private IActionResult Done(bool success, string? message, string? returnUrl)
+        {
+            if (string.IsNullOrEmpty(returnUrl) || !Url.IsLocalUrl(returnUrl))
+                return message == null ? Json(new { success }) : Json(new { success, message });
+            TempData[success ? "SuccessMessage" : "ErrorMessage"] =
+                message ?? "Exam ended. It's now in review with the answers saved so far.";
+            return LocalRedirect(returnUrl);
         }
 
         [HttpGet]

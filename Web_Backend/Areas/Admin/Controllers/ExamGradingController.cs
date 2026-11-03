@@ -87,6 +87,42 @@ namespace Web_Backend.Areas.Admin.Controllers
         [HttpGet]
         public IActionResult AdminReview() => RedirectToAction("Index", new { tab = "review" });
 
+        // Force-stop a running attempt (Student Exam History): submits it with
+        // the answers saved so far, so it goes to review; closes the exam on
+        // the student's page/app if it's still open. Same as the lecturer's
+        // Live Exam Viewing "End exam".
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> EndAttempt(string attemptId, string? returnUrl,
+            [FromServices] Microsoft.AspNetCore.SignalR.IHubContext<Web_Backend.Hubs.ExamWatchHub> watchHub)
+        {
+            Auth.CheckPermission(PermissionCode.Exams, 'E');
+            var attempt = await attemptRep.Get(attemptId);
+            if (attempt == null)
+                TempData["ErrorMessage"] = "Attempt not found.";
+            else if (attempt.Status != "InProgress")
+                TempData["SuccessMessage"] = "This exam had already ended.";
+            else
+            {
+                try
+                {
+                    await attemptRep.Submit(attemptId, isForced: true);
+                    var connectionId = Web_Backend.Hubs.ExamWatchHub.StudentConnectionFor(attemptId);
+                    if (connectionId != null)
+                        await Microsoft.AspNetCore.SignalR.ClientProxyExtensions.SendAsync(
+                            watchHub.Clients.Client(connectionId), "ExamEndedByLecturer", attemptId);
+                    TempData["SuccessMessage"] = "Exam ended. It's now in review with the answers saved so far.";
+                }
+                catch (Exception ex)
+                {
+                    TempData["ErrorMessage"] = "Could not end the exam: " + ex.Message;
+                }
+            }
+            return !string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl)
+                ? LocalRedirect(returnUrl)
+                : RedirectToAction("Index");
+        }
+
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> AdminApprove(string attemptId)
