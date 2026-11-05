@@ -149,6 +149,8 @@ namespace Web_Backend.Controllers.Api
                 courseTitle = entry.Batch.CourseTitle,
                 selectedModule = selected ?? "general",
                 generalCount = all.Count(m => string.IsNullOrEmpty(m.ModuleID)),
+                // 0118: online assignments of the selected module (app 1.9+).
+                onlineAssignments = await ModuleAssignments(student, scheduleId, selected, entry.Batch.ScheduleName, entry.Batch.CourseTitle),
                 modules = modules.Select(m => new
                 {
                     moduleId = m.ModuleID,

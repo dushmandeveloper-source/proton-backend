@@ -21,40 +21,60 @@ namespace Web_Backend.Controllers.Api
             var (list, attempts) = await OnlineAssignmentRules.ForStudent(student, examRep, attemptRep, registrationRep, scheduleRep);
             var batches = (await scheduleRep.GetList(new Areas.Admin.Models.CourseScheduleSearchView { IsActive = "A" }))
                 .ToDictionary(b => b.ScheduleID, b => b);
-            var now = SriLankaTime.Now;
-
             return Ok(list.Select(e =>
             {
                 attempts.TryGetValue(e.ExamID, out var at);
-                var notOpen = e.OpenDate.HasValue && now < e.OpenDate.Value;
-                var pastDue = e.DueDate.HasValue && now > e.DueDate.Value;
-                var finished = at != null && !at.IsInProgress;
-                var released = finished && at!.ResultReleasedDate.HasValue;
-                // open | in_progress | submitted | released | upcoming | missed
-                var state = released ? "released"
-                    : finished ? "submitted"
-                    : at != null && at.IsInProgress && !pastDue ? "in_progress"
-                    : notOpen ? "upcoming"
-                    : pastDue ? "missed"
-                    : "open";
                 batches.TryGetValue(e.AssignmentScheduleID, out var batch);
-                return new
-                {
-                    examId = e.ExamID,
-                    title = e.ExamTitle,
-                    description = e.Description,
-                    batchName = batch?.ScheduleName ?? "",
-                    courseTitle = batch?.CourseTitle ?? "",
-                    openAt = e.OpenDate,
-                    dueAt = e.DueDate,
-                    questionCount = e.QuestionCount,
-                    totalMarks = e.TotalMarks,
-                    state,
-                    canOpen = state is "open" or "in_progress",
-                    attemptId = at?.AttemptID,
-                    passed = released ? at!.Passed : null
-                };
+                return AssignmentRow(e, at, batch?.ScheduleName ?? "", batch?.CourseTitle ?? "");
             }));
+        }
+
+        // One assignment as the app shows it (Home list and classroom module).
+        private static object AssignmentRow(Areas.Admin.Models.Exam e, Areas.Admin.Models.ExamAttempt? at, string batchName, string courseTitle)
+        {
+            var now = SriLankaTime.Now;
+            var notOpen = e.OpenDate.HasValue && now < e.OpenDate.Value;
+            var pastDue = e.DueDate.HasValue && now > e.DueDate.Value;
+            var finished = at != null && !at.IsInProgress;
+            var released = finished && at!.ResultReleasedDate.HasValue;
+            // open | in_progress | submitted | released | upcoming | missed
+            var state = released ? "released"
+                : finished ? "submitted"
+                : at != null && at.IsInProgress && !pastDue ? "in_progress"
+                : notOpen ? "upcoming"
+                : pastDue ? "missed"
+                : "open";
+            return new
+            {
+                examId = e.ExamID,
+                title = e.ExamTitle,
+                description = e.Description,
+                batchName,
+                courseTitle,
+                openAt = e.OpenDate,
+                dueAt = e.DueDate,
+                questionCount = e.QuestionCount,
+                totalMarks = e.TotalMarks,
+                state,
+                canOpen = state is "open" or "in_progress",
+                attemptId = at?.AttemptID,
+                passed = released ? at!.Passed : null
+            };
+        }
+
+        // Online assignments in one classroom module that are set for this
+        // student (website Classroom shows the same), for ClassroomBatch.
+        private async Task<List<object>> ModuleAssignments(Areas.Admin.Models.Student student, string scheduleId, string? moduleId, string batchName, string courseTitle)
+        {
+            var list = await OnlineAssignmentRules.OnlyAssigned((await examRep.GetList(new Areas.Admin.Models.ExamSearchView { IsActive = "A" }))
+                .Where(x => x.IsAssignment && x.AssignmentScheduleID == scheduleId && (x.AssignmentModuleID ?? "") == (moduleId ?? ""))
+                .OrderBy(x => x.DueDate), student.StudentID, examRep);
+            if (list.Count == 0) return new();
+            var attempts = (await attemptRep.ListForStudent(student.StudentID))
+                .Where(a => a.Status != "Voided")
+                .GroupBy(a => a.ExamID)
+                .ToDictionary(g => g.Key, g => g.OrderByDescending(a => a.AttemptNumber).First());
+            return list.Select(e => AssignmentRow(e, attempts.GetValueOrDefault(e.ExamID), batchName, courseTitle)).ToList();
         }
 
         [HttpPost("assignments/{examId}/open")]
