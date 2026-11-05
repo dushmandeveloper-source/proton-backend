@@ -55,7 +55,7 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
             if (inProgress != null && inProgress.SecondsRemaining > 0)
                 return RedirectToAction("Take", new { attemptId = inProgress.AttemptID });
 
-            var blocked = await OnlineAssignmentRules.WhyCannotStart(exam, student, registrationRep, scheduleRep);
+            var blocked = await OnlineAssignmentRules.WhyCannotStart(exam, student, examRep, registrationRep, scheduleRep);
             if (blocked != null)
             {
                 TempData["ErrorMessage"] = blocked;

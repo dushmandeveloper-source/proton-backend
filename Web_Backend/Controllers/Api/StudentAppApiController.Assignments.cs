@@ -70,7 +70,7 @@ namespace Web_Backend.Controllers.Api
                 .FirstOrDefault(a => a.ExamID == examId && a.IsInProgress && a.SecondsRemaining > 0);
             if (resume != null) return Ok(new { attemptId = resume.AttemptID, resumed = true });
 
-            var blocked = await OnlineAssignmentRules.WhyCannotStart(exam, student, registrationRep, scheduleRep);
+            var blocked = await OnlineAssignmentRules.WhyCannotStart(exam, student, examRep, registrationRep, scheduleRep);
             if (blocked != null) return Conflict(new { message = blocked });
 
             try

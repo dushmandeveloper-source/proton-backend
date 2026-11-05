@@ -101,6 +101,12 @@ namespace Web_Backend.Classes
             ViewBag.CurrentUser = Auth.GetUser();
             ViewBag.SubmissionsController = SubmissionsController;
             ViewBag.CanDeleteItem = (Func<LectureMaterial, bool>)CanDeleteItem;
+
+            // Online assignments (0117/0118) in the selected module.
+            var examRep = HttpContext.RequestServices.GetRequiredService<IExamData>();
+            ViewBag.ModuleAssignments = (await examRep.GetList(new ExamSearchView { IsActive = "A" }))
+                .Where(x => x.IsAssignment && x.AssignmentScheduleID == id && (x.AssignmentModuleID ?? "") == (selected ?? ""))
+                .OrderBy(x => x.DueDate).ToList();
             return View("Batch", vm);
         }
 

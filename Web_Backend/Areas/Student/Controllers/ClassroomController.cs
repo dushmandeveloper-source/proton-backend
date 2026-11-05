@@ -138,9 +138,10 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
 
             // Online assignments (0117) for this batch, with the student's
             // latest attempt at each (resume / submitted / released).
-            ViewBag.OnlineAssignments = (await examRep.GetList(new ExamSearchView { IsActive = "A" }))
-                .Where(x => x.IsAssignment && x.AssignmentScheduleID == id)
-                .OrderBy(x => x.DueDate).ToList();
+            // Only the selected module's (0118), and only ones set for this student.
+            ViewBag.OnlineAssignments = await OnlineAssignmentRules.OnlyAssigned((await examRep.GetList(new ExamSearchView { IsActive = "A" }))
+                .Where(x => x.IsAssignment && x.AssignmentScheduleID == id && (x.AssignmentModuleID ?? "") == (selected ?? ""))
+                .OrderBy(x => x.DueDate), student.StudentID, examRep);
             ViewBag.AssignmentAttempts = (await attemptRep.ListForStudent(student.StudentID))
                 .Where(a => a.Status != "Voided")
                 .GroupBy(a => a.ExamID)

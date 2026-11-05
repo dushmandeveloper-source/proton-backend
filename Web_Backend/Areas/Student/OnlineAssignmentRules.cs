@@ -44,9 +44,9 @@ namespace Web_Backend.Areas.StudentPortal
             if (batchIds.Count == 0) return (new(), new());
 
             var cutoff = SriLankaTime.Now.AddDays(-recentDays);
-            var list = (await examRep.GetList(new ExamSearchView { IsActive = "A" }))
+            var list = await OnlyAssigned((await examRep.GetList(new ExamSearchView { IsActive = "A" }))
                 .Where(x => x.IsAssignment && batchIds.Contains(x.AssignmentScheduleID) && x.DueDate >= cutoff)
-                .OrderBy(x => x.DueDate).ToList();
+                .OrderBy(x => x.DueDate), student.StudentID, examRep);
             var attempts = list.Count == 0 ? new Dictionary<string, ExamAttempt>() :
                 (await attemptRep.ListForStudent(student.StudentID))
                     .Where(a => a.Status != "Voided")
@@ -55,12 +55,30 @@ namespace Web_Backend.Areas.StudentPortal
             return (list, attempts);
         }
 
+        // 0118: an assignment limited to chosen students is only theirs;
+        // no chosen students = the whole batch.
+        public static async Task<bool> IsAssignedTo(string examId, string studentId, IExamData examRep)
+        {
+            var chosen = await examRep.ListAssignmentStudents(examId);
+            return chosen.Count == 0 || chosen.Any(c => c.StudentID == studentId);
+        }
+
+        public static async Task<List<Exam>> OnlyAssigned(IEnumerable<Exam> exams, string studentId, IExamData examRep)
+        {
+            var result = new List<Exam>();
+            foreach (var e in exams)
+                if (await IsAssignedTo(e.ExamID, studentId, examRep)) result.Add(e);
+            return result;
+        }
+
         // Null when the student may open the assignment now, otherwise why not.
-        public static async Task<string?> WhyCannotStart(Exam exam, Student student,
+        public static async Task<string?> WhyCannotStart(Exam exam, Student student, IExamData examRep,
             ICourseRegistrationData registrationRep, ICourseScheduleData scheduleRep)
         {
             if (!exam.IsAssignment || exam.IsActive != "A")
                 return "This assignment is not available.";
+            if (!await IsAssignedTo(exam.ExamID, student.StudentID, examRep))
+                return "This assignment is not set for you.";
             if (student.IsContentRestricted)
                 return "Your account is still being verified.";
 

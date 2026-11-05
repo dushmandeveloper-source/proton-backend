@@ -22,10 +22,14 @@ namespace Web_Backend.Classes
         protected readonly IExamData examRep;
         protected readonly IExamAttemptData attemptRep;
         protected readonly ICourseScheduleData scheduleRep;
+        protected readonly IExamScheduleData examScheduleRep;
+        protected readonly IBatchModuleData moduleRep;
         private readonly IImageUploader uploader;
 
-        protected OnlineAssignmentStaffController(IExamData examRep, IExamAttemptData attemptRep, ICourseScheduleData scheduleRep, IImageUploader uploader)
+        protected OnlineAssignmentStaffController(IExamData examRep, IExamAttemptData attemptRep, ICourseScheduleData scheduleRep, IImageUploader uploader, IExamScheduleData examScheduleRep, IBatchModuleData moduleRep)
         {
+            this.moduleRep = moduleRep;
+            this.examScheduleRep = examScheduleRep;
             this.examRep = examRep;
             this.attemptRep = attemptRep;
             this.scheduleRep = scheduleRep;
@@ -81,6 +85,9 @@ namespace Web_Backend.Classes
                 ? new List<ExamAttempt>()
                 : (await attemptRep.ListAllForAdmin()).Where(a => ids.Contains(a.ExamID) && a.Status != "Voided").ToList();
 
+            var selected = new Dictionary<string, List<ExamScheduleStudentRow>>();
+            foreach (var x in exams) selected[x.ExamID] = await examRep.ListAssignmentStudents(x.ExamID);
+
             ViewBag.CurrentUser = Auth.GetUser();
             return View("Index", new OnlineAssignmentListViewModel
             {
@@ -95,14 +102,15 @@ namespace Web_Backend.Classes
                         InProgress = mine.Count(a => a.IsInProgress),
                         Submitted = mine.Count(a => !a.IsInProgress),
                         AwaitingMarks = mine.Count(a => !a.IsInProgress && !a.ResultReleasedDate.HasValue),
-                        Released = mine.Count(a => a.ResultReleasedDate.HasValue)
+                        Released = mine.Count(a => a.ResultReleasedDate.HasValue),
+                        SelectedStudents = selected[x.ExamID]
                     };
                 }).ToList()
             });
         }
 
         [HttpGet]
-        public async Task<IActionResult> Add(string scheduleId)
+        public async Task<IActionResult> Add(string scheduleId, string? moduleId)
         {
             CheckEdit();
             var batch = await FindBatch(scheduleId);
@@ -112,6 +120,7 @@ namespace Web_Backend.Classes
             return await EditView(batch, new OnlineAssignmentForm
             {
                 ScheduleID = scheduleId,
+                ModuleID = moduleId ?? "",
                 OpenDate = SriLankaTime.Now.AddMinutes(-SriLankaTime.Now.Minute % 15),
                 DueDate = today.AddDays(7).AddHours(23).AddMinutes(59)
             }, null, "details");
@@ -123,13 +132,21 @@ namespace Web_Backend.Classes
             CheckView();
             var (exam, batch) = await FindAssignment(id);
             if (exam == null) return NotFoundBack();
-            return await EditView(batch!, ToForm(exam), exam, tab == "questions" ? "questions" : "details");
+            var form = ToForm(exam);
+            var chosen = await examRep.ListAssignmentStudents(exam.ExamID);
+            if (chosen.Count > 0)
+            {
+                form.Audience = "selected";
+                form.StudentIDs = chosen.Select(c => c.StudentID).ToList();
+            }
+            return await EditView(batch!, form, exam, tab == "questions" ? "questions" : "details");
         }
 
         private static OnlineAssignmentForm ToForm(Exam e) => new()
         {
             ExamID = e.ExamID,
             ScheduleID = e.AssignmentScheduleID,
+            ModuleID = e.AssignmentModuleID ?? "",
             Title = e.ExamTitle,
             Description = e.Description,
             OpenDate = e.OpenDate,
@@ -158,7 +175,9 @@ namespace Web_Backend.Classes
                 Detail = detail,
                 Tab = exam == null ? "details" : tab,
                 AttemptCount = attemptCount,
-                CanEdit = CanEdit()
+                CanEdit = CanEdit(),
+                Roster = await examScheduleRep.BatchStudents(batch.ScheduleID),
+                Modules = await moduleRep.List(batch.ScheduleID)
             });
         }
 
@@ -186,6 +205,13 @@ namespace Web_Backend.Classes
                 ModelState.AddModelError("Form.DueDate", "The due date must be after the open date.");
             if (form.IsNew && form.DueDate.HasValue && form.DueDate <= SriLankaTime.Now)
                 ModelState.AddModelError("Form.DueDate", "The due date must be in the future.");
+            if (form.Audience == "selected")
+            {
+                var roster = (await examScheduleRep.BatchStudents(batch.ScheduleID)).Select(r => r.StudentID).ToHashSet();
+                form.StudentIDs = form.StudentIDs.Where(roster.Contains).Distinct().ToList();
+                if (form.StudentIDs.Count == 0)
+                    ModelState.AddModelError("Form.StudentIDs", "Pick at least one student, or choose Whole batch.");
+            }
             if (!ModelState.IsValid)
             {
                 TempData["ErrorMessage"] = string.Join(" ", ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).Distinct());
@@ -204,7 +230,8 @@ namespace Web_Backend.Classes
                 exam.PassingPercentage = form.PassingPercentage;
 
                 var id = await examRep.AddEdit(exam);
-                await examRep.SetAssignment(id, batch.ScheduleID, form.OpenDate!.Value, form.DueDate!.Value, Auth.GetUserId());
+                await examRep.SetAssignment(id, batch.ScheduleID, form.OpenDate!.Value, form.DueDate!.Value, Auth.GetUserId(), form.ModuleID);
+                await examRep.SetAssignmentStudents(id, form.Audience == "selected" ? form.StudentIDs : new List<string>());
 
                 TempData["SuccessMessage"] = form.IsNew ? "Assignment created — now add its questions." : "Assignment updated.";
                 return RedirectToAction("Edit", new { id, tab = form.IsNew ? "questions" : "details" });

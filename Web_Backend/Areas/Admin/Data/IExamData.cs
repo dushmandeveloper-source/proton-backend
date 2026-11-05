@@ -9,7 +9,9 @@ namespace Web_Backend.Areas.Admin.Data
         Task<string> AddEdit(Exam exam);
         Task Deactivate(string id);
         Task DeletePermanently(string id);
-        Task SetAssignment(string examId, string scheduleId, DateTime openDate, DateTime dueDate, string createdByUserId);
+        Task SetAssignment(string examId, string scheduleId, DateTime openDate, DateTime dueDate, string createdByUserId, string? moduleId);
+        Task SetAssignmentStudents(string examId, IEnumerable<string> studentIds);
+        Task<List<ExamScheduleStudentRow>> ListAssignmentStudents(string examId);
 
         Task<List<ExamQuestion>> GetQuestions(string examId);
         Task<ExamQuestion?> GetQuestion(string id);

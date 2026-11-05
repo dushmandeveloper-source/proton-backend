@@ -48,7 +48,7 @@ namespace Web_Backend.Areas.Admin.Data
         public Task DeletePermanently(string id) =>
             db.ExecuteNonQuery("edu.Exam_DeletePermanently", new { APIKey = AppData.GetAPIKey(), ID = id });
 
-        public Task SetAssignment(string examId, string scheduleId, DateTime openDate, DateTime dueDate, string createdByUserId) =>
+        public Task SetAssignment(string examId, string scheduleId, DateTime openDate, DateTime dueDate, string createdByUserId, string? moduleId) =>
             db.ExecuteNonQuery("edu.Exam_SetAssignment", new
             {
                 APIKey = AppData.GetAPIKey(),
@@ -56,8 +56,21 @@ namespace Web_Backend.Areas.Admin.Data
                 AssignmentScheduleID = scheduleId,
                 OpenDate = openDate,
                 DueDate = dueDate,
-                CreatedByUserID = createdByUserId
+                CreatedByUserID = createdByUserId,
+                ModuleID = string.IsNullOrEmpty(moduleId) ? null : moduleId
             });
+
+        // 0118: empty list = the whole batch.
+        public Task SetAssignmentStudents(string examId, IEnumerable<string> studentIds) =>
+            db.ExecuteNonQuery("edu.ExamAssignmentStudent_Set", new
+            {
+                APIKey = AppData.GetAPIKey(),
+                ExamID = examId,
+                StudentIDsJSON = System.Text.Json.JsonSerializer.Serialize(studentIds.Distinct().ToList())
+            });
+
+        public Task<List<ExamScheduleStudentRow>> ListAssignmentStudents(string examId) =>
+            db.GetList<ExamScheduleStudentRow, object>("edu.ExamAssignmentStudent_List", new { APIKey = AppData.GetAPIKey(), ExamID = examId });
 
         // ---------- Questions ----------
         public Task<List<ExamQuestion>> GetQuestions(string examId) =>

@@ -47,6 +47,7 @@ namespace Web_Backend.Areas.Admin.Models
         // classroom batch and open from OpenDate to DueDate (Sri Lanka time).
         public bool IsAssignment { get; set; }
         public string AssignmentScheduleID { get; set; } = "";
+        public string AssignmentModuleID { get; set; } = ""; // 0118, "" = General
         public DateTime? OpenDate { get; set; }
         public DateTime? DueDate { get; set; }
         public string CreatedByUserID { get; set; } = "";

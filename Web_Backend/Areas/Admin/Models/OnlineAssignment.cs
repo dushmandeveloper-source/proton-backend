@@ -8,6 +8,7 @@ namespace Web_Backend.Areas.Admin.Models
     {
         public string ExamID { get; set; } = "";
         public string ScheduleID { get; set; } = "";
+        public string ModuleID { get; set; } = ""; // 0118, "" = General
 
         [Required(ErrorMessage = "Give the assignment a title.")]
         public string Title { get; set; } = "";
@@ -22,6 +23,10 @@ namespace Web_Backend.Areas.Admin.Models
         [Range(0, 100, ErrorMessage = "Pass mark must be between 0 and 100%.")]
         public decimal PassingPercentage { get; set; } = 50;
 
+        // 0118: "batch" = everyone in the batch, "selected" = only StudentIDs.
+        public string Audience { get; set; } = "batch";
+        public List<string> StudentIDs { get; set; } = new();
+
         public bool IsNew => string.IsNullOrEmpty(ExamID);
     }
 
@@ -32,6 +37,7 @@ namespace Web_Backend.Areas.Admin.Models
         public int InProgress { get; set; }
         public int AwaitingMarks { get; set; }
         public int Released { get; set; }
+        public List<ExamScheduleStudentRow> SelectedStudents { get; set; } = new();
     }
 
     public class OnlineAssignmentListViewModel
@@ -49,6 +55,10 @@ namespace Web_Backend.Areas.Admin.Models
         public string Tab { get; set; } = "details";
         public int AttemptCount { get; set; }
         public bool CanEdit { get; set; }
+
+        // Students registered in the batch, for the "Selected students" picker.
+        public List<ExamScheduleStudentRow> Roster { get; set; } = new();
+        public List<BatchModule> Modules { get; set; } = new();
     }
 
     public class OnlineAssignmentResultsViewModel

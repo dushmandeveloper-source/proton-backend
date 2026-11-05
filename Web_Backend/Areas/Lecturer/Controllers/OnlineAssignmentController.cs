@@ -10,8 +10,8 @@ namespace Web_Backend.Areas.LecturerPortal.Controllers
     [Area("Lecturer")]
     public class OnlineAssignmentController : OnlineAssignmentStaffController
     {
-        public OnlineAssignmentController(IExamData examRep, IExamAttemptData attemptRep, ICourseScheduleData scheduleRep, IImageUploader uploader)
-            : base(examRep, attemptRep, scheduleRep, uploader) { }
+        public OnlineAssignmentController(IExamData examRep, IExamAttemptData attemptRep, ICourseScheduleData scheduleRep, IImageUploader uploader, IExamScheduleData examScheduleRep, IBatchModuleData moduleRep)
+            : base(examRep, attemptRep, scheduleRep, uploader, examScheduleRep, moduleRep) { }
 
         protected override string GradeController => "ExamReview";
 

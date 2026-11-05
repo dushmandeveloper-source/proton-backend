@@ -37,11 +37,6 @@
         </div>
     }
 
-    @if (!locked)
-    {
-        <partial name="_OnlineAssignments" />
-    }
-
     <div class="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-6">
         <aside class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 p-3 space-y-1 h-fit">
             <p class="px-3 pt-2 pb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-400">Modules</p>
@@ -86,7 +81,9 @@
                 </div>
             </div>
 
-            @if (Model.Items.Count == 0)
+            <partial name="_OnlineAssignments" />
+
+            @if (Model.Items.Count == 0 && ((ViewBag.OnlineAssignments as List<Web_Backend.Areas.Admin.Models.Exam>)?.Count ?? 0) == 0)
             {
                 <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 p-10 text-center">
                     <p class="text-sm text-slate-400 dark:text-slate-500">Nothing posted here yet.</p>
