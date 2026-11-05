@@ -37,6 +37,11 @@
         </div>
     }
 
+    @if (!locked)
+    {
+        <partial name="_OnlineAssignments" />
+    }
+
     <div class="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-6">
         <aside class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 p-3 space-y-1 h-fit">
             <p class="px-3 pt-2 pb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-400">Modules</p>

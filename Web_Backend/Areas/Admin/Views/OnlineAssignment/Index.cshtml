@@ -1,0 +1,3 @@
+@model Web_Backend.Areas.Admin.Models.OnlineAssignmentListViewModel
+@{ ViewData["Title"] = "Online assignments - " + Model.Batch.ScheduleName; }
+<partial name="~/Views/Shared/OnlineAssignment/_Index.cshtml" model="Model" />

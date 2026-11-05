@@ -124,6 +124,10 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
             if (!attempt.IsInProgress)
                 return RedirectToAction("Result", new { attemptId });
 
+            // Online assignments (0117) use their own, unproctored page.
+            if ((await examRep.Get(attempt.ExamID))?.IsAssignment == true)
+                return RedirectToAction("Take", "OnlineAssignment", new { attemptId });
+
             var answers = await attemptRep.ListAnswers(attemptId);
 
             // MCQ options aren't part of ExamAttemptAnswer_List's own result
@@ -186,6 +190,10 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
             var attempt = await attemptRep.Get(attemptId);
             if (attempt == null || attempt.StudentID != student.StudentID)
                 return Json(new { success = false, message = "Attempt not found" });
+
+            // Online assignments (0117) are unproctored: never count strikes.
+            if ((await examRep.Get(attempt.ExamID))?.IsAssignment == true)
+                return Json(new { success = true, strikeCount = 0, status = attempt.Status });
 
             try
             {

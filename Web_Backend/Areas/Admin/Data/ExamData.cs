@@ -48,6 +48,17 @@ namespace Web_Backend.Areas.Admin.Data
         public Task DeletePermanently(string id) =>
             db.ExecuteNonQuery("edu.Exam_DeletePermanently", new { APIKey = AppData.GetAPIKey(), ID = id });
 
+        public Task SetAssignment(string examId, string scheduleId, DateTime openDate, DateTime dueDate, string createdByUserId) =>
+            db.ExecuteNonQuery("edu.Exam_SetAssignment", new
+            {
+                APIKey = AppData.GetAPIKey(),
+                ExamID = examId,
+                AssignmentScheduleID = scheduleId,
+                OpenDate = openDate,
+                DueDate = dueDate,
+                CreatedByUserID = createdByUserId
+            });
+
         // ---------- Questions ----------
         public Task<List<ExamQuestion>> GetQuestions(string examId) =>
             db.GetList<ExamQuestion, object>("edu.ExamQuestion_List",

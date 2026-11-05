@@ -43,7 +43,8 @@ namespace Web_Backend.Areas.Admin.Controllers
                 CourseID = CourseID,
                 IsActive = showInactive ? "" : "A"
             });
-            return View(list);
+            // Online assignments are managed from Classroom, not here.
+            return View(list.Where(x => !x.IsAssignment).ToList());
         }
 
         [HttpGet]

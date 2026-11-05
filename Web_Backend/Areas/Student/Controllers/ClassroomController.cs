@@ -21,9 +21,12 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
         private readonly ILectureMaterialData materialRep;
         private readonly IHomeworkSubmissionData submissionRep;
         private readonly NotificationService notifier;
+        private readonly IExamData examRep;
+        private readonly IExamAttemptData attemptRep;
 
         public ClassroomController(IStudentData studentRep, ICourseRegistrationData registrationRep, ICourseScheduleData scheduleRep,
-            IBatchModuleData moduleRep, ILectureMaterialData materialRep, IHomeworkSubmissionData submissionRep, NotificationService notifier)
+            IBatchModuleData moduleRep, ILectureMaterialData materialRep, IHomeworkSubmissionData submissionRep, NotificationService notifier,
+            IExamData examRep, IExamAttemptData attemptRep)
         {
             this.studentRep = studentRep;
             this.registrationRep = registrationRep;
@@ -32,25 +35,15 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
             this.materialRep = materialRep;
             this.submissionRep = submissionRep;
             this.notifier = notifier;
+            this.examRep = examRep;
+            this.attemptRep = attemptRep;
         }
 
         // Batches the student belongs to, with whether their registration
         // grants full access. A registration with no ScheduleID covers every
         // active batch of its course (same rule as ListForStudent).
-        private async Task<List<(CourseSchedule Batch, bool FullAccess)>> GetBatches(string studentId)
-        {
-            var regs = (await registrationRep.GetByStudent(studentId)).Where(r => r.IsActive == "A").ToList();
-            if (regs.Count == 0) return new();
-
-            var active = await scheduleRep.GetList(new CourseScheduleSearchView { IsActive = "A" });
-            var result = new List<(CourseSchedule, bool)>();
-            foreach (var b in active)
-            {
-                var reg = regs.FirstOrDefault(r => r.CourseID == b.CourseID && (string.IsNullOrEmpty(r.ScheduleID) || r.ScheduleID == b.ScheduleID));
-                if (reg != null) result.Add((b, reg.FullAccess));
-            }
-            return result;
-        }
+        private Task<List<(CourseSchedule Batch, bool FullAccess)>> GetBatches(string studentId) =>
+            OnlineAssignmentRules.StudentBatches(studentId, registrationRep, scheduleRep);
 
         [HttpGet]
         public async Task<IActionResult> Index()
@@ -142,6 +135,16 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
                 : module == "general" ? null : modules.FirstOrDefault(m => m.ModuleID == module)?.ModuleID;
 
             var submissions = await submissionRep.ListForStudent(student.StudentID);
+
+            // Online assignments (0117) for this batch, with the student's
+            // latest attempt at each (resume / submitted / released).
+            ViewBag.OnlineAssignments = (await examRep.GetList(new ExamSearchView { IsActive = "A" }))
+                .Where(x => x.IsAssignment && x.AssignmentScheduleID == id)
+                .OrderBy(x => x.DueDate).ToList();
+            ViewBag.AssignmentAttempts = (await attemptRep.ListForStudent(student.StudentID))
+                .Where(a => a.Status != "Voided")
+                .GroupBy(a => a.ExamID)
+                .ToDictionary(g => g.Key, g => g.OrderByDescending(a => a.AttemptNumber).First());
 
             ViewBag.CurrentUser = Auth.GetUser();
             ViewBag.Locked = !entry.FullAccess;

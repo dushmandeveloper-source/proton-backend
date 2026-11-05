@@ -178,7 +178,7 @@ namespace Web_Backend.Areas.LecturerPortal.Controllers
                 return RedirectToAction("Index", new { tab = "review" });
             }
 
-            int successCount = 0;
+            int successCount = 0, releasedCount = 0;
             var failures = new List<string>();
             var canReview = await ReviewAccess();
 
@@ -193,6 +193,16 @@ namespace Web_Backend.Areas.LecturerPortal.Controllers
                 try
                 {
                     await attemptRep.TeacherApprove(attemptId, user!.Id);
+                    // Online assignments (0117) have no admin approval step:
+                    // the lecturer's approval releases the result at once.
+                    // Admin still sees it in Exam Results History.
+                    if ((await examRep.Get(attempt.ExamID))?.IsAssignment == true)
+                    {
+                        var released = await attemptRep.AdminApprove(attemptId, user.Id);
+                        if (released != null)
+                            await ResultReleaseNotifier.NotifyAsync(released, attempt.StudentID, HttpContext.RequestServices);
+                        releasedCount++;
+                    }
                     successCount++;
                 }
                 catch (Exception ex)
@@ -203,6 +213,8 @@ namespace Web_Backend.Areas.LecturerPortal.Controllers
 
             var summary = new StringBuilder();
             summary.Append($"{successCount} of {attemptIds.Count} approved.");
+            if (releasedCount > 0)
+                summary.Append($" {releasedCount} assignment result{(releasedCount == 1 ? "" : "s")} released to the student{(releasedCount == 1 ? "" : "s")}.");
             if (failures.Any())
             {
                 summary.Append($" {failures.Count} failed: {string.Join("; ", failures)}");

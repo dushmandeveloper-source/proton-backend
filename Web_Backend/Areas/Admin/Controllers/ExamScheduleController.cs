@@ -34,7 +34,7 @@ namespace Web_Backend.Areas.Admin.Controllers
             ViewBag.KeyW = KeyW;
             ViewBag.ExamID = ExamID;
             ViewBag.ShowInactive = showInactive;
-            ViewBag.Exams = await examRep.GetList(new ExamSearchView { IsActive = "A" });
+            ViewBag.Exams = (await examRep.GetList(new ExamSearchView { IsActive = "A" })).Where(x => !x.IsAssignment).ToList();
             ViewBag.Instructors = await userRep.GetInstructors();
             // Batches (edu.CourseSchedule rows) an exam sitting can optionally
             // be linked to — e.g. a CSCA exam tied to a specific course intake.

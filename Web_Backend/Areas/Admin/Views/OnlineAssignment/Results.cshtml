@@ -1,0 +1,3 @@
+@model Web_Backend.Areas.Admin.Models.OnlineAssignmentResultsViewModel
+@{ ViewData["Title"] = "Submissions - " + Model.Exam.ExamTitle; }
+<partial name="~/Views/Shared/OnlineAssignment/_Results.cshtml" model="Model" />

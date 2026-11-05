@@ -176,6 +176,12 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
 
             ViewBag.ExamJoinRows = joinRows;
 
+            // Online assignments (0117): open/upcoming ones on the home page too.
+            var (assignments, assignmentAttempts) = await Web_Backend.Areas.StudentPortal.OnlineAssignmentRules.ForStudent(
+                student, examRep, attemptRep, registrationRep, scheduleRep);
+            ViewBag.OnlineAssignments = assignments;
+            ViewBag.AssignmentAttempts = assignmentAttempts;
+
             ViewBag.CurrentUser = Auth.GetUser();
             if (TempData[ShowLoginSummaryKey] is true)
             {

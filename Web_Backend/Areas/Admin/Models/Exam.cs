@@ -42,6 +42,14 @@ namespace Web_Backend.Areas.Admin.Models
 
         public string StatusLabel => IsActive == "A" ? "Active" : "Inactive";
         public bool IsStandalone => string.IsNullOrEmpty(CourseID);
+
+        // 0117: online assignment -- an exam with no proctoring, tied to one
+        // classroom batch and open from OpenDate to DueDate (Sri Lanka time).
+        public bool IsAssignment { get; set; }
+        public string AssignmentScheduleID { get; set; } = "";
+        public DateTime? OpenDate { get; set; }
+        public DateTime? DueDate { get; set; }
+        public string CreatedByUserID { get; set; } = "";
     }
 
     public class ExamSearchView

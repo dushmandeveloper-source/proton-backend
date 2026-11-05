@@ -287,6 +287,9 @@ namespace Web_Backend.Controllers.Api
                 strikeCount = attempt.StrikeCount,
                 totalMarks = attempt.TotalMarks,
                 description = exam?.Description ?? "",
+                // 0117: online assignment -> no proctoring; dueAt is Sri Lanka time.
+                isAssignment = exam?.IsAssignment ?? false,
+                dueAt = exam?.DueDate,
                 questions
             });
         }
@@ -330,6 +333,9 @@ namespace Web_Backend.Controllers.Api
             var (student, attempt) = await OwnAttempt(attemptId);
             if (student == null) return Unauthorized();
             if (attempt == null) return NotFound(new { message = "Attempt not found." });
+            // Online assignments (0117) are unproctored: never count strikes.
+            if ((await examRep.Get(attempt.ExamID))?.IsAssignment == true)
+                return Ok(new { strikeCount = 0, status = attempt.Status });
             try
             {
                 // The server keeps the count; 3 strikes terminates the attempt.

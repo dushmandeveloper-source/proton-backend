@@ -1,0 +1,80 @@
+@model Web_Backend.Areas.Admin.Models.OnlineAssignmentListViewModel
+@* Shared by Admin/OnlineAssignment/Index and Lecturer/OnlineAssignment/Index. *@
+@{
+    var now = Web_Backend.Classes.SriLankaTime.Now;
+}
+
+<div class="max-w-6xl mx-auto space-y-6 page-enter">
+    <div class="flex items-start justify-between gap-4 flex-wrap">
+        <div>
+            <a href="@Url.Action("Batch", "Classroom", new { id = Model.Batch.ScheduleID })" class="text-xs text-slate-500 hover:text-[#7c3aed] inline-flex items-center gap-1"><i data-lucide="arrow-left" class="w-3.5 h-3.5"></i> Back to classroom</a>
+            <h2 class="text-2xl font-bold text-slate-800 dark:text-slate-100 tracking-tight mt-1">Online assignments</h2>
+            <p class="text-slate-500 dark:text-slate-400 text-sm">@Model.Batch.ScheduleName &middot; @Model.Batch.CourseTitle</p>
+        </div>
+        @if (Model.CanEdit)
+        {
+            <a href="@Url.Action("Add", new { scheduleId = Model.Batch.ScheduleID })"
+               class="px-4 py-2.5 rounded-xl font-medium text-sm bg-[#7c3aed] text-white hover:bg-[#6d28d9] shadow-sm inline-flex items-center gap-2">
+                <i data-lucide="plus" class="w-4 h-4"></i> New assignment
+            </a>
+        }
+    </div>
+
+    @if (Model.Rows.Count == 0)
+    {
+        <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 p-10 text-center">
+            <div class="w-14 h-14 rounded-2xl bg-purple-50 dark:bg-purple-950 flex items-center justify-center mx-auto mb-4"><i data-lucide="notebook-pen" class="w-7 h-7 text-[#7c3aed] dark:text-purple-300"></i></div>
+            <h3 class="font-semibold text-slate-800 dark:text-slate-100">No online assignments yet</h3>
+            <p class="text-sm text-slate-500 dark:text-slate-400 mt-1 max-w-md mx-auto">Create one with MCQ and written questions. Students answer it online in their Classroom any time between the open and due date — no camera, screen sharing or fullscreen needed.</p>
+        </div>
+    }
+    else
+    {
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            @foreach (var r in Model.Rows)
+            {
+                var e = r.Exam;
+                var notOpen = e.OpenDate.HasValue && now < e.OpenDate.Value;
+                var closed = e.DueDate.HasValue && now > e.DueDate.Value;
+                var (label, cls) = closed ? ("Closed", "bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400")
+                    : notOpen ? ("Scheduled", "bg-sky-50 dark:bg-sky-950 text-sky-700 dark:text-sky-300")
+                    : ("Open now", "bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300");
+                <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 p-5 flex flex-col gap-4">
+                    <div class="flex items-start justify-between gap-3">
+                        <div class="min-w-0">
+                            <h3 class="font-semibold text-slate-800 dark:text-slate-100 truncate">@e.ExamTitle</h3>
+                            <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">@e.QuestionCount question@(e.QuestionCount == 1 ? "" : "s") &middot; @e.TotalMarks.ToString("0.##") marks &middot; pass @((e.PassingPercentage ?? 0).ToString("0.##"))%</p>
+                        </div>
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold whitespace-nowrap @cls">@label</span>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2 text-xs">
+                        <div class="rounded-xl bg-slate-50 dark:bg-slate-800/60 p-2.5"><p class="text-slate-400">Opens</p><p class="font-medium text-slate-700 dark:text-slate-200">@e.OpenDate?.ToString("dd MMM, hh:mm tt")</p></div>
+                        <div class="rounded-xl bg-slate-50 dark:bg-slate-800/60 p-2.5"><p class="text-slate-400">Due</p><p class="font-medium text-slate-700 dark:text-slate-200">@e.DueDate?.ToString("dd MMM, hh:mm tt")</p></div>
+                    </div>
+                    @if (e.QuestionCount == 0)
+                    {
+                        <p class="text-xs text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/50 rounded-xl px-3 py-2 flex items-center gap-1.5"><i data-lucide="triangle-alert" class="w-3.5 h-3.5"></i> No questions yet — students can't answer it until you add some.</p>
+                    }
+                    <div class="flex items-center gap-3 text-xs text-slate-500 dark:text-slate-400 flex-wrap">
+                        <span><b class="text-slate-700 dark:text-slate-200">@r.Submitted</b> submitted</span>
+                        <span><b class="text-slate-700 dark:text-slate-200">@r.InProgress</b> in progress</span>
+                        <span><b class="text-amber-600 dark:text-amber-400">@r.AwaitingMarks</b> to mark</span>
+                        <span><b class="text-emerald-600 dark:text-emerald-400">@r.Released</b> released</span>
+                    </div>
+                    <div class="flex items-center gap-2 mt-auto flex-wrap">
+                        <a href="@Url.Action("Results", new { id = e.ExamID })" class="px-3 py-2 rounded-xl text-xs font-medium bg-[#7c3aed] text-white hover:bg-[#6d28d9] inline-flex items-center gap-1.5"><i data-lucide="clipboard-check" class="w-3.5 h-3.5"></i> Submissions &amp; marks</a>
+                        <a href="@Url.Action("Edit", new { id = e.ExamID, tab = "questions" })" class="px-3 py-2 rounded-xl text-xs font-medium bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 inline-flex items-center gap-1.5"><i data-lucide="list-checks" class="w-3.5 h-3.5"></i> Questions</a>
+                        <a href="@Url.Action("Edit", new { id = e.ExamID })" class="px-3 py-2 rounded-xl text-xs font-medium bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 inline-flex items-center gap-1.5"><i data-lucide="settings-2" class="w-3.5 h-3.5"></i> Details</a>
+                        @if (Model.CanEdit)
+                        {
+                            <form method="post" action="@Url.Action("Remove", new { id = e.ExamID })" class="ml-auto" onsubmit="return confirm('Remove this assignment? Students will no longer see it. Submitted work and results are kept.');">
+                                @Html.AntiForgeryToken()
+                                <button type="submit" title="Remove" class="p-2 rounded-xl text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/50"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                            </form>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>

@@ -1,0 +1,72 @@
+@using Web_Backend.Areas.Admin.Models
+@*
+    Online assignments (0117) for this batch: open / continue / submitted /
+    released, from Classroom/Batch's ViewBag. Results stay Pass/Fail only,
+    same as Student/ExamAttempt/Result.
+*@
+@{
+    var list = ViewBag.OnlineAssignments as List<Exam> ?? new();
+    var attempts = ViewBag.AssignmentAttempts as Dictionary<string, ExamAttempt> ?? new();
+    var now = Web_Backend.Classes.SriLankaTime.Now;
+}
+@if (list.Count > 0)
+{
+    <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 p-5">
+        <div class="flex items-center gap-3 mb-4">
+            <div class="p-2.5 rounded-2xl bg-purple-50 dark:bg-purple-950"><i data-lucide="notebook-pen" class="w-5 h-5 text-[#7c3aed] dark:text-purple-300"></i></div>
+            <div>
+                <h3 class="font-semibold text-slate-800 dark:text-slate-100">Online assignments</h3>
+                <p class="text-xs text-slate-500 dark:text-slate-400">Answer online before the due date. Your answers save as you go.</p>
+            </div>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            @foreach (var a in list)
+            {
+                attempts.TryGetValue(a.ExamID, out var at);
+                var notOpen = a.OpenDate.HasValue && now < a.OpenDate.Value;
+                var pastDue = a.DueDate.HasValue && now > a.DueDate.Value;
+                var inProgress = at != null && at.IsInProgress && !pastDue;
+                var finished = at != null && !at.IsInProgress;
+                var released = finished && at!.ResultReleasedDate.HasValue;
+                string badge, badgeCls;
+                if (released) { badge = at!.Passed == true ? "Pass" : "Fail"; badgeCls = at.Passed == true ? "bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300" : "bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-300"; }
+                else if (finished) { badge = "Submitted · awaiting marks"; badgeCls = "bg-sky-50 dark:bg-sky-950 text-sky-700 dark:text-sky-300"; }
+                else if (inProgress) { badge = "In progress"; badgeCls = "bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-300"; }
+                else if (notOpen) { badge = "Opens soon"; badgeCls = "bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400"; }
+                else if (pastDue) { badge = "Missed"; badgeCls = "bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-300"; }
+                else { badge = "Open"; badgeCls = "bg-purple-50 dark:bg-purple-950 text-[#7c3aed] dark:text-purple-300"; }
+
+                <div class="rounded-2xl border border-slate-100 dark:border-slate-700 p-4 flex flex-col gap-3 hover:border-purple-200 dark:hover:border-purple-800 transition-colors">
+                    <div class="flex items-start justify-between gap-2">
+                        <p class="font-medium text-sm text-slate-800 dark:text-slate-100">@a.ExamTitle</p>
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold whitespace-nowrap @badgeCls">@badge</span>
+                    </div>
+                    <div class="text-xs text-slate-500 dark:text-slate-400 space-y-0.5">
+                        <p class="flex items-center gap-1.5"><i data-lucide="calendar-clock" class="w-3.5 h-3.5"></i> Due @a.DueDate?.ToString("ddd, dd MMM · hh:mm tt")</p>
+                        @if (notOpen) { <p class="flex items-center gap-1.5"><i data-lucide="lock" class="w-3.5 h-3.5"></i> Opens @a.OpenDate?.ToString("ddd, dd MMM · hh:mm tt")</p> }
+                        <p class="flex items-center gap-1.5"><i data-lucide="list-checks" class="w-3.5 h-3.5"></i> @a.QuestionCount question@(a.QuestionCount == 1 ? "" : "s") · @a.TotalMarks.ToString("0.##") marks</p>
+                    </div>
+                    <div class="mt-auto">
+                        @if (finished)
+                        {
+                            <a asp-controller="ExamAttempt" asp-action="Result" asp-route-attemptId="@at!.AttemptID"
+                               class="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700">
+                                <i data-lucide="eye" class="w-3.5 h-3.5"></i> View status
+                            </a>
+                        }
+                        else if (!notOpen && !pastDue)
+                        {
+                            <form asp-controller="OnlineAssignment" asp-action="Open" method="post">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="examId" value="@a.ExamID" />
+                                <button type="submit" class="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium bg-[#7c3aed] text-white hover:bg-[#6d28d9] shadow-sm">
+                                    <i data-lucide="@(inProgress ? "pencil" : "play")" class="w-3.5 h-3.5"></i> @(inProgress ? "Continue" : "Start")
+                                </button>
+                            </form>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+}

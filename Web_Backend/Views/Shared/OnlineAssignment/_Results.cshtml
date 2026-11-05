@@ -1,0 +1,65 @@
+@model Web_Backend.Areas.Admin.Models.OnlineAssignmentResultsViewModel
+@* Shared by Admin/OnlineAssignment/Results and Lecturer/OnlineAssignment/Results. *@
+@{
+    var e = Model.Exam;
+}
+
+<div class="max-w-5xl mx-auto space-y-6 page-enter">
+    <div class="flex items-center gap-3">
+        <a href="@Url.Action("Index", new { scheduleId = Model.Batch.ScheduleID })" title="Back to assignments" class="p-2 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700"><i data-lucide="arrow-left" class="w-5 h-5"></i></a>
+        <div class="min-w-0">
+            <h2 class="text-2xl font-bold text-slate-800 dark:text-slate-100 tracking-tight truncate">@e.ExamTitle</h2>
+            <p class="text-slate-500 dark:text-slate-400 text-sm">Submissions &middot; due @e.DueDate?.ToString("dd MMM yyyy, hh:mm tt") &middot; @e.TotalMarks.ToString("0.##") marks</p>
+        </div>
+    </div>
+
+    <div class="rounded-2xl border border-purple-100 dark:border-purple-900 bg-purple-50/60 dark:bg-purple-950/40 p-4 text-sm text-slate-600 dark:text-slate-300 flex items-start gap-3">
+        <i data-lucide="info" class="w-5 h-5 text-[#7c3aed] dark:text-purple-300 flex-shrink-0 mt-0.5"></i>
+        <p>MCQs are marked automatically. Open a submission to mark written answers; then approve it in <a href="@Url.Action("Index", Model.GradeController, new { tab = "review" })" class="font-medium text-[#7c3aed] dark:text-purple-300 underline">Exam grading → Review</a>. A lecturer's approval releases an assignment result to the student straight away.</p>
+    </div>
+
+    <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
+        @if (Model.Attempts.Count == 0)
+        {
+            <p class="p-8 text-center text-sm text-slate-400">No student has opened this assignment yet.</p>
+        }
+        else
+        {
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead class="bg-slate-50 dark:bg-slate-800/60 text-xs uppercase tracking-wide text-slate-400">
+                        <tr>
+                            <th class="text-left px-5 py-3 font-semibold">Student</th>
+                            <th class="text-left px-5 py-3 font-semibold">Submitted</th>
+                            <th class="text-left px-5 py-3 font-semibold">Marks</th>
+                            <th class="text-left px-5 py-3 font-semibold">Status</th>
+                            <th class="px-5 py-3"></th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100 dark:divide-slate-700">
+                        @foreach (var a in Model.Attempts)
+                        {
+                            var (label, cls) = a.IsInProgress ? ("Working on it", "bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-300")
+                                : a.ResultReleasedDate.HasValue ? ("Released", "bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300")
+                                : !a.IsFullyGraded ? ("To mark", "bg-rose-50 dark:bg-rose-950 text-rose-700 dark:text-rose-300")
+                                : a.TeacherReviewStatus == "Approved" ? ("Awaiting release", "bg-sky-50 dark:bg-sky-950 text-sky-700 dark:text-sky-300")
+                                : ("To approve", "bg-purple-50 dark:bg-purple-950 text-[#7c3aed] dark:text-purple-300");
+                            <tr class="hover:bg-slate-50/60 dark:hover:bg-slate-800/40">
+                                <td class="px-5 py-3"><p class="font-medium text-slate-800 dark:text-slate-100">@a.StudentName</p><p class="text-xs text-slate-400">@a.StudentEmail</p></td>
+                                <td class="px-5 py-3 text-slate-600 dark:text-slate-300 whitespace-nowrap">@(a.SubmittedDate.HasValue ? a.SubmittedDate.Value.ToString("dd MMM, hh:mm tt") : "—")</td>
+                                <td class="px-5 py-3 text-slate-600 dark:text-slate-300 whitespace-nowrap">@(a.TotalMarksAwarded.HasValue ? $"{a.TotalMarksAwarded:0.##} / {e.TotalMarks:0.##}" : "—")</td>
+                                <td class="px-5 py-3"><span class="px-2 py-0.5 rounded-full text-[11px] font-semibold whitespace-nowrap @cls">@label</span></td>
+                                <td class="px-5 py-3 text-right">
+                                    @if (!a.IsInProgress)
+                                    {
+                                        <a href="@Url.Action("Grade", Model.GradeController, new { attemptId = a.AttemptID })" class="px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 whitespace-nowrap">@(a.IsFullyGraded ? "View answers" : "Mark answers")</a>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+</div>

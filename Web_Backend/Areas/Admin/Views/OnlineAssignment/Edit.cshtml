@@ -1,0 +1,3 @@
+@model Web_Backend.Areas.Admin.Models.OnlineAssignmentEditViewModel
+@{ ViewData["Title"] = Model.Form.IsNew ? "New online assignment" : "Edit online assignment"; }
+<partial name="~/Views/Shared/OnlineAssignment/_Edit.cshtml" model="Model" />

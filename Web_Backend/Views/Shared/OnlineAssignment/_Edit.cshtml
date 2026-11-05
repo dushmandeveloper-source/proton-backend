@@ -1,0 +1,98 @@
+@model Web_Backend.Areas.Admin.Models.OnlineAssignmentEditViewModel
+@* Shared by Admin/OnlineAssignment/Edit and Lecturer/OnlineAssignment/Edit. *@
+@{
+    var f = Model.Form;
+    const string inputCls = "w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-2.5 text-sm text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-[#7c3aed]/40 focus:border-[#7c3aed]";
+    string tabCls(bool on) => on ? "border-[#7c3aed] text-[#7c3aed]" : "border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200";
+}
+
+<div class="max-w-5xl mx-auto page-enter">
+    <div class="flex items-center gap-3 mb-6">
+        <a href="@Url.Action("Index", new { scheduleId = Model.Batch.ScheduleID })" title="Back to assignments" class="p-2 rounded-xl text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700">
+            <i data-lucide="arrow-left" class="w-5 h-5"></i>
+        </a>
+        <div class="min-w-0">
+            <h2 class="text-2xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">@(f.IsNew ? "New online assignment" : f.Title)</h2>
+            <p class="text-slate-500 dark:text-slate-400 text-sm">@Model.Batch.ScheduleName &middot; @Model.Batch.CourseTitle</p>
+        </div>
+    </div>
+
+    <div class="flex gap-2 mb-6 border-b border-slate-100 dark:border-slate-700">
+        @if (f.IsNew)
+        {
+            <span class="px-4 py-2 text-sm font-medium border-b-2 -mb-px @tabCls(true)">1. Details &amp; schedule</span>
+            <span title="Save the details first" class="px-4 py-2 text-sm font-medium border-b-2 -mb-px border-transparent text-slate-300 dark:text-slate-600 cursor-not-allowed">2. Questions</span>
+        }
+        else
+        {
+            <a href="@Url.Action("Edit", new { id = f.ExamID, tab = "details" })" class="px-4 py-2 text-sm font-medium border-b-2 -mb-px @tabCls(Model.Tab == "details")">Details &amp; schedule</a>
+            <a href="@Url.Action("Edit", new { id = f.ExamID, tab = "questions" })" class="px-4 py-2 text-sm font-medium border-b-2 -mb-px @tabCls(Model.Tab == "questions")">Questions (@Model.Detail.Questions.Count)</a>
+            <a href="@Url.Action("Results", new { id = f.ExamID })" class="px-4 py-2 text-sm font-medium border-b-2 -mb-px @tabCls(false)">Submissions</a>
+        }
+    </div>
+
+    @if (Model.AttemptCount > 0)
+    {
+        <div class="mb-5 rounded-2xl border border-amber-100 dark:border-amber-900 bg-amber-50 dark:bg-amber-950/40 p-4 flex items-start gap-3">
+            <i data-lucide="triangle-alert" class="w-5 h-5 text-amber-600 dark:text-amber-300 flex-shrink-0 mt-0.5"></i>
+            <p class="text-sm text-amber-700 dark:text-amber-300">@Model.AttemptCount student@(Model.AttemptCount == 1 ? " has" : "s have") already started this assignment. Changing questions or marks now affects their work.</p>
+        </div>
+    }
+
+    @if (Model.Tab == "questions" && !f.IsNew)
+    {
+        <partial name="~/Views/Shared/Exam/_QuestionEditor.cshtml" model="Model.Detail"
+                 view-data='new ViewDataDictionary(ViewData) { ["QCtrl"] = "OnlineAssignment", ["CanEdit"] = Model.CanEdit, ["CanDelete"] = Model.CanEdit }' />
+    }
+    else
+    {
+        <form method="post" action="@Url.Action("Save")" class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 p-6 space-y-5">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="Form.ExamID" value="@f.ExamID" />
+            <input type="hidden" name="Form.ScheduleID" value="@f.ScheduleID" />
+
+            <div>
+                <label for="a-title" class="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-1.5">Title</label>
+                <input id="a-title" name="Form.Title" value="@f.Title" required maxlength="200" placeholder="e.g. Week 3 — Algebra practice" class="@inputCls" />
+            </div>
+
+            <div>
+                <label for="a-desc" class="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-1.5">Instructions <span class="font-normal text-slate-400">(optional)</span></label>
+                <textarea id="a-desc" name="Form.Description" rows="3" maxlength="1000" placeholder="Shown to students above the questions." class="@inputCls">@f.Description</textarea>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label for="a-open" class="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-1.5">Opens</label>
+                    <input id="a-open" type="datetime-local" name="Form.OpenDate" value="@f.OpenDate?.ToString("yyyy-MM-ddTHH:mm")" required class="@inputCls" />
+                    <p class="text-xs text-slate-400 mt-1">Students can start from this time.</p>
+                </div>
+                <div>
+                    <label for="a-due" class="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-1.5">Due</label>
+                    <input id="a-due" type="datetime-local" name="Form.DueDate" value="@f.DueDate?.ToString("yyyy-MM-ddTHH:mm")" required class="@inputCls" />
+                    <p class="text-xs text-slate-400 mt-1">Saved answers are submitted automatically at this time.</p>
+                </div>
+            </div>
+            <p class="text-xs text-slate-400 -mt-2 flex items-center gap-1.5"><i data-lucide="globe" class="w-3.5 h-3.5"></i> Times are Sri Lanka time, same as all class and exam schedules.</p>
+
+            <div class="sm:w-1/2">
+                <label for="a-pass" class="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-1.5">Pass mark</label>
+                <div class="relative">
+                    <input id="a-pass" type="number" name="Form.PassingPercentage" value="@f.PassingPercentage.ToString("0.##")" min="0" max="100" step="1" required class="@inputCls pr-10" />
+                    <span class="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-slate-400">%</span>
+                </div>
+                <p class="text-xs text-slate-400 mt-1">Students see Pass / Fail once you approve their marks.</p>
+            </div>
+
+            <div class="flex justify-end gap-2 pt-2">
+                <a href="@Url.Action("Index", new { scheduleId = Model.Batch.ScheduleID })" class="px-4 py-2 rounded-xl font-medium bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-sm hover:bg-slate-100 dark:hover:bg-slate-700">Cancel</a>
+                @if (Model.CanEdit)
+                {
+                    <button type="submit" class="px-4 py-2 rounded-xl font-medium bg-[#7c3aed] text-white hover:bg-[#6d28d9] text-sm inline-flex items-center gap-2">
+                        @if (f.IsNew) { <span>Save &amp; add questions</span><i data-lucide="arrow-right" class="w-4 h-4"></i> } else { <span>Save</span> }
+                    </button>
+                }
+            </div>
+        </form>
+    }
+</div>

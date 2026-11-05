@@ -1,0 +1,239 @@
+@using Web_Backend.Areas.Admin.Models
+@{
+    var attempt = (ExamAttempt)ViewBag.Attempt;
+    var exam = (Exam)ViewBag.Exam;
+    var answers = (List<ExamAttemptAnswer>)ViewBag.Answers;
+    var optionsByQuestion = ViewBag.OptionsByQuestion as Dictionary<string, List<ExamQuestionOption>>;
+    var ordered = answers.OrderBy(a => a.SortOrder).ToList();
+    var answeredCount = ordered.Count(a => a.IsMCQ ? !string.IsNullOrEmpty(a.SelectedOptionID) : !string.IsNullOrWhiteSpace(a.WrittenAnswerText));
+    ViewBag.Title = exam.ExamTitle;
+}
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.18.4/dist/katex.min.css" integrity="sha384-u1zONI5gPXUx0UKI62c75/zww972y0v2rSK5ZYlVdS6xEuWDeZWUI66v6t1gvlXJ" crossorigin="anonymous">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.18.4/dist/katex.min.js" integrity="sha384-ykMNcWQhhTUb0YV9SPpPUFURHZ+tWmubkakGBP+OgNK/UXdO2gtzglWx0Rj9hnO3" crossorigin="anonymous"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.18.4/dist/contrib/mhchem.min.js" integrity="sha384-fB8BH//9nBzROkMUsu/Dr35jWHIbnKesUo9rW0hfEgw8mZGnkAyBAjKX9F98OVuo" crossorigin="anonymous"></script>
+<script defer src="~/js/exam-math.js" asp-append-version="true"></script>
+
+<div class="max-w-3xl mx-auto space-y-5 page-enter pb-24">
+    <a asp-controller="Classroom" asp-action="Batch" asp-route-id="@exam.AssignmentScheduleID"
+       class="text-xs text-slate-500 hover:text-[#7c3aed] inline-flex items-center gap-1">
+        <i data-lucide="arrow-left" class="w-3.5 h-3.5"></i> Back to class (your answers are saved)
+    </a>
+
+    @if (TempData["ErrorMessage"] != null)
+    {
+        <div class="rounded-[20px] border border-red-100 dark:border-red-900 bg-red-50 dark:bg-red-950 p-4 flex items-center gap-3">
+            <i data-lucide="circle-x" class="w-5 h-5 text-red-600 dark:text-red-300 flex-shrink-0"></i>
+            <p class="text-sm text-red-700 dark:text-red-300">@TempData["ErrorMessage"]</p>
+        </div>
+    }
+
+    <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 p-6 sticky top-4 z-10">
+        <div class="flex items-start justify-between gap-4 flex-wrap">
+            <div class="min-w-0">
+                <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wide bg-purple-50 dark:bg-purple-950 text-[#7c3aed] dark:text-purple-300">
+                    <i data-lucide="notebook-pen" class="w-3 h-3"></i> Online assignment
+                </span>
+                <h1 class="text-xl font-bold text-slate-800 dark:text-slate-100 mt-1.5">@exam.ExamTitle</h1>
+                <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                    Answers save automatically &middot; you can leave and come back any time before the due date
+                </p>
+            </div>
+            <div class="text-right flex-shrink-0">
+                <p class="text-[11px] uppercase tracking-wide text-slate-400">Due</p>
+                <p class="text-sm font-semibold text-slate-700 dark:text-slate-200">@exam.DueDate?.ToString("ddd, dd MMM yyyy · hh:mm tt")</p>
+                <p id="dueCountdown" class="text-xs font-medium text-amber-600 dark:text-amber-400"
+                   data-expires="@DateTime.SpecifyKind(attempt.ExpiresDate, DateTimeKind.Utc).ToString("o")"></p>
+            </div>
+        </div>
+        <div class="mt-4">
+            <div class="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 mb-1.5">
+                <span><span id="answeredCount">@answeredCount</span> of @ordered.Count answered</span>
+                <span id="saveState" class="inline-flex items-center gap-1 text-slate-400"><i data-lucide="cloud" class="w-3.5 h-3.5"></i> Saved</span>
+            </div>
+            <div class="h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+                <div id="progressBar" class="h-full bg-[#7c3aed] transition-all duration-300" style="width:@(ordered.Count == 0 ? 0 : answeredCount * 100 / ordered.Count)%"></div>
+            </div>
+        </div>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(exam.Description))
+    {
+        <div class="rounded-[20px] border border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/40 p-4 text-sm text-slate-600 dark:text-slate-300 whitespace-pre-line">@exam.Description</div>
+    }
+
+    <form id="assignmentForm" asp-controller="ExamAttempt" asp-action="Submit" method="post" class="space-y-4">
+        @Html.AntiForgeryToken()
+        <input type="hidden" name="attemptId" value="@attempt.AttemptID" />
+
+        @for (var i = 0; i < ordered.Count; i++)
+        {
+            var ans = ordered[i];
+            <div class="assignment-question bg-white dark:bg-slate-900/60 rounded-[20px] shadow-sm border border-slate-100 dark:border-slate-700 p-6"
+                 data-question-id="@ans.QuestionID">
+                <div class="flex items-center justify-between mb-3 gap-2">
+                    <span class="text-xs font-semibold text-slate-500 dark:text-slate-400">Question @(i + 1) of @ordered.Count</span>
+                    <span class="flex items-center gap-2">
+                        <span class="inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wide @(ans.IsMCQ ? "bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-300" : "bg-amber-50 dark:bg-amber-950 text-amber-600 dark:text-amber-300")">@(ans.IsMCQ ? "MCQ" : "Written")</span>
+                        <span class="text-xs text-slate-400 dark:text-slate-500">@ans.Marks.ToString("0.##") marks</span>
+                    </span>
+                </div>
+                <div class="katex-render text-sm font-medium leading-relaxed text-slate-800 dark:text-slate-100 mb-4" data-latex="@ans.QuestionTextLatex">@ans.QuestionTextLatex</div>
+                @if (!string.IsNullOrEmpty(ans.ImageURL))
+                {
+                    <img src="@ans.ImageURL" alt="Question @(i + 1) figure" loading="@(i < 2 ? "eager" : "lazy")" decoding="async"
+                         class="block max-w-full sm:max-w-md h-auto mx-auto mb-4 rounded-xl border border-slate-100 dark:border-slate-700 bg-white p-2" />
+                }
+                @if (!string.IsNullOrEmpty(ans.AudioURL))
+                {
+                    <audio controls preload="none" src="@ans.AudioURL" class="w-full max-w-md mb-4"></audio>
+                }
+                @if (!string.IsNullOrEmpty(ans.VideoURL))
+                {
+                    <video controls preload="none" src="@ans.VideoURL" class="max-w-full max-h-72 rounded-xl mb-4"></video>
+                }
+
+                @if (ans.IsMCQ)
+                {
+                    var options = optionsByQuestion != null && optionsByQuestion.TryGetValue(ans.QuestionID, out var opts) ? opts : new List<ExamQuestionOption>();
+                    <div class="space-y-2">
+                        @foreach (var opt in options.OrderBy(o => o.SortOrder))
+                        {
+                            <label class="flex items-center gap-3 px-4 py-3 rounded-xl border border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 cursor-pointer hover:border-indigo-200 dark:hover:border-indigo-700 has-[:checked]:border-indigo-300 has-[:checked]:bg-indigo-50 dark:has-[:checked]:bg-indigo-950/50 transition-colors">
+                                <input type="radio" name="mcq-@ans.QuestionID" value="@opt.OptionID" class="mcq-option-input w-4 h-4 accent-indigo-600"
+                                       data-question-id="@ans.QuestionID" @(opt.OptionID == ans.SelectedOptionID ? "checked" : "") />
+                                <span class="katex-render flex-1 min-w-0 text-sm text-slate-700 dark:text-slate-200" data-latex="@opt.OptionTextLatex">@opt.OptionTextLatex</span>
+                            </label>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <textarea class="written-answer-input w-full rounded-xl border border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 px-4 py-3 text-sm text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-[#7c3aed]/40"
+                              rows="6" data-question-id="@ans.QuestionID" placeholder="Type your answer here...">@ans.WrittenAnswerText</textarea>
+                }
+            </div>
+        }
+
+        <div class="bg-white dark:bg-slate-900/60 rounded-[20px] shadow-sm border border-slate-100 dark:border-slate-700 p-5 flex items-center justify-between gap-3 flex-wrap">
+            <p id="submitHint" class="text-xs text-slate-500 dark:text-slate-400">Answer every question, then submit. You can't change answers after submitting.</p>
+            <button type="submit" id="submitBtn"
+                    class="px-6 py-3 rounded-xl font-medium text-sm bg-[#7c3aed] text-white hover:bg-[#6d28d9] shadow-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed inline-flex items-center gap-2">
+                <i data-lucide="send" class="w-4 h-4"></i> Submit assignment
+            </button>
+        </div>
+    </form>
+</div>
+
+<script>
+(function () {
+    var form = document.getElementById('assignmentForm');
+    var token = form.querySelector('input[name="__RequestVerificationToken"]').value;
+    var attemptId = form.querySelector('input[name="attemptId"]').value;
+    var saveState = document.getElementById('saveState');
+    var submitBtn = document.getElementById('submitBtn');
+    var submitHint = document.getElementById('submitHint');
+    var questions = Array.prototype.slice.call(document.querySelectorAll('.assignment-question'));
+    var pending = 0;
+
+    function setSaveState(text, cls) {
+        saveState.textContent = text;
+        saveState.className = 'inline-flex items-center gap-1 ' + cls;
+    }
+
+    function saveAnswer(questionId, selectedOptionId, writtenAnswerText) {
+        pending++;
+        setSaveState('Saving…', 'text-slate-400');
+        return fetch('/Student/ExamAttempt/SaveAnswer', {
+            method: 'POST',
+            keepalive: true,
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'RequestVerificationToken': token },
+            body: new URLSearchParams({
+                attemptId: attemptId, questionId: questionId,
+                selectedOptionId: selectedOptionId || '', writtenAnswerText: writtenAnswerText || '',
+                __RequestVerificationToken: token
+            })
+        }).then(function (r) { return r.json(); }).then(function (d) {
+            if (!d.success) throw new Error(d.message);
+            if (--pending === 0) setSaveState('Saved', 'text-emerald-600 dark:text-emerald-400');
+        }).catch(function () {
+            pending = Math.max(0, pending - 1);
+            setSaveState('Not saved — check your connection', 'text-red-600 dark:text-red-400');
+        });
+    }
+
+    function isAnswered(q) {
+        if (q.querySelector('.mcq-option-input:checked')) return true;
+        var w = q.querySelector('.written-answer-input');
+        return !!w && w.value.trim().length > 0;
+    }
+
+    function refresh() {
+        var done = questions.filter(isAnswered).length;
+        document.getElementById('answeredCount').textContent = done;
+        document.getElementById('progressBar').style.width = (questions.length ? done * 100 / questions.length : 0) + '%';
+        var complete = done === questions.length;
+        submitBtn.disabled = !complete;
+        submitHint.textContent = complete
+            ? 'All questions answered. You can\'t change answers after submitting.'
+            : (questions.length - done) + ' question' + (questions.length - done === 1 ? '' : 's') + ' still unanswered.';
+    }
+
+    document.querySelectorAll('.mcq-option-input').forEach(function (el) {
+        el.addEventListener('change', function () {
+            saveAnswer(el.dataset.questionId, el.value, null);
+            refresh();
+        });
+    });
+
+    document.querySelectorAll('.written-answer-input').forEach(function (el) {
+        var timer = null;
+        el.addEventListener('input', function () {
+            refresh();
+            setSaveState('Unsaved changes…', 'text-slate-400');
+            clearTimeout(timer);
+            timer = setTimeout(function () { saveAnswer(el.dataset.questionId, null, el.value); }, 800);
+        });
+        el.addEventListener('blur', function () {
+            clearTimeout(timer);
+            saveAnswer(el.dataset.questionId, null, el.value);
+        });
+    });
+
+    form.addEventListener('submit', function (e) {
+        if (form.dataset.forced) return;
+        e.preventDefault();
+        if (!confirm('Submit this assignment? You won\'t be able to change your answers afterwards.')) return;
+        submitBtn.disabled = true;
+        // Flush every written answer first so a debounced save can't land
+        // after the attempt is already submitted.
+        var saves = Array.prototype.map.call(document.querySelectorAll('.written-answer-input'), function (el) {
+            return saveAnswer(el.dataset.questionId, null, el.value);
+        });
+        Promise.all(saves).then(function () { form.dataset.forced = '1'; form.submit(); });
+    });
+
+    // Due-date countdown; at the deadline whatever is saved is submitted
+    // (the server's ExamAttemptSweeper does the same if this tab is closed).
+    var countdown = document.getElementById('dueCountdown');
+    var expires = new Date(countdown.dataset.expires);
+    function tick() {
+        var ms = expires - new Date();
+        if (ms <= 0) {
+            countdown.textContent = 'Due date reached — submitting…';
+            form.dataset.forced = '1';
+            var f = document.createElement('input');
+            f.type = 'hidden'; f.name = 'isForced'; f.value = 'true';
+            form.appendChild(f);
+            form.submit();
+            return;
+        }
+        var s = Math.floor(ms / 1000), d = Math.floor(s / 86400), h = Math.floor(s % 86400 / 3600), m = Math.floor(s % 3600 / 60);
+        countdown.textContent = (d > 0 ? d + 'd ' + h + 'h left' : h > 0 ? h + 'h ' + m + 'm left' : m + 'm ' + (s % 60) + 's left');
+        setTimeout(tick, ms > 3600000 ? 30000 : 1000);
+    }
+
+    refresh();
+    tick();
+})();
+</script>
