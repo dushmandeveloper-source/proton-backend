@@ -171,7 +171,9 @@
         </div>
     }
 
-    <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 p-6 flex items-center justify-between gap-4 sticky top-4 z-10">
+    @* Header + question palette pinned together, so the numbers never slide under the header. *@
+    <div class="sticky top-4 z-10 space-y-3">
+    <div class="bg-white dark:bg-slate-900 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 p-6 flex items-center justify-between gap-4">
         <div>
             <h1 class="text-xl font-bold text-slate-800 dark:text-slate-100">@attempt.ExamTitle</h1>
             <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Answers save automatically as you go &middot; you can skip and come back before submitting</p>
@@ -181,8 +183,8 @@
     </div>
 
     @* ---------- Question palette: jump to any question, shows answered/unanswered ---------- *@
-    <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 p-5">
-        <div class="flex flex-wrap gap-2">
+    <div class="bg-white dark:bg-slate-900 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 p-4">
+        <div class="flex flex-wrap gap-2 p-1 max-h-[6.5rem] overflow-y-auto">
             @for (var i = 0; i < ordered.Count; i++)
             {
                 var ans = ordered[i];
@@ -197,6 +199,7 @@
             <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-emerald-50 dark:bg-emerald-950 border border-emerald-200 dark:border-emerald-800"></span> Answered</span>
             <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700"></span> Skipped / not answered</span>
         </div>
+    </div>
     </div>
 
     <form id="examForm" asp-action="Submit" asp-controller="ExamAttempt" method="post">
