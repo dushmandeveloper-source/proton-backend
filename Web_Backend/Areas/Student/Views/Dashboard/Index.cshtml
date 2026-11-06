@@ -166,17 +166,23 @@
                                 var isToday = day.Date.Date == Web_Backend.Classes.ScheduleTime.Now(seg.TimeZone).Date;
                                 var canJoinToday = isExam && isToday && examJoin != null && examJoin.CanJoin;
 
-                                <div class="rounded-xl border px-4 py-3 flex items-start justify-between gap-3 @(isExam ? "bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-800" : "bg-slate-50 dark:bg-slate-800/60 border-slate-100 dark:border-slate-700")">
+                                <div class="rounded-xl border px-4 py-3 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 @(isExam ? "bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-800" : "bg-slate-50 dark:bg-slate-800/60 border-slate-100 dark:border-slate-700")">
                                     <div class="min-w-0">
-                                        <div class="flex items-center gap-2">
+                                        <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
                                             <span class="inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wide @(isExam ? "bg-amber-100 dark:bg-amber-900 text-amber-700 dark:text-amber-300" : "bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-300")">
                                                 @(isExam ? "Exam" : "Course")
                                             </span>
-                                            <p class="text-sm font-semibold text-slate-800 dark:text-slate-100">@seg.CourseTitle</p>
+                                            <p class="text-sm font-semibold text-slate-800 dark:text-slate-100 leading-snug">@seg.CourseTitle</p>
                                         </div>
                                         <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                                            @seg.ScheduleName &middot; <span data-tz-start="@Web_Backend.Classes.ScheduleTime.IsoAt(day.Date, seg.StartTime, seg.TimeZone)" data-tz-end="@Web_Backend.Classes.ScheduleTime.IsoAt(day.Date, seg.EndTime, seg.TimeZone)">@seg.DualTimeText</span> &middot; @seg.Location
+                                            @seg.ScheduleName@(string.IsNullOrEmpty(seg.Location) ? "" : " · " + seg.Location)
                                         </p>
+                                        <div class="flex flex-wrap items-center gap-1.5 mt-1.5 text-[11px] font-semibold">
+                                            <span class="inline-flex flex-wrap gap-1.5" data-tz-start="@Web_Backend.Classes.ScheduleTime.IsoAt(day.Date, seg.StartTime, seg.TimeZone)" data-tz-end="@Web_Backend.Classes.ScheduleTime.IsoAt(day.Date, seg.EndTime, seg.TimeZone)">
+                                                <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-red-50 dark:bg-red-950/50 text-red-700 dark:text-red-300 whitespace-nowrap">🇨🇳 @Web_Backend.Classes.ScheduleTime.RangeIn(day.Date, seg.StartTime, seg.EndTime, seg.TimeZone, Web_Backend.Classes.ScheduleTime.China)</span>
+                                                <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-amber-50 dark:bg-amber-950/50 text-amber-800 dark:text-amber-300 whitespace-nowrap">🇱🇰 @Web_Backend.Classes.ScheduleTime.RangeIn(day.Date, seg.StartTime, seg.EndTime, seg.TimeZone, Web_Backend.Classes.ScheduleTime.SriLanka)</span>
+                                            </span>
+                                        </div>
                                         @if (!string.IsNullOrEmpty(seg.InstructorNames))
                                         {
                                             <p class="text-xs text-slate-400 dark:text-slate-500 mt-0.5">Instructor(s): @seg.InstructorNames</p>
@@ -192,7 +198,7 @@
                                         @if (isToday && examJoin != null && examJoin.ShowPendingReviewInstead)
                                         {
                                             <a asp-area="Student" asp-controller="MyResults" asp-action="Index"
-                                               class="px-3 py-1.5 rounded-lg font-medium text-xs bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900 transition-colors flex items-center gap-1 flex-shrink-0"
+                                               class="px-3 py-1.5 rounded-lg font-medium text-xs bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900 transition-colors flex items-center gap-1 flex-shrink-0 self-start sm:self-auto"
                                                title="Your last attempt is still being graded/approved">
                                                 <i data-lucide="clock" class="w-3.5 h-3.5"></i> Pending Review
                                             </a>
@@ -200,21 +206,21 @@
                                         else if (canJoinToday)
                                         {
                                             <a href="/Student/ExamAttempt/Start?examId=@seg.CourseID"
-                                               class="px-3 py-1.5 rounded-lg font-medium text-xs bg-amber-500 text-slate-900 hover:bg-amber-600 transition-colors flex items-center gap-1 flex-shrink-0">
+                                               class="px-3 py-1.5 rounded-lg font-medium text-xs bg-amber-500 text-slate-900 hover:bg-amber-600 transition-colors flex items-center gap-1 flex-shrink-0 self-start sm:self-auto">
                                                 <i data-lucide="file-edit" class="w-3.5 h-3.5"></i> Join Exam
                                             </a>
                                         }
                                         else if (examJoin != null && !examJoin.HasFullAccess)
                                         {
                                             <a href="@Url.Action("RequestAccess", "Classroom", new { area = "Student", course = seg.CourseTitle })" target="_blank" rel="noopener"
-                                               class="px-3 py-1.5 rounded-lg font-medium text-xs bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900 transition-colors flex items-center gap-1.5 flex-shrink-0"
+                                               class="px-3 py-1.5 rounded-lg font-medium text-xs bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900 transition-colors flex items-center gap-1.5 flex-shrink-0 self-start sm:self-auto"
                                                title="Pay the full course fee to unlock, or request access from admin">
                                                 <i data-lucide="message-circle" class="w-3.5 h-3.5"></i> Request Access
                                             </a>
                                         }
                                         else
                                         {
-                                            <span class="px-3 py-1.5 rounded-lg font-medium text-xs bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 cursor-not-allowed flex-shrink-0"
+                                            <span class="px-3 py-1.5 rounded-lg font-medium text-xs bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 cursor-not-allowed flex-shrink-0 self-start sm:self-auto"
                                                   title="@(!isToday ? "Only available on the scheduled day" : examJoin != null && !examJoin.IsWithinWindow ? "Not open yet" : "Maximum attempts reached")">
                                                 Join Exam
                                             </span>
@@ -225,13 +231,13 @@
                                         @if (isToday)
                                         {
                                             <a href="@seg.MeetingLink" target="_blank" rel="noopener" data-join-link data-join-at="@joinAt.ToString("yyyy-MM-ddTHH:mm:ss")@Web_Backend.Classes.ScheduleTime.IsoOffset(seg.TimeZone)" data-join-until="@joinUntil.ToString("yyyy-MM-ddTHH:mm:ss")@Web_Backend.Classes.ScheduleTime.IsoOffset(seg.TimeZone)"
-                                               class="join-link px-3 py-1.5 rounded-lg font-medium text-xs bg-[#7c3aed] text-white hover:bg-[#6d28d9] transition-colors flex items-center gap-1 flex-shrink-0">
+                                               class="join-link px-3 py-1.5 rounded-lg font-medium text-xs bg-[#7c3aed] text-white hover:bg-[#6d28d9] transition-colors flex items-center gap-1 flex-shrink-0 self-start sm:self-auto">
                                                 <i data-lucide="video" class="w-3.5 h-3.5"></i> <span class="join-label">Join</span>
                                             </a>
                                         }
                                         else
                                         {
-                                            <span class="px-3 py-1.5 rounded-lg font-medium text-xs bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 cursor-not-allowed flex-shrink-0"
+                                            <span class="px-3 py-1.5 rounded-lg font-medium text-xs bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 cursor-not-allowed flex-shrink-0 self-start sm:self-auto"
                                                   title="Only available on the scheduled day">
                                                 Join
                                             </span>
@@ -240,7 +246,7 @@
                                     else if (!Model.IsContentRestricted && !string.IsNullOrEmpty(seg.MeetingLink) && !HasCourseFullAccess(seg.CourseID))
                                     {
                                         <a href="@Url.Action("RequestAccess", "Classroom", new { area = "Student", course = seg.CourseTitle })" target="_blank" rel="noopener"
-                                           class="px-3 py-1.5 rounded-lg font-medium text-xs bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900 transition-colors flex items-center gap-1.5 flex-shrink-0"
+                                           class="px-3 py-1.5 rounded-lg font-medium text-xs bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900 transition-colors flex items-center gap-1.5 flex-shrink-0 self-start sm:self-auto"
                                            title="Pay the full course fee to unlock, or request access from admin">
                                             <i data-lucide="message-circle" class="w-3.5 h-3.5"></i> Request Access
                                         </a>
@@ -265,7 +271,9 @@
             // and the whole set re-checks every 30s so a link flips live
             // without a reload.
             function formatTime(date) {
-                return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                // Fixed zones, so a wrong phone/PC zone never shows a misleading time.
+                var f = function (z) { return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: z }); };
+                return '🇨🇳 ' + f('Asia/Shanghai') + ' · 🇱🇰 ' + f('Asia/Colombo');
             }
 
             function refreshJoinLinks() {
@@ -285,7 +293,7 @@
                     } else {
                         link.classList.add('opacity-40', 'cursor-not-allowed', 'pointer-events-none');
                         link.setAttribute('aria-disabled', 'true');
-                        if (label) label.textContent = 'Available at ' + formatTime(joinAt);
+                        if (label) label.textContent = 'Opens ' + formatTime(joinAt);
                     }
                 });
             }

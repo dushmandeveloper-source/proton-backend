@@ -68,6 +68,14 @@ namespace Web_Backend.Classes
         public static string DualRange(TimeSpan start, TimeSpan end, string? zone) =>
             DualRange(new DateTime(2000, 1, 3), start, end, zone);
 
+        // "9:30 PM – 11:30 PM" for a range written in `zone`, shown in `target`.
+        public static string RangeIn(DateTime date, TimeSpan start, TimeSpan end, string? zone, string target)
+        {
+            var s = date.Date + start;
+            var cs = Convert(s, zone, target);
+            return $"{cs:h:mm tt} – {Convert(date.Date + end, zone, target):h:mm tt}{DayNote(cs, s)}";
+        }
+
         // Compact "21:00 🇨🇳 · 18:30 🇱🇰" for calendar cells.
         public static string ShortDual(TimeSpan start, string? zone)
         {
