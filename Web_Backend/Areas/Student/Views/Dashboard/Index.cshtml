@@ -220,7 +220,7 @@
                                             string? opensAtIso = opensLater ? examJoin!.WindowStart!.Value.ToString("yyyy-MM-ddTHH:mm:ss") + Web_Backend.Classes.ScheduleTime.IsoOffset(examJoin.TimeZone) : null;
                                             <div class="flex flex-col items-start sm:items-end gap-0.5 flex-shrink-0 self-start sm:self-auto">
                                                 <span class="px-3 py-1.5 rounded-lg font-medium text-xs bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 cursor-not-allowed flex items-center gap-1"
-                                                      data-exam-open-at="@opensAtIso" data-exam-url="@(opensLater ? "/Student/ExamAttempt/Start?examId=" + seg.CourseID : null)" data-exam-title="@(opensLater ? seg.CourseTitle : null)"
+                                                      @Html.Raw(opensLater ? $"data-exam-open-at=\"{opensAtIso}\" data-exam-url=\"/Student/ExamAttempt/Start?examId={System.Net.WebUtility.HtmlEncode(seg.CourseID)}\" data-exam-title=\"{System.Net.WebUtility.HtmlEncode(seg.CourseTitle)}\"" : "")
                                                       title="@(!isToday ? "Only available on the scheduled day" : examJoin != null && !examJoin.IsWithinWindow ? "Not open yet" : "Maximum attempts reached")">
                                                     <i data-lucide="file-edit" class="w-3.5 h-3.5"></i> Join Exam
                                                 </span>
@@ -326,7 +326,8 @@
             function refreshJoinLinks() {
                 var now = new Date();
                 document.querySelectorAll('[data-join-link]').forEach(function (link) {
-                    var joinAt = new Date(link.dataset.joinAt);
+                    var joinAt = new Date(link.dataset.joinAt || '');
+                    if (isNaN(joinAt.getTime())) return;
                     var joinUntil = link.dataset.joinUntil ? new Date(link.dataset.joinUntil) : null;
                     var label = link.querySelector('.join-label');
                     var hint = hintOf(link);
@@ -354,7 +355,8 @@
                 });
 
                 document.querySelectorAll('[data-exam-open-at]').forEach(function (btn) {
-                    var openAt = new Date(btn.dataset.examOpenAt);
+                    var openAt = new Date(btn.dataset.examOpenAt || '');
+                    if (!btn.dataset.examUrl || isNaN(openAt.getTime())) return; // not an "opens later today" exam
                     var hint = hintOf(btn);
                     if (now < openAt) {
                         if (hint) hint.textContent = 'Opens ' + formatTime(openAt);
