@@ -214,20 +214,34 @@
                                         }
                                         else
                                         {
-                                            <span class="px-3 py-1.5 rounded-lg font-medium text-xs bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 cursor-not-allowed flex-shrink-0 self-start sm:self-auto"
-                                                  title="@(!isToday ? "Only available on the scheduled day" : examJoin != null && !examJoin.IsWithinWindow ? "Not open yet" : "Maximum attempts reached")">
-                                                Join Exam
-                                            </span>
+                                            var opensLater = isToday && examJoin != null && !examJoin.IsWithinWindow && examJoin.HasFullAccess
+                                                && examJoin.AttemptsUsed < examJoin.MaxAttempts && examJoin.WindowStart.HasValue
+                                                && examJoin.WindowStart.Value > Web_Backend.Classes.ScheduleTime.Now(examJoin.TimeZone);
+                                            string? opensAtIso = opensLater ? examJoin!.WindowStart!.Value.ToString("yyyy-MM-ddTHH:mm:ss") + Web_Backend.Classes.ScheduleTime.IsoOffset(examJoin.TimeZone) : null;
+                                            <div class="flex flex-col items-start sm:items-end gap-0.5 flex-shrink-0 self-start sm:self-auto">
+                                                <span class="px-3 py-1.5 rounded-lg font-medium text-xs bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 cursor-not-allowed flex items-center gap-1"
+                                                      data-exam-open-at="@opensAtIso" data-exam-url="@(opensLater ? "/Student/ExamAttempt/Start?examId=" + seg.CourseID : null)" data-exam-title="@(opensLater ? seg.CourseTitle : null)"
+                                                      title="@(!isToday ? "Only available on the scheduled day" : examJoin != null && !examJoin.IsWithinWindow ? "Not open yet" : "Maximum attempts reached")">
+                                                    <i data-lucide="file-edit" class="w-3.5 h-3.5"></i> Join Exam
+                                                </span>
+                                                @if (opensLater)
+                                                {
+                                                    <span class="join-hint text-[10px] text-slate-500 dark:text-slate-400"></span>
+                                                }
+                                            </div>
                                         }
                                     }
                                     else if (!Model.IsContentRestricted && !string.IsNullOrEmpty(seg.MeetingLink) && HasCourseFullAccess(seg.CourseID))
                                     {
                                         @if (isToday)
                                         {
-                                            <a href="@seg.MeetingLink" target="_blank" rel="noopener" data-join-link data-join-at="@joinAt.ToString("yyyy-MM-ddTHH:mm:ss")@Web_Backend.Classes.ScheduleTime.IsoOffset(seg.TimeZone)" data-join-until="@joinUntil.ToString("yyyy-MM-ddTHH:mm:ss")@Web_Backend.Classes.ScheduleTime.IsoOffset(seg.TimeZone)"
+                                            <div class="flex flex-col items-start sm:items-end gap-0.5 flex-shrink-0 self-start sm:self-auto">
+                                            <a href="@seg.MeetingLink" target="_blank" rel="noopener" data-join-link data-join-title="@seg.CourseTitle" data-join-at="@joinAt.ToString("yyyy-MM-ddTHH:mm:ss")@Web_Backend.Classes.ScheduleTime.IsoOffset(seg.TimeZone)" data-join-until="@joinUntil.ToString("yyyy-MM-ddTHH:mm:ss")@Web_Backend.Classes.ScheduleTime.IsoOffset(seg.TimeZone)"
                                                class="join-link px-3 py-1.5 rounded-lg font-medium text-xs bg-[#7c3aed] text-white hover:bg-[#6d28d9] transition-colors flex items-center gap-1 flex-shrink-0 self-start sm:self-auto">
                                                 <i data-lucide="video" class="w-3.5 h-3.5"></i> <span class="join-label">Join</span>
                                             </a>
+                                            <span class="join-hint text-[10px] text-slate-500 dark:text-slate-400"></span>
+                                            </div>
                                         }
                                         else
                                         {
@@ -236,6 +250,15 @@
                                                 Join
                                             </span>
                                         }
+                                    }
+                                    else if (!isExam && !Model.IsContentRestricted && string.IsNullOrEmpty(seg.MeetingLink) && HasCourseFullAccess(seg.CourseID))
+                                    {
+                                        <div class="flex flex-col items-start sm:items-end gap-0.5 flex-shrink-0 self-start sm:self-auto">
+                                            <span class="px-3 py-1.5 rounded-lg font-medium text-xs bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 cursor-not-allowed flex items-center gap-1" title="The meeting link hasn't been added yet">
+                                                <i data-lucide="video" class="w-3.5 h-3.5"></i> Join
+                                            </span>
+                                            <span class="text-[10px] text-slate-500 dark:text-slate-400">Link not added yet</span>
+                                        </div>
                                     }
                                     else if (!Model.IsContentRestricted && !string.IsNullOrEmpty(seg.MeetingLink) && !HasCourseFullAccess(seg.CourseID))
                                     {
@@ -255,19 +278,49 @@
     </div>
     <script>
         (function () {
-            // Gates each course Join link from 15 min before its class start
-            // to 30 min after its end
-            // time (see joinAt computed server-side above). Exam Join buttons
-            // are NOT covered by this script — their enabled/disabled state is
-            // decided server-side per request from the exam's own availability
-            // window + MaxAttempts, not a live-ticking countdown. Disabled
-            // course links show "Available at HH:mm" instead of navigating,
-            // and the whole set re-checks every 30s so a link flips live
-            // without a reload.
+            // Course Join links: shown from the start as a greyed "Join" with
+            // "Opens 🇨🇳 … · 🇱🇰 …" under it; enabled live 15 min before class
+            // (joinAt, server-computed in the schedule's zone) until 30 min
+            // after the end. Exam buttons that open later today flip live too
+            // (the server re-checks on Start). When either opens, the student
+            // gets an on-page "Join now" toast + a browser notification (if allowed).
             function formatTime(date) {
                 // Fixed zones, so a wrong phone/PC zone never shows a misleading time.
                 var f = function (z) { return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: z }); };
                 return '🇨🇳 ' + f('Asia/Shanghai') + ' · 🇱🇰 ' + f('Asia/Colombo');
+            }
+            function hintOf(el) {
+                var box = el.parentElement;
+                return box ? box.querySelector('.join-hint') : null;
+            }
+
+            var notified = {};
+            function notify(key, title, body, url, external) {
+                if (notified[key]) return;
+                notified[key] = true;
+                var toast = document.createElement('div');
+                toast.setAttribute('role', 'status');
+                toast.className = 'fixed z-50 bottom-4 right-4 left-4 sm:left-auto sm:w-96 rounded-2xl shadow-xl border border-[#7c3aed]/30 bg-white dark:bg-slate-900 p-4 flex items-start gap-3';
+                toast.innerHTML = '<div class="w-9 h-9 rounded-xl bg-[#7c3aed] text-white flex items-center justify-center flex-shrink-0"><i data-lucide="bell-ring" class="w-4 h-4"></i></div>'
+                    + '<div class="flex-1 min-w-0"><p class="text-sm font-semibold text-slate-800 dark:text-slate-100"></p><p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5"></p>'
+                    + '<div class="mt-2 flex gap-2"><a class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-[#7c3aed] text-white text-xs font-semibold hover:bg-[#6d28d9]">Join now</a>'
+                    + '<button type="button" class="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800">Later</button></div></div>';
+                var ps = toast.querySelectorAll('p');
+                ps[0].textContent = title;
+                ps[1].textContent = body;
+                var a = toast.querySelector('a');
+                a.href = url;
+                if (external) { a.target = '_blank'; a.rel = 'noopener'; }
+                a.addEventListener('click', function () { toast.remove(); });
+                toast.querySelector('button').addEventListener('click', function () { toast.remove(); });
+                document.body.appendChild(toast);
+                if (window.lucide) lucide.createIcons();
+                try {
+                    if ('Notification' in window && Notification.permission === 'granted') {
+                        var n = new Notification(title, { body: body, tag: key });
+                        n.onclick = function () { window.focus(); window.open(url, external ? '_blank' : '_self'); n.close(); };
+                    }
+                } catch (e) { }
             }
 
             function refreshJoinLinks() {
@@ -276,24 +329,60 @@
                     var joinAt = new Date(link.dataset.joinAt);
                     var joinUntil = link.dataset.joinUntil ? new Date(link.dataset.joinUntil) : null;
                     var label = link.querySelector('.join-label');
+                    var hint = hintOf(link);
+                    var off = function (on) {
+                        link.classList.toggle('opacity-40', on);
+                        link.classList.toggle('cursor-not-allowed', on);
+                        link.classList.toggle('pointer-events-none', on);
+                        if (on) link.setAttribute('aria-disabled', 'true'); else link.removeAttribute('aria-disabled');
+                    };
                     if (joinUntil && now > joinUntil) {
-                        link.classList.add('opacity-40', 'cursor-not-allowed', 'pointer-events-none');
-                        link.setAttribute('aria-disabled', 'true');
+                        off(true);
                         if (label) label.textContent = 'Class ended';
+                        if (hint) hint.textContent = '';
                     } else if (now >= joinAt) {
-                        link.classList.remove('opacity-40', 'cursor-not-allowed', 'pointer-events-none');
-                        link.removeAttribute('aria-disabled');
+                        off(false);
                         if (label) label.textContent = 'Join';
+                        if (hint) hint.textContent = 'Open now';
+                        notify('class:' + link.href + link.dataset.joinAt, 'Class is starting — join now',
+                            (link.dataset.joinTitle || 'Your class') + ' · ' + formatTime(joinAt), link.href, true);
                     } else {
-                        link.classList.add('opacity-40', 'cursor-not-allowed', 'pointer-events-none');
-                        link.setAttribute('aria-disabled', 'true');
-                        if (label) label.textContent = 'Opens ' + formatTime(joinAt);
+                        off(true);
+                        if (label) label.textContent = 'Join';
+                        if (hint) hint.textContent = 'Opens ' + formatTime(joinAt);
                     }
+                });
+
+                document.querySelectorAll('[data-exam-open-at]').forEach(function (btn) {
+                    var openAt = new Date(btn.dataset.examOpenAt);
+                    var hint = hintOf(btn);
+                    if (now < openAt) {
+                        if (hint) hint.textContent = 'Opens ' + formatTime(openAt);
+                        return;
+                    }
+                    // Window opened while the page was open: turn it into the real button.
+                    var a = document.createElement('a');
+                    a.href = btn.dataset.examUrl;
+                    a.className = 'px-3 py-1.5 rounded-lg font-medium text-xs bg-amber-500 text-slate-900 hover:bg-amber-600 transition-colors flex items-center gap-1';
+                    a.innerHTML = '<i data-lucide="file-edit" class="w-3.5 h-3.5"></i> Join Exam';
+                    btn.replaceWith(a);
+                    if (hint) hint.textContent = 'Open now';
+                    if (window.lucide) lucide.createIcons();
+                    notify('exam:' + btn.dataset.examUrl, 'Exam is open — join now', (btn.dataset.examTitle || 'Your exam') + ' · ' + formatTime(openAt), btn.dataset.examUrl, false);
+                });
+            }
+
+            // Ask once for browser notifications when there is something to join today.
+            if ('Notification' in window && Notification.permission === 'default'
+                && document.querySelector('[data-join-link], [data-exam-open-at]')) {
+                document.addEventListener('click', function ask() {
+                    document.removeEventListener('click', ask);
+                    try { Notification.requestPermission(); } catch (e) { }
                 });
             }
 
             refreshJoinLinks();
-            setInterval(refreshJoinLinks, 30000);
+            setInterval(refreshJoinLinks, 15000);
         })();
     </script>
     }

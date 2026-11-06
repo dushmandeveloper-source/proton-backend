@@ -80,7 +80,7 @@ namespace Web_Backend.Classes
         public static string ShortDual(TimeSpan start, string? zone)
         {
             var wall = new DateTime(2000, 1, 3) + start;
-            return $"{Convert(wall, zone, China):HH:mm} 🇨🇳 · {Convert(wall, zone, SriLanka):HH:mm} 🇱🇰";
+            return $"{Convert(wall, zone, China):h:mm tt} 🇨🇳 · {Convert(wall, zone, SriLanka):h:mm tt} 🇱🇰";
         }
 
         // "2:29 AM (next day)" -- a date-time written in `zone`, as clock time in `target`.

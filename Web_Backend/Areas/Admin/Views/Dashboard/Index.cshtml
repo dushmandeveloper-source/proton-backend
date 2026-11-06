@@ -404,7 +404,7 @@
                                 <tr>
                                     <td class="px-6 py-2.5"><a asp-controller="Student" asp-action="Details" asp-route-id="@r.StudentID" class="font-medium text-slate-800 dark:text-slate-100 hover:text-[#7c3aed]">@r.FullName</a></td>
                                     <td class="px-6 py-2.5 text-slate-600 dark:text-slate-300">@r.ExamTitle <span class="text-xs text-slate-400">#@r.AttemptNumber</span></td>
-                                    <td class="px-6 py-2.5 text-slate-500 dark:text-slate-400 whitespace-nowrap">@(r.SubmittedDate?.ToString("dd MMM yyyy HH:mm") ?? "—")</td>
+                                    <td class="px-6 py-2.5 text-slate-500 dark:text-slate-400 whitespace-nowrap">@(r.SubmittedDate?.ToString("dd MMM yyyy h:mm tt") ?? "—")</td>
                                     <td class="px-6 py-2.5"><span class="px-2 py-0.5 rounded-lg text-xs font-medium whitespace-nowrap @StageClass(r.StageLabel)">@r.StageLabel</span></td>
                                     <td class="px-6 py-2.5 text-right"><a asp-controller="ExamGrading" asp-action="Grade" asp-route-attemptId="@r.AttemptID" class="px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-purple-50 hover:text-[#7c3aed] dark:hover:bg-slate-700 transition-colors whitespace-nowrap">View attempt</a></td>
                                 </tr>
@@ -467,7 +467,7 @@
                                 <td class="px-6 py-2.5 whitespace-nowrap">
                                     @if (a.AccessRequestedDate.HasValue)
                                     {
-                                        <span class="px-2 py-0.5 rounded-lg text-xs font-medium bg-sky-50 dark:bg-sky-950 text-sky-700 dark:text-sky-300">Requested @a.AccessRequestedDate.Value.ToString("dd MMM, HH:mm")</span>
+                                        <span class="px-2 py-0.5 rounded-lg text-xs font-medium bg-sky-50 dark:bg-sky-950 text-sky-700 dark:text-sky-300">Requested @a.AccessRequestedDate.Value.ToString("dd MMM, h:mm tt")</span>
                                     }
                                     else
                                     {
@@ -571,7 +571,7 @@
                                 <td class="px-6 py-2.5"><a asp-controller="Student" asp-action="Details" asp-route-id="@s.StudentID" class="font-medium text-slate-800 dark:text-slate-100 hover:text-[#7c3aed]">@s.FullName</a></td>
                                 <td class="px-6 py-2.5 text-slate-600 dark:text-slate-300">@s.MaterialTitle</td>
                                 <td class="px-6 py-2.5 text-slate-600 dark:text-slate-300">@s.CourseTitle</td>
-                                <td class="px-6 py-2.5 text-slate-500 dark:text-slate-400 whitespace-nowrap">@s.SubmittedDate.ToString("dd MMM yyyy HH:mm")</td>
+                                <td class="px-6 py-2.5 text-slate-500 dark:text-slate-400 whitespace-nowrap">@s.SubmittedDate.ToString("dd MMM yyyy h:mm tt")</td>
                                 <td class="px-6 py-2.5"><span class="px-2 py-0.5 rounded-lg text-xs font-medium whitespace-nowrap @SubmissionClass(s.StatusLabel)">@s.StatusLabel</span></td>
                                 <td class="px-6 py-2.5 text-right text-slate-700 dark:text-slate-200">@(s.MarksAwarded?.ToString("0.##") ?? "—")</td>
                                 <td class="px-6 py-2.5 text-right"><a asp-controller="LectureNote" asp-action="Submissions" asp-route-materialId="@s.MaterialID" class="px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-purple-50 hover:text-[#7c3aed] dark:hover:bg-slate-700 transition-colors whitespace-nowrap">View submission</a></td>

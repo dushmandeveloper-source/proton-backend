@@ -168,7 +168,7 @@
                             }
                             @if (b.StartsAt.HasValue || b.EndsAt.HasValue)
                             {
-                                <span class="text-xs text-slate-500 dark:text-slate-400">@(b.StartsAt?.ToString("MMM d, yyyy HH:mm") ?? "now") → @(b.EndsAt?.ToString("MMM d, yyyy HH:mm") ?? "no end")</span>
+                                <span class="text-xs text-slate-500 dark:text-slate-400">@(b.StartsAt?.ToString("MMM d, yyyy h:mm tt") ?? "now") → @(b.EndsAt?.ToString("MMM d, yyyy h:mm tt") ?? "no end")</span>
                             }
                             @if (!string.IsNullOrEmpty(b.LinkURL))
                             {
