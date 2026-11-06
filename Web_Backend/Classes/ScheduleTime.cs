@@ -75,6 +75,18 @@ namespace Web_Backend.Classes
             return $"{Convert(wall, zone, China):HH:mm} 🇨🇳 · {Convert(wall, zone, SriLanka):HH:mm} 🇱🇰";
         }
 
+        // "Fri 6 Nov · 🇨🇳 9:00 PM · 🇱🇰 6:30 PM" for a date-time written in `zone`.
+        public static string DualDateTime(DateTime wall, string? zone)
+        {
+            var cn = Convert(wall, zone, China);
+            var sl = Convert(wall, zone, SriLanka);
+            return $"{wall:ddd d MMM} · 🇨🇳 {cn:h:mm tt}{DayNote(cn, wall)} · 🇱🇰 {sl:h:mm tt}{DayNote(sl, wall)}";
+        }
+
+        // "2026-11-06T21:30:00+08:00" -- exact moment for client-side zone views.
+        public static string IsoAt(DateTime date, TimeSpan time, string? zone) =>
+            (date.Date + time).ToString("yyyy-MM-ddTHH:mm:ss") + IsoOffset(zone);
+
         // ISO offset for client-side countdowns: "+08:00" / "+05:30".
         public static string IsoOffset(string? zone) => Normalize(zone) == China ? "+08:00" : "+05:30";
 

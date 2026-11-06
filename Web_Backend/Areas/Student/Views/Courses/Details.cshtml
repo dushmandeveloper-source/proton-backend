@@ -317,7 +317,7 @@
                 {
                     <div class="rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700 px-4 py-3">
                         <p class="text-sm font-semibold text-slate-800 dark:text-slate-100">
-                            @seg.ScheduleName &middot; @seg.DualTimeText &middot; @seg.Location
+                            @seg.ScheduleName &middot; <span data-tz-start="@Web_Backend.Classes.ScheduleTime.IsoAt(Web_Backend.Classes.ScheduleTime.Now(seg.TimeZone).Date, seg.StartTime, seg.TimeZone)" data-tz-end="@Web_Backend.Classes.ScheduleTime.IsoAt(Web_Backend.Classes.ScheduleTime.Now(seg.TimeZone).Date, seg.EndTime, seg.TimeZone)">@seg.DualTimeText</span> &middot; @seg.Location
                         </p>
                         @if (!string.IsNullOrEmpty(seg.InstructorNames))
                         {

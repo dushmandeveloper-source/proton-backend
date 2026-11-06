@@ -58,7 +58,54 @@
         root.querySelector('.tz-preview').textContent =
             flag(z) + ' ' + fmt(mins) + '  =  ' + flag(other) + ' ' + fmt(mins - OFFSETS[z] + OFFSETS[other]);
     }
-    root.addEventListener('change', update);
+    // Under every period's start/end box: the same time in both zones, live,
+    // e.g. "🇨🇳 10:05 PM · 🇱🇰 7:35 PM" (replaces the plain 12-hour label).
+    function relabel() {
+        if (!form) return;
+        const z = zone();
+        const other = z === CN ? 'Asia/Colombo' : CN;
+        form.querySelectorAll('.period-start-time, .period-end-time').forEach(input => {
+            const label = input.parentElement && input.parentElement.querySelector('.period-start-time-label, .period-end-time-label');
+            if (!label) return;
+            let text = '';
+            if (input.value) {
+                const [h, m] = input.value.split(':').map(Number);
+                const mins = h * 60 + m;
+                const mine = (z === CN ? '🇨🇳 ' : '🇱🇰 ') + fmt(mins);
+                const theirs = (other === CN ? '🇨🇳 ' : '🇱🇰 ') + fmt(mins - OFFSETS[z] + OFFSETS[other]);
+                text = z === CN ? mine + ' · ' + theirs : theirs + ' · ' + mine; // China first
+            }
+            if (label.textContent !== text) label.textContent = text;
+        });
+        // "Different time on a specific date" row: one line under it with
+        // the range in both zones, e.g. "🇨🇳 9:00 PM – 11:00 PM · 🇱🇰 6:30 PM – 8:30 PM".
+        form.querySelectorAll('.ov-start').forEach(start => {
+            const row = start.parentElement;
+            const end = row && row.querySelector('.ov-end');
+            if (!row) return;
+            let hint = row.nextElementSibling && row.nextElementSibling.classList.contains('ov-tz-label') ? row.nextElementSibling : null;
+            if (!hint) {
+                hint = document.createElement('p');
+                hint.className = 'ov-tz-label text-[11px] text-slate-500 dark:text-slate-400 mt-1';
+                row.insertAdjacentElement('afterend', hint);
+            }
+            const toMins = v => { const [h, m] = v.split(':').map(Number); return h * 60 + m; };
+            const range = zz => {
+                const s = toMins(start.value);
+                const shift = OFFSETS[zz] - OFFSETS[z];
+                return (zz === CN ? '🇨🇳 ' : '🇱🇰 ') + fmt(s + shift) + (end && end.value ? ' – ' + fmt(toMins(end.value) + shift) : '');
+            };
+            const text = start.value ? range(CN) + ' · ' + range('Asia/Colombo') : '';
+            if (hint.textContent !== text) hint.textContent = text;
+        });
+    }
+    root.addEventListener('change', () => { update(); relabel(); });
+    if (form) {
+        // After the form's own label code runs (typing, picking, edit fill, new rows).
+        ['input', 'change'].forEach(ev => form.addEventListener(ev, () => setTimeout(relabel, 0)));
+        new MutationObserver(() => setTimeout(relabel, 0)).observe(form, { childList: true, subtree: true });
+        relabel();
+    }
     if (form) {
         form.addEventListener('input', e => { if (e.target.classList.contains('period-start-time')) update(); });
         form.addEventListener('change', e => { if (e.target.classList.contains('period-start-time')) update(); });

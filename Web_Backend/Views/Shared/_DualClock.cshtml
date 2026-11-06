@@ -16,6 +16,14 @@
         <span aria-hidden="true" class="text-sm leading-none">🇱🇰</span>
         <span data-clock-zone="Asia/Colombo">@sl.ToString("h:mm tt")</span>
     </span>
+    @* Student's own country (student-tz.js); hidden until they pick one. *@
+    <span data-clock-local class="hidden flex items-center">
+        <span class="h-3.5 w-px bg-slate-200 dark:bg-slate-700" aria-hidden="true"></span>
+        <span class="flex items-center gap-1.5 pl-2 pr-2.5 py-1 text-indigo-700 dark:text-indigo-300">
+            <span data-clock-local-flag aria-hidden="true" class="text-sm leading-none"></span>
+            <span data-clock-local-time></span>
+        </span>
+    </span>
 </div>
 <script>
 (function () {

@@ -42,8 +42,8 @@
                         <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold whitespace-nowrap @badgeCls">@badge</span>
                     </div>
                     <div class="text-xs text-slate-500 dark:text-slate-400 space-y-0.5">
-                        <p class="flex items-center gap-1.5"><i data-lucide="calendar-clock" class="w-3.5 h-3.5"></i> Due @a.DueDate?.ToString("ddd, dd MMM · hh:mm tt")</p>
-                        @if (notOpen) { <p class="flex items-center gap-1.5"><i data-lucide="lock" class="w-3.5 h-3.5"></i> Opens @a.OpenDate?.ToString("ddd, dd MMM · hh:mm tt")</p> }
+                        <p class="flex items-center gap-1.5"><i data-lucide="calendar-clock" class="w-3.5 h-3.5"></i> Due @if (a.DueDate.HasValue) { <span data-tz-start="@(a.DueDate.Value.ToString("yyyy-MM-ddTHH:mm:ss"))+05:30">@Web_Backend.Classes.ScheduleTime.DualDateTime(a.DueDate.Value, Web_Backend.Classes.ScheduleTime.SriLanka)</span> }</p>
+                        @if (notOpen) { <p class="flex items-center gap-1.5"><i data-lucide="lock" class="w-3.5 h-3.5"></i> Opens @if (a.OpenDate.HasValue) { <span data-tz-start="@(a.OpenDate.Value.ToString("yyyy-MM-ddTHH:mm:ss"))+05:30">@Web_Backend.Classes.ScheduleTime.DualDateTime(a.OpenDate.Value, Web_Backend.Classes.ScheduleTime.SriLanka)</span> }</p> }
                         <p class="flex items-center gap-1.5"><i data-lucide="list-checks" class="w-3.5 h-3.5"></i> @a.QuestionCount question@(a.QuestionCount == 1 ? "" : "s") · @a.TotalMarks.ToString("0.##") marks</p>
                     </div>
                     <div class="mt-auto">

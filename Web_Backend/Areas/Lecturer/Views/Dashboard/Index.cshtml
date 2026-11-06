@@ -82,7 +82,7 @@
                                                 <p class="text-sm font-semibold text-slate-800 dark:text-slate-100">@seg.CourseTitle</p>
                                             </div>
                                             <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                                                @seg.ScheduleName &middot; @seg.DualTimeText &middot; @seg.Location
+                                                @seg.ScheduleName &middot; <span data-tz-start="@Web_Backend.Classes.ScheduleTime.IsoAt(day.Date, seg.StartTime, seg.TimeZone)" data-tz-end="@Web_Backend.Classes.ScheduleTime.IsoAt(day.Date, seg.EndTime, seg.TimeZone)">@seg.DualTimeText</span> &middot; @seg.Location
                                             </p>
                                         </div>
                                         <div class="flex flex-col items-end gap-2 flex-shrink-0">

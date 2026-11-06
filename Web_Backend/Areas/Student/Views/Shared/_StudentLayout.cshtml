@@ -1,3 +1,4 @@
+@inject Web_Backend.Areas.Admin.Data.IUserPreferenceData TzPrefs
 @{
     var currentUser = ViewBag.CurrentUser as Web_Backend.Areas.Admin.Models.SessionUser;
     string activeController = ViewContext.RouteData.Values["controller"]?.ToString() ?? "";
@@ -13,6 +14,17 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>@ViewData["Title"] - Proton Student</title>
+    @{
+        // Student's chosen "your time" zone (TimeZoneController) for student-tz.js.
+        var tzUid = Web_Backend.Classes.Auth.GetUserId();
+        string? studentTz = null;
+        if (!string.IsNullOrEmpty(tzUid))
+        {
+            try { studentTz = await TzPrefs.Get(tzUid, Web_Backend.Areas.StudentPortal.Controllers.TimeZoneController.PrefKey); } catch { }
+        }
+    }
+    <script>window.__studentTz = @Json.Serialize(studentTz ?? "");</script>
+    <script src="~/js/student-tz.js" asp-append-version="true" defer></script>
     <script>
         // Applied before Tailwind loads so there's no flash of the wrong theme.
         if (localStorage.getItem('theme') === 'dark' ||

@@ -9,6 +9,7 @@
     <div class="flex items-center justify-between flex-wrap gap-4">
         <div>
             <p class="text-sm font-medium text-slate-500 dark:text-slate-400 mb-2">Monthly Calendar</p>
+            <div class="flex flex-wrap items-center gap-2 mb-3">@await Html.PartialAsync("~/Views/Shared/_DualClock.cshtml") @await Html.PartialAsync("_ZonePicker")</div>
             <h1 class="text-3xl md:text-4xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">
                 @Model.MonthLabel
             </h1>
@@ -69,7 +70,7 @@
                                 {
                                     title = seg.CourseTitle,
                                     scheduleName = seg.ScheduleName,
-                                    time = seg.DualTimeText,
+                                    time = seg.DualTimeText, startAt = Web_Backend.Classes.ScheduleTime.IsoAt(day.Date, seg.StartTime, seg.TimeZone), endAt = Web_Backend.Classes.ScheduleTime.IsoAt(day.Date, seg.EndTime, seg.TimeZone),
                                     startTime = day.Date.Date.Add(seg.StartTime).ToString("yyyy-MM-ddTHH:mm:ss") + Web_Backend.Classes.ScheduleTime.IsoOffset(seg.TimeZone),
                                     location = seg.Location,
                                     instructorNames = seg.InstructorNames,
@@ -159,7 +160,7 @@
                         </div>
                         <div class="text-xs text-slate-500 dark:text-slate-400 space-y-0.5">
                             ${e.scheduleName ? `<div>${e.scheduleName}</div>` : ''}
-                            ${e.time ? `<div class="flex items-center gap-1"><i data-lucide="clock" class="w-3 h-3"></i> ${e.time}</div>` : ''}
+                            ${e.time ? `<div class="flex items-center gap-1"><i data-lucide="clock" class="w-3 h-3"></i> <span data-tz-start="${e.startAt || ''}" data-tz-end="${e.endAt || ''}">${e.time}</span></div>` : ''}
                             ${e.location ? `<div class="flex items-center gap-1"><i data-lucide="map-pin" class="w-3 h-3"></i> ${e.location}</div>` : ''}
                             ${e.instructorNames ? `<div class="flex items-center gap-1"><i data-lucide="user" class="w-3 h-3"></i> ${e.instructorNames}</div>` : ''}
                         </div>
