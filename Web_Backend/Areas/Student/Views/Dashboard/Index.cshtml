@@ -13,10 +13,9 @@
 <div class="max-w-5xl mx-auto space-y-8 page-enter">
 
     <div>
-        <div class="flex flex-wrap items-center gap-3 mb-3">
+        <div class="flex flex-wrap items-center gap-x-3 gap-y-2 mb-3">
             <p class="text-sm font-medium text-slate-500 dark:text-slate-400">@Web_Backend.Classes.SriLankaTime.Now.ToString("ddd, MMMM d")</p>
-            @await Html.PartialAsync("~/Views/Shared/_DualClock.cshtml")
-            @await Html.PartialAsync("_ZonePicker")
+            <div class="inline-flex items-center gap-1.5">@await Html.PartialAsync("~/Views/Shared/_DualClock.cshtml") @await Html.PartialAsync("_ZonePicker")</div>
         </div>
         <h1 class="text-3xl md:text-4xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">
             Hello, @Model.StudentName

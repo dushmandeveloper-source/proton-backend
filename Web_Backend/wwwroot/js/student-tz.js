@@ -109,6 +109,14 @@
                 sel.addEventListener('change', () => setZone(sel.value));
             }
             sel.value = zone && !BUILT_IN.includes(zone) ? zone : '';
+            // Compact button: show the chosen country's flag next to the globe.
+            const btn = sel.closest('.tz-button');
+            if (btn) {
+                const cur = btn.querySelector('[data-tz-current]');
+                const chosen = zone && !BUILT_IN.includes(zone);
+                if (cur) cur.textContent = chosen ? flagOf(zone) : '';
+                btn.title = chosen ? 'My time: ' + (meta(zone) ? meta(zone)[1] : zone) + ' (tap to change)' : 'Show times in my country';
+            }
         });
     }
 
