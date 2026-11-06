@@ -792,6 +792,7 @@
                         <input type="text" name="ScheduleName" placeholder="Batch name" class="md:col-span-2 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" />
                         <input type="number" name="Capacity" placeholder="Capacity" class="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" />
                         <input type="text" name="Location" placeholder="Location" class="md:col-span-3 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" />
+                        @await Html.PartialAsync("~/Views/Shared/_TimeZonePicker.cshtml")
                         <div class="relative instructor-picker md:col-span-3" data-name="InstructorUserIDsJSON">
                             <input type="text" class="instructor-search px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm w-full" placeholder="Search instructors..." autocomplete="off" />
                             <div class="instructor-selected flex flex-wrap gap-1 mt-1"></div>
@@ -1262,6 +1263,7 @@
 
                         function resetFormToAddMode() {
                             scheduleIdField.value = '';
+                            if (window.setScheduleTimeZone) window.setScheduleTimeZone(form);
                             ['ScheduleName', 'Capacity', 'Location', 'Notes'].forEach(name => {
                                 const field = form.querySelector(`[name="${name}"]`);
                                 if (field) field.value = '';
@@ -1298,6 +1300,7 @@
                                     const data = JSON.parse(btn.dataset.schedule);
 
                                     scheduleIdField.value = data.scheduleID;
+                                    if (window.setScheduleTimeZone) window.setScheduleTimeZone(form, data.timeZone);
 
                                     const nameField = form.querySelector('[name="ScheduleName"]');
                                     if (nameField) nameField.value = data.scheduleName || '';
@@ -1376,7 +1379,7 @@
                                         {
                                             <button type="button" class="edit-schedule-btn p-2 rounded-xl text-slate-400 dark:text-slate-500 hover:text-[#7c3aed] dark:hover:text-purple-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
                                                     title="Edit"
-                                                    data-schedule='@Html.Raw(System.Text.Json.JsonSerializer.Serialize(new {
+                                                    data-schedule='@Html.Raw(System.Text.Json.JsonSerializer.Serialize(new { timeZone = s.TimeZone,
                                                         scheduleID = s.ScheduleID, courseID = s.CourseID, scheduleName = s.ScheduleName,
                                                         capacity = s.Capacity, location = s.Location, notes = s.Notes,
                                                         segments = s.Segments.OrderBy(seg => seg.SortOrder).Select(seg => new {

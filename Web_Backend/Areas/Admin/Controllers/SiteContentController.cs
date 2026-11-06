@@ -187,6 +187,18 @@ namespace Web_Backend.Areas.Admin.Controllers
             return RedirectToAction("Index", new { tab = "wheel" });
         }
 
+        // 0119: zone pre-selected on new schedule forms. Existing schedules keep their own zone.
+        [HttpPost, ValidateAntiForgeryToken]
+        public async Task<IActionResult> SaveSchedulingSettings(string zone)
+        {
+            Auth.CheckPermission(PermissionCode.SiteContent, 'E');
+            if (zone != Web_Backend.Classes.ScheduleTime.China && zone != Web_Backend.Classes.ScheduleTime.SriLanka)
+                return Fail("Please choose China or Sri Lanka.", "scheduling");
+            await rep.SetSetting(Web_Backend.Classes.ScheduleTime.DefaultSettingKey, zone);
+            TempData["SuccessMessage"] = "Default time zone saved: " + Web_Backend.Classes.ScheduleTime.Label(zone) + ".";
+            return RedirectToAction("Index", new { tab = "scheduling" });
+        }
+
         [HttpPost, ValidateAntiForgeryToken]
         public async Task<IActionResult> SaveAnnouncementSettings(bool enabled, string animation, string speed, string bgColor, string textColor)
         {

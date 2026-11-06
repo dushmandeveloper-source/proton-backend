@@ -83,7 +83,7 @@
                                         title = seg.CourseTitle,
                                         scheduleName = seg.ScheduleName,
                                         batchName = seg.BatchName,
-                                        time = $"{seg.StartTime.ToString(@"hh\:mm")} - {seg.EndTime.ToString(@"hh\:mm")}",
+                                        time = seg.DualTimeText,
                                         location = seg.Location,
                                         instructorNames = seg.InstructorNames,
                                         meetingLink = (Model.IsContentRestricted || (examJoin != null && !examJoin.HasFullAccess)) ? null : seg.MeetingLink,
@@ -121,8 +121,8 @@
                                     {
                                         var isMakeup = seg.CourseTitle.EndsWith("(Makeup Exam)");
                                         var chipCls = isMakeup ? "bg-fuchsia-50 dark:bg-fuchsia-950 text-fuchsia-700 dark:text-fuchsia-300" : "bg-sky-50 dark:bg-sky-950 text-sky-700 dark:text-sky-300";
-                                        var classTitle = $"{seg.StartTime.ToString(@"hh\:mm")} {seg.CourseTitle}";
-                                        var classTip = $"{seg.CourseTitle} ({seg.StartTime.ToString(@"hh\:mm")} - {seg.EndTime.ToString(@"hh\:mm")})";
+                                        var classTitle = $"{seg.ShortStartText} {seg.CourseTitle}";
+                                        var classTip = $"{seg.CourseTitle} ({seg.DualTimeText})";
                                         <div class="text-[11px] truncate rounded-md px-1.5 py-0.5 @chipCls" title="@classTip">
                                             @classTitle
                                         </div>

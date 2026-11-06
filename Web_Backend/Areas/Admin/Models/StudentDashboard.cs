@@ -139,5 +139,11 @@ namespace Web_Backend.Areas.Admin.Models
         // ("Course") from an exam-schedule segment adapted into this same
         // shape ("Exam") — see ExamScheduleInstructorSegment.Kind.
         public string Kind { get; set; } = "Course";
+
+        // Zone the dates/times are written in (0119) -- see Classes/ScheduleTime.
+        public string TimeZone { get; set; } = Web_Backend.Classes.ScheduleTime.SriLanka;
+
+        public string DualTimeText => Web_Backend.Classes.ScheduleTime.DualRange(StartTime, EndTime, TimeZone);
+        public string ShortStartText => Web_Backend.Classes.ScheduleTime.ShortDual(StartTime, TimeZone);
     }
 }

@@ -163,7 +163,7 @@ namespace Web_Backend.Hubs
                 throw new HubException("Attempt not found.");
 
             var today = Web_Backend.Classes.SriLankaTime.Today;
-            var segments = await examScheduleRep.GetSegmentsForInstructor(userId, today, today);
+            var segments = await examScheduleRep.GetSegmentsForInstructor(userId, today.AddDays(-1), today.AddDays(1));
             if (!segments.Any(s => s.ExamID == attempt.ExamID))
                 throw new HubException("You are not assigned to this exam.");
 

@@ -1,0 +1,76 @@
+@* Zone picker for schedule forms (0119). Posts TimeZone=Asia/Shanghai|Asia/Colombo.
+   Pre-selects Admin -> Site Content's default (China unless changed). The edit
+   buttons' JS calls window.setScheduleTimeZone(form, zone) to show a saved
+   schedule's zone. A live line converts the first period's start time. *@
+@inject DBAccess.IDBAccess Db
+@{
+    var defaultZone = await Web_Backend.Classes.ScheduleTime.DefaultZone(Db);
+    var pickerId = "tz-" + Guid.NewGuid().ToString("N")[..8];
+}
+<div class="tz-picker md:col-span-full" id="@pickerId" data-default-zone="@defaultZone">
+    <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Times are in</label>
+    <div class="flex flex-wrap items-center gap-3">
+        <div class="inline-flex p-1 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700" role="radiogroup" aria-label="Schedule time zone">
+            <label class="tz-option cursor-pointer">
+                <input type="radio" name="TimeZone" value="@Web_Backend.Classes.ScheduleTime.China" class="peer sr-only" @(defaultZone == Web_Backend.Classes.ScheduleTime.China ? "checked" : "") />
+                <span class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium text-slate-500 dark:text-slate-400 transition-colors hover:text-slate-800 dark:hover:text-slate-100 peer-checked:bg-white dark:peer-checked:bg-slate-900 peer-checked:text-[#7c3aed] dark:peer-checked:text-purple-300 peer-checked:shadow-sm peer-focus-visible:ring-2 peer-focus-visible:ring-[#7c3aed]/50">
+                    <span aria-hidden="true">🇨🇳</span> China <span class="text-[11px] opacity-70">UTC+8</span>
+                </span>
+            </label>
+            <label class="tz-option cursor-pointer">
+                <input type="radio" name="TimeZone" value="@Web_Backend.Classes.ScheduleTime.SriLanka" class="peer sr-only" @(defaultZone == Web_Backend.Classes.ScheduleTime.SriLanka ? "checked" : "") />
+                <span class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium text-slate-500 dark:text-slate-400 transition-colors hover:text-slate-800 dark:hover:text-slate-100 peer-checked:bg-white dark:peer-checked:bg-slate-900 peer-checked:text-[#7c3aed] dark:peer-checked:text-purple-300 peer-checked:shadow-sm peer-focus-visible:ring-2 peer-focus-visible:ring-[#7c3aed]/50">
+                    <span aria-hidden="true">🇱🇰</span> Sri Lanka <span class="text-[11px] opacity-70">UTC+5:30</span>
+                </span>
+            </label>
+        </div>
+        <p class="tz-preview text-xs text-slate-500 dark:text-slate-400"></p>
+    </div>
+    <p class="text-[11px] text-slate-400 dark:text-slate-500 mt-1">Everyone joins at the same moment — students see both China and Sri Lanka times.</p>
+</div>
+<script>
+(function () {
+    const root = document.getElementById('@pickerId');
+    const form = root.closest('form');
+    const CN = 'Asia/Shanghai', OFFSETS = { 'Asia/Shanghai': 480, 'Asia/Colombo': 330 };
+
+    function fmt(mins) {
+        const day = mins < 0 ? ' (prev day)' : mins >= 1440 ? ' (next day)' : '';
+        mins = ((mins % 1440) + 1440) % 1440;
+        const h = Math.floor(mins / 60), m = mins % 60;
+        return ((h % 12) || 12) + ':' + String(m).padStart(2, '0') + ' ' + (h < 12 ? 'AM' : 'PM') + day;
+    }
+    function zone() { return (root.querySelector('input[name="TimeZone"]:checked') || {}).value || root.dataset.defaultZone; }
+    function update() {
+        const input = form && form.querySelector('.period-start-time');
+        const v = input && input.value;
+        const z = zone();
+        const other = z === CN ? 'Asia/Colombo' : CN;
+        const flag = zz => zz === CN ? '🇨🇳 China' : '🇱🇰 Sri Lanka';
+        if (!v) {
+            root.querySelector('.tz-preview').textContent = z === CN
+                ? 'e.g. 9:00 PM China = 6:30 PM Sri Lanka'
+                : 'e.g. 6:30 PM Sri Lanka = 9:00 PM China';
+            return;
+        }
+        const [h, m] = v.split(':').map(Number);
+        const mins = h * 60 + m;
+        root.querySelector('.tz-preview').textContent =
+            flag(z) + ' ' + fmt(mins) + '  =  ' + flag(other) + ' ' + fmt(mins - OFFSETS[z] + OFFSETS[other]);
+    }
+    root.addEventListener('change', update);
+    if (form) {
+        form.addEventListener('input', e => { if (e.target.classList.contains('period-start-time')) update(); });
+        form.addEventListener('change', e => { if (e.target.classList.contains('period-start-time')) update(); });
+    }
+    // Edit buttons pass the saved zone; Add/reset passes nothing -> default.
+    window.setScheduleTimeZone = function (f, z) {
+        const r = (f || document).querySelector('.tz-picker');
+        if (!r) return;
+        const want = z || r.dataset.defaultZone;
+        r.querySelectorAll('input[name="TimeZone"]').forEach(i => i.checked = i.value === want);
+        r.dispatchEvent(new Event('change', { bubbles: true }));
+    };
+    update();
+})();
+</script>

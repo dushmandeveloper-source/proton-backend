@@ -100,6 +100,7 @@ namespace Web_Backend.Areas.LecturerPortal.Controllers
                         EndTime = original.EndTime ?? TimeSpan.Zero,
                         InstructorNames = original.InstructorNames,
                         MeetingLink = original.MeetingLink,
+                        TimeZone = original.TimeZone,
                         Kind = "Exam"
                     }));
                 }
@@ -184,6 +185,7 @@ namespace Web_Backend.Areas.LecturerPortal.Controllers
                 ExceptionDates = seg.ExceptionDates,
                 TimeOverrides = seg.TimeOverrides,
                 MeetingLink = seg.MeetingLink,
+                TimeZone = seg.TimeZone,
                 Kind = "Exam"
             };
         }

@@ -112,6 +112,7 @@ namespace Web_Backend.Areas.LecturerPortal.Controllers
                 ExceptionDates = seg.ExceptionDates,
                 TimeOverrides = seg.TimeOverrides,
                 MeetingLink = seg.MeetingLink,
+                TimeZone = seg.TimeZone,
                 Kind = "Exam"
             };
         }

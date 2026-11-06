@@ -83,17 +83,36 @@ namespace Web_Backend.Controllers.Api
                     .OrderBy(s => s.StartTime)
                     .Select(s =>
                     {
-                        var start = d + s.StartTime;
-                        var end = d + s.EndTime;
+                        // Times are written in the schedule's zone (0119). `start`/`end` stay
+
+                        // Sri Lanka wall-clock (timeZone "+05:30") so older app builds keep
+
+                        // working; china* and *Utc are for app 1.10+.
+
+                        var zone = s.TimeZone;
+
+                        var segNow = ScheduleTime.Now(zone);
+
+                        var start = ScheduleTime.Convert(d + s.StartTime, zone, ScheduleTime.SriLanka);
+
+                        var end = ScheduleTime.Convert(d + s.EndTime, zone, ScheduleTime.SriLanka);
+
+                        var chinaStart = ScheduleTime.Convert(d + s.StartTime, zone, ScheduleTime.China);
+
+                        var chinaEnd = ScheduleTime.Convert(d + s.EndTime, zone, ScheduleTime.China);
+
+                        var startUtc = DateTime.SpecifyKind(ScheduleTime.ToUtc(d + s.StartTime, zone), DateTimeKind.Utc);
+
+                        var endUtc = DateTime.SpecifyKind(ScheduleTime.ToUtc(d + s.EndTime, zone), DateTimeKind.Utc);
                         if (s.Kind == "Exam")
                         {
                             examInfo.TryGetValue(s.CourseID, out var info);
-                            var withinWindow = info.Exam != null && now >= s.StartDate.Date + s.StartTime && now <= s.EndDate.Date + (s.EndTime == TimeSpan.Zero ? new TimeSpan(23, 59, 59) : s.EndTime);
+                            var withinWindow = info.Exam != null && segNow >= s.StartDate.Date + s.StartTime && segNow <= s.EndDate.Date + (s.EndTime == TimeSpan.Zero ? new TimeSpan(23, 59, 59) : s.EndTime);
                             var state = info.Exam == null ? "unavailable"
                                 : !info.FullAccess ? "locked"
                                 : info.Used >= info.Exam.MaxAttempts ? (info.Pending ? "pendingReview" : "done")
-                                : d != now.Date ? (d > now.Date ? "upcoming" : "missed")
-                                : withinWindow ? "open" : (now < start ? "upcoming" : "closed");
+                                : d != segNow.Date ? (d > segNow.Date ? "upcoming" : "missed")
+                                : withinWindow ? "open" : (segNow < d + s.StartTime ? "upcoming" : "closed");
                             return (object)new
                             {
                                 kind = "Exam",
@@ -103,7 +122,7 @@ namespace Web_Backend.Controllers.Api
                                 batch = s.BatchName,
                                 location = s.Location,
                                 lecturers = s.InstructorNames,
-                                start, end,
+                                start, end, zone, chinaStart, chinaEnd, startUtc, endUtc,
                                 durationMinutes = info.Exam?.DurationMinutes,
                                 attemptsUsed = info.Used,
                                 maxAttempts = info.Exam?.MaxAttempts ?? 0,
@@ -121,7 +140,7 @@ namespace Web_Backend.Controllers.Api
                             batch = s.BatchName,
                             location = s.Location,
                             lecturers = s.InstructorNames,
-                            start, end,
+                            start, end, zone, chinaStart, chinaEnd, startUtc, endUtc,
                             // Join opens 15 minutes early, like the dashboard.
                             joinFrom = start.AddMinutes(-15),
                             meetingLink = locked ? "" : SafeUrl.OrEmpty(s.MeetingLink),

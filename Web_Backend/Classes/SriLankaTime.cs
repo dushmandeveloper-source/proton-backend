@@ -1,6 +1,10 @@
 namespace Web_Backend.Classes
 {
-    // All exam/course scheduling in Proton is authored and enforced in Sri
+    // NOTE (0119): course/exam schedules now carry their own zone (China or
+    // Sri Lanka) -- join/window checks use Classes/ScheduleTime, not this.
+    // This class remains the business clock for dates such as payments and
+    // instalments, and for online assignments (still authored in Sri Lanka time).
+    // Originally: all exam/course scheduling in Proton was authored and enforced in Sri
     // Lanka wall-clock time (UTC+5:30) regardless of where the student or
     // server physically is -- a "1-3 PM" sitting means 1-3 PM Sri Lanka
     // time for every student worldwide, not 1-3 PM in their own timezone.

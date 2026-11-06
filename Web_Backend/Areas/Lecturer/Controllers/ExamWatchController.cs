@@ -47,7 +47,7 @@ namespace Web_Backend.Areas.LecturerPortal.Controllers
                 return Done(false, "Attempt not found.", returnUrl);
 
             var today = SriLankaTime.Today;
-            var segments = await examScheduleRep.GetSegmentsForInstructor(userId, today, today);
+            var segments = await examScheduleRep.GetSegmentsForInstructor(userId, today.AddDays(-1), today.AddDays(1));
             if (!segments.Any(s => s.ExamID == attempt.ExamID)
                 && !(await attemptRep.ListInProgressForInstructor(userId)).Any(a => a.AttemptID == attemptId))
                 return Done(false, "You are not assigned to this exam.", returnUrl);

@@ -33,13 +33,13 @@ namespace Web_Backend.Areas.Admin.Data
                 search.ToDate,
                 search.IsActive
             });
-            return raw.Select(ToExamSchedule).ToList();
+            return await Stamp(raw.Select(ToExamSchedule).ToList());
         }
 
         public async Task<ExamSchedule?> Get(string id)
         {
             var raw = await db.Get<ExamScheduleRaw, object>("edu.ExamSchedule_Get", new { APIKey = AppData.GetAPIKey(), ID = id });
-            return raw == null ? null : ToExamSchedule(raw);
+            return raw == null ? null : (await Stamp(new List<ExamSchedule> { ToExamSchedule(raw) }))[0];
         }
 
         private static ExamSchedule ToExamSchedule(ExamScheduleRaw raw)
@@ -53,8 +53,9 @@ namespace Web_Backend.Areas.Admin.Data
             return raw;
         }
 
-        public Task<string> AddEdit(ExamSchedule s) =>
-            db.Execute("edu.ExamSchedule_AddEdit", new
+        public async Task<string> AddEdit(ExamSchedule s)
+        {
+            var id = await db.Execute("edu.ExamSchedule_AddEdit", new
             {
                 APIKey = AppData.GetAPIKey(),
                 s.ScheduleID,
@@ -68,6 +69,10 @@ namespace Web_Backend.Areas.Admin.Data
                 SegmentJSON = JsonSerializer.Serialize(s.Segments, CamelCase),
                 InstructorUserIDsJSON = JsonSerializer.Serialize(s.Instructors.Select(i => i.UserID).ToList(), CamelCase)
             });
+            var sid = string.IsNullOrEmpty(id) ? s.ScheduleID : id;
+            if (!string.IsNullOrEmpty(sid)) await ScheduleTime.SetZone(db, "Exam", sid, s.TimeZone);
+            return id;
+        }
 
         // Instructor-scoped analogue of GetList, for the Lecturer "My Exams"
         // list — edu.ExamSchedule_ListForInstructor returns SegmentJSON +
@@ -80,32 +85,42 @@ namespace Web_Backend.Areas.Admin.Data
                 APIKey = AppData.GetAPIKey(),
                 UserID = userId
             });
-            return raw.Select(r =>
+            return await Stamp(raw.Select(r =>
             {
                 r.Segments = string.IsNullOrWhiteSpace(r.SegmentJSON)
                     ? new List<ExamScheduleSegment>()
                     : JsonSerializer.Deserialize<List<ExamScheduleSegment>>(r.SegmentJSON) ?? new List<ExamScheduleSegment>();
                 return (ExamSchedule)r;
-            }).ToList();
+            }).ToList()).ConfigureAwait(false);
         }
 
-        public Task<List<ExamScheduleInstructorSegment>> GetSegmentsForInstructor(string userId, DateTime fromDate, DateTime toDate) =>
-            db.GetList<ExamScheduleInstructorSegment, object>("edu.ExamScheduleSegment_ListForInstructor", new
+        public async Task<List<ExamScheduleInstructorSegment>> GetSegmentsForInstructor(string userId, DateTime fromDate, DateTime toDate)
+        {
+            var rows = await db.GetList<ExamScheduleInstructorSegment, object>("edu.ExamScheduleSegment_ListForInstructor", new
             {
                 APIKey = AppData.GetAPIKey(),
                 UserID = userId,
                 FromDate = fromDate,
                 ToDate = toDate
             });
+            var zones = await ScheduleTime.Zones(db);
+            foreach (var r in rows) r.TimeZone = zones.TryGetValue("Exam:" + r.ScheduleID, out var z) ? z : ScheduleTime.SriLanka;
+            return rows;
+        }
 
-        public Task<List<ExamScheduleInstructorSegment>> GetSegmentsForStudent(string userId, DateTime fromDate, DateTime toDate) =>
-            db.GetList<ExamScheduleInstructorSegment, object>("edu.ExamScheduleSegment_ListForStudent", new
+        public async Task<List<ExamScheduleInstructorSegment>> GetSegmentsForStudent(string userId, DateTime fromDate, DateTime toDate)
+        {
+            var rows = await db.GetList<ExamScheduleInstructorSegment, object>("edu.ExamScheduleSegment_ListForStudent", new
             {
                 APIKey = AppData.GetAPIKey(),
                 StudentID = userId,
                 FromDate = fromDate,
                 ToDate = toDate
             });
+            var zones = await ScheduleTime.Zones(db);
+            foreach (var r in rows) r.TimeZone = zones.TryGetValue("Exam:" + r.ScheduleID, out var z) ? z : ScheduleTime.SriLanka;
+            return rows;
+        }
 
         public Task SetSegmentMeetingLink(string segmentId, string meetingLink) =>
             db.ExecuteNonQuery("edu.ExamScheduleSegment_SetMeetingLink", new
@@ -128,6 +143,17 @@ namespace Web_Backend.Areas.Admin.Data
 
         public Task<List<ExamScheduleStudentRow>> BatchStudents(string courseScheduleId) =>
             db.GetList<ExamScheduleStudentRow, object>("edu.ExamSchedule_BatchStudents", new { APIKey = AppData.GetAPIKey(), CourseScheduleID = courseScheduleId });
+
+        private async Task<List<ExamSchedule>> Stamp(List<ExamSchedule> list)
+        {
+            var zones = await ScheduleTime.Zones(db);
+            foreach (var s in list)
+            {
+                s.TimeZone = zones.TryGetValue("Exam:" + s.ScheduleID, out var z) ? z : ScheduleTime.SriLanka;
+                foreach (var seg in s.Segments) seg.Zone = s.TimeZone;
+            }
+            return list;
+        }
 
         public Task Deactivate(string id) =>
             db.ExecuteNonQuery("edu.ExamSchedule_Deactivate", new { APIKey = AppData.GetAPIKey(), ID = id });

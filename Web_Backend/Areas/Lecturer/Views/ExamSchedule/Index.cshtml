@@ -77,9 +77,9 @@
                                     title = seg.CourseTitle,
                                     scheduleName = seg.ScheduleName,
                                     batchName = seg.BatchName,
-                                    time = $"{seg.StartTime.ToString(@"hh\:mm")} - {seg.EndTime.ToString(@"hh\:mm")}",
-                                    startTime = seg.StartTime.ToString(@"hh\:mm\:ss"),
-                                    endTime = seg.EndTime.ToString(@"hh\:mm\:ss"),
+                                    time = seg.DualTimeText,
+                                    startTime = day.Date.Date.Add(seg.StartTime).ToString("yyyy-MM-ddTHH:mm:ss") + Web_Backend.Classes.ScheduleTime.IsoOffset(seg.TimeZone),
+                                    endTime = day.Date.Date.Add(seg.EndTime).ToString("yyyy-MM-ddTHH:mm:ss") + Web_Backend.Classes.ScheduleTime.IsoOffset(seg.TimeZone),
                                     location = seg.Location,
                                     instructorNames = seg.InstructorNames,
                                     students = selectedStudents.TryGetValue(seg.ScheduleID, out var names) ? names : new List<string>(),
@@ -109,8 +109,8 @@
                                     {
                                         var isMakeup = seg.CourseTitle.EndsWith("(Makeup Exam)");
                                         var chipCls = isMakeup ? "bg-fuchsia-50 dark:bg-fuchsia-950 text-fuchsia-700 dark:text-fuchsia-300" : "bg-sky-50 dark:bg-sky-950 text-sky-700 dark:text-sky-300";
-                                        var classTitle = $"{seg.StartTime.ToString(@"hh\:mm")} {seg.CourseTitle}";
-                                        var classTip = $"{seg.CourseTitle} ({seg.StartTime.ToString(@"hh\:mm")} - {seg.EndTime.ToString(@"hh\:mm")})";
+                                        var classTitle = $"{seg.ShortStartText} {seg.CourseTitle}";
+                                        var classTip = $"{seg.CourseTitle} ({seg.DualTimeText})";
                                         <div class="text-[11px] truncate rounded-md px-1.5 py-0.5 @chipCls" title="@classTip">
                                             @classTitle
                                         </div>
@@ -149,8 +149,8 @@
                 var withinWindow = false;
                 if (isToday && e.startTime && e.endTime) {
                     var todayStr = now.toISOString().slice(0, 10);
-                    var start = new Date(todayStr + 'T' + e.startTime);
-                    var end = new Date(todayStr + 'T' + e.endTime);
+                    var start = new Date(e.startTime);
+                    var end = new Date(e.endTime);
                     withinWindow = now >= start && now <= end;
                 }
                 var canWatch = isToday && withinWindow;

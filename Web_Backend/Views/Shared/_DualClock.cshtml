@@ -1,0 +1,35 @@
+@* Live China + Sri Lanka clock pill for dashboards (0119). Server-rendered
+   first paint (no flash), then refreshes every 15s from the browser clock,
+   formatted with fixed zones so the viewer's own device zone never matters. *@
+@{
+    var cn = Web_Backend.Classes.ScheduleTime.Now(Web_Backend.Classes.ScheduleTime.China);
+    var sl = Web_Backend.Classes.ScheduleTime.Now(Web_Backend.Classes.ScheduleTime.SriLanka);
+}
+<div class="dual-clock inline-flex items-center rounded-full border border-slate-200/80 dark:border-slate-700 bg-white/80 dark:bg-slate-900/70 backdrop-blur shadow-sm text-xs font-medium text-slate-700 dark:text-slate-200 tabular-nums select-none"
+     role="group" aria-label="Current time in China and Sri Lanka">
+    <span class="flex items-center gap-1.5 pl-2.5 pr-2 py-1" title="China (UTC+8) · @cn.ToString("ddd d MMM")">
+        <span aria-hidden="true" class="text-sm leading-none">🇨🇳</span>
+        <span data-clock-zone="Asia/Shanghai">@cn.ToString("h:mm tt")</span>
+    </span>
+    <span class="h-3.5 w-px bg-slate-200 dark:bg-slate-700" aria-hidden="true"></span>
+    <span class="flex items-center gap-1.5 pl-2 pr-2.5 py-1" title="Sri Lanka (UTC+5:30) · @sl.ToString("ddd d MMM")">
+        <span aria-hidden="true" class="text-sm leading-none">🇱🇰</span>
+        <span data-clock-zone="Asia/Colombo">@sl.ToString("h:mm tt")</span>
+    </span>
+</div>
+<script>
+(function () {
+    if (window.__dualClock) return; window.__dualClock = true;
+    const OFF = { 'Asia/Shanghai': 480, 'Asia/Colombo': 330 }; // fixed, no DST
+    function tick() {
+        const utc = Date.now();
+        document.querySelectorAll('[data-clock-zone]').forEach(el => {
+            const d = new Date(utc + OFF[el.dataset.clockZone] * 60000);
+            const h = d.getUTCHours(), m = d.getUTCMinutes();
+            el.textContent = ((h % 12) || 12) + ':' + String(m).padStart(2, '0') + ' ' + (h < 12 ? 'AM' : 'PM');
+        });
+    }
+    tick();
+    setInterval(tick, 15000);
+})();
+</script>

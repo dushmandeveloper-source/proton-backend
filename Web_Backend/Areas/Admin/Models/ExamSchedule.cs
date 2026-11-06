@@ -25,6 +25,9 @@ namespace Web_Backend.Areas.Admin.Models
         public string Notes { get; set; } = "";
 
         public string IsActive { get; set; } = "A";
+
+        // Zone the dates/times are written in (0119) -- see Classes/ScheduleTime.
+        public string TimeZone { get; set; } = Web_Backend.Classes.ScheduleTime.SriLanka;
         public DateTime CreatedDate { get; set; }
         public DateTime? UpdatedDate { get; set; }
 
@@ -99,13 +102,18 @@ namespace Web_Backend.Areas.Admin.Models
 
         public string TimeRangeTextOn(DateTime date) =>
             SegmentTimeOverrides.Parse(TimeOverrides).TryGetValue(date.ToString("yyyy-MM-dd"), out var t)
-                ? $"{t.Start:hh\\:mm} - {t.End:hh\\:mm}"
+                ? Web_Backend.Classes.ScheduleTime.DualRange(date, t.Start, t.End, Zone)
                 : TimeRangeText;
+
+        // Parent schedule's zone, copied on load (0119). Display only.
+        [System.Text.Json.Serialization.JsonIgnore]
+        public string Zone { get; set; } = Web_Backend.Classes.ScheduleTime.SriLanka;
 
         public string DateRangeText => $"{StartDate:dd MMM yyyy} - {EndDate:dd MMM yyyy}";
         public string DaysOfWeekLabel => string.Join(", ", DaysOfWeek.Split(',', StringSplitOptions.RemoveEmptyEntries));
+        // Both zones, e.g. "🇨🇳 9:00 PM – 11:00 PM · 🇱🇰 6:30 PM – 8:30 PM".
         public string TimeRangeText => StartTime.HasValue && EndTime.HasValue
-            ? $"{StartTime:hh\\:mm} - {EndTime:hh\\:mm}"
+            ? Web_Backend.Classes.ScheduleTime.DualRange(StartTime.Value, EndTime.Value, Zone)
             : "";
 
         public int ExceptionCount => ExceptionDates.Split(',', StringSplitOptions.RemoveEmptyEntries).Length;
@@ -151,6 +159,11 @@ namespace Web_Backend.Areas.Admin.Models
         // Discriminator distinguishing this exam-schedule segment from an
         // ordinary course-schedule segment — see StudentScheduleSegment.Kind.
         public string Kind { get; set; } = "Exam";
+
+        // Zone the dates/times are written in (0119) -- see Classes/ScheduleTime.
+        public string TimeZone { get; set; } = Web_Backend.Classes.ScheduleTime.SriLanka;
+
+        public string DualTimeText => Web_Backend.Classes.ScheduleTime.DualRange(StartTime ?? TimeSpan.Zero, EndTime ?? TimeSpan.Zero, TimeZone);
     }
 
     // A student chosen for (or eligible in) an exam sitting -- 0115.

@@ -24,6 +24,7 @@
         ("about", "About page", "users"),
         ("text", "Page text", "type"),
         ("speed", "Image speed", "gauge"),
+        ("scheduling", "Time zone", "clock"),
     };
     var input = "w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm";
     var card = "bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700";
@@ -528,6 +529,35 @@
                 }
             </div>
         }
+    }
+
+    @* ================= SCHEDULING TIME ZONE (0119) ================= *@
+    @if (tab == "scheduling")
+    {
+        var tzNow = string.IsNullOrEmpty(S(Web_Backend.Classes.ScheduleTime.DefaultSettingKey)) ? Web_Backend.Classes.ScheduleTime.China : Web_Backend.Classes.ScheduleTime.Normalize(S(Web_Backend.Classes.ScheduleTime.DefaultSettingKey));
+        <form method="post" asp-action="SaveSchedulingSettings" class="@card p-6 mb-6">
+            @Html.AntiForgeryToken()
+            <h3 class="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-1">Scheduling time zone</h3>
+            <p class="text-sm text-slate-500 dark:text-slate-400 mb-5">The zone pre-selected when you create a class or exam schedule. Each schedule keeps the zone it was saved with, so changing this never moves existing schedules. Students and lecturers always see both China and Sri Lanka times, and everyone joins at the same moment.</p>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-xl">
+                @foreach (var (z, flag, name, off, ex) in new[] {
+                    (Web_Backend.Classes.ScheduleTime.China, "🇨🇳", "China", "UTC+8", "9:00 PM China = 6:30 PM Sri Lanka"),
+                    (Web_Backend.Classes.ScheduleTime.SriLanka, "🇱🇰", "Sri Lanka", "UTC+5:30", "6:30 PM Sri Lanka = 9:00 PM China") })
+                {
+                    <label class="cursor-pointer">
+                        <input type="radio" name="zone" value="@z" class="peer sr-only" @(tzNow == z ? "checked" : "") />
+                        <span class="flex items-start gap-3 rounded-2xl border border-slate-200 dark:border-slate-700 p-4 transition-colors hover:border-[#7c3aed]/50 peer-checked:border-[#7c3aed] peer-checked:bg-purple-50 dark:peer-checked:bg-purple-950/30 peer-focus-visible:ring-2 peer-focus-visible:ring-[#7c3aed]/40">
+                            <span class="text-2xl leading-none" aria-hidden="true">@flag</span>
+                            <span>
+                                <span class="block font-semibold text-slate-800 dark:text-slate-100">@name <span class="text-xs font-normal text-slate-400">@off</span></span>
+                                <span class="block text-xs text-slate-500 dark:text-slate-400 mt-1">@ex</span>
+                            </span>
+                        </span>
+                    </label>
+                }
+            </div>
+            <div class="mt-5"><button type="submit" class="@btnPrimary"><i data-lucide="save" class="w-4 h-4"></i> Save</button></div>
+        </form>
     }
 
     @* ================= IMAGE SPEED ================= *@

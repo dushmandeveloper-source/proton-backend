@@ -175,7 +175,8 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
 
                 var windowStart = seg.StartDate.Date + (seg.StartTime ?? TimeSpan.Zero);
                 var windowEnd = seg.EndDate.Date + (seg.EndTime ?? new TimeSpan(23, 59, 59));
-                var withinWindow = now >= windowStart && now <= windowEnd;
+                var segNow = Web_Backend.Classes.ScheduleTime.Now(seg.TimeZone);
+                var withinWindow = segNow >= windowStart && segNow <= windowEnd;
 
                 var exam = await examRep.Get(seg.ExamID);
                 if (exam == null) continue;
@@ -197,7 +198,7 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
                     ExamID = seg.ExamID,
                     ExamTitle = seg.ExamTitle,
                     WindowStart = windowStart,
-                    WindowEnd = windowEnd,
+                    WindowEnd = windowEnd,                    TimeZone = seg.TimeZone,
                     IsWithinWindow = withinWindow,
                     AttemptsUsed = attemptsUsed,
                     MaxAttempts = exam.MaxAttempts,

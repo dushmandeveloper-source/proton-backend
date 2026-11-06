@@ -69,8 +69,8 @@
                                 {
                                     title = seg.CourseTitle,
                                     scheduleName = seg.ScheduleName,
-                                    time = $"{seg.StartTime.ToString(@"hh\:mm")} - {seg.EndTime.ToString(@"hh\:mm")}",
-                                    startTime = seg.StartTime.ToString(@"hh\:mm\:ss"),
+                                    time = seg.DualTimeText,
+                                    startTime = day.Date.Date.Add(seg.StartTime).ToString("yyyy-MM-ddTHH:mm:ss") + Web_Backend.Classes.ScheduleTime.IsoOffset(seg.TimeZone),
                                     location = seg.Location,
                                     instructorNames = seg.InstructorNames,
                                     meetingLink = (Model.IsContentRestricted || lockedCourseIds.Contains(seg.CourseID)) ? null : seg.MeetingLink,
@@ -102,8 +102,8 @@
                                     {
                                         var isMakeup = seg.CourseTitle.EndsWith("(Makeup Class)");
                                         var chipCls = isMakeup ? "bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300" : "bg-indigo-50 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300";
-                                        var classTitle = $"{seg.StartTime.ToString(@"hh\:mm")} {seg.CourseTitle}";
-                                        var classTip = $"{seg.CourseTitle} ({seg.StartTime.ToString(@"hh\:mm")} - {seg.EndTime.ToString(@"hh\:mm")})";
+                                        var classTitle = $"{seg.ShortStartText} {seg.CourseTitle}";
+                                        var classTip = $"{seg.CourseTitle} ({seg.DualTimeText})";
                                         <div class="text-[11px] truncate rounded-md px-1.5 py-0.5 @chipCls" title="@classTip">
                                             @classTitle
                                         </div>
@@ -141,7 +141,7 @@
             return list.map(e => {
                 var canJoin = false;
                 if (isToday && e.startTime) {
-                    var joinAt = new Date(now.toISOString().slice(0, 10) + 'T' + e.startTime);
+                    var joinAt = new Date(e.startTime); // exact moment, schedule zone offset included
                     joinAt.setMinutes(joinAt.getMinutes() - 15);
                     canJoin = now >= joinAt;
                 }

@@ -13,7 +13,10 @@
 <div class="max-w-5xl mx-auto space-y-8 page-enter">
 
     <div>
-        <p class="text-sm font-medium text-slate-500 dark:text-slate-400 mb-2">@Web_Backend.Classes.SriLankaTime.Now.ToString("ddd, MMMM d") (Sri Lanka time)</p>
+        <div class="flex flex-wrap items-center gap-3 mb-3">
+            <p class="text-sm font-medium text-slate-500 dark:text-slate-400">@Web_Backend.Classes.SriLankaTime.Now.ToString("ddd, MMMM d")</p>
+            @await Html.PartialAsync("~/Views/Shared/_DualClock.cshtml")
+        </div>
         <h1 class="text-3xl md:text-4xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">
             Hello, @Model.StudentName
         </h1>
@@ -159,7 +162,7 @@
                                 Web_Backend.Areas.Admin.Models.ExamJoinRow? examJoin = null;
                                 if (isExam && examJoinRows != null)
                                     examJoinRows.TryGetValue(seg.CourseID, out examJoin);
-                                var isToday = day.Date.Date == Web_Backend.Classes.SriLankaTime.Today;
+                                var isToday = day.Date.Date == Web_Backend.Classes.ScheduleTime.Now(seg.TimeZone).Date;
                                 var canJoinToday = isExam && isToday && examJoin != null && examJoin.CanJoin;
 
                                 <div class="rounded-xl border px-4 py-3 flex items-start justify-between gap-3 @(isExam ? "bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-800" : "bg-slate-50 dark:bg-slate-800/60 border-slate-100 dark:border-slate-700")">
@@ -171,7 +174,7 @@
                                             <p class="text-sm font-semibold text-slate-800 dark:text-slate-100">@seg.CourseTitle</p>
                                         </div>
                                         <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                                            @seg.ScheduleName &middot; @seg.StartTime.ToString(@"hh\:mm") - @seg.EndTime.ToString(@"hh\:mm") &middot; @seg.Location
+                                            @seg.ScheduleName &middot; @seg.DualTimeText &middot; @seg.Location
                                         </p>
                                         @if (!string.IsNullOrEmpty(seg.InstructorNames))
                                         {
@@ -220,7 +223,7 @@
                                     {
                                         @if (isToday)
                                         {
-                                            <a href="@seg.MeetingLink" target="_blank" rel="noopener" data-join-link data-join-at="@joinAt.ToString("yyyy-MM-ddTHH:mm:ss")+05:30" data-join-until="@joinUntil.ToString("yyyy-MM-ddTHH:mm:ss")+05:30"
+                                            <a href="@seg.MeetingLink" target="_blank" rel="noopener" data-join-link data-join-at="@joinAt.ToString("yyyy-MM-ddTHH:mm:ss")@Web_Backend.Classes.ScheduleTime.IsoOffset(seg.TimeZone)" data-join-until="@joinUntil.ToString("yyyy-MM-ddTHH:mm:ss")@Web_Backend.Classes.ScheduleTime.IsoOffset(seg.TimeZone)"
                                                class="join-link px-3 py-1.5 rounded-lg font-medium text-xs bg-[#7c3aed] text-white hover:bg-[#6d28d9] transition-colors flex items-center gap-1 flex-shrink-0">
                                                 <i data-lucide="video" class="w-3.5 h-3.5"></i> <span class="join-label">Join</span>
                                             </a>

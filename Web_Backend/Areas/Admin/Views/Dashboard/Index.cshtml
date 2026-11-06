@@ -45,6 +45,7 @@
         <div class="absolute top-10 right-32 w-24 h-24 bg-purple-400/20 rounded-full blur-[40px]"></div>
 
         <p class="text-sm font-medium text-slate-500 dark:text-slate-400 mb-2">@DateTime.Now.ToString("ddd, MMMM d")</p>
+        <div class="mb-3">@await Html.PartialAsync("~/Views/Shared/_DualClock.cshtml")</div>
         <h1 class="text-4xl md:text-5xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">
             Hello, @(currentUser?.Name ?? "Admin")
         </h1>

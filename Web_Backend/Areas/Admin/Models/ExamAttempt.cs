@@ -104,6 +104,7 @@ namespace Web_Backend.Areas.Admin.Models
         public string ExamTitle { get; set; } = "";
         public System.DateTime? WindowStart { get; set; }
         public System.DateTime? WindowEnd { get; set; }
+        public string TimeZone { get; set; } = Web_Backend.Classes.ScheduleTime.SriLanka;
         public bool IsWithinWindow { get; set; }
         public int AttemptsUsed { get; set; }
         public int MaxAttempts { get; set; }

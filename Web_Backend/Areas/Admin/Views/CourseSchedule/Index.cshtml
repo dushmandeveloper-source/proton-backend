@@ -127,6 +127,7 @@
                     <input type="text" name="Location" placeholder="Location"
                            class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm" />
                 </div>
+                @await Html.PartialAsync("~/Views/Shared/_TimeZonePicker.cshtml")
                 <div class="relative instructor-picker" data-name="InstructorUserIDsJSON">
                     <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Instructors</label>
                     <input type="text" class="instructor-search px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm w-full" placeholder="Search instructors..." autocomplete="off" />
@@ -259,7 +260,7 @@
                                         {
                                             <button type="button" class="edit-schedule-btn p-2 rounded-xl text-slate-400 dark:text-slate-500 hover:text-[#7c3aed] dark:hover:text-purple-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
                                                     title="Edit"
-                                                    data-schedule='@Html.Raw(System.Text.Json.JsonSerializer.Serialize(new {
+                                                    data-schedule='@Html.Raw(System.Text.Json.JsonSerializer.Serialize(new { timeZone = s.TimeZone,
                                                         scheduleID = s.ScheduleID, courseID = s.CourseID, scheduleName = s.ScheduleName,
                                                         capacity = s.Capacity, location = s.Location, notes = s.Notes,
                                                         segments = s.Segments.OrderBy(seg => seg.SortOrder).Select(seg => new {
@@ -1080,6 +1081,7 @@
 
             function resetFormToAddMode() {
                 scheduleIdField.value = '';
+                if (window.setScheduleTimeZone) window.setScheduleTimeZone(form);
                 const courseSelect = form.querySelector('[name="CourseID"]');
                 if (courseSelect) courseSelect.value = '';
                 ['ScheduleName', 'Capacity', 'Location', 'Notes'].forEach(name => {
@@ -1103,6 +1105,7 @@
 
                     form.classList.remove('hidden');
                     scheduleIdField.value = data.scheduleID;
+                    if (window.setScheduleTimeZone) window.setScheduleTimeZone(form, data.timeZone);
 
                     const courseSelect = form.querySelector('[name="CourseID"]');
                     if (courseSelect) courseSelect.value = data.courseID;

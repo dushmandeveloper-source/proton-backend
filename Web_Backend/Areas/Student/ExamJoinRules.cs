@@ -30,6 +30,7 @@ namespace Web_Backend.Areas.StudentPortal
             ExceptionDates = seg.ExceptionDates,
             TimeOverrides = seg.TimeOverrides,
             MeetingLink = seg.MeetingLink,
+            TimeZone = seg.TimeZone,
             Kind = "Exam"
         };
 
@@ -45,14 +46,18 @@ namespace Web_Backend.Areas.StudentPortal
                     return "This exam is locked until full access is granted for its course.";
             }
 
-            var now = SriLankaTime.Now;
-            var today = now.Date;
-            var segments = (await examScheduleRep.GetSegmentsForStudent(studentId, today, today))
+            // Each sitting is checked against "now" in its own zone (0119);
+            // fetch a day either side so a China-zone date that differs from
+            // the Sri Lanka date near midnight is still found.
+            var slToday = SriLankaTime.Today;
+            var segments = (await examScheduleRep.GetSegmentsForStudent(studentId, slToday.AddDays(-1), slToday.AddDays(1)))
                 .Where(s => s.ExamID == exam.ExamID)
                 .ToList();
 
             var scheduledToday = segments.Any(s =>
             {
+                var now = ScheduleTime.Now(s.TimeZone);
+                var today = now.Date;
                 var windowStart = s.StartDate.Date + (s.StartTime ?? TimeSpan.Zero);
                 var windowEnd = s.EndDate.Date + (s.EndTime ?? new TimeSpan(23, 59, 59));
                 return now >= windowStart && now <= windowEnd
