@@ -13,19 +13,24 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
         private readonly IUserPreferenceData prefRep;
         public TimeZoneController(IUserPreferenceData prefRep) { this.prefRep = prefRep; }
 
+        // "" = China + Sri Lanka only; null = not a real IANA zone id.
+        public static string? Clean(string? zone)
+        {
+            zone = (zone ?? "").Trim();
+            if (zone.Length == 0) return "";
+            if (zone.Length > 64 || !System.Text.RegularExpressions.Regex.IsMatch(zone, @"^[A-Za-z_]+(/[A-Za-z0-9_+-]+){1,2}$")) return null;
+            try { TimeZoneInfo.FindSystemTimeZoneById(zone); return zone; } catch { }
+            // Hosts without ICU still know the Windows mapping.
+            return TimeZoneInfo.TryConvertIanaIdToWindowsId(zone, out _) ? zone : null;
+        }
+
         [HttpPost, ValidateAntiForgeryToken]
         public async Task<IActionResult> Save(string? zone)
         {
             Auth.CheckUser();
-            zone = (zone ?? "").Trim();
-            if (zone.Length > 0)
-            {
-                // Only real IANA ids, so nothing odd is ever echoed back into pages.
-                if (zone.Length > 64 || !System.Text.RegularExpressions.Regex.IsMatch(zone, @"^[A-Za-z_]+(/[A-Za-z0-9_+\-]+){1,2}$"))
-                    return BadRequest();
-                try { TimeZoneInfo.FindSystemTimeZoneById(zone); } catch { return BadRequest(); }
-            }
-            await prefRep.Set(Auth.GetUserId(), PrefKey, zone);
+            var clean = Clean(zone);
+            if (clean == null) return BadRequest();
+            await prefRep.Set(Auth.GetUserId(), PrefKey, clean);
             return Ok();
         }
     }
