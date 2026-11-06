@@ -23,7 +23,7 @@
     </div>
 
     @* ---------- Verification-status banner ---------- *@
-    @if (Model.PassportVerificationStatus == "Verified")
+    @if (Model.ShowPassportVerifiedBanner)
     {
         <div class="rounded-[20px] border border-emerald-100 dark:border-emerald-900 bg-emerald-50 dark:bg-emerald-950 p-4 flex items-center gap-3">
             <i data-lucide="badge-check" class="w-5 h-5 text-emerald-600 dark:text-emerald-300 flex-shrink-0"></i>
@@ -38,7 +38,7 @@
             <a asp-area="Student" asp-controller="Profile" asp-action="Index" class="text-sm font-medium text-red-700 dark:text-red-300 underline whitespace-nowrap">Update now</a>
         </div>
     }
-    else
+    else if (Model.PassportVerificationStatus != "Verified")
     {
         <div class="rounded-[20px] border border-amber-100 dark:border-amber-900 bg-amber-50 dark:bg-amber-950 p-4 flex items-center gap-3">
             <i data-lucide="clock" class="w-5 h-5 text-amber-600 dark:text-amber-300 flex-shrink-0"></i>
@@ -83,14 +83,15 @@
        install steps) or the plain APK link to open/copy/share. On Android the
        layout's app-offer script switches Download to "Installed" + Open. *@
     @{ var apkUrl = $"{Context.Request.Scheme}://{Context.Request.Host}{Web_Backend.Controllers.StudentAppDownloadController.ApkRoute}"; }
-    <div class="rounded-2xl border border-[#7c3aed]/20 bg-[#7c3aed]/[0.06] dark:bg-[#7c3aed]/15 px-3 py-2.5 flex items-center gap-3">
+    <div class="rounded-2xl border border-[#7c3aed]/20 bg-[#7c3aed]/[0.06] dark:bg-[#7c3aed]/15 px-3 py-2.5 flex flex-wrap items-center gap-x-3 gap-y-2">
         <div class="w-8 h-8 rounded-lg bg-[#7c3aed] text-white flex items-center justify-center flex-shrink-0">
             <i data-lucide="smartphone" class="w-4 h-4"></i>
         </div>
-        <div class="flex-1 min-w-0">
+        <div class="flex-1 min-w-[11rem]">
             <p class="text-sm font-semibold text-slate-800 dark:text-slate-100 leading-tight truncate">Proton Student app <span class="font-normal text-slate-500 dark:text-slate-400">&middot; Android</span></p>
             <p class="text-xs text-slate-500 dark:text-slate-400 truncate" data-app-status>Schedule, exams and alerts on your phone</p>
         </div>
+        <div class="flex items-center gap-2 ml-auto">
         <button type="button" data-app-copy title="Copy the APK link (@apkUrl)"
                 class="inline-flex items-center gap-1 h-8 px-2 rounded-lg text-xs font-medium text-[#5a43f1] dark:text-[#a78bfa] hover:bg-[#7c3aed]/10 transition-colors flex-shrink-0">
             <i data-lucide="link" class="w-3.5 h-3.5"></i><span class="hidden sm:inline">Copy link</span>
@@ -103,6 +104,7 @@
            class="hidden inline-flex items-center gap-1.5 h-8 px-3 rounded-lg bg-[#7c3aed] text-white text-xs font-semibold hover:bg-[#6d28d9] transition-colors flex-shrink-0">
             <i data-lucide="external-link" class="w-3.5 h-3.5"></i>Open
         </a>
+        </div>
     </div>
 
 

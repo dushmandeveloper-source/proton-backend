@@ -83,6 +83,13 @@ namespace Web_Backend.Classes
             return $"{Convert(wall, zone, China):HH:mm} 🇨🇳 · {Convert(wall, zone, SriLanka):HH:mm} 🇱🇰";
         }
 
+        // "2:29 AM (next day)" -- a date-time written in `zone`, as clock time in `target`.
+        public static string TimeIn(DateTime wall, string? zone, string target)
+        {
+            var t = Convert(wall, zone, target);
+            return $"{t:h:mm tt}{DayNote(t, wall)}";
+        }
+
         // "Fri 6 Nov · 🇨🇳 9:00 PM · 🇱🇰 6:30 PM" for a date-time written in `zone`.
         public static string DualDateTime(DateTime wall, string? zone)
         {

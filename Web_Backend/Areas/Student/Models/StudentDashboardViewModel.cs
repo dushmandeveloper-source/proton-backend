@@ -18,6 +18,13 @@ namespace Web_Backend.Areas.StudentPortal.Models
         public string StudentID { get; set; } = "";
         public string StudentName { get; set; } = "";
         public string PassportVerificationStatus { get; set; } = "Pending";
+
+        // "Passport verified" banner: only for 7 days after verification
+        // (older verifications have no reason to keep the banner).
+        public DateTime? PassportVerifiedDate { get; set; }
+        public bool ShowPassportVerifiedBanner =>
+            PassportVerificationStatus == "Verified" && PassportVerifiedDate.HasValue
+            && (DateTime.Now - PassportVerifiedDate.Value).TotalDays <= 7;
         public bool IsContentRestricted { get; set; }
 
         public List<StudentScheduleDay> WeekSchedule { get; set; } = new();
