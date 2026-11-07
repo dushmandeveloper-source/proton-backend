@@ -183,6 +183,7 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
                 student, examRep, attemptRep, registrationRep, scheduleRep);
             ViewBag.OnlineAssignments = assignments;
             ViewBag.AssignmentAttempts = assignmentAttempts;
+            ViewBag.AssignmentRedos = await Web_Backend.Areas.StudentPortal.OnlineAssignmentRules.RedosFor(student.StudentID, examRep);
 
             ViewBag.CurrentUser = Auth.GetUser();
             if (TempData[ShowLoginSummaryKey] is true)

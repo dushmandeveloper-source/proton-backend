@@ -91,6 +91,21 @@ namespace Web_Backend.Areas.Admin.Data
         public Task<List<AssignmentMarker>> ListAssignmentMarkers(string? examId = null) =>
             db.GetList<AssignmentMarker, object>("edu.ExamAssignmentMarker_List", new { APIKey = AppData.GetAPIKey(), ExamID = examId });
 
+        // 0124: a student's redo deadline after a reject.
+        public Task SetAssignmentRedo(string examId, string studentId, DateTime dueDate, string remark, string userId) =>
+            db.ExecuteNonQuery("edu.ExamAssignmentRedo_Set", new
+            {
+                APIKey = AppData.GetAPIKey(),
+                ExamID = examId,
+                StudentID = studentId,
+                DueDate = dueDate,
+                Remark = remark,
+                CreatedByUserID = userId
+            });
+
+        public Task<List<AssignmentRedo>> ListAssignmentRedos(string? examId = null, string? studentId = null) =>
+            db.GetList<AssignmentRedo, object>("edu.ExamAssignmentRedo_List", new { APIKey = AppData.GetAPIKey(), ExamID = examId, StudentID = studentId });
+
         public Task<List<ExamScheduleStudentRow>> ListAssignmentStudents(string examId) =>
             db.GetList<ExamScheduleStudentRow, object>("edu.ExamAssignmentStudent_List", new { APIKey = AppData.GetAPIKey(), ExamID = examId });
 

@@ -44,8 +44,9 @@ namespace Web_Backend.Areas.StudentPortal
             if (batchIds.Count == 0) return (new(), new());
 
             var cutoff = ScheduleTime.Now(ScheduleTime.China).AddDays(-recentDays); // approximate (zones differ by 2.5h)
+            var redos = await RedosFor(student.StudentID, examRep);
             var list = await OnlyAssigned((await examRep.GetList(new ExamSearchView { IsActive = "A" }))
-                .Where(x => x.IsAssignment && batchIds.Contains(x.AssignmentScheduleID) && x.DueDate >= cutoff)
+                .Where(x => x.IsAssignment && batchIds.Contains(x.AssignmentScheduleID) && (x.DueDate >= cutoff || (redos.TryGetValue(x.ExamID, out var rd) && rd.DueDate >= cutoff)))
                 .OrderBy(x => x.DueDate), student.StudentID, examRep);
             var attempts = list.Count == 0 ? new Dictionary<string, ExamAttempt>() :
                 (await attemptRep.ListForStudent(student.StudentID))
@@ -93,9 +94,21 @@ namespace Web_Backend.Areas.StudentPortal
             var now = ScheduleTime.Now(exam.AssignmentTimeZone);
             if (exam.OpenDate.HasValue && now < exam.OpenDate.Value)
                 return $"This assignment opens {ScheduleTime.DualDateTime(exam.OpenDate.Value, exam.AssignmentTimeZone)}.";
-            if (exam.DueDate.HasValue && now > exam.DueDate.Value)
+            var due = await EffectiveDue(exam, student.StudentID, examRep);
+            if (due.HasValue && now > due.Value)
                 return "The due date for this assignment has passed.";
             return null;
         }
+
+        // 0124: the student's own redo deadline (after a reject) when later than the due date.
+        public static async Task<DateTime?> EffectiveDue(Exam exam, string studentId, IExamData examRep)
+        {
+            var redo = (await examRep.ListAssignmentRedos(exam.ExamID, studentId)).FirstOrDefault();
+            return redo != null && (!exam.DueDate.HasValue || redo.DueDate > exam.DueDate.Value) ? redo.DueDate : exam.DueDate;
+        }
+
+        // Redo grants for one student, keyed by ExamID.
+        public static async Task<Dictionary<string, AssignmentRedo>> RedosFor(string studentId, IExamData examRep) =>
+            (await examRep.ListAssignmentRedos(null, studentId)).GroupBy(r => r.ExamID).ToDictionary(g => g.Key, g => g.First());
     }
 }

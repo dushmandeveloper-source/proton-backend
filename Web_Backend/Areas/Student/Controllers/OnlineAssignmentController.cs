@@ -88,6 +88,7 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
             var batches = (await scheduleRep.GetList(new CourseScheduleSearchView { IsActive = "A" })).ToDictionary(b => b.ScheduleID, b => b.ScheduleName);
             ViewBag.CurrentUser = Auth.GetUser();
             ViewBag.Attempts = attempts;
+            ViewBag.Redos = await OnlineAssignmentRules.RedosFor(student.StudentID, examRep);
             ViewBag.Batches = batches;
             return View(list.OrderByDescending(e => e.DueDate).ToList());
         }

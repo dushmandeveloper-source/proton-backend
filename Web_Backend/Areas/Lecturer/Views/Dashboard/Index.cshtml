@@ -36,6 +36,43 @@
         </div>
     </div>
 
+    @* ---------- Online assignments waiting for marking (0117+) ---------- *@
+    @{ var toReview = ViewBag.AssignmentsToReview as List<Web_Backend.Areas.Admin.Models.ExamAttempt> ?? new(); }
+    <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
+        <div class="p-6 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between gap-3">
+            <div class="flex items-center gap-3">
+                <div class="bg-purple-50 dark:bg-purple-950 p-2 rounded-lg"><i data-lucide="notebook-pen" class="w-5 h-5 text-[#7c3aed] dark:text-purple-300"></i></div>
+                <h3 class="font-semibold text-lg text-slate-800 dark:text-slate-100">Assignments to review</h3>
+                <span class="px-2 py-0.5 rounded-full text-xs font-semibold @(toReview.Count > 0 ? "bg-amber-100 dark:bg-amber-900 text-amber-700 dark:text-amber-300" : "bg-slate-100 dark:bg-slate-800 text-slate-500")">@toReview.Count</span>
+            </div>
+            <a asp-area="Lecturer" asp-controller="OnlineAssignment" asp-action="Review" class="text-sm font-medium text-[#7c3aed] dark:text-purple-300 hover:underline">View all</a>
+        </div>
+        @if (toReview.Count == 0)
+        {
+            <p class="p-6 text-sm text-slate-400 dark:text-slate-500">Nothing waiting — you're all caught up.</p>
+        }
+        else
+        {
+            <div class="divide-y divide-slate-100 dark:divide-slate-700">
+                @foreach (var a in toReview.Take(5))
+                {
+                    <div class="px-6 py-3 flex items-center justify-between gap-3 flex-wrap">
+                        <div class="min-w-0">
+                            <p class="text-sm font-medium text-slate-800 dark:text-slate-100 truncate">@a.StudentName</p>
+                            <p class="text-xs text-slate-500 dark:text-slate-400 truncate">@a.ExamTitle &middot; submitted @a.SubmittedDate?.ToString("dd MMM, hh:mm tt")</p>
+                        </div>
+                        <a asp-area="Lecturer" asp-controller="OnlineAssignment" asp-action="Grade" asp-route-attemptId="@a.AttemptID"
+                           class="px-3 py-1.5 rounded-lg text-xs font-medium bg-[#7c3aed] text-white hover:bg-[#6d28d9] whitespace-nowrap">@(a.IsFullyGraded ? "Review & release" : "Mark")</a>
+                    </div>
+                }
+                @if (toReview.Count > 5)
+                {
+                    <a asp-area="Lecturer" asp-controller="OnlineAssignment" asp-action="Review" class="block px-6 py-3 text-sm text-center text-[#7c3aed] dark:text-purple-300 hover:bg-slate-50 dark:hover:bg-slate-800/40">+ @(toReview.Count - 5) more</a>
+                }
+            </div>
+        }
+    </div>
+
     @* ---------- This Week's Classes ---------- *@
     <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
         <div class="p-6 border-b border-slate-100 dark:border-slate-700 flex items-center gap-3">

@@ -7,6 +7,7 @@
 @{
     var list = ViewBag.OnlineAssignments as List<Exam> ?? new();
     var attempts = ViewBag.AssignmentAttempts as Dictionary<string, ExamAttempt> ?? new();
+    var redos = ViewBag.AssignmentRedos as Dictionary<string, AssignmentRedo> ?? new(); // 0124
     var now = Web_Backend.Classes.SriLankaTime.Now;
 }
 @if (list.Count > 0)
@@ -25,16 +26,21 @@
                 attempts.TryGetValue(a.ExamID, out var at);
                 // Times are written in the assignment's own zone (0122); the badges below show Sri Lanka wall-clock + China.
                 var aNow = Web_Backend.Classes.ScheduleTime.Now(a.AssignmentTimeZone);
-                DateTime? dueSl = a.DueDate.HasValue ? Web_Backend.Classes.ScheduleTime.Convert(a.DueDate.Value, a.AssignmentTimeZone, Web_Backend.Classes.ScheduleTime.SriLanka) : null;
+                // A redo (0124) gives this student a later deadline; it also replaces the due date shown.
+                redos.TryGetValue(a.ExamID, out var redo);
+                var isRedo = redo != null && at == null;
+                DateTime? effDue = redo != null && (!a.DueDate.HasValue || redo.DueDate > a.DueDate.Value) ? redo.DueDate : a.DueDate;
+                DateTime? dueSl = effDue.HasValue ? Web_Backend.Classes.ScheduleTime.Convert(effDue.Value, a.AssignmentTimeZone, Web_Backend.Classes.ScheduleTime.SriLanka) : null;
                 DateTime? openSl = a.OpenDate.HasValue ? Web_Backend.Classes.ScheduleTime.Convert(a.OpenDate.Value, a.AssignmentTimeZone, Web_Backend.Classes.ScheduleTime.SriLanka) : null;
                 var notOpen = a.OpenDate.HasValue && aNow < a.OpenDate.Value;
-                var pastDue = a.DueDate.HasValue && aNow > a.DueDate.Value;
+                var pastDue = effDue.HasValue && aNow > effDue.Value;
                 var inProgress = at != null && at.IsInProgress && !pastDue;
                 var finished = at != null && !at.IsInProgress;
                 var released = finished && at!.ResultReleasedDate.HasValue;
                 string badge, badgeCls;
                 if (released) { badge = at!.Passed == true ? "Pass" : "Fail"; badgeCls = at.Passed == true ? "bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300" : "bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-300"; }
                 else if (finished) { badge = "Submitted · awaiting marks"; badgeCls = "bg-sky-50 dark:bg-sky-950 text-sky-700 dark:text-sky-300"; }
+                else if (isRedo && !pastDue) { badge = "Redo requested"; badgeCls = "bg-rose-50 dark:bg-rose-950 text-rose-700 dark:text-rose-300"; }
                 else if (inProgress) { badge = "In progress"; badgeCls = "bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-300"; }
                 else if (notOpen) { badge = "Opens soon"; badgeCls = "bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400"; }
                 else if (pastDue) { badge = "Missed"; badgeCls = "bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-300"; }
@@ -45,6 +51,10 @@
                         <p class="font-medium text-sm text-slate-800 dark:text-slate-100">@a.ExamTitle</p>
                         <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold whitespace-nowrap @badgeCls">@badge</span>
                     </div>
+                    @if (isRedo && !pastDue && !string.IsNullOrWhiteSpace(redo!.Remark))
+                    {
+                        <p class="text-xs rounded-xl bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 px-3 py-2 flex items-start gap-1.5"><i data-lucide="message-square-text" class="w-3.5 h-3.5 mt-0.5 flex-shrink-0"></i><span><b>Your lecturer:</b> @redo.Remark</span></p>
+                    }
                     <div class="text-xs text-slate-500 dark:text-slate-400 space-y-0.5">
                         <p class="flex flex-wrap items-center gap-1.5"><i data-lucide="calendar-clock" class="w-3.5 h-3.5"></i> <span class="whitespace-nowrap">Due</span> @if (a.DueDate.HasValue) { <span class="whitespace-nowrap">@dueSl!.Value.ToString("ddd d MMM")</span><span class="inline-flex flex-wrap gap-1" data-tz-start="@(dueSl!.Value.ToString("yyyy-MM-ddTHH:mm:ss"))+05:30"><span class="px-1.5 py-0.5 rounded-md bg-red-50 dark:bg-red-950/50 text-red-700 dark:text-red-300 font-semibold whitespace-nowrap">🇨🇳 @Web_Backend.Classes.ScheduleTime.TimeIn(dueSl!.Value, Web_Backend.Classes.ScheduleTime.SriLanka, Web_Backend.Classes.ScheduleTime.China)</span><span class="px-1.5 py-0.5 rounded-md bg-amber-50 dark:bg-amber-950/50 text-amber-800 dark:text-amber-300 font-semibold whitespace-nowrap">🇱🇰 @dueSl!.Value.ToString("h:mm tt")</span></span> }</p>
                         @if (notOpen) { <p class="flex flex-wrap items-center gap-1.5"><i data-lucide="lock" class="w-3.5 h-3.5"></i> <span class="whitespace-nowrap">Opens</span> @if (a.OpenDate.HasValue) { <span class="whitespace-nowrap">@openSl!.Value.ToString("ddd d MMM")</span><span class="inline-flex flex-wrap gap-1" data-tz-start="@(openSl!.Value.ToString("yyyy-MM-ddTHH:mm:ss"))+05:30"><span class="px-1.5 py-0.5 rounded-md bg-red-50 dark:bg-red-950/50 text-red-700 dark:text-red-300 font-semibold whitespace-nowrap">🇨🇳 @Web_Backend.Classes.ScheduleTime.TimeIn(openSl!.Value, Web_Backend.Classes.ScheduleTime.SriLanka, Web_Backend.Classes.ScheduleTime.China)</span><span class="px-1.5 py-0.5 rounded-md bg-amber-50 dark:bg-amber-950/50 text-amber-800 dark:text-amber-300 font-semibold whitespace-nowrap">🇱🇰 @openSl!.Value.ToString("h:mm tt")</span></span> }</p> }

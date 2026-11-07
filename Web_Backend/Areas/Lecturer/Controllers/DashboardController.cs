@@ -83,6 +83,28 @@ namespace Web_Backend.Areas.LecturerPortal.Controllers
                 RecentMaterials = materials.Take(5).ToList()
             };
 
+            // Online assignments waiting for this lecturer to mark/release: in
+            // their batches or where they are a chosen marker; when markers
+            // are chosen, only those markers see it as theirs.
+            try
+            {
+                var services = HttpContext.RequestServices;
+                var examRep = services.GetRequiredService<IExamData>();
+                var attemptRep = services.GetRequiredService<IExamAttemptData>();
+                var myBatchIds = (await scheduleRep.GetListForInstructor(userId)).Select(b => b.ScheduleID).ToHashSet();
+                var markers = (await examRep.ListAssignmentMarkers()).GroupBy(m => m.ExamID).ToDictionary(g => g.Key, g => g.Select(m => m.UserID).ToHashSet());
+                var mine = (await examRep.GetList(new ExamSearchView { IsActive = "A" }))
+                    .Where(e => e.IsAssignment && (markers.TryGetValue(e.ExamID, out var m)
+                        ? m.Contains(userId)
+                        : myBatchIds.Contains(e.AssignmentScheduleID)))
+                    .ToDictionary(e => e.ExamID, e => e);
+                ViewBag.AssignmentsToReview = mine.Count == 0 ? new List<ExamAttempt>() :
+                    (await attemptRep.ListAllForAdmin())
+                        .Where(a => mine.ContainsKey(a.ExamID) && a.Status != "Voided" && !a.IsInProgress && !a.ResultReleasedDate.HasValue)
+                        .OrderBy(a => a.SubmittedDate).ToList();
+            }
+            catch { ViewBag.AssignmentsToReview = new List<ExamAttempt>(); } // never break the dashboard
+
             ViewBag.CurrentUser = Auth.GetUser();
             return View(model);
         }

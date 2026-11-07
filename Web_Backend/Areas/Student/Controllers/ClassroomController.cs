@@ -142,6 +142,7 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
             ViewBag.OnlineAssignments = await OnlineAssignmentRules.OnlyAssigned((await examRep.GetList(new ExamSearchView { IsActive = "A" }))
                 .Where(x => x.IsAssignment && x.AssignmentScheduleID == id && (x.AssignmentModuleID ?? "") == (selected ?? ""))
                 .OrderBy(x => x.DueDate), student.StudentID, examRep);
+            ViewBag.AssignmentRedos = await OnlineAssignmentRules.RedosFor(student.StudentID, examRep);
             ViewBag.AssignmentAttempts = (await attemptRep.ListForStudent(student.StudentID))
                 .Where(a => a.Status != "Voided")
                 .GroupBy(a => a.ExamID)

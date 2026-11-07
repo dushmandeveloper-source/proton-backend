@@ -87,3 +87,18 @@ namespace Web_Backend.Areas.Admin.Models
         public string FullName { get; set; } = "";
     }
 }
+
+namespace Web_Backend.Areas.Admin.Models
+{
+    // 0124: "redo" granted to one student after a reject -- their own deadline
+    // (wall-clock in the assignment's zone) and the lecturer's reason.
+    public class AssignmentRedo
+    {
+        public string ExamID { get; set; } = "";
+        public string StudentID { get; set; } = "";
+        public DateTime DueDate { get; set; }
+        public string Remark { get; set; } = "";
+        public string CreatedByUserID { get; set; } = "";
+        public DateTime CreatedDate { get; set; }
+    }
+}

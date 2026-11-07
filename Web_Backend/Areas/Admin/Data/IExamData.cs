@@ -14,6 +14,8 @@ namespace Web_Backend.Areas.Admin.Data
         Task SetAssignmentExtra(string examId, string? markerUserId, string timeZone);
         Task SetAssignmentMarkers(string examId, IEnumerable<string> userIds);
         Task<List<AssignmentMarker>> ListAssignmentMarkers(string? examId = null);
+        Task SetAssignmentRedo(string examId, string studentId, DateTime dueDate, string remark, string userId);
+        Task<List<AssignmentRedo>> ListAssignmentRedos(string? examId = null, string? studentId = null);
         Task<List<ExamScheduleStudentRow>> ListAssignmentStudents(string examId);
 
         Task<List<ExamQuestion>> GetQuestions(string examId);

@@ -452,6 +452,61 @@ namespace Web_Backend.Classes
             }
         }
 
+        // Reject one submission (same choices as the exam reject):
+        //  * mode = "remark": sent back for marking again (TeacherReject).
+        //  * mode = "redo":   the attempt is set aside (Voided, kept on record)
+        //    and the student may answer again until their own redo deadline;
+        //    they get a notification with the reason.
+        [HttpPost, ValidateAntiForgeryToken]
+        public async Task<IActionResult> Reject(string attemptId, string remark, string mode, DateTime? redoDueDate)
+        {
+            CheckEdit();
+            var (attempt, exam, _) = await FindSubmission(attemptId);
+            if (attempt == null) return NotFoundBack();
+            if (!await CanMark(exam!)) { TempData["ErrorMessage"] = "Only the chosen marking lecturers can reject this submission."; return RedirectToAction("Grade", new { attemptId }); }
+            if (attempt.ResultReleasedDate.HasValue) { TempData["ErrorMessage"] = "Marks are already released to the student."; return RedirectToAction("Grade", new { attemptId }); }
+            if (string.IsNullOrWhiteSpace(remark)) { TempData["ErrorMessage"] = "Write a reason so the student knows what to fix."; return RedirectToAction("Grade", new { attemptId }); }
+
+            var userId = Auth.GetUserId();
+            try
+            {
+                if (mode == "redo")
+                {
+                    var zone = exam!.AssignmentTimeZone;
+                    var due = redoDueDate ?? ScheduleTime.Now(zone).AddDays(3);
+                    if (due <= ScheduleTime.Now(zone))
+                    {
+                        TempData["ErrorMessage"] = "The redo deadline must be in the future.";
+                        return RedirectToAction("Grade", new { attemptId });
+                    }
+                    await attemptRep.GrantRetake(attemptId, userId, remark.Trim());
+                    await examRep.SetAssignmentRedo(exam.ExamID, attempt.StudentID, due, remark.Trim(), userId);
+
+                    var student = await HttpContext.RequestServices.GetRequiredService<IStudentData>().Get(attempt.StudentID);
+                    await HttpContext.RequestServices.GetRequiredService<NotificationService>().NotifyUser(student?.UserID, "AssignmentRedo",
+                        "Please redo your assignment",
+                        $"\"{exam.ExamTitle}\": {remark.Trim()} — redo by {ScheduleTime.DualDateTime(due, zone)}.",
+                        $"/Student/Classroom/Batch/{Uri.EscapeDataString(exam.AssignmentScheduleID)}?module={Uri.EscapeDataString(string.IsNullOrEmpty(exam.AssignmentModuleID) ? "general" : exam.AssignmentModuleID)}",
+                        attemptId);
+                    TempData["SuccessMessage"] = $"{attempt.StudentName} was asked to redo it and has been notified.";
+                }
+                else
+                {
+                    await attemptRep.TeacherReject(attemptId, userId, remark.Trim());
+                    TempData["SuccessMessage"] = "Sent back for marking again.";
+                    return RedirectToAction("Grade", new { attemptId });
+                }
+            }
+            catch (Exception ex)
+            {
+                TempData["ErrorMessage"] = "Could not reject: " + System.Text.RegularExpressions.Regex.Replace(ex.Message, @"\. Script: .*$", "");
+                return RedirectToAction("Grade", new { attemptId });
+            }
+            return (await FindAssignment(exam!.ExamID)).Exam != null
+                ? RedirectToAction("Results", new { id = exam.ExamID })
+                : RedirectToAction("Review");
+        }
+
         // ---------- Question editor endpoints (same contract as
         // Admin/ExamController, used by Views/Shared/Exam/_QuestionEditor).
         // Every call is scoped to an assignment in one of this user's batches;

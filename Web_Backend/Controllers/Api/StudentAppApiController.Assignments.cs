@@ -19,30 +19,34 @@ namespace Web_Backend.Controllers.Api
             if (student == null) return Unauthorized();
 
             var (list, attempts) = await OnlineAssignmentRules.ForStudent(student, examRep, attemptRep, registrationRep, scheduleRep, recentDays: all ? 36500 : 7);
+            var redos = await OnlineAssignmentRules.RedosFor(student.StudentID, examRep);
             var batches = (await scheduleRep.GetList(new Areas.Admin.Models.CourseScheduleSearchView { IsActive = "A" }))
                 .ToDictionary(b => b.ScheduleID, b => b);
             return Ok(list.Select(e =>
             {
                 attempts.TryGetValue(e.ExamID, out var at);
                 batches.TryGetValue(e.AssignmentScheduleID, out var batch);
-                return AssignmentRow(e, at, batch?.ScheduleName ?? "", batch?.CourseTitle ?? "");
+                return AssignmentRow(e, at, batch?.ScheduleName ?? "", batch?.CourseTitle ?? "", redos.GetValueOrDefault(e.ExamID));
             }));
         }
 
         // One assignment as the app shows it (Home list and classroom module).
-        private static object AssignmentRow(Areas.Admin.Models.Exam e, Areas.Admin.Models.ExamAttempt? at, string batchName, string courseTitle)
+        private static object AssignmentRow(Areas.Admin.Models.Exam e, Areas.Admin.Models.ExamAttempt? at, string batchName, string courseTitle, Areas.Admin.Models.AssignmentRedo? redo = null)
         {
             // Due/Open are in the assignment's zone; the app gets them as Sri Lanka
             // wall-clock (what every app version expects).
             var now = ScheduleTime.Now(e.AssignmentTimeZone);
             var notOpen = e.OpenDate.HasValue && now < e.OpenDate.Value;
-            var pastDue = e.DueDate.HasValue && now > e.DueDate.Value;
+            // 0124: a redo after a reject gives this student a later deadline.
+            var effDue = redo != null && (!e.DueDate.HasValue || redo.DueDate > e.DueDate.Value) ? redo.DueDate : e.DueDate;
+            var pastDue = effDue.HasValue && now > effDue.Value;
             var finished = at != null && !at.IsInProgress;
             var released = finished && at!.ResultReleasedDate.HasValue;
             // open | in_progress | submitted | released | upcoming | missed
             var state = released ? "released"
                 : finished ? "submitted"
                 : at != null && at.IsInProgress && !pastDue ? "in_progress"
+                : redo != null && at == null && !pastDue ? "redo"
                 : notOpen ? "upcoming"
                 : pastDue ? "missed"
                 : "open";
@@ -54,12 +58,13 @@ namespace Web_Backend.Controllers.Api
                 batchName,
                 courseTitle,
                 openAt = e.OpenDate.HasValue ? ScheduleTime.Convert(e.OpenDate.Value, e.AssignmentTimeZone, ScheduleTime.SriLanka) : (DateTime?)null,
-                dueAt = e.DueDate.HasValue ? ScheduleTime.Convert(e.DueDate.Value, e.AssignmentTimeZone, ScheduleTime.SriLanka) : (DateTime?)null,
+                dueAt = effDue.HasValue ? ScheduleTime.Convert(effDue.Value, e.AssignmentTimeZone, ScheduleTime.SriLanka) : (DateTime?)null,
+                redoRemark = redo != null && at == null ? redo.Remark : null,
                 timeZone = ScheduleTime.Normalize(e.AssignmentTimeZone),
                 questionCount = e.QuestionCount,
                 totalMarks = e.TotalMarks,
                 state,
-                canOpen = state is "open" or "in_progress",
+                canOpen = state is "open" or "in_progress" or "redo",
                 attemptId = at?.AttemptID,
                 passed = released ? at!.Passed : null
             };
@@ -77,7 +82,8 @@ namespace Web_Backend.Controllers.Api
                 .Where(a => a.Status != "Voided")
                 .GroupBy(a => a.ExamID)
                 .ToDictionary(g => g.Key, g => g.OrderByDescending(a => a.AttemptNumber).First());
-            return list.Select(e => AssignmentRow(e, attempts.GetValueOrDefault(e.ExamID), batchName, courseTitle)).ToList();
+            var redos = await OnlineAssignmentRules.RedosFor(student.StudentID, examRep);
+            return list.Select(e => AssignmentRow(e, attempts.GetValueOrDefault(e.ExamID), batchName, courseTitle, redos.GetValueOrDefault(e.ExamID))).ToList();
         }
 
         [HttpPost("assignments/{examId}/open")]
