@@ -12,6 +12,8 @@ namespace Web_Backend.Areas.Admin.Data
         Task SetAssignment(string examId, string scheduleId, DateTime openDate, DateTime dueDate, string createdByUserId, string? moduleId);
         Task SetAssignmentStudents(string examId, IEnumerable<string> studentIds);
         Task SetAssignmentExtra(string examId, string? markerUserId, string timeZone);
+        Task SetAssignmentMarkers(string examId, IEnumerable<string> userIds);
+        Task<List<AssignmentMarker>> ListAssignmentMarkers(string? examId = null);
         Task<List<ExamScheduleStudentRow>> ListAssignmentStudents(string examId);
 
         Task<List<ExamQuestion>> GetQuestions(string examId);

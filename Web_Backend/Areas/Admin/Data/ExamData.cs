@@ -79,6 +79,18 @@ namespace Web_Backend.Areas.Admin.Data
                 TimeZone = ScheduleTime.Normalize(timeZone)
             });
 
+        // 0123: marking lecturers/instructors; empty = any lecturer of the batch.
+        public Task SetAssignmentMarkers(string examId, IEnumerable<string> userIds) =>
+            db.ExecuteNonQuery("edu.ExamAssignmentMarker_Set", new
+            {
+                APIKey = AppData.GetAPIKey(),
+                ExamID = examId,
+                UserIDsJSON = System.Text.Json.JsonSerializer.Serialize(userIds.Distinct().ToList())
+            });
+
+        public Task<List<AssignmentMarker>> ListAssignmentMarkers(string? examId = null) =>
+            db.GetList<AssignmentMarker, object>("edu.ExamAssignmentMarker_List", new { APIKey = AppData.GetAPIKey(), ExamID = examId });
+
         public Task<List<ExamScheduleStudentRow>> ListAssignmentStudents(string examId) =>
             db.GetList<ExamScheduleStudentRow, object>("edu.ExamAssignmentStudent_List", new { APIKey = AppData.GetAPIKey(), ExamID = examId });
 

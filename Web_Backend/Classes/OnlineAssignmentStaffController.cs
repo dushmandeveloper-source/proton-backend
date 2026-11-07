@@ -50,8 +50,14 @@ namespace Web_Backend.Classes
         // marker or where they are the marker (0122).
         protected abstract bool IsAdmin { get; }
 
-        protected bool CanMark(Exam exam) =>
-            CanEdit() && (IsAdmin || string.IsNullOrEmpty(exam.MarkerUserID) || exam.MarkerUserID == Auth.GetUserId());
+        // 0123: several markers; none chosen = any lecturer of the batch.
+        protected async Task<bool> CanMark(Exam exam)
+        {
+            if (!CanEdit()) return false;
+            if (IsAdmin) return true;
+            var markers = await examRep.ListAssignmentMarkers(exam.ExamID);
+            return markers.Count == 0 || markers.Any(m => m.UserID == Auth.GetUserId());
+        }
 
         // Sidebar "Assignment review": every submission of the assignments this
         // user can see, across their batches. tab = mark | released.
@@ -73,13 +79,15 @@ namespace Web_Backend.Classes
             ViewBag.Exams = exams;
             ViewBag.Batches = batches;
             ViewBag.MineOnly = !IsAdmin;
+            ViewBag.Markers = (await examRep.ListAssignmentMarkers()).GroupBy(m => m.ExamID).ToDictionary(g => g.Key, g => g.Select(m => m.UserID).ToHashSet());
             ViewBag.UserId = Auth.GetUserId();
             return View("Review", attempts);
         }
 
-        // Lecturers of the batch, for the "Marked by" picker.
-        private async Task<List<ScheduleInstructor>> BatchLecturers(string scheduleId) =>
-            (await scheduleRep.Get(scheduleId))?.Instructors ?? new List<ScheduleInstructor>();
+        // Every lecturer/instructor (same list as exam scheduling), for "Marked by".
+        private async Task<List<ScheduleInstructor>> Instructors() =>
+            (await HttpContext.RequestServices.GetRequiredService<IUserData>().GetInstructors())
+                .Select(u => new ScheduleInstructor { UserID = u.UserID, FullName = u.FullName }).ToList();
 
         private async Task<CourseSchedule?> FindBatch(string? scheduleId)
         {
@@ -160,7 +168,7 @@ namespace Web_Backend.Classes
                 ScheduleID = scheduleId,
                 ModuleID = moduleId ?? "",
                 TimeZone = zone,
-                MarkerUserID = IsAdmin ? "" : Auth.GetUserId(),
+                MarkerUserIDs = IsAdmin ? new List<string>() : new List<string> { Auth.GetUserId() },
                 OpenDate = now.AddMinutes(-now.Minute % 15).AddSeconds(-now.Second),
                 DueDate = now.Date.AddDays(7).AddHours(23).AddMinutes(59)
             }, null, "details");
@@ -173,6 +181,7 @@ namespace Web_Backend.Classes
             var (exam, batch) = await FindAssignment(id);
             if (exam == null) return NotFoundBack();
             var form = ToForm(exam);
+            form.MarkerUserIDs = (await examRep.ListAssignmentMarkers(exam.ExamID)).Select(m => m.UserID).ToList();
             var chosen = await examRep.ListAssignmentStudents(exam.ExamID);
             if (chosen.Count > 0)
             {
@@ -192,7 +201,6 @@ namespace Web_Backend.Classes
             OpenDate = e.OpenDate,
             DueDate = e.DueDate,
             PassingPercentage = e.PassingPercentage ?? 50,
-            MarkerUserID = e.MarkerUserID ?? "",
             TimeZone = ScheduleTime.Normalize(e.AssignmentTimeZone)
         };
 
@@ -220,7 +228,7 @@ namespace Web_Backend.Classes
                 CanEdit = CanEdit(),
                 Roster = await examScheduleRep.BatchStudents(batch.ScheduleID),
                 Modules = await moduleRep.List(batch.ScheduleID),
-                Lecturers = await BatchLecturers(batch.ScheduleID)
+                Lecturers = await Instructors()
             });
         }
 
@@ -249,8 +257,8 @@ namespace Web_Backend.Classes
             form.TimeZone = ScheduleTime.Normalize(form.TimeZone);
             if (form.IsNew && form.DueDate.HasValue && form.DueDate <= ScheduleTime.Now(form.TimeZone))
                 ModelState.AddModelError("Form.DueDate", "The due date must be in the future.");
-            if (!string.IsNullOrEmpty(form.MarkerUserID) && !(await BatchLecturers(batch.ScheduleID)).Any(l => l.UserID == form.MarkerUserID))
-                ModelState.AddModelError("Form.MarkerUserID", "Pick a lecturer of this batch to mark it.");
+            var instructorIds = (await Instructors()).Select(i => i.UserID).ToHashSet();
+            form.MarkerUserIDs = form.MarkerUserIDs.Where(instructorIds.Contains).Distinct().ToList();
             if (form.Audience == "selected")
             {
                 var roster = (await examScheduleRep.BatchStudents(batch.ScheduleID)).Select(r => r.StudentID).ToHashSet();
@@ -278,7 +286,8 @@ namespace Web_Backend.Classes
                 var id = await examRep.AddEdit(exam);
                 await examRep.SetAssignment(id, batch.ScheduleID, form.OpenDate!.Value, form.DueDate!.Value, Auth.GetUserId(), form.ModuleID);
                 await examRep.SetAssignmentStudents(id, form.Audience == "selected" ? form.StudentIDs : new List<string>());
-                await examRep.SetAssignmentExtra(id, form.MarkerUserID, form.TimeZone);
+                await examRep.SetAssignmentExtra(id, null, form.TimeZone);
+                await examRep.SetAssignmentMarkers(id, form.MarkerUserIDs);
 
                 TempData["SuccessMessage"] = form.IsNew ? "Assignment created — now add its questions." : "Assignment updated.";
                 return RedirectToAction("Edit", new { id, tab = form.IsNew ? "questions" : "details" });
@@ -353,8 +362,9 @@ namespace Web_Backend.Classes
             ViewBag.Attempt = attempt;
             ViewBag.Exam = exam;
             ViewBag.Batch = batch;
-            ViewBag.CanEdit = CanMark(exam!);
-            ViewBag.MarkerNote = CanMark(exam!) ? "" : "Only the chosen marking lecturer can mark and release this assignment.";
+            var canMark = await CanMark(exam!);
+            ViewBag.CanEdit = canMark;
+            ViewBag.MarkerNote = canMark ? "" : "Only the chosen marking lecturers can mark and release this assignment.";
             ViewBag.OptionsByQuestion = await ExamAnswerOptions.ForMcq(answers, examRep);
             return View("Grade", answers);
         }
@@ -365,7 +375,7 @@ namespace Web_Backend.Classes
             CheckEdit();
             var (attempt, exam, _) = await FindSubmission(attemptId);
             if (attempt == null) return NotFoundBack();
-            if (!CanMark(exam!)) { TempData["ErrorMessage"] = "Only the chosen marking lecturer can mark this assignment."; return RedirectToAction("Grade", new { attemptId }); }
+            if (!await CanMark(exam!)) { TempData["ErrorMessage"] = "Only the chosen marking lecturers can mark this assignment."; return RedirectToAction("Grade", new { attemptId }); }
             if (attempt.ResultReleasedDate.HasValue)
             {
                 TempData["ErrorMessage"] = "Marks are already released to the student.";
@@ -389,7 +399,7 @@ namespace Web_Backend.Classes
             CheckEdit();
             var (attempt, exam, _) = await FindSubmission(attemptId);
             if (attempt == null) return NotFoundBack();
-            if (!CanMark(exam!)) { TempData["ErrorMessage"] = "Only the chosen marking lecturer can release this assignment."; return RedirectToAction("Grade", new { attemptId }); }
+            if (!await CanMark(exam!)) { TempData["ErrorMessage"] = "Only the chosen marking lecturers can release this assignment."; return RedirectToAction("Grade", new { attemptId }); }
             var userId = Auth.GetUserId();
             try
             {

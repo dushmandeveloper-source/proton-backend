@@ -24,7 +24,7 @@ namespace Web_Backend.Areas.Admin.Models
         public decimal PassingPercentage { get; set; } = 50;
 
         // 0122: lecturer who marks and releases ("" = any lecturer of the batch).
-        public string MarkerUserID { get; set; } = "";
+        public List<string> MarkerUserIDs { get; set; } = new(); // 0123, empty = any batch lecturer
 
         // 0122: zone OpenDate/DueDate are written in (China or Sri Lanka).
         public string TimeZone { get; set; } = "Asia/Shanghai";
@@ -74,5 +74,16 @@ namespace Web_Backend.Areas.Admin.Models
         public Exam Exam { get; set; } = new();
         public List<ExamAttempt> Attempts { get; set; } = new();
         public string GradeController { get; set; } = "";
+    }
+}
+
+namespace Web_Backend.Areas.Admin.Models
+{
+    // 0123: a lecturer/instructor chosen to mark an online assignment.
+    public class AssignmentMarker
+    {
+        public string ExamID { get; set; } = "";
+        public string UserID { get; set; } = "";
+        public string FullName { get; set; } = "";
     }
 }

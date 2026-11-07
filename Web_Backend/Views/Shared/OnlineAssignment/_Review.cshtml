@@ -12,7 +12,8 @@
     var batches = ViewBag.Batches as Dictionary<string, CourseSchedule> ?? new();
     var mineOnly = ViewBag.MineOnly as bool? ?? false;
     var userId = ViewBag.UserId as string ?? "";
-    bool Mine(ExamAttempt a) => !mineOnly || string.IsNullOrEmpty(exams[a.ExamID].MarkerUserID) || exams[a.ExamID].MarkerUserID == userId;
+    var markers = ViewBag.Markers as Dictionary<string, HashSet<string>> ?? new();
+    bool Mine(ExamAttempt a) => !mineOnly || !markers.TryGetValue(a.ExamID, out var m) || m.Count == 0 || m.Contains(userId);
     var toMark = Model.Where(a => !a.ResultReleasedDate.HasValue).OrderByDescending(Mine).ThenBy(a => a.SubmittedDate).ToList();
     var released = Model.Where(a => a.ResultReleasedDate.HasValue).OrderByDescending(a => a.ResultReleasedDate).ToList();
     var rows = tab == "released" ? released : toMark;

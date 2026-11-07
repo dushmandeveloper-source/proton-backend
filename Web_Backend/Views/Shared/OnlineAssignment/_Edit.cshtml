@@ -93,17 +93,33 @@
                 <p class="text-[11px] text-slate-400 dark:text-slate-500 mt-1">Students see the due time in both China and Sri Lanka time.</p>
             </div>
 
-            @* Who marks it (0122). Admins can always mark too. *@
+            @* Who marks it (0123): any number of lecturers/instructors, like exam-schedule instructors.
+               None ticked = any lecturer of the batch. Admins can always mark too. *@
             <div>
-                <label for="a-marker" class="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-1.5">Marked by</label>
-                <select id="a-marker" name="Form.MarkerUserID" class="@inputCls">
-                    <option value="">Any lecturer of this batch</option>
-                    @foreach (var l in Model.Lecturers)
-                    {
-                        <option value="@l.UserID" selected="@(l.UserID == f.MarkerUserID)">@l.FullName</option>
-                    }
-                </select>
-                <p class="text-xs text-slate-400 mt-1">This lecturer marks the written answers and releases the results. @(Model.Lecturers.Count == 0 ? "No lecturer is assigned to this batch yet — add one to the batch first." : "")</p>
+                <div class="flex items-end justify-between gap-3 mb-1.5">
+                    <p class="block text-sm font-medium text-slate-700 dark:text-slate-200">Marked by <span class="font-normal text-slate-400">(lecturers / instructors)</span></p>
+                    <span id="marker-count" class="text-xs text-slate-500"></span>
+                </div>
+                <div id="marker-chips" class="flex flex-wrap gap-1.5 mb-2"></div>
+                <div class="rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+                    <div class="p-2.5 border-b border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60">
+                        <div class="relative">
+                            <i data-lucide="search" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                            <input id="marker-search" type="search" placeholder="Search lecturers and instructors" class="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-[#7c3aed]/40" />
+                        </div>
+                    </div>
+                    <div class="max-h-56 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-700">
+                        @foreach (var l in Model.Lecturers.OrderBy(x => x.FullName))
+                        {
+                            <label class="marker-row flex items-center gap-3 px-4 py-2.5 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/60" data-q="@l.FullName.ToLowerInvariant()">
+                                <input type="checkbox" name="Form.MarkerUserIDs" value="@l.UserID" data-name="@l.FullName" class="marker-check w-4 h-4 accent-[#7c3aed]" @(f.MarkerUserIDs.Contains(l.UserID) ? "checked" : "") />
+                                <span class="w-7 h-7 rounded-full bg-purple-50 dark:bg-purple-950 text-[#7c3aed] dark:text-purple-300 text-xs font-semibold flex items-center justify-center flex-shrink-0">@(l.FullName.Length > 0 ? l.FullName[0].ToString().ToUpper() : "?")</span>
+                                <span class="text-sm text-slate-800 dark:text-slate-100 truncate">@l.FullName</span>
+                            </label>
+                        }
+                    </div>
+                </div>
+                <p class="text-xs text-slate-400 mt-1">Ticked people mark the written answers and release results. Leave all unticked to let any lecturer of this batch mark it.</p>
             </div>
 
             <div>
@@ -186,6 +202,33 @@
         </form>
 
         <script>
+            // Marked-by picker: search, removable chips of the ticked people, count.
+            (function () {
+                const checks = Array.from(document.querySelectorAll('.marker-check'));
+                const chips = document.getElementById('marker-chips'), count = document.getElementById('marker-count');
+                if (!chips) return;
+                function render() {
+                    const on = checks.filter(c => c.checked);
+                    count.textContent = on.length ? on.length + ' selected' : 'Any lecturer of this batch';
+                    chips.innerHTML = '';
+                    on.forEach(c => {
+                        const b = document.createElement('button');
+                        b.type = 'button';
+                        b.className = 'inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-purple-50 dark:bg-purple-950 text-[#7c3aed] dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900';
+                        b.textContent = c.dataset.name + ' ×';
+                        b.title = 'Remove';
+                        b.addEventListener('click', () => { c.checked = false; render(); });
+                        chips.appendChild(b);
+                    });
+                }
+                checks.forEach(c => c.addEventListener('change', render));
+                document.getElementById('marker-search').addEventListener('input', e => {
+                    const q = e.target.value.trim().toLowerCase();
+                    document.querySelectorAll('.marker-row').forEach(r => r.classList.toggle('hidden', q && !r.dataset.q.includes(q)));
+                });
+                render();
+            })();
+
             // "Due 11:59 PM China = 9:29 PM Sri Lanka" under the zone toggle.
             (function () {
                 const due = document.getElementById('a-due'), out = document.getElementById('a-tz-preview');
