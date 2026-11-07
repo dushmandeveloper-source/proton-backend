@@ -261,7 +261,7 @@
 
             @if (moduleAssignments.Count > 0)
             {
-                var nowSl = Web_Backend.Classes.SriLankaTime.Now;
+
                 <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
                     <div class="px-5 py-3 border-b border-slate-100 dark:border-slate-700 flex items-center gap-2">
                         <i data-lucide="notebook-pen" class="w-4 h-4 text-[#7c3aed]"></i>
@@ -271,11 +271,12 @@
                     <div class="divide-y divide-slate-100 dark:divide-slate-700">
                         @foreach (var a in moduleAssignments)
                         {
+                            var nowSl = Web_Backend.Classes.ScheduleTime.Now(a.AssignmentTimeZone);
                             var state = a.DueDate < nowSl ? ("Closed", "bg-slate-100 dark:bg-slate-800 text-slate-500") : a.OpenDate > nowSl ? ("Scheduled", "bg-sky-50 dark:bg-sky-950 text-sky-700 dark:text-sky-300") : ("Open", "bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300");
                             <div class="p-4 flex items-start justify-between gap-4 flex-wrap">
                                 <div class="min-w-0">
                                     <p class="font-medium text-slate-800 dark:text-slate-100 flex items-center gap-2 flex-wrap">@a.ExamTitle <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold @state.Item2">@state.Item1</span></p>
-                                    <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Due @a.DueDate?.ToString("MMM d, hh:mm tt") &middot; @a.QuestionCount question@(a.QuestionCount == 1 ? "" : "s") &middot; @a.TotalMarks.ToString("0.##") marks</p>
+                                    <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Due @(a.DueDate.HasValue ? Web_Backend.Classes.ScheduleTime.DualDateTime(a.DueDate.Value, a.AssignmentTimeZone) : "") &middot; @a.QuestionCount question@(a.QuestionCount == 1 ? "" : "s") &middot; @a.TotalMarks.ToString("0.##") marks</p>
                                 </div>
                                 <div class="flex items-center gap-2">
                                     <a href="@Url.Action("Results", "OnlineAssignment", new { id = a.ExamID })" class="px-3 py-1.5 rounded-lg text-xs font-medium bg-[#7c3aed] text-white hover:bg-[#6d28d9]">Submissions</a>

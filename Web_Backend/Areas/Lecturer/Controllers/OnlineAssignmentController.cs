@@ -14,6 +14,7 @@ namespace Web_Backend.Areas.LecturerPortal.Controllers
             : base(examRep, attemptRep, scheduleRep, uploader, examScheduleRep, moduleRep) { }
 
         protected override string GradeController => "ExamReview";
+        protected override bool IsAdmin => false;
 
         protected override void CheckView() => Auth.CheckUser();
         protected override void CheckEdit() => Auth.CheckUser();

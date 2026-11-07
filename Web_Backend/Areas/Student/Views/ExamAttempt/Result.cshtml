@@ -4,7 +4,9 @@
     var isTerminated = Model.Status == "Terminated";
     var isFinalized = Model.Status == "Submitted" || Model.Status == "Expired" || isTerminated;
     var isReleased = Model.ResultReleasedDate.HasValue;
-    ViewBag.Title = isReleased ? "Exam Result" : (isFinalized ? "Exam Submitted" : "Exam In Progress");
+    var isAssignment = ViewBag.IsAssignment as bool? ?? false;
+    var kind = isAssignment ? "Assignment" : "Exam";
+    ViewBag.Title = isReleased ? kind + " Result" : (isFinalized ? kind + " Submitted" : kind + " In Progress");
 }
 
 <div class="max-w-2xl mx-auto page-enter">
@@ -44,7 +46,7 @@
             }
             else
             {
-                <p class="text-sm text-slate-600 dark:text-slate-300">Your exam has been submitted and is pending review.</p>
+                <p class="text-sm text-slate-600 dark:text-slate-300">@(isAssignment ? "Your assignment has been submitted. Your lecturer will mark it and you'll be notified when your marks are ready." : "Your exam has been submitted and is pending review.")</p>
                 <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">You will be notified once grading is complete.</p>
             }
 
@@ -60,11 +62,11 @@
             </div>
             <h1 class="text-2xl font-bold text-slate-800 dark:text-slate-100 mb-2">@Model.ExamTitle</h1>
             <p class="text-sm text-slate-600 dark:text-slate-300">This attempt is still in progress &mdash; it was not submitted.</p>
-            <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">Return to the exam to continue answering and try submitting again.</p>
+            <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">Return to the @kind.ToLower() to continue answering and try submitting again.</p>
 
             <a asp-area="Student" asp-controller="ExamAttempt" asp-action="Take" asp-route-attemptId="@Model.AttemptID"
                class="inline-flex items-center gap-2 mt-6 px-5 py-2.5 rounded-xl font-medium text-sm bg-[#7c3aed] text-white hover:bg-[#6d28d9] shadow-sm transition-all">
-                Return to Exam
+                Return to @kind
             </a>
         }
     </div>

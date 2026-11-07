@@ -1,0 +1,87 @@
+@model List<Web_Backend.Areas.Admin.Models.ExamAttempt>
+@using Web_Backend.Areas.Admin.Models
+@*
+    Sidebar "Assignment review" (Admin + Lecturer): every submitted online
+    assignment across the user's batches. "To mark" = not yet released;
+    "Released" = students can see their marks. A lecturer's own marking
+    (where they are the chosen marker, or no marker is set) comes first.
+*@
+@{
+    var tab = ViewBag.Tab as string ?? "mark";
+    var exams = ViewBag.Exams as Dictionary<string, Exam> ?? new();
+    var batches = ViewBag.Batches as Dictionary<string, CourseSchedule> ?? new();
+    var mineOnly = ViewBag.MineOnly as bool? ?? false;
+    var userId = ViewBag.UserId as string ?? "";
+    bool Mine(ExamAttempt a) => !mineOnly || string.IsNullOrEmpty(exams[a.ExamID].MarkerUserID) || exams[a.ExamID].MarkerUserID == userId;
+    var toMark = Model.Where(a => !a.ResultReleasedDate.HasValue).OrderByDescending(Mine).ThenBy(a => a.SubmittedDate).ToList();
+    var released = Model.Where(a => a.ResultReleasedDate.HasValue).OrderByDescending(a => a.ResultReleasedDate).ToList();
+    var rows = tab == "released" ? released : toMark;
+    string tabCls(bool on) => on ? "bg-white dark:bg-slate-900 text-[#7c3aed] dark:text-purple-300 shadow-sm" : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-100";
+}
+
+<div class="max-w-6xl mx-auto space-y-6 page-enter">
+    <div class="flex items-end justify-between gap-4 flex-wrap">
+        <div>
+            <h2 class="text-2xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">Assignment review</h2>
+            <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">Mark submitted online assignments and release the results to students.</p>
+        </div>
+        <div class="inline-flex p-1 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+            <a href="@Url.Action("Review", new { tab = "mark" })" class="px-4 py-1.5 rounded-lg text-sm font-medium transition-colors @tabCls(tab == "mark")">
+                To mark <span class="ml-1 px-1.5 py-0.5 rounded-full text-[11px] @(toMark.Count > 0 ? "bg-amber-100 dark:bg-amber-900 text-amber-700 dark:text-amber-300" : "bg-slate-200 dark:bg-slate-700 text-slate-500")">@toMark.Count</span>
+            </a>
+            <a href="@Url.Action("Review", new { tab = "released" })" class="px-4 py-1.5 rounded-lg text-sm font-medium transition-colors @tabCls(tab == "released")">
+                Released <span class="ml-1 px-1.5 py-0.5 rounded-full text-[11px] bg-slate-200 dark:bg-slate-700 text-slate-500">@released.Count</span>
+            </a>
+        </div>
+    </div>
+
+    <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
+        @if (rows.Count == 0)
+        {
+            <div class="p-10 text-center">
+                <div class="w-14 h-14 rounded-2xl bg-purple-50 dark:bg-purple-950 flex items-center justify-center mx-auto mb-3"><i data-lucide="@(tab == "mark" ? "party-popper" : "inbox")" class="w-7 h-7 text-[#7c3aed] dark:text-purple-300"></i></div>
+                <p class="text-sm text-slate-500 dark:text-slate-400">@(tab == "mark" ? "Nothing to mark — all submitted assignments are released." : "No released assignment results yet.")</p>
+            </div>
+        }
+        else
+        {
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead class="bg-slate-50 dark:bg-slate-800/60 text-xs uppercase tracking-wide text-slate-400">
+                        <tr>
+                            <th class="text-left px-5 py-3 font-semibold">Student</th>
+                            <th class="text-left px-5 py-3 font-semibold">Assignment</th>
+                            <th class="text-left px-5 py-3 font-semibold">Submitted</th>
+                            <th class="text-left px-5 py-3 font-semibold">Marks</th>
+                            <th class="text-left px-5 py-3 font-semibold">Status</th>
+                            <th class="px-5 py-3"></th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100 dark:divide-slate-700">
+                        @foreach (var a in rows)
+                        {
+                            var e = exams[a.ExamID];
+                            batches.TryGetValue(e.AssignmentScheduleID, out var b);
+                            var mine = Mine(a);
+                            var (label, cls) = a.ResultReleasedDate.HasValue ? ("Released", "bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300")
+                                : !a.IsFullyGraded ? ("To mark", "bg-rose-50 dark:bg-rose-950 text-rose-700 dark:text-rose-300")
+                                : ("Ready to release", "bg-purple-50 dark:bg-purple-950 text-[#7c3aed] dark:text-purple-300");
+                            <tr class="hover:bg-slate-50/60 dark:hover:bg-slate-800/40 @(mine ? "" : "opacity-60")">
+                                <td class="px-5 py-3"><p class="font-medium text-slate-800 dark:text-slate-100">@a.StudentName</p><p class="text-xs text-slate-400">@a.StudentEmail</p></td>
+                                <td class="px-5 py-3"><p class="text-slate-700 dark:text-slate-200">@e.ExamTitle</p><p class="text-xs text-slate-400">@(b?.ScheduleName ?? "")@(mine ? "" : " · marked by another lecturer")</p></td>
+                                <td class="px-5 py-3 text-slate-600 dark:text-slate-300 whitespace-nowrap">@a.SubmittedDate?.ToString("dd MMM, hh:mm tt")</td>
+                                <td class="px-5 py-3 text-slate-600 dark:text-slate-300 whitespace-nowrap">@((a.TotalMarksAwarded ?? 0).ToString("0.##")) / @a.TotalMarks.ToString("0.##")</td>
+                                <td class="px-5 py-3"><span class="px-2 py-0.5 rounded-full text-[11px] font-semibold whitespace-nowrap @cls">@label</span></td>
+                                <td class="px-5 py-3 text-right">
+                                    <a href="@Url.Action("Grade", new { attemptId = a.AttemptID })" class="px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap @(a.ResultReleasedDate.HasValue || !mine ? "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700" : "bg-[#7c3aed] text-white hover:bg-[#6d28d9]")">
+                                        @(a.ResultReleasedDate.HasValue || !mine ? "View" : a.IsFullyGraded ? "Review & release" : "Mark")
+                                    </a>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+</div>

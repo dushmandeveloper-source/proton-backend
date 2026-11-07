@@ -73,7 +73,38 @@
                     <p class="text-xs text-slate-400 mt-1">Saved answers are submitted automatically at this time.</p>
                 </div>
             </div>
-            <p class="text-xs text-slate-400 -mt-2 flex items-center gap-1.5"><i data-lucide="globe" class="w-3.5 h-3.5"></i> Times are Sri Lanka time, same as all class and exam schedules.</p>
+            @* Zone the Opens/Due times are written in (0122) -- same choice as class/exam schedules. *@
+            <div class="-mt-1">
+                <p class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Times are in</p>
+                <div class="flex flex-wrap items-center gap-3">
+                    <div class="inline-flex p-1 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700" role="radiogroup" aria-label="Assignment time zone">
+                        @foreach (var (zv, flag, name, off) in new[] { (Web_Backend.Classes.ScheduleTime.China, "🇨🇳", "China", "UTC+8"), (Web_Backend.Classes.ScheduleTime.SriLanka, "🇱🇰", "Sri Lanka", "UTC+5:30") })
+                        {
+                            <label class="cursor-pointer">
+                                <input type="radio" name="Form.TimeZone" value="@zv" class="peer sr-only a-tz" @(f.TimeZone == zv ? "checked" : "") />
+                                <span class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium text-slate-500 dark:text-slate-400 transition-colors hover:text-slate-800 dark:hover:text-slate-100 peer-checked:bg-white dark:peer-checked:bg-slate-900 peer-checked:text-[#7c3aed] dark:peer-checked:text-purple-300 peer-checked:shadow-sm peer-focus-visible:ring-2 peer-focus-visible:ring-[#7c3aed]/50">
+                                    <span aria-hidden="true">@flag</span> @name <span class="text-[11px] opacity-70">@off</span>
+                                </span>
+                            </label>
+                        }
+                    </div>
+                    <p id="a-tz-preview" class="text-xs text-slate-500 dark:text-slate-400"></p>
+                </div>
+                <p class="text-[11px] text-slate-400 dark:text-slate-500 mt-1">Students see the due time in both China and Sri Lanka time.</p>
+            </div>
+
+            @* Who marks it (0122). Admins can always mark too. *@
+            <div>
+                <label for="a-marker" class="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-1.5">Marked by</label>
+                <select id="a-marker" name="Form.MarkerUserID" class="@inputCls">
+                    <option value="">Any lecturer of this batch</option>
+                    @foreach (var l in Model.Lecturers)
+                    {
+                        <option value="@l.UserID" selected="@(l.UserID == f.MarkerUserID)">@l.FullName</option>
+                    }
+                </select>
+                <p class="text-xs text-slate-400 mt-1">This lecturer marks the written answers and releases the results. @(Model.Lecturers.Count == 0 ? "No lecturer is assigned to this batch yet — add one to the batch first." : "")</p>
+            </div>
 
             <div>
                 <label for="a-module" class="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-1.5">Module</label>
@@ -155,6 +186,26 @@
         </form>
 
         <script>
+            // "Due 11:59 PM China = 9:29 PM Sri Lanka" under the zone toggle.
+            (function () {
+                const due = document.getElementById('a-due'), out = document.getElementById('a-tz-preview');
+                if (!due || !out) return;
+                const off = { 'Asia/Shanghai': 480, 'Asia/Colombo': 330 };
+                const name = { 'Asia/Shanghai': '🇨🇳 China', 'Asia/Colombo': '🇱🇰 Sri Lanka' };
+                const fmt = d => d.toLocaleString('en-GB', { timeZone: 'UTC', weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit', hour12: true });
+                function render() {
+                    const z = (document.querySelector('.a-tz:checked') || {}).value || 'Asia/Shanghai';
+                    const other = z === 'Asia/Shanghai' ? 'Asia/Colombo' : 'Asia/Shanghai';
+                    if (!due.value) { out.textContent = ''; return; }
+                    const wall = new Date(due.value + ':00Z');
+                    const o = new Date(wall.getTime() + (off[other] - off[z]) * 60000);
+                    out.textContent = 'Due ' + fmt(wall) + ' ' + name[z] + ' = ' + fmt(o) + ' ' + name[other];
+                }
+                due.addEventListener('input', render);
+                document.querySelectorAll('.a-tz').forEach(r => r.addEventListener('change', render));
+                render();
+            })();
+
             (function () {
                 const picker = document.getElementById('student-picker');
                 const checks = () => Array.from(document.querySelectorAll('.student-check'));

@@ -9,13 +9,13 @@
         <a href="@Url.Action("Index", new { scheduleId = Model.Batch.ScheduleID })" title="Back to assignments" class="p-2 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700"><i data-lucide="arrow-left" class="w-5 h-5"></i></a>
         <div class="min-w-0">
             <h2 class="text-2xl font-bold text-slate-800 dark:text-slate-100 tracking-tight truncate">@e.ExamTitle</h2>
-            <p class="text-slate-500 dark:text-slate-400 text-sm">Submissions &middot; due @e.DueDate?.ToString("dd MMM yyyy, hh:mm tt") &middot; @e.TotalMarks.ToString("0.##") marks</p>
+            <p class="text-slate-500 dark:text-slate-400 text-sm">Submissions &middot; due @(e.DueDate.HasValue ? Web_Backend.Classes.ScheduleTime.DualDateTime(e.DueDate.Value, e.AssignmentTimeZone) : "") &middot; @e.TotalMarks.ToString("0.##") marks</p>
         </div>
     </div>
 
     <div class="rounded-2xl border border-purple-100 dark:border-purple-900 bg-purple-50/60 dark:bg-purple-950/40 p-4 text-sm text-slate-600 dark:text-slate-300 flex items-start gap-3">
         <i data-lucide="info" class="w-5 h-5 text-[#7c3aed] dark:text-purple-300 flex-shrink-0 mt-0.5"></i>
-        <p>MCQs are marked automatically. Open a submission to mark written answers; then approve it in <a href="@Url.Action("Index", Model.GradeController, new { tab = "review" })" class="font-medium text-[#7c3aed] dark:text-purple-300 underline">Exam grading → Review</a>. A lecturer's approval releases an assignment result to the student straight away.</p>
+        <p>MCQs are marked automatically. Open a submission, give marks for the written answers, then press <b>Approve &amp; release</b> — the student is notified and can see their marks and answers.</p>
     </div>
 
     <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
@@ -52,7 +52,7 @@
                                 <td class="px-5 py-3 text-right">
                                     @if (!a.IsInProgress)
                                     {
-                                        <a href="@Url.Action("Grade", Model.GradeController, new { attemptId = a.AttemptID })" class="px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 whitespace-nowrap">@(a.IsFullyGraded ? "View answers" : "Mark answers")</a>
+                                        <a href="@Url.Action("Grade", new { attemptId = a.AttemptID })" class="px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 whitespace-nowrap">@(a.ResultReleasedDate.HasValue ? "View" : a.IsFullyGraded ? "Review &amp; release" : "Mark answers")</a>
                                     }
                                 </td>
                             </tr>

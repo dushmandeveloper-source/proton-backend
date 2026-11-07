@@ -84,7 +84,7 @@ else
                 var examReviewHistoryActive = activeController == "ExamReview" && (examReviewAction == "History" || examReviewAction == "StudentHistory");
 
                 var scheduleControllers = new[] { "Schedule", "Reschedule" };
-                var courseWorkControllers = new[] { "Courses", "Notes", "CourseVideo" };
+                var courseWorkControllers = new[] { "Courses", "Notes", "CourseVideo", "Classroom", "OnlineAssignment" };
                 var examinationControllers = new[] { "ExamSchedule", "ExamWatch", "ExamReschedule", "ExamReview" };
 
                 bool scheduleOpen = scheduleControllers.Contains(activeController);
@@ -137,6 +137,12 @@ else
                        class="w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-200 group @(activeController == "Classroom" ? "bg-slate-50/80 dark:bg-slate-700/60 text-slate-900 dark:text-slate-100 font-semibold" : "text-slate-500 dark:text-slate-400 hover:bg-slate-50/50 dark:hover:bg-slate-700/40 hover:text-slate-900 dark:hover:text-slate-100")">
                         <i data-lucide="school" class="w-5 h-5 @(activeController == "Classroom" ? "text-[#5a43f1] dark:text-[#a78bfa]" : "text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300")"></i>
                         <span>Classroom</span>
+                    </a>
+                    @{ var asgReviewActive = activeController == "OnlineAssignment"; }
+                    <a asp-area="Lecturer" asp-controller="OnlineAssignment" asp-action="Review"
+                       class="w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-200 group @(asgReviewActive ? "bg-slate-50/80 dark:bg-slate-700/60 text-slate-900 dark:text-slate-100 font-semibold" : "text-slate-500 dark:text-slate-400 hover:bg-slate-50/50 dark:hover:bg-slate-700/40 hover:text-slate-900 dark:hover:text-slate-100")">
+                        <i data-lucide="notebook-pen" class="w-5 h-5 @(asgReviewActive ? "text-[#5a43f1] dark:text-[#a78bfa]" : "text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300")"></i>
+                        <span>Assignment review</span>
                     </a>
                 </div>
             </div>

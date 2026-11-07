@@ -47,8 +47,14 @@ namespace Web_Backend.Areas.LecturerPortal.Controllers
                 .Select(s => s.CourseID).Where(c => !string.IsNullOrEmpty(c)).ToHashSet();
             var examCourse = new Dictionary<string, string>();
 
+            var assignmentIds = (await examRep.GetList(new ExamSearchView()))
+                .Where(e => e.IsAssignment).Select(e => e.ExamID).ToHashSet();
+
             return async attempt =>
             {
+                // Online assignments are marked from Assignment review
+                // (OnlineAssignment/Review), not the exam queues.
+                if (assignmentIds.Contains(attempt.ExamID)) return false;
                 if (examIds.Contains(attempt.ExamID)) return true;
                 if (!examCourse.TryGetValue(attempt.ExamID, out var courseId))
                 {

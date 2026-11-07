@@ -141,7 +141,7 @@ else
                     // current page's controller belongs to it — otherwise
                     // navigating into a collapsed group's page would hide
                     // its own active link with no way to tell where you are.
-                    var coursesControllers = new[] { "Course", "CourseSchedule", "LectureSchedule", "LectureNote", "CourseVideo", "HolidayEvent" };
+                    var coursesControllers = new[] { "Course", "CourseSchedule", "LectureSchedule", "LectureNote", "CourseVideo", "HolidayEvent", "Classroom", "OnlineAssignment" };
                     var examinationControllers = new[] { "Exam", "ExamSchedule", "ExamGrading" };
                     var communicationControllers = new[] { "EmailSettings", "EmailTemplate" };
                     var administratorControllers = new[] { "User", "Lecturer", "Agent", "Document", "DocumentRequest" };
@@ -214,6 +214,15 @@ else
                            class="w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-200 group @(activeController == "Classroom" ? "bg-slate-50/80 dark:bg-slate-700/60 text-slate-900 dark:text-slate-100 font-semibold" : "text-slate-500 dark:text-slate-400 hover:bg-slate-50/50 dark:hover:bg-slate-700/40 hover:text-slate-900 dark:hover:text-slate-100")">
                             <i data-lucide="school" class="w-5 h-5 @(activeController == "Classroom" ? "text-[#5a43f1] dark:text-[#a78bfa]" : "text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300")"></i>
                             <span>Classroom</span>
+                        </a>
+                    }
+                    @if (Web_Backend.Classes.Auth.HasPermission(Web_Backend.Classes.PermissionCode.Exams, 'V'))
+                    {
+                        var asgReviewActive = activeController == "OnlineAssignment";
+                        <a asp-area="Admin" asp-controller="OnlineAssignment" asp-action="Review"
+                           class="w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-200 group @(asgReviewActive ? "bg-slate-50/80 dark:bg-slate-700/60 text-slate-900 dark:text-slate-100 font-semibold" : "text-slate-500 dark:text-slate-400 hover:bg-slate-50/50 dark:hover:bg-slate-700/40 hover:text-slate-900 dark:hover:text-slate-100")">
+                            <i data-lucide="notebook-pen" class="w-5 h-5 @(asgReviewActive ? "text-[#5a43f1] dark:text-[#a78bfa]" : "text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300")"></i>
+                            <span>Assignment review</span>
                         </a>
                     }
                     @if (canViewHolidayCalendar)

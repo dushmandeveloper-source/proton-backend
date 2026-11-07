@@ -69,6 +69,16 @@ namespace Web_Backend.Areas.Admin.Data
                 StudentIDsJSON = System.Text.Json.JsonSerializer.Serialize(studentIds.Distinct().ToList())
             });
 
+        // 0122: marking lecturer ("" = any batch lecturer) + zone of Open/DueDate.
+        public Task SetAssignmentExtra(string examId, string? markerUserId, string timeZone) =>
+            db.ExecuteNonQuery("edu.Exam_SetAssignmentExtra", new
+            {
+                APIKey = AppData.GetAPIKey(),
+                ExamID = examId,
+                MarkerUserID = string.IsNullOrEmpty(markerUserId) ? null : markerUserId,
+                TimeZone = ScheduleTime.Normalize(timeZone)
+            });
+
         public Task<List<ExamScheduleStudentRow>> ListAssignmentStudents(string examId) =>
             db.GetList<ExamScheduleStudentRow, object>("edu.ExamAssignmentStudent_List", new { APIKey = AppData.GetAPIKey(), ExamID = examId });
 

@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using System.Linq;
 using Web_Backend.Areas.Admin.Data;
+using Web_Backend.Areas.Admin.Models;
 using Web_Backend.Classes;
 
 namespace Web_Backend.Areas.StudentPortal.Controllers
@@ -37,6 +38,11 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
                 return RedirectToAction("Index", "Dashboard", new { area = "Admin" });
 
             var attempts = await attemptRep.ListForStudent(student.StudentID);
+
+            // Online assignments (0117) get an "Assignment" tag and a link to the answers.
+            var examRep = HttpContext.RequestServices.GetRequiredService<IExamData>();
+            ViewBag.AssignmentIds = (await examRep.GetList(new ExamSearchView()))
+                .Where(e => e.IsAssignment).Select(e => e.ExamID).ToHashSet();
 
             ViewBag.CurrentUser = Auth.GetUser();
             return View(attempts.ToList());

@@ -43,7 +43,7 @@ namespace Web_Backend.Areas.StudentPortal
                 .Where(x => x.FullAccess).Select(x => x.Batch.ScheduleID).ToHashSet();
             if (batchIds.Count == 0) return (new(), new());
 
-            var cutoff = SriLankaTime.Now.AddDays(-recentDays);
+            var cutoff = ScheduleTime.Now(ScheduleTime.China).AddDays(-recentDays); // approximate (zones differ by 2.5h)
             var list = await OnlyAssigned((await examRep.GetList(new ExamSearchView { IsActive = "A" }))
                 .Where(x => x.IsAssignment && batchIds.Contains(x.AssignmentScheduleID) && x.DueDate >= cutoff)
                 .OrderBy(x => x.DueDate), student.StudentID, examRep);
@@ -89,9 +89,10 @@ namespace Web_Backend.Areas.StudentPortal
             if (!entry.FullAccess)
                 return "This assignment unlocks once your course fee is paid or full access is granted.";
 
-            var now = SriLankaTime.Now;
+            // Open/Due are wall-clock in the assignment's own zone (0122).
+            var now = ScheduleTime.Now(exam.AssignmentTimeZone);
             if (exam.OpenDate.HasValue && now < exam.OpenDate.Value)
-                return $"This assignment opens on {exam.OpenDate.Value:dd MMM yyyy, hh:mm tt}.";
+                return $"This assignment opens {ScheduleTime.DualDateTime(exam.OpenDate.Value, exam.AssignmentTimeZone)}.";
             if (exam.DueDate.HasValue && now > exam.DueDate.Value)
                 return "The due date for this assignment has passed.";
             return null;

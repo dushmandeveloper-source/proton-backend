@@ -42,8 +42,10 @@ namespace Web_Backend.Areas.Admin.Controllers
             Auth.CheckPermission(PermissionCode.Exams, 'V');
             ViewBag.CurrentUser = Auth.GetUser();
             ViewBag.InitialTab = tab == "review" ? "review" : "grading";
-            var grading = await attemptRep.ListPendingGrading();
-            var review = await attemptRep.ListAdminReviewQueue();
+            // Online assignments are marked from Assignment review, not here.
+            var assignmentIds = (await examRep.GetList(new ExamSearchView())).Where(e => e.IsAssignment).Select(e => e.ExamID).ToHashSet();
+            var grading = (await attemptRep.ListPendingGrading()).Where(a => !assignmentIds.Contains(a.ExamID)).ToList();
+            var review = (await attemptRep.ListAdminReviewQueue()).Where(a => !assignmentIds.Contains(a.ExamID)).ToList();
 
             var services = HttpContext.RequestServices;
             var batches = (await services.GetRequiredService<ICourseScheduleData>().GetList(new CourseScheduleSearchView { IsActive = "A" }))

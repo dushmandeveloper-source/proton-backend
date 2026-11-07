@@ -48,6 +48,8 @@ namespace Web_Backend.Areas.Admin.Models
         public bool IsAssignment { get; set; }
         public string AssignmentScheduleID { get; set; } = "";
         public string AssignmentModuleID { get; set; } = ""; // 0118, "" = General
+        public string MarkerUserID { get; set; } = ""; // 0122, "" = any batch lecturer
+        public string AssignmentTimeZone { get; set; } = "Asia/Colombo"; // 0122, zone of OpenDate/DueDate
         public DateTime? OpenDate { get; set; }
         public DateTime? DueDate { get; set; }
         public string CreatedByUserID { get; set; } = "";

@@ -14,6 +14,7 @@ namespace Web_Backend.Areas.Admin.Controllers
             : base(examRep, attemptRep, scheduleRep, uploader, examScheduleRep, moduleRep) { }
 
         protected override string GradeController => "ExamGrading";
+        protected override bool IsAdmin => true;
 
         protected override void CheckView() => Auth.CheckPermission(PermissionCode.Exams, 'V');
         protected override void CheckEdit() => Auth.CheckPermission(PermissionCode.Exams, 'E');

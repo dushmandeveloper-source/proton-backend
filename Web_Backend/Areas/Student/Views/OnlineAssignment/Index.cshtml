@@ -4,7 +4,7 @@
     ViewBag.Title = "Assignment marks";
     var attempts = ViewBag.Attempts as Dictionary<string, ExamAttempt> ?? new();
     var batches = ViewBag.Batches as Dictionary<string, string> ?? new();
-    var now = Web_Backend.Classes.SriLankaTime.Now;
+
     var released = Model.Where(e => attempts.TryGetValue(e.ExamID, out var a) && a.ResultReleasedDate.HasValue).ToList();
     var totalGot = released.Sum(e => attempts[e.ExamID].TotalMarksAwarded ?? 0);
     var totalMax = released.Sum(e => attempts[e.ExamID].TotalMarks);
@@ -48,6 +48,7 @@
                     attempts.TryGetValue(e.ExamID, out var at);
                     var finished = at != null && !at.IsInProgress;
                     var isReleased = finished && at!.ResultReleasedDate.HasValue;
+                    var now = Web_Backend.Classes.ScheduleTime.Now(e.AssignmentTimeZone);
                     var pastDue = e.DueDate.HasValue && now > e.DueDate.Value;
                     var notOpen = e.OpenDate.HasValue && now < e.OpenDate.Value;
                     var (label, cls) = isReleased ? (at!.Passed == true ? "Pass" : "Fail", at.Passed == true ? "bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300" : "bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-300")
@@ -60,7 +61,7 @@
                         <div class="w-11 h-11 rounded-2xl bg-purple-50 dark:bg-purple-950 flex items-center justify-center flex-shrink-0"><i data-lucide="notebook-pen" class="w-5 h-5 text-[#7c3aed] dark:text-purple-300"></i></div>
                         <div class="min-w-0 flex-1">
                             <p class="font-medium text-slate-800 dark:text-slate-100 flex items-center gap-2 flex-wrap">@e.ExamTitle <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold @cls">@label</span></p>
-                            <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">@batches.GetValueOrDefault(e.AssignmentScheduleID, "") &middot; Due @e.DueDate?.ToString("dd MMM yyyy, hh:mm tt")</p>
+                            <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">@batches.GetValueOrDefault(e.AssignmentScheduleID, "") &middot; Due @(e.DueDate.HasValue ? Web_Backend.Classes.ScheduleTime.DualDateTime(e.DueDate.Value, e.AssignmentTimeZone) : "")</p>
                         </div>
                         @if (isReleased)
                         {

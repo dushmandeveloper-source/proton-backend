@@ -308,7 +308,7 @@ namespace Web_Backend.Controllers.Api
                 description = exam?.Description ?? "",
                 // 0117: online assignment -> no proctoring; dueAt is Sri Lanka time.
                 isAssignment = exam?.IsAssignment ?? false,
-                dueAt = exam?.DueDate,
+                dueAt = exam?.DueDate is DateTime due ? ScheduleTime.Convert(due, exam.AssignmentTimeZone, ScheduleTime.SriLanka) : (DateTime?)null,
                 questions
             });
         }

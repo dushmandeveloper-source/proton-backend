@@ -261,6 +261,14 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
             if (attempt == null || attempt.StudentID != student.StudentID)
                 return RedirectToAction("Index", "Dashboard");
 
+            // Online assignments (0117): released -> straight to the answers;
+            // otherwise the same page, worded "assignment".
+            var exam = await examRep.Get(attempt.ExamID);
+            if (exam?.IsAssignment == true && attempt.ResultReleasedDate.HasValue)
+                return RedirectToAction("Review", "OnlineAssignment", new { attemptId });
+            ViewBag.IsAssignment = exam?.IsAssignment == true;
+            ViewBag.Exam = exam;
+
             ViewBag.CurrentUser = Auth.GetUser();
             return View(attempt);
         }

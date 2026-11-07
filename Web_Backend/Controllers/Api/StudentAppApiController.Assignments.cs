@@ -32,7 +32,9 @@ namespace Web_Backend.Controllers.Api
         // One assignment as the app shows it (Home list and classroom module).
         private static object AssignmentRow(Areas.Admin.Models.Exam e, Areas.Admin.Models.ExamAttempt? at, string batchName, string courseTitle)
         {
-            var now = SriLankaTime.Now;
+            // Due/Open are in the assignment's zone; the app gets them as Sri Lanka
+            // wall-clock (what every app version expects).
+            var now = ScheduleTime.Now(e.AssignmentTimeZone);
             var notOpen = e.OpenDate.HasValue && now < e.OpenDate.Value;
             var pastDue = e.DueDate.HasValue && now > e.DueDate.Value;
             var finished = at != null && !at.IsInProgress;
@@ -51,8 +53,9 @@ namespace Web_Backend.Controllers.Api
                 description = e.Description,
                 batchName,
                 courseTitle,
-                openAt = e.OpenDate,
-                dueAt = e.DueDate,
+                openAt = e.OpenDate.HasValue ? ScheduleTime.Convert(e.OpenDate.Value, e.AssignmentTimeZone, ScheduleTime.SriLanka) : (DateTime?)null,
+                dueAt = e.DueDate.HasValue ? ScheduleTime.Convert(e.DueDate.Value, e.AssignmentTimeZone, ScheduleTime.SriLanka) : (DateTime?)null,
+                timeZone = ScheduleTime.Normalize(e.AssignmentTimeZone),
                 questionCount = e.QuestionCount,
                 totalMarks = e.TotalMarks,
                 state,

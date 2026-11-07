@@ -23,6 +23,12 @@ namespace Web_Backend.Areas.Admin.Models
         [Range(0, 100, ErrorMessage = "Pass mark must be between 0 and 100%.")]
         public decimal PassingPercentage { get; set; } = 50;
 
+        // 0122: lecturer who marks and releases ("" = any lecturer of the batch).
+        public string MarkerUserID { get; set; } = "";
+
+        // 0122: zone OpenDate/DueDate are written in (China or Sri Lanka).
+        public string TimeZone { get; set; } = "Asia/Shanghai";
+
         // 0118: "batch" = everyone in the batch, "selected" = only StudentIDs.
         public string Audience { get; set; } = "batch";
         public List<string> StudentIDs { get; set; } = new();
@@ -59,6 +65,7 @@ namespace Web_Backend.Areas.Admin.Models
         // Students registered in the batch, for the "Selected students" picker.
         public List<ExamScheduleStudentRow> Roster { get; set; } = new();
         public List<BatchModule> Modules { get; set; } = new();
+        public List<ScheduleInstructor> Lecturers { get; set; } = new();
     }
 
     public class OnlineAssignmentResultsViewModel
