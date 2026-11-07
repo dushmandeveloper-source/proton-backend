@@ -13,12 +13,12 @@ namespace Web_Backend.Controllers.Api
     public partial class StudentAppApiController
     {
         [HttpGet("assignments")]
-        public async Task<IActionResult> Assignments()
+        public async Task<IActionResult> Assignments(bool all = false)
         {
             var student = await CurrentStudent();
             if (student == null) return Unauthorized();
 
-            var (list, attempts) = await OnlineAssignmentRules.ForStudent(student, examRep, attemptRep, registrationRep, scheduleRep);
+            var (list, attempts) = await OnlineAssignmentRules.ForStudent(student, examRep, attemptRep, registrationRep, scheduleRep, recentDays: all ? 36500 : 7);
             var batches = (await scheduleRep.GetList(new Areas.Admin.Models.CourseScheduleSearchView { IsActive = "A" }))
                 .ToDictionary(b => b.ScheduleID, b => b);
             return Ok(list.Select(e =>

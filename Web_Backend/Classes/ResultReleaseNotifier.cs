@@ -22,9 +22,11 @@ namespace Web_Backend.Classes
                              "Log in to your student dashboard for more details.");
 
             var student = await services.GetRequiredService<IStudentData>().Get(studentId);
-            await services.GetRequiredService<NotificationService>().NotifyUser(student?.UserID, "GradeReleased", "Assignment result released",
-                $"Your result for \"{released.ExamTitle}\" is available.",
-                "/Student/MyResults/Index", released.AttemptID);
+            // Opens the student's answers + marks (website and app route this link).
+            var pct = released.TotalMarks > 0 ? Math.Round((released.TotalMarksAwarded ?? 0) / released.TotalMarks * 100) : 0;
+            await services.GetRequiredService<NotificationService>().NotifyUser(student?.UserID, "GradeReleased", "Assignment marks released",
+                $"\"{released.ExamTitle}\": {released.TotalMarksAwarded ?? 0:0.##}/{released.TotalMarks:0.##} ({pct}%). Tap to see your answers.",
+                $"/Student/OnlineAssignment/Review?attemptId={Uri.EscapeDataString(released.AttemptID)}", released.AttemptID);
             return emailSent;
         }
     }

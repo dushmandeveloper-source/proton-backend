@@ -411,7 +411,54 @@ namespace Web_Backend.Controllers.Api
                 // Marks only once the result is released, like MyResults.
                 marks = released ? attempt.TotalMarksAwarded : null,
                 totalMarks = attempt.TotalMarks,
-                passed = released ? attempt.Passed : null
+                passed = released ? attempt.Passed : null,
+                // Online assignment: answers can be reviewed once released (GET .../review).
+                isAssignment = (await examRep.Get(attempt.ExamID))?.IsAssignment ?? false
+            });
+        }
+
+        // Online assignments only, after release: the student's answers,
+        // marks per question and the correct MCQ option (same as the portal's
+        // Student/OnlineAssignment/Review). Exams stay Pass/Fail only.
+        [HttpGet("attempts/{attemptId}/review")]
+        public async Task<IActionResult> Review(string attemptId)
+        {
+            var (student, attempt) = await OwnAttempt(attemptId);
+            if (student == null) return Unauthorized();
+            if (attempt == null) return NotFound(new { message = "Attempt not found." });
+            var exam = await examRep.Get(attempt.ExamID);
+            if (exam == null || !exam.IsAssignment || !attempt.ResultReleasedDate.HasValue)
+                return Conflict(new { message = "Your answers can be viewed once your lecturer releases the marks." });
+
+            var answers = (await attemptRep.ListAnswers(attemptId)).OrderBy(a => a.SortOrder).ToList();
+            var questions = new List<object>();
+            foreach (var a in answers)
+            {
+                var options = a.IsMCQ ? (await examRep.GetOptions(a.QuestionID)).OrderBy(o => o.SortOrder).ToList() : new();
+                questions.Add(new
+                {
+                    id = a.QuestionID,
+                    type = a.QuestionType,
+                    text = a.QuestionTextLatex,
+                    imageUrl = AbsoluteUrl(a.ImageURL),
+                    marks = a.Marks,
+                    marksAwarded = a.MarksAwarded,
+                    isCorrect = a.IsCorrect,
+                    selectedOptionId = a.SelectedOptionID,
+                    writtenAnswer = a.WrittenAnswerText ?? "",
+                    options = options.Select(o => new { id = o.OptionID, text = o.OptionTextLatex, correct = o.IsCorrect })
+                });
+            }
+            return Ok(new
+            {
+                attemptId = attempt.AttemptID,
+                title = exam.ExamTitle,
+                marks = attempt.TotalMarksAwarded,
+                totalMarks = attempt.TotalMarks,
+                passed = attempt.Passed,
+                remark = attempt.TeacherReviewRemark ?? "",
+                releasedAt = attempt.ResultReleasedDate,
+                questions
             });
         }
 

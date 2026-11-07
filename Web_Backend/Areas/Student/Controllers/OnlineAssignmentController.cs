@@ -74,6 +74,54 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
             }
         }
 
+        // Sidebar "Assignment marks": every online assignment set for this
+        // student (all time), with status, marks and a link to the answers.
+        [HttpGet]
+        public async Task<IActionResult> Index()
+        {
+            Auth.CheckUser();
+            var student = await studentRep.GetByUserID(Auth.GetUserId());
+            if (student == null)
+                return RedirectToAction("Index", "Dashboard", new { area = "Admin" });
+
+            var (list, attempts) = await OnlineAssignmentRules.ForStudent(student, examRep, attemptRep, registrationRep, scheduleRep, recentDays: 36500);
+            var batches = (await scheduleRep.GetList(new CourseScheduleSearchView { IsActive = "A" })).ToDictionary(b => b.ScheduleID, b => b.ScheduleName);
+            ViewBag.CurrentUser = Auth.GetUser();
+            ViewBag.Attempts = attempts;
+            ViewBag.Batches = batches;
+            return View(list.OrderByDescending(e => e.DueDate).ToList());
+        }
+
+        // After the lecturer releases the result: the student's own answers,
+        // marks per question and, for MCQs, the correct option. Assignments
+        // only -- exam results stay Pass/Fail only.
+        [HttpGet]
+        public async Task<IActionResult> Review(string attemptId)
+        {
+            Auth.CheckUser();
+            var student = await studentRep.GetByUserID(Auth.GetUserId());
+            if (student == null)
+                return RedirectToAction("Index", "Dashboard", new { area = "Admin" });
+
+            var attempt = await attemptRep.Get(attemptId);
+            if (attempt == null || attempt.StudentID != student.StudentID)
+                return RedirectToAction("Index", "Classroom");
+
+            var exam = await examRep.Get(attempt.ExamID);
+            if (exam == null || !exam.IsAssignment || !attempt.ResultReleasedDate.HasValue)
+            {
+                TempData["ErrorMessage"] = "Your answers can be viewed once your lecturer releases the marks.";
+                return RedirectToAction("Result", "ExamAttempt", new { attemptId });
+            }
+
+            var answers = (await attemptRep.ListAnswers(attemptId)).OrderBy(a => a.SortOrder).ToList();
+            ViewBag.CurrentUser = Auth.GetUser();
+            ViewBag.Attempt = attempt;
+            ViewBag.Exam = exam;
+            ViewBag.OptionsByQuestion = await ExamAnswerOptions.ForMcq(answers, examRep);
+            return View(answers);
+        }
+
         [HttpGet]
         public async Task<IActionResult> Take(string attemptId)
         {

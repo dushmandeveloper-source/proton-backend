@@ -18,7 +18,7 @@
 <div class="ml-10 space-y-2">
     <div class="flex items-start gap-3 flex-wrap">
         <div class="flex-1 min-w-[16rem] rounded-xl border @(ans.IsCorrect == true ? "border-emerald-200 dark:border-emerald-900 bg-emerald-50 dark:bg-emerald-950" : answered ? "border-red-200 dark:border-red-900 bg-red-50 dark:bg-red-950" : "border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60") px-4 py-2.5">
-            <p class="text-xs text-slate-500 dark:text-slate-400 mb-1">Student's answer</p>
+            <p class="text-xs text-slate-500 dark:text-slate-400 mb-1">@(ViewData["AnswerLabel"] as string ?? "Student's answer")</p>
             @if (!answered)
             {
                 <p class="text-sm font-medium text-slate-500 dark:text-slate-400">No answer</p>

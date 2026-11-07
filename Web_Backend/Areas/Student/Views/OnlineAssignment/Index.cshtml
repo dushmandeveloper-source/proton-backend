@@ -1,0 +1,91 @@
+@using Web_Backend.Areas.Admin.Models
+@model List<Exam>
+@{
+    ViewBag.Title = "Assignment marks";
+    var attempts = ViewBag.Attempts as Dictionary<string, ExamAttempt> ?? new();
+    var batches = ViewBag.Batches as Dictionary<string, string> ?? new();
+    var now = Web_Backend.Classes.SriLankaTime.Now;
+    var released = Model.Where(e => attempts.TryGetValue(e.ExamID, out var a) && a.ResultReleasedDate.HasValue).ToList();
+    var totalGot = released.Sum(e => attempts[e.ExamID].TotalMarksAwarded ?? 0);
+    var totalMax = released.Sum(e => attempts[e.ExamID].TotalMarks);
+    var avg = totalMax > 0 ? Math.Round(totalGot / totalMax * 100) : 0;
+}
+
+<div class="max-w-5xl mx-auto space-y-6 page-enter">
+    <div>
+        <h1 class="text-2xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">Assignment marks</h1>
+        <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">Your online assignments, their marks and your answers once your lecturer releases them.</p>
+    </div>
+
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 p-5">
+            <p class="text-xs text-slate-500 dark:text-slate-400">Assignments</p>
+            <p class="text-2xl font-bold text-slate-800 dark:text-slate-100 mt-1">@Model.Count</p>
+        </div>
+        <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 p-5">
+            <p class="text-xs text-slate-500 dark:text-slate-400">Marked</p>
+            <p class="text-2xl font-bold text-slate-800 dark:text-slate-100 mt-1">@released.Count</p>
+        </div>
+        <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 p-5">
+            <p class="text-xs text-slate-500 dark:text-slate-400">Average score</p>
+            <p class="text-2xl font-bold @(released.Count == 0 ? "text-slate-400" : "text-[#7c3aed] dark:text-purple-300") mt-1">@(released.Count == 0 ? "—" : avg + "%")</p>
+        </div>
+    </div>
+
+    <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
+        @if (Model.Count == 0)
+        {
+            <div class="p-10 text-center">
+                <div class="w-14 h-14 rounded-2xl bg-purple-50 dark:bg-purple-950 flex items-center justify-center mx-auto mb-3"><i data-lucide="notebook-pen" class="w-7 h-7 text-[#7c3aed] dark:text-purple-300"></i></div>
+                <p class="text-sm text-slate-500 dark:text-slate-400">No online assignments yet. They appear here when your lecturer sets one in your class.</p>
+            </div>
+        }
+        else
+        {
+            <div class="divide-y divide-slate-100 dark:divide-slate-700">
+                @foreach (var e in Model)
+                {
+                    attempts.TryGetValue(e.ExamID, out var at);
+                    var finished = at != null && !at.IsInProgress;
+                    var isReleased = finished && at!.ResultReleasedDate.HasValue;
+                    var pastDue = e.DueDate.HasValue && now > e.DueDate.Value;
+                    var notOpen = e.OpenDate.HasValue && now < e.OpenDate.Value;
+                    var (label, cls) = isReleased ? (at!.Passed == true ? "Pass" : "Fail", at.Passed == true ? "bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300" : "bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-300")
+                        : finished ? ("Awaiting marks", "bg-sky-50 dark:bg-sky-950 text-sky-700 dark:text-sky-300")
+                        : at != null && !pastDue ? ("In progress", "bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-300")
+                        : notOpen ? ("Opens soon", "bg-slate-100 dark:bg-slate-800 text-slate-500")
+                        : pastDue ? ("Missed", "bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-300")
+                        : ("Open", "bg-purple-50 dark:bg-purple-950 text-[#7c3aed] dark:text-purple-300");
+                    <div class="p-5 flex items-center gap-4 flex-wrap hover:bg-slate-50/60 dark:hover:bg-slate-800/40">
+                        <div class="w-11 h-11 rounded-2xl bg-purple-50 dark:bg-purple-950 flex items-center justify-center flex-shrink-0"><i data-lucide="notebook-pen" class="w-5 h-5 text-[#7c3aed] dark:text-purple-300"></i></div>
+                        <div class="min-w-0 flex-1">
+                            <p class="font-medium text-slate-800 dark:text-slate-100 flex items-center gap-2 flex-wrap">@e.ExamTitle <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold @cls">@label</span></p>
+                            <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">@batches.GetValueOrDefault(e.AssignmentScheduleID, "") &middot; Due @e.DueDate?.ToString("dd MMM yyyy, hh:mm tt")</p>
+                        </div>
+                        @if (isReleased)
+                        {
+                            var pct = at!.TotalMarks > 0 ? Math.Round((at.TotalMarksAwarded ?? 0) / at.TotalMarks * 100) : 0;
+                            <div class="text-right">
+                                <p class="text-lg font-bold text-slate-800 dark:text-slate-100">@((at.TotalMarksAwarded ?? 0).ToString("0.##"))<span class="text-sm font-medium text-slate-400"> / @at.TotalMarks.ToString("0.##")</span></p>
+                                <p class="text-xs text-slate-500">@pct%</p>
+                            </div>
+                            <a asp-action="Review" asp-route-attemptId="@at.AttemptID" class="px-3 py-2 rounded-xl text-xs font-medium bg-[#7c3aed] text-white hover:bg-[#6d28d9] shadow-sm inline-flex items-center gap-1.5">
+                                <i data-lucide="list-checks" class="w-3.5 h-3.5"></i> View my answers
+                            </a>
+                        }
+                        else if (!finished && !notOpen && !pastDue)
+                        {
+                            <form asp-action="Open" method="post">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="examId" value="@e.ExamID" />
+                                <button type="submit" class="px-3 py-2 rounded-xl text-xs font-medium bg-[#7c3aed] text-white hover:bg-[#6d28d9] shadow-sm inline-flex items-center gap-1.5">
+                                    <i data-lucide="@(at != null ? "pencil" : "play")" class="w-3.5 h-3.5"></i> @(at != null ? "Continue" : "Start")
+                                </button>
+                            </form>
+                        }
+                    </div>
+                }
+            </div>
+        }
+    </div>
+</div>
