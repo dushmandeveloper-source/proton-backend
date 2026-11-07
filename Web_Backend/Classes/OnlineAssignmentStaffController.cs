@@ -66,9 +66,18 @@ namespace Web_Backend.Classes
         {
             CheckView();
             var batches = (await GetBatches()).ToDictionary(b => b.ScheduleID, b => b);
+            // Also assignments of other batches where this user is a chosen
+            // marker (review/marking only -- not editing; see FindSubmission).
+            var markedByMe = (await examRep.ListAssignmentMarkers())
+                .Where(m => m.UserID == Auth.GetUserId()).Select(m => m.ExamID).ToHashSet();
             var exams = (await examRep.GetList(new ExamSearchView { IsActive = "A" }))
-                .Where(x => x.IsAssignment && batches.ContainsKey(x.AssignmentScheduleID))
+                .Where(x => x.IsAssignment && (batches.ContainsKey(x.AssignmentScheduleID) || markedByMe.Contains(x.ExamID)))
                 .ToDictionary(x => x.ExamID, x => x);
+            foreach (var sid in exams.Values.Select(x => x.AssignmentScheduleID).Where(s => !batches.ContainsKey(s)).Distinct().ToList())
+            {
+                var b = await scheduleRep.Get(sid);
+                if (b != null) batches[sid] = b;
+            }
             var attempts = exams.Count == 0 ? new List<ExamAttempt>() :
                 (await attemptRep.ListAllForAdmin())
                     .Where(a => exams.ContainsKey(a.ExamID) && a.Status != "Voided" && !a.IsInProgress)
@@ -346,6 +355,18 @@ namespace Web_Backend.Classes
             var attempt = await attemptRep.Get(attemptId);
             if (attempt == null) return (null, null, null);
             var (exam, batch) = await FindAssignment(attempt.ExamID);
+            if (exam == null)
+            {
+                // A chosen marker from outside the batch may review/mark it
+                // (only these marking actions use FindSubmission).
+                var e = await examRep.Get(attempt.ExamID);
+                if (e != null && e.IsAssignment &&
+                    (await examRep.ListAssignmentMarkers(e.ExamID)).Any(m => m.UserID == Auth.GetUserId()))
+                {
+                    exam = e;
+                    batch = await scheduleRep.Get(e.AssignmentScheduleID);
+                }
+            }
             return exam == null ? (null, null, null) : (attempt, exam, batch);
         }
 
@@ -363,6 +384,8 @@ namespace Web_Backend.Classes
             ViewBag.Batch = batch;
             var canMark = await CanMark(exam!);
             ViewBag.CanEdit = canMark;
+            // Outside markers can't open the batch's Submissions page -- back goes to Assignment review.
+            ViewBag.InBatch = (await FindAssignment(exam!.ExamID)).Exam != null;
             ViewBag.MarkerNote = canMark ? "" : "Only the chosen marking lecturers can mark and release this assignment.";
             ViewBag.OptionsByQuestion = await ExamAnswerOptions.ForMcq(answers, examRep);
             return View("Grade", answers);
@@ -408,7 +431,9 @@ namespace Web_Backend.Classes
                 if (released != null)
                     await ResultReleaseNotifier.NotifyAsync(released, attempt.StudentID, HttpContext.RequestServices);
                 TempData["SuccessMessage"] = $"Marks released to {attempt.StudentName}. They've been notified.";
-                return RedirectToAction("Results", new { id = exam!.ExamID });
+                return (await FindAssignment(exam!.ExamID)).Exam != null
+                    ? RedirectToAction("Results", new { id = exam.ExamID })
+                    : RedirectToAction("Review");
             }
             catch (Exception ex)
             {

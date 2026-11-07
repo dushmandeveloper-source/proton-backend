@@ -24,8 +24,9 @@
 <script defer src="~/js/exam-math.js" asp-append-version="true"></script>
 
 <div class="max-w-4xl mx-auto page-enter space-y-6">
-    <a href="@Url.Action("Results", new { id = exam.ExamID })" class="text-sm text-slate-500 dark:text-slate-400 hover:text-[#7c3aed] inline-flex items-center gap-1">
-        <i data-lucide="arrow-left" class="w-4 h-4"></i> Back to submissions &middot; @exam.ExamTitle
+    @{ var inBatch = ViewBag.InBatch as bool? ?? true; }
+    <a href="@(inBatch ? Url.Action("Results", new { id = exam.ExamID }) : Url.Action("Review"))" class="text-sm text-slate-500 dark:text-slate-400 hover:text-[#7c3aed] inline-flex items-center gap-1">
+        <i data-lucide="arrow-left" class="w-4 h-4"></i> @(inBatch ? "Back to submissions · " + exam.ExamTitle : "Back to Assignment review")
     </a>
 
     @if (!string.IsNullOrEmpty(ViewBag.MarkerNote as string))
