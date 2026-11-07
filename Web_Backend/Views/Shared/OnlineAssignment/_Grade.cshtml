@@ -71,7 +71,7 @@
 
             @if (canEdit && !released && !attempt.IsInProgress)
             {
-                <form method="post" action="@Url.Action("Release")" onsubmit="return confirm('Release these marks to @attempt.StudentName? They will be notified and can see their answers.');">
+                <form method="post" action="@Url.Action("Release")" data-dlg-title="Release marks?" data-dlg-confirm="@attempt.StudentName will get @((attempt.TotalMarksAwarded ?? 0).ToString("0.##"))/@attempt.TotalMarks.ToString("0.##") (@pct%). They'll be notified and can see their answers. Marks can't be changed after release." data-dlg-label="Release marks">
                     @Html.AntiForgeryToken()
                     <input type="hidden" name="attemptId" value="@attempt.AttemptID" />
                     <button type="submit" @(ungraded > 0 ? "disabled" : "") title="@(ungraded > 0 ? "Mark every written answer first" : "")"
@@ -141,3 +141,4 @@
         }
     </div>
 </div>
+<partial name="~/Views/Shared/_ConfirmDialog.cshtml" />

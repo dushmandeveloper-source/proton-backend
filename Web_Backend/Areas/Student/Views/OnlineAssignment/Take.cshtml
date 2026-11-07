@@ -255,10 +255,15 @@
         });
     });
 
-    form.addEventListener('submit', function (e) {
+    form.addEventListener('submit', async function (e) {
         if (form.dataset.forced) return;
         e.preventDefault();
-        if (!confirm('Submit this assignment? You won\'t be able to change your answers afterwards.')) return;
+        var ok = await window.dlgConfirm({
+            title: 'Submit your assignment?',
+            message: 'You won\'t be able to change your answers afterwards.',
+            confirmLabel: 'Submit'
+        });
+        if (!ok) return;
         submitBtn.disabled = true;
         // Flush every written answer first so a debounced save can't land
         // after the attempt is already submitted.
@@ -293,3 +298,4 @@
     tick();
 })();
 </script>
+<partial name="~/Views/Shared/_ConfirmDialog.cshtml" />

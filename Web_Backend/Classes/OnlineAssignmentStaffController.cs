@@ -354,6 +354,16 @@ namespace Web_Backend.Classes
             if (string.IsNullOrWhiteSpace(attemptId)) return (null, null, null);
             var attempt = await attemptRep.Get(attemptId);
             if (attempt == null) return (null, null, null);
+            // edu.ExamAttempt_Get has no student name/email -- fill them for the page.
+            if (string.IsNullOrEmpty(attempt.StudentName))
+            {
+                var s = await HttpContext.RequestServices.GetRequiredService<IStudentData>().Get(attempt.StudentID);
+                if (s != null)
+                {
+                    attempt.StudentName = string.IsNullOrWhiteSpace(s.FullName) ? $"{s.FirstName} {s.LastName}".Trim() : s.FullName;
+                    attempt.StudentEmail = s.Email;
+                }
+            }
             var (exam, batch) = await FindAssignment(attempt.ExamID);
             if (exam == null)
             {

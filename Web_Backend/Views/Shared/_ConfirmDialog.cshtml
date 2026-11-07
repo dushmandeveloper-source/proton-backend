@@ -1,0 +1,91 @@
+@*
+    Styled confirm dialog (replaces the browser's confirm()) for pages in any
+    portal -- Admin, Lecturer, Student. Include once per page.
+
+    Forms:  <form data-dlg-confirm="Message" data-dlg-title="Title"
+                  data-dlg-label="Button text" data-dlg-tone="purple|red">
+    Script: const ok = await window.dlgConfirm({ title, message, confirmLabel, tone });
+    Uses its own data-dlg-* attributes so it never clashes with the Admin
+    layout's data-confirm handler.
+*@
+<div id="dlg-confirm" class="hidden fixed inset-0 z-[95] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4"
+     role="dialog" aria-modal="true" aria-labelledby="dlg-confirm-title">
+    <div class="dlg-panel w-full max-w-md rounded-[24px] bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-700 shadow-xl p-6 scale-95 opacity-0 transition duration-150">
+        <div class="flex items-start gap-4">
+            <div id="dlg-confirm-icon" class="w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0 bg-purple-50 dark:bg-purple-950 text-[#7c3aed] dark:text-purple-300">
+                <i data-lucide="send" class="w-5 h-5"></i>
+            </div>
+            <div class="min-w-0">
+                <h3 id="dlg-confirm-title" class="text-lg font-semibold text-slate-800 dark:text-slate-100">Are you sure?</h3>
+                <p id="dlg-confirm-message" class="text-sm text-slate-500 dark:text-slate-400 mt-1 leading-relaxed"></p>
+            </div>
+        </div>
+        <div class="flex justify-end gap-2 mt-6">
+            <button type="button" id="dlg-confirm-cancel" class="px-4 py-2.5 rounded-xl text-sm font-medium text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">Cancel</button>
+            <button type="button" id="dlg-confirm-ok" class="px-5 py-2.5 rounded-xl text-sm font-medium text-white shadow-sm transition-colors bg-[#7c3aed] hover:bg-[#6d28d9]">Confirm</button>
+        </div>
+    </div>
+</div>
+<script>
+(function () {
+    if (window.dlgConfirm) return;
+    const modal = document.getElementById('dlg-confirm');
+    const panel = modal.querySelector('.dlg-panel');
+    const titleEl = document.getElementById('dlg-confirm-title');
+    const msgEl = document.getElementById('dlg-confirm-message');
+    const okBtn = document.getElementById('dlg-confirm-ok');
+    const cancelBtn = document.getElementById('dlg-confirm-cancel');
+    const iconBox = document.getElementById('dlg-confirm-icon');
+    const tones = {
+        purple: { ok: 'bg-[#7c3aed] hover:bg-[#6d28d9]', icon: 'bg-purple-50 dark:bg-purple-950 text-[#7c3aed] dark:text-purple-300', glyph: 'send' },
+        red: { ok: 'bg-red-600 hover:bg-red-700', icon: 'bg-red-50 dark:bg-red-950 text-red-600 dark:text-red-300', glyph: 'trash-2' }
+    };
+    let resolver = null, lastFocus = null;
+
+    function close(result) {
+        panel.classList.add('scale-95', 'opacity-0');
+        setTimeout(() => modal.classList.add('hidden'), 120);
+        document.removeEventListener('keydown', onKey);
+        if (lastFocus) lastFocus.focus();
+        if (resolver) { const r = resolver; resolver = null; r(result); }
+    }
+    function onKey(e) {
+        if (e.key === 'Escape') close(false);
+        if (e.key === 'Enter') { e.preventDefault(); close(true); }
+    }
+
+    window.dlgConfirm = function ({ title, message, confirmLabel, tone } = {}) {
+        if (resolver) resolver(false);
+        const t = tones[tone] || tones.purple;
+        titleEl.textContent = title || 'Are you sure?';
+        msgEl.textContent = message || '';
+        okBtn.textContent = confirmLabel || 'Confirm';
+        okBtn.className = 'px-5 py-2.5 rounded-xl text-sm font-medium text-white shadow-sm transition-colors ' + t.ok;
+        iconBox.className = 'w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0 ' + t.icon;
+        iconBox.innerHTML = '<i data-lucide="' + t.glyph + '" class="w-5 h-5"></i>';
+        if (window.lucide) lucide.createIcons();
+        lastFocus = document.activeElement;
+        modal.classList.remove('hidden');
+        requestAnimationFrame(() => panel.classList.remove('scale-95', 'opacity-0'));
+        okBtn.focus();
+        document.addEventListener('keydown', onKey);
+        return new Promise(r => { resolver = r; });
+    };
+
+    okBtn.addEventListener('click', () => close(true));
+    cancelBtn.addEventListener('click', () => close(false));
+    modal.addEventListener('click', e => { if (e.target === modal) close(false); });
+
+    // <form data-dlg-confirm="..."> -- ask first, then submit for real.
+    document.addEventListener('submit', async e => {
+        const form = e.target;
+        if (!form.dataset || !form.dataset.dlgConfirm || form.dataset.dlgOk) return;
+        e.preventDefault();
+        const ok = await window.dlgConfirm({
+            title: form.dataset.dlgTitle, message: form.dataset.dlgConfirm,
+            confirmLabel: form.dataset.dlgLabel, tone: form.dataset.dlgTone
+        });
+        if (ok) { form.dataset.dlgOk = '1'; form.submit(); }
+    });
+})();
+</script>
