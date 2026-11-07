@@ -105,16 +105,19 @@
                     <div class="p-2.5 border-b border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60">
                         <div class="relative">
                             <i data-lucide="search" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
-                            <input id="marker-search" type="search" placeholder="Search lecturers and instructors" class="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-[#7c3aed]/40" />
+                            <input id="marker-search" type="search" placeholder="Search by name or email" class="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-[#7c3aed]/40" />
                         </div>
                     </div>
-                    <div class="max-h-56 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-700">
+                    <div class="max-h-[10.5rem] overflow-y-auto overscroll-contain divide-y divide-slate-100 dark:divide-slate-700" title="Scroll for more">
                         @foreach (var l in Model.Lecturers.OrderBy(x => x.FullName))
                         {
-                            <label class="marker-row flex items-center gap-3 px-4 py-2.5 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/60" data-q="@l.FullName.ToLowerInvariant()">
+                            <label class="marker-row flex items-center gap-3 px-4 py-2 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/60" data-q="@((l.FullName + " " + l.Email).ToLowerInvariant())">
                                 <input type="checkbox" name="Form.MarkerUserIDs" value="@l.UserID" data-name="@l.FullName" class="marker-check w-4 h-4 accent-[#7c3aed]" @(f.MarkerUserIDs.Contains(l.UserID) ? "checked" : "") />
                                 <span class="w-7 h-7 rounded-full bg-purple-50 dark:bg-purple-950 text-[#7c3aed] dark:text-purple-300 text-xs font-semibold flex items-center justify-center flex-shrink-0">@(l.FullName.Length > 0 ? l.FullName[0].ToString().ToUpper() : "?")</span>
-                                <span class="text-sm text-slate-800 dark:text-slate-100 truncate">@l.FullName</span>
+                                <span class="min-w-0">
+                                    <span class="block text-sm text-slate-800 dark:text-slate-100 truncate">@l.FullName</span>
+                                    <span class="block text-xs text-slate-400 truncate">@l.Email</span>
+                                </span>
                             </label>
                         }
                     </div>

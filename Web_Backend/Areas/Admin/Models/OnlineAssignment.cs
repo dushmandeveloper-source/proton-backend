@@ -65,7 +65,7 @@ namespace Web_Backend.Areas.Admin.Models
         // Students registered in the batch, for the "Selected students" picker.
         public List<ExamScheduleStudentRow> Roster { get; set; } = new();
         public List<BatchModule> Modules { get; set; } = new();
-        public List<ScheduleInstructor> Lecturers { get; set; } = new();
+        public List<AppUser> Lecturers { get; set; } = new(); // every lecturer/instructor (name + email)
     }
 
     public class OnlineAssignmentResultsViewModel

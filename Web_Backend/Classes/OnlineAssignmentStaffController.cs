@@ -85,9 +85,8 @@ namespace Web_Backend.Classes
         }
 
         // Every lecturer/instructor (same list as exam scheduling), for "Marked by".
-        private async Task<List<ScheduleInstructor>> Instructors() =>
-            (await HttpContext.RequestServices.GetRequiredService<IUserData>().GetInstructors())
-                .Select(u => new ScheduleInstructor { UserID = u.UserID, FullName = u.FullName }).ToList();
+        private Task<List<AppUser>> Instructors() =>
+            HttpContext.RequestServices.GetRequiredService<IUserData>().GetInstructors();
 
         private async Task<CourseSchedule?> FindBatch(string? scheduleId)
         {
