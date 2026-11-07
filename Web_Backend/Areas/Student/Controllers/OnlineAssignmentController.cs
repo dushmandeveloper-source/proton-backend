@@ -123,6 +123,19 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
             return View(answers);
         }
 
+        // 0125: the open assignment page pings every few seconds; one not seen
+        // for about a minute is auto-submitted by ExamAttemptSweeper.
+        [HttpPost, ValidateAntiForgeryToken]
+        public async Task<IActionResult> Ping(string attemptId)
+        {
+            Auth.CheckUser();
+            var student = await studentRep.GetByUserID(Auth.GetUserId());
+            var attempt = await attemptRep.Get(attemptId);
+            if (student == null || attempt == null || attempt.StudentID != student.StudentID)
+                return Json(new { status = "" });
+            return Json(new { status = await attemptRep.Touch(attemptId) });
+        }
+
         [HttpGet]
         public async Task<IActionResult> Take(string attemptId)
         {
@@ -142,6 +155,7 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
             if (!attempt.IsInProgress)
                 return RedirectToAction("Result", "ExamAttempt", new { attemptId });
 
+            await attemptRep.Touch(attemptId); // 0125: opening counts as "seen"
             var answers = await attemptRep.ListAnswers(attemptId);
             ViewBag.CurrentUser = Auth.GetUser();
             ViewBag.Attempt = attempt;

@@ -15,6 +15,9 @@ namespace Web_Backend.Areas.Admin.Data
         Task GradeWritten(string attemptId, string questionId, decimal marksAwarded);
         Task<int> CountByExamAndStudent(string examId, string studentId);
         Task<List<ExamAttempt>> ListOverdue(int graceSeconds);
+        // 0125: assignments are one sitting -- ping, and attempts not seen for a while.
+        Task<string> Touch(string attemptId);
+        Task<List<ExamAttempt>> ListAbandonedAssignments(int seconds);
 
         // Phase 3: server-authoritative violation reporting. Returns the
         // running strike count (0-3) and the attempt's Status AFTER this

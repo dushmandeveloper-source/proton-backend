@@ -10,7 +10,8 @@ namespace Web_Backend.Classes
     // abandoned. Grace leaves time for a submit that's already on its way.
     public class ExamAttemptSweeper(IServiceScopeFactory scopes, ILogger<ExamAttemptSweeper> log) : BackgroundService
     {
-        private static readonly TimeSpan Interval = TimeSpan.FromMinutes(1);
+        private static readonly TimeSpan Interval = TimeSpan.FromSeconds(20);
+        private const int AbandonSeconds = 60; // assignment left this long -> auto-submit (0125)
         private const int GraceSeconds = 120;
 
         protected override async Task ExecuteAsync(CancellationToken ct)
@@ -32,6 +33,21 @@ namespace Web_Backend.Classes
                         catch (Exception ex)
                         {
                             log.LogError(ex, "Auto-submit of overdue attempt {AttemptId} failed", a.AttemptID);
+                        }
+                    }
+
+                    // 0125: online assignments are one sitting -- left for about a
+                    // minute (page closed / app in background) submits what's saved.
+                    foreach (var a in await attempts.ListAbandonedAssignments(AbandonSeconds))
+                    {
+                        try
+                        {
+                            await attempts.Submit(a.AttemptID, isForced: true);
+                            log.LogInformation("Assignment attempt {AttemptId} auto-submitted: student left the page", a.AttemptID);
+                        }
+                        catch (Exception ex)
+                        {
+                            log.LogError(ex, "Auto-submit of abandoned assignment attempt {AttemptId} failed", a.AttemptID);
                         }
                     }
                 }

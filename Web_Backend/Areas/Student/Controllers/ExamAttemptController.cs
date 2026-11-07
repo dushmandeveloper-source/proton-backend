@@ -165,6 +165,7 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
             try
             {
                 await attemptRep.SaveAnswer(attemptId, questionId, selectedOptionId, writtenAnswerText);
+                await attemptRep.Touch(attemptId); // 0125
                 return Json(new { success = true });
             }
             catch (System.Exception ex)

@@ -139,6 +139,12 @@ namespace Web_Backend.Areas.Admin.Data
         public Task<List<ExamAttempt>> ListOverdue(int graceSeconds) =>
             db.GetList<ExamAttempt, object>("edu.ExamAttempt_ListOverdue", new { APIKey = AppData.GetAPIKey(), GraceSeconds = graceSeconds });
 
+        public async Task<string> Touch(string attemptId) =>
+            (await db.Get<ExamAttempt, object>("edu.ExamAttempt_Touch", new { APIKey = AppData.GetAPIKey(), AttemptID = attemptId }))?.Status ?? "";
+
+        public Task<List<ExamAttempt>> ListAbandonedAssignments(int seconds) =>
+            db.GetList<ExamAttempt, object>("edu.ExamAttempt_ListAbandonedAssignments", new { APIKey = AppData.GetAPIKey(), Seconds = seconds });
+
         public Task<List<ExamAttempt>> ListInProgressForInstructor(string userId) =>
             db.GetList<ExamAttempt, object>("edu.ExamAttempt_ListInProgressForInstructor", new { APIKey = AppData.GetAPIKey(), UserID = userId });
     }

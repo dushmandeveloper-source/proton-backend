@@ -15,10 +15,12 @@
 <script defer src="~/js/exam-math.js" asp-append-version="true"></script>
 
 <div class="max-w-3xl mx-auto space-y-5 page-enter pb-24">
-    <a asp-controller="Classroom" asp-action="Batch" asp-route-id="@exam.AssignmentScheduleID"
+    <a id="leave-link" asp-controller="Classroom" asp-action="Batch" asp-route-id="@exam.AssignmentScheduleID"
        class="text-xs text-slate-500 hover:text-[#7c3aed] inline-flex items-center gap-1">
-        <i data-lucide="arrow-left" class="w-3.5 h-3.5"></i> Back to class (your answers are saved)
+        <i data-lucide="arrow-left" class="w-3.5 h-3.5"></i> Leave assignment
     </a>
+    @* 0125: one sitting -- leaving for about a minute submits what's saved. *@
+    <div class="rounded-2xl border border-amber-200 dark:border-amber-900 bg-amber-50 dark:bg-amber-950/40 px-4 py-3 text-sm text-amber-800 dark:text-amber-200 flex items-start gap-2"><i data-lucide="timer" class="w-4 h-4 mt-0.5 flex-shrink-0"></i><span>Do this assignment in one sitting. If you close this page or switch away for about <b>1 minute</b>, what you have saved is submitted automatically.</span></div>
 
     @if (TempData["ErrorMessage"] != null)
     {
@@ -38,7 +40,7 @@
                 </span>
                 <h1 class="text-xl font-bold text-slate-800 dark:text-slate-100 mt-1.5">@exam.ExamTitle</h1>
                 <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                    Answers save automatically &middot; you can leave and come back any time before the due date
+                    Answers save automatically &middot; finish it in one sitting
                 </p>
             </div>
             <div class="text-right flex-shrink-0">
@@ -295,6 +297,35 @@
 
     var firstOpen = questions.findIndex(function (q) { return !isAnswered(q); });
     show(firstOpen < 0 ? 0 : firstOpen);
+
+    // ---------- One sitting (0125) ----------
+    // Ping every 15 s while the page is open and visible; the server submits
+    // the saved answers when it hasn't heard from us for about a minute.
+    // If that already happened (e.g. the tab was away), go to the result.
+    var resultUrl = '@Url.Action("Result", "ExamAttempt", new { attemptId = attempt.AttemptID })';
+    function ping() {
+        if (document.visibilityState !== 'visible' || form.dataset.forced) return;
+        fetch('@Url.Action("Ping", "OnlineAssignment")', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'RequestVerificationToken': token },
+            body: new URLSearchParams({ attemptId: attemptId, __RequestVerificationToken: token })
+        }).then(function (r) { return r.json(); }).then(function (d) {
+            if (d.status && d.status !== 'InProgress') { form.dataset.forced = '1'; location.href = resultUrl; }
+        }).catch(function () { /* offline: the next ping retries */ });
+    }
+    setInterval(ping, 15000);
+    document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') ping(); });
+
+    document.getElementById('leave-link').addEventListener('click', async function (e) {
+        e.preventDefault();
+        var href = this.href;
+        var ok = await window.dlgConfirm({
+            title: 'Leave the assignment?',
+            message: 'This assignment is one sitting. If you don\'t come back within about a minute, your saved answers are submitted automatically.',
+            confirmLabel: 'Leave', tone: 'red'
+        });
+        if (ok) { form.dataset.forced = '1'; location.href = href; }
+    });
     tick();
 })();
 </script>

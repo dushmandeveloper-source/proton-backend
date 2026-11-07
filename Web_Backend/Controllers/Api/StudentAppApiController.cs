@@ -315,6 +315,17 @@ namespace Web_Backend.Controllers.Api
 
         public record SaveAnswerRequest(string? SelectedOptionId, string? WrittenAnswer);
 
+        // 0125: the open assignment screen pings every few seconds; an assignment
+        // not seen for about a minute is auto-submitted (ExamAttemptSweeper).
+        [HttpPost("attempts/{attemptId}/ping")]
+        public async Task<IActionResult> Ping(string attemptId)
+        {
+            var (student, attempt) = await OwnAttempt(attemptId);
+            if (student == null) return Unauthorized();
+            if (attempt == null) return NotFound(new { message = "Attempt not found." });
+            return Ok(new { status = await attemptRep.Touch(attemptId) });
+        }
+
         [HttpPut("attempts/{attemptId}/answers/{questionId}")]
         public async Task<IActionResult> SaveAnswer(string attemptId, string questionId, [FromBody] SaveAnswerRequest request)
         {
@@ -335,6 +346,7 @@ namespace Web_Backend.Controllers.Api
             try
             {
                 await attemptRep.SaveAnswer(attemptId, questionId, request.SelectedOptionId, written);
+                await attemptRep.Touch(attemptId); // 0125
                 return Ok(new { saved = true });
             }
             catch (Exception ex)
