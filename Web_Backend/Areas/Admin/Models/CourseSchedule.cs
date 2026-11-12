@@ -24,6 +24,12 @@ namespace Web_Backend.Areas.Admin.Models
 
         // Zone the dates/times are written in (0119) -- see Classes/ScheduleTime.
         public string TimeZone { get; set; } = Web_Backend.Classes.ScheduleTime.SriLanka;
+        // Last day students can register (inclusive, in TimeZone) -- 0126.
+        // Null = no deadline. Rules: Classes/BatchRegistration.
+        public DateTime? RegistrationEndDate { get; set; }
+        public bool RegistrationClosed => Web_Backend.Classes.BatchRegistration.IsClosed(this);
+        // Closed for over a month: dropped from registration pickers entirely.
+        public bool HiddenFromRegistration => Web_Backend.Classes.BatchRegistration.IsHidden(this);
         public DateTime CreatedDate { get; set; }
         public DateTime? UpdatedDate { get; set; }
 

@@ -305,7 +305,7 @@
                         <div class="space-y-2 max-h-64 overflow-y-auto pr-1">
                             @foreach (var course in availableCourses)
                             {
-                                var courseSchedules = availableSchedules.Where(s => s.CourseID == course.CourseID).ToList();
+                                var courseSchedules = availableSchedules.Where(s => s.CourseID == course.CourseID && !s.HiddenFromRegistration).ToList();
                                 var courseDiscount = course.GetDisplayDiscount();
                                 var courseFeeCharges = course.GetFeeChargesTotal();
                                 var courseBaseFee = course.Fee ?? 0;
@@ -342,9 +342,9 @@
                                         {
                                             <select class="course-schedule-select w-full rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 px-3 py-1.5 text-xs outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400" data-course-id="@course.CourseID">
                                                 <option value="">Select a batch...</option>
-                                                @foreach (var sch in courseSchedules)
+                                                @foreach (var sch in courseSchedules.OrderBy(x => x.RegistrationClosed))
                                                 {
-                                                    <option value="@sch.ScheduleID">@sch.ScheduleName</option>
+                                                    <option value="@sch.ScheduleID" disabled="@sch.RegistrationClosed">@sch.ScheduleName@(sch.RegistrationClosed ? " — Registration closed" : sch.RegistrationEndDate.HasValue ? $" — register by {sch.RegistrationEndDate.Value:dd MMM yyyy}" : "")</option>
                                                 }
                                             </select>
                                         }

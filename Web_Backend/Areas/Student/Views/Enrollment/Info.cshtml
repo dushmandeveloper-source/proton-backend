@@ -181,7 +181,17 @@
                                     @foreach (var s in Model.Schedules)
                                     {
                                         <tr>
-                                            <td class="px-4 py-2.5 font-medium text-slate-800 dark:text-slate-100">@(string.IsNullOrEmpty(s.ScheduleName) ? "—" : s.ScheduleName)</td>
+                                            <td class="px-4 py-2.5 font-medium text-slate-800 dark:text-slate-100">
+                                                @(string.IsNullOrEmpty(s.ScheduleName) ? "—" : s.ScheduleName)
+                                                @if (s.RegistrationClosed)
+                                                {
+                                                    <span class="ml-1 whitespace-nowrap rounded-full bg-red-50 dark:bg-red-950/50 px-2 py-0.5 text-[10px] font-semibold uppercase text-red-700 dark:text-red-300">Registration closed</span>
+                                                }
+                                                else if (s.RegistrationEndDate.HasValue)
+                                                {
+                                                    <span class="ml-1 block text-xs font-normal text-slate-500 dark:text-slate-400">Register by @s.RegistrationEndDate.Value.ToString("dd MMM yyyy")</span>
+                                                }
+                                            </td>
                                             <td class="px-4 py-2.5 text-slate-600 dark:text-slate-300">
                                                 @if (s.Segments.Count == 0)
                                                 {

@@ -93,16 +93,21 @@
             {
                 <div class="space-y-1">
                     <label class="text-sm font-medium text-slate-700 dark:text-slate-300">Choose a batch</label>
+                    @{ var openCount = schedules.Count(x => !x.RegistrationClosed); }
                     <select asp-for="ScheduleID" required id="scheduleSelect" class="w-full rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 px-4 py-2.5 text-sm outline-none focus:border-[#7c3aed] focus:ring-1 focus:ring-[#7c3aed]">
-                        @if (schedules.Count > 1)
+                        @if (openCount != 1)
                         {
                             <option value="">Select a batch...</option>
                         }
-                        @foreach (var sched in schedules)
+                        @foreach (var sched in schedules.OrderBy(x => x.RegistrationClosed))
                         {
-                            <option value="@sched.ScheduleID" selected="@(schedules.Count == 1)">@sched.ScheduleName @(!string.IsNullOrEmpty(sched.Location) ? $"({sched.Location})" : "")</option>
+                            <option value="@sched.ScheduleID" disabled="@sched.RegistrationClosed" selected="@(openCount == 1 && !sched.RegistrationClosed)">@sched.ScheduleName @(!string.IsNullOrEmpty(sched.Location) ? $"({sched.Location})" : "")@(sched.RegistrationClosed ? " — Registration closed" : sched.RegistrationEndDate.HasValue ? $" — register by {sched.RegistrationEndDate.Value:dd MMM yyyy}" : "")</option>
                         }
                     </select>
+                    @if (openCount == 0)
+                    {
+                        <p class="mt-2 rounded-xl bg-red-50 dark:bg-red-950/40 px-3 py-2 text-sm text-red-700 dark:text-red-300">Registration is closed for every batch of this course. Please check back when a new batch opens.</p>
+                    }
                 </div>
             }
         </div>

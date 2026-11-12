@@ -70,6 +70,7 @@ namespace Web_Backend.Areas.Admin.Data
             });
             var sid = string.IsNullOrEmpty(id) ? s.ScheduleID : id;
             if (!string.IsNullOrEmpty(sid)) await ScheduleTime.SetZone(db, "Course", sid, s.TimeZone);
+            if (!string.IsNullOrEmpty(sid)) await BatchRegistration.SetEnd(db, sid, s.RegistrationEndDate);
             return id;
         }
 
@@ -152,9 +153,11 @@ namespace Web_Backend.Areas.Admin.Data
         private async Task<List<CourseSchedule>> Stamp(List<CourseSchedule> list)
         {
             var zones = await ScheduleTime.Zones(db);
+            var ends = await BatchRegistration.Ends(db);
             foreach (var s in list)
             {
                 s.TimeZone = zones.TryGetValue("Course:" + s.ScheduleID, out var z) ? z : ScheduleTime.SriLanka;
+                s.RegistrationEndDate = ends.TryGetValue(s.ScheduleID, out var end) ? end : null;
                 foreach (var seg in s.Segments) seg.Zone = s.TimeZone;
             }
             return list;

@@ -42,6 +42,12 @@
             <p class="text-slate-800 dark:text-slate-100">@(Model.Capacity?.ToString() ?? "-")</p>
         </div>
         <div class="@CardCls">
+            <p class="@LabelCls mb-1">Registration closes</p>
+            <p class="@(Model.RegistrationClosed ? "text-red-600 dark:text-red-400" : "text-slate-800 dark:text-slate-100")">
+                @(Model.RegistrationEndDate?.ToString("dd MMM yyyy") ?? "No deadline")@(Model.RegistrationClosed ? (Model.HiddenFromRegistration ? " · closed, hidden" : " · closed") : "")
+            </p>
+        </div>
+        <div class="@CardCls">
             <p class="@LabelCls mb-1">Instructors</p>
             <p class="text-slate-800 dark:text-slate-100">@(string.IsNullOrEmpty(Model.InstructorsLabel) ? "-" : Model.InstructorsLabel)</p>
         </div>

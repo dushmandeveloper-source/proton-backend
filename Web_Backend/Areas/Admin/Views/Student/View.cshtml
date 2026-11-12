@@ -695,9 +695,9 @@
                             <label class="@LabelCls">Batch</label>
                             <select name="scheduleId" id="newEnrollmentSchedule" class="@InputCls">
                                 <option value="">No batch</option>
-                                @foreach (var sch in availableSchedules)
+                                @foreach (var sch in availableSchedules.Where(x => !x.HiddenFromRegistration).OrderBy(x => x.RegistrationClosed))
                                 {
-                                    <option value="@sch.ScheduleID" data-course-id="@sch.CourseID" class="hidden">@sch.ScheduleName</option>
+                                    <option value="@sch.ScheduleID" data-course-id="@sch.CourseID" class="hidden" data-closed="@(sch.RegistrationClosed ? "1" : "0")" disabled="@sch.RegistrationClosed">@sch.ScheduleName@(sch.RegistrationClosed ? " — Registration closed" : "")</option>
                                 }
                             </select>
                             <p id="newEnrollmentNoSchedules" class="text-xs text-slate-400 dark:text-slate-500 hidden">No batches scheduled for this course.</p>
@@ -776,7 +776,7 @@
                     allOptions.forEach(function (opt) {
                         var matches = opt.getAttribute('data-course-id') === courseId;
                         opt.classList.toggle('hidden', !matches);
-                        opt.disabled = !matches;
+                        opt.disabled = !matches || opt.getAttribute('data-closed') === '1';
                         if (matches) anyVisible = true;
                     });
                     scheduleSelect.value = '';

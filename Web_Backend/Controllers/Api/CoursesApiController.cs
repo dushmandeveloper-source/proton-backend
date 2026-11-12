@@ -1,3 +1,4 @@
+using Web_Backend.Classes;
 using Microsoft.AspNetCore.Mvc;
 using Web_Backend.Areas.Admin.Data;
 using Web_Backend.Areas.Admin.Models;
@@ -48,7 +49,7 @@ namespace Web_Backend.Controllers.Api
             var course = await rep.Get(id);
             if (course == null || course.IsActive != "A") return NotFound();
 
-            var schedules = await scheduleRep.GetList(new CourseScheduleSearchView { CourseID = id, IsActive = "A" });
+            var schedules = BatchRegistration.Visible(await scheduleRep.GetList(new CourseScheduleSearchView { CourseID = id, IsActive = "A" }));
 
             return Ok(new
             {
@@ -70,7 +71,7 @@ namespace Web_Backend.Controllers.Api
             var course = await rep.Get(id);
             if (course == null || course.IsActive != "A") return NotFound();
 
-            var schedules = await scheduleRep.GetList(new CourseScheduleSearchView { CourseID = id, IsActive = "A" });
+            var schedules = BatchRegistration.Visible(await scheduleRep.GetList(new CourseScheduleSearchView { CourseID = id, IsActive = "A" }));
             return Ok(schedules);
         }
     }

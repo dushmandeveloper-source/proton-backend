@@ -87,7 +87,7 @@ namespace Web_Backend.Areas.AgentPortal.Controllers
             var courses = await courseRep.GetList(new CourseSearchView { IsActive = "A" });
             ViewBag.AvailableCourses = courses;
 
-            var schedules = await scheduleRep.GetList(new CourseScheduleSearchView { IsActive = "A" });
+            var schedules = BatchRegistration.Visible(await scheduleRep.GetList(new CourseScheduleSearchView { IsActive = "A" }));
             ViewBag.AvailableSchedules = schedules;
 
             // Registration options (all rows, so the form can still show a
@@ -465,10 +465,19 @@ namespace Web_Backend.Areas.AgentPortal.Controllers
 
                     var uniqueCourseIds = form.SelectedCourseIDs.Distinct().ToList();
 
+                    var activeBatches = await scheduleRep.GetList(new CourseScheduleSearchView { IsActive = "A" });
                     foreach (var courseId in uniqueCourseIds)
                     {
                         var scheduleId = scheduleSelections.TryGetValue(courseId, out var sid) ? sid : "";
                         var payment = coursePayments.TryGetValue(courseId, out var p) ? p : null;
+
+                        // Batch registration deadline (0126).
+                        var batchError = BatchRegistration.CheckChosen(activeBatches.Where(b => b.CourseID == courseId).ToList(), scheduleId);
+                        if (batchError != null)
+                        {
+                            enrollmentWarnings.Add($"Course '{courseId}' not enrolled: {batchError}");
+                            continue;
+                        }
 
                         try
                         {

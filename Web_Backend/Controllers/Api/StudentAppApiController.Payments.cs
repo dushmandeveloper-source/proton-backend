@@ -119,7 +119,7 @@ namespace Web_Backend.Controllers.Api
 
             var enrolled = (await registrationRep.GetByStudent(student.StudentID)).Any(r => r.CourseID == courseId);
             var subjects = course.IsCSCA ? await courseRep.GetSubjects(courseId) : new List<CourseSubject>();
-            var batches = await scheduleRep.GetList(new CourseScheduleSearchView { CourseID = courseId, IsActive = "A" });
+            var batches = BatchRegistration.Visible(await scheduleRep.GetList(new CourseScheduleSearchView { CourseID = courseId, IsActive = "A" }));
 
             var currencies = new List<(string Code, decimal Fee)> { (course.CurrencyCode, course.Fee ?? 0) };
             currencies.AddRange(course.FeeOptions
@@ -156,7 +156,9 @@ namespace Web_Backend.Controllers.Api
                     name = b.ScheduleName,
                     location = b.Location,
                     startDate = b.EarliestStartDate,
-                    endDate = b.LatestEndDate
+                    endDate = b.LatestEndDate,
+                    registrationEndDate = b.RegistrationEndDate,
+                    registrationClosed = b.RegistrationClosed
                 }),
                 methods = PaymentMethods
             });
@@ -180,9 +182,8 @@ namespace Web_Backend.Controllers.Api
                 return Conflict(new { message = "You are already registered for this course." });
 
             var batches = await scheduleRep.GetList(new CourseScheduleSearchView { CourseID = courseId, IsActive = "A" });
-            if (batches.Count > 0 && !batches.Any(b => b.ScheduleID == scheduleId))
-                return BadRequest(new { message = "Please choose a batch." });
-            if (batches.Count == 0) scheduleId = "";
+            var batchError = BatchRegistration.Check(batches, ref scheduleId);
+            if (batchError != null) return BadRequest(new { message = batchError });
 
             var paying = !string.IsNullOrEmpty(method);
             if (paying && !PaymentMethods.Contains(method)) return BadRequest(new { message = "Choose how you paid." });

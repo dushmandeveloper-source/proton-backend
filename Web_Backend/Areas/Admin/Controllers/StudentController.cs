@@ -445,10 +445,19 @@ namespace Web_Backend.Areas.Admin.Controllers
                         .Select(r => r.CourseID)
                         .ToHashSet();
 
+                    var activeBatches = await scheduleRep.GetList(new CourseScheduleSearchView { IsActive = "A" });
                     foreach (var courseId in uniqueCourseIds)
                     {
                         var scheduleId = scheduleSelections.TryGetValue(courseId, out var sid) ? sid : "";
                         var payment = coursePayments.TryGetValue(courseId, out var p) ? p : null;
+
+                        // Batch registration deadline (0126).
+                        var batchError = BatchRegistration.CheckChosen(activeBatches.Where(b => b.CourseID == courseId).ToList(), scheduleId);
+                        if (batchError != null)
+                        {
+                            enrollmentWarnings.Add($"Course '{courseId}' not enrolled: {batchError}");
+                            continue;
+                        }
 
                         // Pre-check rather than relying solely on the DB's unique-constraint
                         // throw: gives a clear, specific message instead of surfacing the
@@ -756,6 +765,13 @@ namespace Web_Backend.Areas.Admin.Controllers
             Auth.CheckPermission(PermissionCode.Enrollments, 'A');
             try
             {
+                var batchError = BatchRegistration.CheckChosen(
+                    await scheduleRep.GetList(new CourseScheduleSearchView { CourseID = courseId, IsActive = "A" }), scheduleId);
+                if (batchError != null)
+                {
+                    TempData["ErrorMessage"] = batchError;
+                    return RedirectToAction("Details", new { id = studentId });
+                }
                 var course = await courseRep.Get(courseId);
                 var discount = await registrationRep.ResolveDiscount(courseId, course?.CurrencyCode ?? "CNY", course?.Fee ?? 0);
                 var feeChargesTotal = SumFeeCharges(course);

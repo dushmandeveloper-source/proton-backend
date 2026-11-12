@@ -95,7 +95,7 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
             {
                 Course = course,
                 Subjects = course.IsCSCA ? await courseRep.GetSubjects(courseId) : new List<CourseSubject>(),
-                Schedules = await scheduleRep.GetList(new CourseScheduleSearchView { CourseID = courseId, IsActive = "A" })
+                Schedules = BatchRegistration.Visible(await scheduleRep.GetList(new CourseScheduleSearchView { CourseID = courseId, IsActive = "A" }))
             };
 
             return View(model);
@@ -130,7 +130,7 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
                 }
             }
 
-            var schedules = await scheduleRep.GetList(new CourseScheduleSearchView { CourseID = courseId, IsActive = "A" });
+            var schedules = BatchRegistration.Visible(await scheduleRep.GetList(new CourseScheduleSearchView { CourseID = courseId, IsActive = "A" }));
             ViewBag.Course = course;
             ViewBag.Schedules = schedules;
 
@@ -159,11 +159,15 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
             // produced registrations with no ScheduleID, which then hid every
             // batch-scoped CourseVideo/LectureMaterial from that student even
             // though they picked a real batch's price/timing on this very page.
-            if (availableSchedules.Count > 0 && string.IsNullOrEmpty(form.ScheduleID))
+            // Registration deadline (0126): a closed batch can't be picked.
+            var batchError = availableSchedules.Count > 0 && string.IsNullOrEmpty(form.ScheduleID)
+                ? "Please select a batch for this course."
+                : BatchRegistration.CheckChosen(availableSchedules, form.ScheduleID);
+            if (batchError != null)
             {
-                TempData["ErrorMessage"] = "Please select a batch for this course.";
+                TempData["ErrorMessage"] = batchError;
                 ViewBag.Course = course;
-                ViewBag.Schedules = availableSchedules;
+                ViewBag.Schedules = BatchRegistration.Visible(availableSchedules);
                 ViewBag.CurrentUser = Auth.GetUser();
                 return View(form);
             }

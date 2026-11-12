@@ -41,6 +41,7 @@ namespace Web_Backend.Controllers.Api
         private readonly IEmailSender emailSender;
         private readonly IConfiguration configuration;
         private readonly IRegistrationOptionData optionRep;
+        private readonly ICourseScheduleData scheduleRep;
 
         public EnrollmentsApiController(
             ICourseRegistrationData registrationRep,
@@ -52,9 +53,11 @@ namespace Web_Backend.Controllers.Api
             IImageUploader uploader,
             IEmailSender emailSender,
             IConfiguration configuration,
-            IRegistrationOptionData optionRep)
+            IRegistrationOptionData optionRep,
+            ICourseScheduleData scheduleRep)
         {
             this.optionRep = optionRep;
+            this.scheduleRep = scheduleRep;
             this.registrationRep = registrationRep;
             this.studentRep = studentRep;
             this.userRep = userRep;
@@ -97,6 +100,18 @@ namespace Web_Backend.Controllers.Api
                 ?? await optionRep.CheckRequiresCsca(request.ProgrammeLevelID, hasCsca);
             if (optionError != null)
                 return BadRequest(new { message = optionError });
+
+            // Batch registration deadline (0126) -- checked before the account
+            // is created so a closed batch never leaves a half-made account.
+            foreach (var courseId in request.CourseIDs.Where(id => !string.IsNullOrWhiteSpace(id)).Distinct())
+            {
+                var batchError = await BatchDeadlineError(courseId, request.CourseScheduleSelections.GetValueOrDefault(courseId, ""));
+                if (batchError != null)
+                {
+                    var title = (await courseRep.Get(courseId))?.CourseTitle;
+                    return BadRequest(new { message = string.IsNullOrEmpty(title) ? batchError : $"{title}: {batchError}" });
+                }
+            }
 
             var existing = await userRep.GetByEmail(request.Email);
             if (existing != null)
@@ -314,6 +329,11 @@ namespace Web_Backend.Controllers.Api
             return false;
         }
 
+        private async Task<string?> BatchDeadlineError(string courseId, string? scheduleId) =>
+            BatchRegistration.CheckChosen(
+                await scheduleRep.GetList(new Areas.Admin.Models.CourseScheduleSearchView { CourseID = courseId, IsActive = "A" }),
+                scheduleId);
+
         private static bool IsCsca(string? courseType) => string.Equals(courseType, "CSCA", StringComparison.OrdinalIgnoreCase);
 
         // Logged-in student already holds a CSCA registration (satisfies RequiresCSCA
@@ -380,6 +400,10 @@ namespace Web_Backend.Controllers.Api
                 optionError = await optionRep.CheckRequiresCsca(effectiveLevelId, await HasCscaRegistration(student.StudentID));
             if (optionError != null)
                 return BadRequest(new { message = optionError });
+
+            var batchError = await BatchDeadlineError(request.CourseID, request.ScheduleID);
+            if (batchError != null)
+                return BadRequest(new { message = batchError });
 
             try
             {
