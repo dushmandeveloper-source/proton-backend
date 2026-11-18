@@ -160,13 +160,9 @@ namespace Web_Backend.Areas.Admin.Models
         public string PostalCode { get; set; } = "";
         public string Country { get; set; } = "";
 
-        [Required(ErrorMessage = "Passport number is required.")]
+        // Passport details are optional (can be added later).
         public string PassportNumber { get; set; } = "";
-
-        [Required(ErrorMessage = "Passport country is required.")]
         public string PassportCountry { get; set; } = "";
-
-        [Required(ErrorMessage = "Passport expiry date is required.")]
         public DateTime? PassportExpiryDate { get; set; }
         public string PassportPhotoURL { get; set; } = "";
 
@@ -206,6 +202,10 @@ namespace Web_Backend.Areas.Admin.Models
         // uniquely-named <input type="file"> read directly from
         // Request.Form.Files in Save, keyed "PaymentSlip_{courseId}".
         public string CoursePaymentsJson { get; set; } = "";
+        // JSON map of CourseID -> currency code to pay in ("Pay in" picker).
+        // A missing/unknown code means the course's base currency; the fee
+        // itself is always looked up server-side (EnrollmentPricing).
+        public string CourseCurrencySelectionsJson { get; set; } = "";
 
         // Legacy singular fields — no longer read by Save once
         // CoursePaymentsJson is populated; kept only so old cached pages

@@ -4,6 +4,21 @@
     var isNew = string.IsNullOrEmpty(Model.StudentID);
     var availableCourses = (ViewBag.AvailableCourses as List<Course>) ?? new List<Course>();
     var availableSchedules = (ViewBag.AvailableSchedules as List<CourseSchedule>) ?? new List<CourseSchedule>();
+    var enrollmentPicker = new EnrollmentPickerModel
+    {
+        Courses = availableCourses,
+        Schedules = availableSchedules,
+        Accent = "#dc2626",
+        SlipForCash = false,
+        SlipRequired = true,
+        SlipAccept = "image/*,.svg,.jfif,.pdf",
+        PaymentNote = "A payment recorded here is checked by an administrator before it counts as confirmed.",
+        SelectedCourseIds = Model.SelectedCourseIDs ?? new(),
+        CurrencySelections = Web_Backend.Classes.EnrollmentPricing.ParseSelections(Model.CourseCurrencySelectionsJson),
+        ScheduleSelections = Web_Backend.Classes.EnrollmentPricing.ParseSelections(Model.CourseScheduleSelectionsJson),
+        PaymentSelections = Web_Backend.Classes.EnrollmentPricing.ParsePayments(Model.CoursePaymentsJson),
+        RequireBatch = false
+    };
 
     var baseSteps = new[]
     {
@@ -239,25 +254,28 @@
         @* ===== STEP 3: PASSPORT ===== *@
         <div class="wizard-step space-y-6 hidden" data-step="passport">
             <div class="@CardCls">
-                <h3 class="font-semibold text-slate-800 dark:text-slate-100">Passport Information</h3>
+                <div>
+                    <h3 class="font-semibold text-slate-800 dark:text-slate-100">Passport Information <span class="font-normal text-slate-400 dark:text-slate-500">(optional)</span></h3>
+                    <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">Leave blank if the student doesn't have the details yet &mdash; they can be added later.</p>
+                </div>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div class="space-y-1">
-                        <label class="@LabelCls">Passport Number <span class="text-red-500">*</span></label>
-                        <input asp-for="PassportNumber" required class="@InputCls" />
+                        <label class="@LabelCls">Passport Number</label>
+                        <input asp-for="PassportNumber" class="@InputCls" />
                         <span asp-validation-for="PassportNumber" class="text-xs text-red-600"></span>
                     </div>
                     <div class="space-y-1">
-                        <label class="@LabelCls">Passport Country <span class="text-red-500">*</span></label>
-                        <input asp-for="PassportCountry" required autocomplete="off" data-country-picker class="@InputCls" />
+                        <label class="@LabelCls">Passport Country</label>
+                        <input asp-for="PassportCountry" autocomplete="off" data-country-picker class="@InputCls" />
                         <span asp-validation-for="PassportCountry" class="text-xs text-red-600"></span>
                     </div>
                     <div class="space-y-1">
-                        <label class="@LabelCls">Passport Expiry Date <span class="text-red-500">*</span></label>
-                        <input asp-for="PassportExpiryDate" type="date" required class="@InputCls" />
+                        <label class="@LabelCls">Passport Expiry Date</label>
+                        <input asp-for="PassportExpiryDate" type="date" class="@InputCls" />
                         <span asp-validation-for="PassportExpiryDate" class="text-xs text-red-600"></span>
                     </div>
                     <div class="space-y-1">
-                        <label class="@LabelCls">Passport Photo @(isNew ? "*" : "")</label>
+                        <label class="@LabelCls">Passport Photo</label>
                         @if (!string.IsNullOrEmpty(Model.PassportPhotoURL))
                         {
                             <a href="@Model.PassportPhotoURL" target="_blank" class="text-xs text-[#7c3aed] dark:text-purple-300 hover:underline block mb-1">Current photo</a>
@@ -295,107 +313,7 @@
             @* ===== STEP 5: ENROLLMENT (registration-time only) ===== *@
             <div class="wizard-step space-y-6 hidden" data-step="enrollment">
                 <div class="@CardCls">
-                    <h3 class="font-semibold text-slate-800 dark:text-slate-100">Course Enrollment (optional)</h3>
-                    @if (!availableCourses.Any())
-                    {
-                        <p class="text-sm text-slate-400 dark:text-slate-500">No active courses available.</p>
-                    }
-                    else
-                    {
-                        <div class="space-y-2 max-h-64 overflow-y-auto pr-1">
-                            @foreach (var course in availableCourses)
-                            {
-                                var courseSchedules = availableSchedules.Where(s => s.CourseID == course.CourseID && !s.HiddenFromRegistration).ToList();
-                                var courseDiscount = course.GetDisplayDiscount();
-                                var courseFeeCharges = course.GetFeeChargesTotal();
-                                var courseBaseFee = course.Fee ?? 0;
-                                var courseTotal = (courseDiscount?.Amount is decimal disc ? courseBaseFee - disc : courseBaseFee) + courseFeeCharges;
-                                <div class="rounded-xl border border-slate-100 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/60">
-                                    <label class="flex items-center justify-between gap-3 px-3 py-2 cursor-pointer">
-                                        <span class="flex items-center gap-2">
-                                            <input type="checkbox" name="SelectedCourseIDs" value="@course.CourseID" data-fee="@courseTotal"
-                                                   class="course-checkbox rounded border-slate-300 dark:border-slate-600 text-[#dc2626] focus:ring-[#dc2626]" />
-                                            <span class="text-sm text-slate-700 dark:text-slate-200">@course.CourseTitle</span>
-                                        </span>
-                                        <span class="text-xs whitespace-nowrap text-right">
-                                            @if (courseDiscount != null)
-                                            {
-                                                <span class="text-slate-400 dark:text-slate-500 line-through mr-1">@course.CurrencyCode @courseBaseFee.ToString("N0")</span>
-                                            }
-                                            <span class="font-medium @(courseDiscount != null || courseFeeCharges > 0 ? "text-emerald-600 dark:text-emerald-400" : "text-slate-400 dark:text-slate-500")">@course.CurrencyCode @courseTotal.ToString("N2")</span>
-                                            @if (courseDiscount != null)
-                                            {
-                                                <span class="block text-[10px] font-semibold uppercase tracking-wide text-lime-700 dark:text-lime-400">@courseDiscount.Label</span>
-                                            }
-                                            @if (courseFeeCharges > 0)
-                                            {
-                                                <span class="block text-slate-400 dark:text-slate-500">incl. @course.CurrencyCode @courseFeeCharges.ToString("N2") fees</span>
-                                            }
-                                        </span>
-                                    </label>
-                                    <div class="course-schedule-wrap hidden px-3 pb-2 pl-9" data-course-id="@course.CourseID">
-                                        @if (!courseSchedules.Any())
-                                        {
-                                            <p class="text-xs text-slate-400 dark:text-slate-500">No batches scheduled — this course will be enrolled without a batch.</p>
-                                        }
-                                        else
-                                        {
-                                            <select class="course-schedule-select w-full rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 px-3 py-1.5 text-xs outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400" data-course-id="@course.CourseID">
-                                                <option value="">Select a batch...</option>
-                                                @foreach (var sch in courseSchedules.OrderBy(x => x.RegistrationClosed))
-                                                {
-                                                    <option value="@sch.ScheduleID" disabled="@sch.RegistrationClosed">@sch.ScheduleName@(sch.RegistrationClosed ? " — Registration closed" : sch.RegistrationEndDate.HasValue ? $" — register by {sch.RegistrationEndDate.Value:dd MMM yyyy}" : "")</option>
-                                                }
-                                            </select>
-                                        }
-                                    </div>
-                                    @* Each selected course gets its own independent payment
-                                       declaration — no longer a single payment applied only to
-                                       the first course checked. *@
-                                    <div class="course-payment-wrap hidden px-3 pb-3 pl-9 space-y-3 border-t border-slate-100 dark:border-slate-700 mt-2 pt-3" data-course-id="@course.CourseID">
-                                        <p class="text-[11px] text-slate-400 dark:text-slate-500">A payment recorded here still needs to be verified by an administrator before it counts as confirmed.</p>
-                                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                            <div class="space-y-1">
-                                                <label class="text-xs font-medium text-slate-500 dark:text-slate-400">Payment Method</label>
-                                                <div class="flex items-center gap-4 mt-1">
-                                                    <label class="flex items-center gap-1.5 text-xs text-slate-700 dark:text-slate-200 cursor-pointer">
-                                                        <input type="radio" name="PaymentMethod_@course.CourseID" value="" checked class="course-payment-method-radio text-[#dc2626] focus:ring-[#dc2626]" data-course-id="@course.CourseID" />
-                                                        None
-                                                    </label>
-                                                    <label class="flex items-center gap-1.5 text-xs text-slate-700 dark:text-slate-200 cursor-pointer">
-                                                        <input type="radio" name="PaymentMethod_@course.CourseID" value="Cash" class="course-payment-method-radio text-[#dc2626] focus:ring-[#dc2626]" data-course-id="@course.CourseID" />
-                                                        Cash
-                                                    </label>
-                                                    <label class="flex items-center gap-1.5 text-xs text-slate-700 dark:text-slate-200 cursor-pointer">
-                                                        <input type="radio" name="PaymentMethod_@course.CourseID" value="BankDeposit" class="course-payment-method-radio text-[#dc2626] focus:ring-[#dc2626]" data-course-id="@course.CourseID" />
-                                                        Bank Deposit
-                                                    </label>
-                                                </div>
-                                            </div>
-                                            <div class="space-y-1">
-                                                <label class="text-xs font-medium text-slate-500 dark:text-slate-400">Amount</label>
-                                                <input type="number" step="0.01" min="0" max="@courseTotal" class="course-payment-amount w-full rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 px-3 py-1.5 text-xs outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400" data-course-id="@course.CourseID" />
-                                                <p class="course-payment-amount-error hidden text-[11px] text-red-600" data-course-id="@course.CourseID"></p>
-                                            </div>
-                                        </div>
-                                        <div class="course-payment-slip-field hidden space-y-1" data-course-id="@course.CourseID">
-                                            <label class="text-xs font-medium text-slate-500 dark:text-slate-400">Payment Slip / Receipt <span class="text-red-500">*</span></label>
-                                            <p class="text-[11px] text-slate-400 dark:text-slate-500">Upload proof of the bank deposit — required for the payment to be considered for verification.</p>
-                                            <input type="file" name="PaymentSlip_@course.CourseID" accept="image/*,.svg,.jfif,.pdf" class="text-xs" />
-                                        </div>
-                                        <div class="space-y-1">
-                                            <label class="text-xs font-medium text-slate-500 dark:text-slate-400">Payment Notes</label>
-                                            <input type="text" class="course-payment-notes w-full rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 px-3 py-1.5 text-xs outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400" data-course-id="@course.CourseID" />
-                                        </div>
-                                    </div>
-                                </div>
-                            }
-                        </div>
-                        <div id="enrollmentTotal" class="text-sm font-medium text-slate-700 dark:text-slate-200">Total: 0.00</div>
-                        <p class="text-xs text-slate-400 dark:text-slate-500">Each selected course above has its own payment section — check a course to reveal its batch picker and payment fields.</p>
-                        <input type="hidden" name="CourseScheduleSelectionsJson" id="courseScheduleSelectionsJson" value="" />
-                        <input type="hidden" name="CoursePaymentsJson" id="coursePaymentsJson" value="" />
-                    }
+                    <partial name="_EnrollmentPicker" model="enrollmentPicker" />
                 </div>
 
                 <div class="@CardCls">
@@ -424,158 +342,6 @@
 
 <script src="~/js/country-picker.js" asp-append-version="true"></script>
 <script>
-    (function () {
-        // ---------- Course checkbox -> batch dropdown reveal + running total ----------
-        const checkboxes = document.querySelectorAll('.course-checkbox');
-        const totalEl = document.getElementById('enrollmentTotal');
-        const scheduleJsonInput = document.getElementById('courseScheduleSelectionsJson');
-        const paymentJsonInput = document.getElementById('coursePaymentsJson');
-
-        function recalcTotal() {
-            if (!totalEl) return;
-            let total = 0;
-            checkboxes.forEach(cb => { if (cb.checked) total += parseFloat(cb.dataset.fee || '0'); });
-            totalEl.textContent = 'Total: ' + total.toFixed(2);
-        }
-
-        function syncScheduleJson() {
-            if (!scheduleJsonInput) return;
-            const map = {};
-            document.querySelectorAll('.course-schedule-select').forEach(sel => {
-                if (sel.value) map[sel.dataset.courseId] = sel.value;
-            });
-            scheduleJsonInput.value = JSON.stringify(map);
-        }
-
-        // Every selected course now has its OWN payment section (method/
-        // amount/slip/notes) instead of one payment applied only to the
-        // first course checked.
-        function paymentWrapFor(courseId) {
-            return document.querySelector('.course-payment-wrap[data-course-id="' + courseId + '"]');
-        }
-
-        function syncSlipFieldFor(courseId) {
-            const wrap = paymentWrapFor(courseId);
-            if (!wrap) return;
-            const selected = wrap.querySelector('.course-payment-method-radio:checked');
-            const slipField = wrap.querySelector('.course-payment-slip-field');
-            const slipInput = slipField ? slipField.querySelector('input[type="file"]') : null;
-            const isBankDeposit = selected && selected.value === 'BankDeposit';
-            if (slipField) slipField.classList.toggle('hidden', !isBankDeposit);
-            if (slipInput) slipInput.required = !!isBankDeposit;
-        }
-
-        function validatePaymentAmountFor(courseId) {
-            const wrap = paymentWrapFor(courseId);
-            if (!wrap) return true;
-            const amountInput = wrap.querySelector('.course-payment-amount');
-            const amountError = wrap.querySelector('.course-payment-amount-error');
-            if (!amountInput) return true;
-            const fee = parseFloat(amountInput.getAttribute('max'));
-            const amount = parseFloat(amountInput.value || '0');
-            if (!isNaN(fee) && amount > fee) {
-                amountInput.setCustomValidity('Payment amount cannot exceed the course fee (' + fee.toFixed(2) + ').');
-                if (amountError) {
-                    amountError.textContent = 'Cannot exceed the course fee of ' + fee.toFixed(2) + '.';
-                    amountError.classList.remove('hidden');
-                }
-                return false;
-            }
-            amountInput.setCustomValidity('');
-            if (amountError) amountError.classList.add('hidden');
-            return true;
-        }
-
-        function rebuildPaymentJson() {
-            if (!paymentJsonInput) return;
-            const map = {};
-            checkboxes.forEach(cb => {
-                if (!cb.checked) return;
-                const wrap = paymentWrapFor(cb.value);
-                if (!wrap) return;
-                const selected = wrap.querySelector('.course-payment-method-radio:checked');
-                const method = selected ? selected.value : '';
-                if (!method) return; // "None" — no payment declared for this course
-                const amountInput = wrap.querySelector('.course-payment-amount');
-                const notesInput = wrap.querySelector('.course-payment-notes');
-                map[cb.value] = {
-                    method: method,
-                    amount: amountInput ? (parseFloat(amountInput.value) || 0) : 0,
-                    notes: notesInput ? notesInput.value : ''
-                };
-            });
-            paymentJsonInput.value = JSON.stringify(map);
-        }
-
-        document.querySelectorAll('.course-payment-method-radio').forEach(radio => {
-            radio.addEventListener('change', () => {
-                syncSlipFieldFor(radio.dataset.courseId);
-                rebuildPaymentJson();
-            });
-        });
-        document.querySelectorAll('.course-payment-amount').forEach(input => {
-            input.addEventListener('input', () => {
-                validatePaymentAmountFor(input.dataset.courseId);
-                rebuildPaymentJson();
-            });
-        });
-        document.querySelectorAll('.course-payment-notes').forEach(input => {
-            input.addEventListener('input', rebuildPaymentJson);
-        });
-
-        checkboxes.forEach(cb => {
-            cb.addEventListener('change', () => {
-                const wrap = document.querySelector('.course-schedule-wrap[data-course-id="' + cb.value + '"]');
-                if (wrap) wrap.classList.toggle('hidden', !cb.checked);
-
-                const paymentWrap = paymentWrapFor(cb.value);
-                if (paymentWrap) {
-                    paymentWrap.classList.toggle('hidden', !cb.checked);
-                    if (!cb.checked) {
-                        // Reset this course's payment fields so an unchecked-
-                        // then-rechecked course doesn't resubmit a stale payment.
-                        const noneRadio = paymentWrap.querySelector('.course-payment-method-radio[value=""]');
-                        if (noneRadio) noneRadio.checked = true;
-                        const amountInput = paymentWrap.querySelector('.course-payment-amount');
-                        if (amountInput) amountInput.value = '';
-                        const notesInput = paymentWrap.querySelector('.course-payment-notes');
-                        if (notesInput) notesInput.value = '';
-                        syncSlipFieldFor(cb.value);
-                    }
-                }
-
-                recalcTotal();
-                syncScheduleJson();
-                rebuildPaymentJson();
-            });
-        });
-        document.querySelectorAll('.course-schedule-select').forEach(sel => {
-            sel.addEventListener('change', syncScheduleJson);
-        });
-        recalcTotal();
-        syncScheduleJson();
-        rebuildPaymentJson();
-
-        window.protonValidateAgentPaymentStep = function () {
-            for (const cb of checkboxes) {
-                if (!cb.checked) continue;
-                const wrap = paymentWrapFor(cb.value);
-                if (!wrap) continue;
-                if (!validatePaymentAmountFor(cb.value)) {
-                    wrap.querySelector('.course-payment-amount').reportValidity();
-                    return false;
-                }
-                const slipField = wrap.querySelector('.course-payment-slip-field');
-                const slipInput = slipField ? slipField.querySelector('input[type="file"]') : null;
-                if (slipInput && slipInput.required && slipInput.files.length === 0) {
-                    slipInput.reportValidity();
-                    return false;
-                }
-            }
-            return true;
-        };
-    })();
-
     // ---------- Step wizard navigation ----------
     (function () {
         var steps = Array.from(document.querySelectorAll('.wizard-step'));
@@ -618,13 +384,13 @@
                     return false;
                 }
             }
-            // Enrollment step's payment-amount cap / slip-required rule isn't
+            // Enrollment step's batch / payment-amount cap / slip-required rule isn't
             // expressible via plain HTML [required] (it depends on which
             // course is checked and which payment method is picked) --
-            // window.protonValidateAgentPaymentStep only exists on the
+            // window.protonValidateEnrollmentStep only exists on the
             // Enrollment step (new-student wizard), see the script block above.
-            if (steps[current].getAttribute('data-step') === 'enrollment' && window.protonValidateAgentPaymentStep) {
-                if (!window.protonValidateAgentPaymentStep()) return false;
+            if (steps[current].getAttribute('data-step') === 'enrollment' && window.protonValidateEnrollmentStep) {
+                if (!window.protonValidateEnrollmentStep()) return false;
             }
             return true;
         }

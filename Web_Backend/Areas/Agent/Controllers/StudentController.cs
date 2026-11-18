@@ -267,10 +267,6 @@ namespace Web_Backend.Areas.AgentPortal.Controllers
                 }
             }
 
-            if (!string.IsNullOrWhiteSpace(form.PassportNumber) && passportPhoto == null && string.IsNullOrWhiteSpace(storedStudent?.PassportPhotoURL))
-            {
-                ModelState.AddModelError(nameof(form.PassportPhotoURL), "A passport photo is required when a passport number is entered.");
-            }
 
             // Every selected course now has its own independent payment
             // declaration (CoursePaymentsJson, keyed by CourseID) instead of
@@ -284,7 +280,7 @@ namespace Web_Backend.Areas.AgentPortal.Controllers
                 Dictionary<string, CoursePaymentEntry> coursePaymentsForValidation;
                 try
                 {
-                    coursePaymentsForValidation = JsonSerializer.Deserialize<Dictionary<string, CoursePaymentEntry>>(form.CoursePaymentsJson)
+                    coursePaymentsForValidation = JsonSerializer.Deserialize<Dictionary<string, CoursePaymentEntry>>(form.CoursePaymentsJson, EnrollmentPricing.JsonOptions)
                         ?? new Dictionary<string, CoursePaymentEntry>();
                 }
                 catch (JsonException)
@@ -292,19 +288,18 @@ namespace Web_Backend.Areas.AgentPortal.Controllers
                     coursePaymentsForValidation = new Dictionary<string, CoursePaymentEntry>();
                 }
 
+                var currencySelectionsForValidation = EnrollmentPricing.ParseSelections(form.CourseCurrencySelectionsJson);
                 foreach (var courseId in form.SelectedCourseIDs.Distinct())
                 {
                     if (!coursePaymentsForValidation.TryGetValue(courseId, out var payment) || string.IsNullOrEmpty(payment.Method))
                         continue;
 
                     var course = await courseRep.Get(courseId);
-                    var discount = await registrationRep.ResolveDiscount(courseId, course?.CurrencyCode ?? "CNY", course?.Fee ?? 0);
-                    var feeChargesTotal = SumFeeCharges(course);
-                    var courseFee = (discount?.DiscountApplies == true ? discount.DiscountedFee : (course?.Fee ?? 0)) + feeChargesTotal;
+                    var price = await EnrollmentPricing.Quote(registrationRep, courseId, course, currencySelectionsForValidation.GetValueOrDefault(courseId));
 
-                    if (payment.Amount > courseFee)
+                    if (payment.Amount > price.CourseFee)
                     {
-                        ModelState.AddModelError(nameof(form.CoursePaymentsJson), $"Payment amount for '{course?.CourseTitle ?? courseId}' cannot exceed the course fee ({courseFee:N2}).");
+                        ModelState.AddModelError(nameof(form.CoursePaymentsJson), $"Payment amount for '{course?.CourseTitle ?? courseId}' cannot exceed the course fee ({price.CurrencyCode} {price.CourseFee:N2}).");
                     }
 
                     if (payment.Method == "BankDeposit" && Request.Form.Files.GetFile($"PaymentSlip_{courseId}") == null)
@@ -454,7 +449,7 @@ namespace Web_Backend.Areas.AgentPortal.Controllers
                     {
                         try
                         {
-                            coursePayments = JsonSerializer.Deserialize<Dictionary<string, CoursePaymentEntry>>(form.CoursePaymentsJson)
+                            coursePayments = JsonSerializer.Deserialize<Dictionary<string, CoursePaymentEntry>>(form.CoursePaymentsJson, EnrollmentPricing.JsonOptions)
                                 ?? new Dictionary<string, CoursePaymentEntry>();
                         }
                         catch (JsonException)
@@ -462,6 +457,7 @@ namespace Web_Backend.Areas.AgentPortal.Controllers
                             coursePayments = new Dictionary<string, CoursePaymentEntry>();
                         }
                     }
+                    var currencySelections = EnrollmentPricing.ParseSelections(form.CourseCurrencySelectionsJson);
 
                     var uniqueCourseIds = form.SelectedCourseIDs.Distinct().ToList();
 
@@ -493,18 +489,17 @@ namespace Web_Backend.Areas.AgentPortal.Controllers
                             }
 
                             var course = await courseRep.Get(courseId);
-                            var discount = await registrationRep.ResolveDiscount(courseId, course?.CurrencyCode ?? "CNY", course?.Fee ?? 0);
-                            var feeChargesTotal = SumFeeCharges(course);
+                            var price = await EnrollmentPricing.Quote(registrationRep, courseId, course, currencySelections.GetValueOrDefault(courseId));
                             await registrationRep.AddEdit(new CourseRegistration
                             {
                                 StudentID = studentId,
                                 CourseID = courseId,
-                                OriginalFee = discount?.OriginalFee ?? (course?.Fee ?? 0),
-                                CourseFee = (discount?.DiscountApplies == true ? discount.DiscountedFee : (course?.Fee ?? 0)) + feeChargesTotal,
-                                CurrencyCode = course?.CurrencyCode ?? "CNY",
-                                DiscountAmount = discount?.DiscountApplies == true ? discount.DiscountAmount : 0,
-                                DiscountLabel = discount?.DiscountApplies == true ? discount.DiscountLabel : "",
-                                FeeChargesTotal = feeChargesTotal,
+                                OriginalFee = price.OriginalFee,
+                                CourseFee = price.CourseFee,
+                                CurrencyCode = price.CurrencyCode,
+                                DiscountAmount = price.DiscountAmount,
+                                DiscountLabel = price.DiscountLabel,
+                                FeeChargesTotal = price.FeeChargesTotal,
                                 RegistrationSource = "Agent",
                                 CreatedByUserID = agentUserId
                             },
@@ -571,12 +566,5 @@ namespace Web_Backend.Areas.AgentPortal.Controllers
             CSCAPurposeID = s.CSCAPurposeID,
             IsActive = s.IsActive
         };
-
-        // Sum of a course's additional fee charges (edu.CourseFeeCharge —
-        // e.g. registration fee, materials fee), added on top of the
-        // (possibly discounted) base fee. Never itself discounted — see
-        // docs/plans/2026-09-17-course-discounts.md's order-of-operations rule.
-        private static decimal SumFeeCharges(Course? course) =>
-            course?.FeeCharges?.Where(f => f.Amount.HasValue).Sum(f => f.Amount!.Value) ?? 0;
     }
 }

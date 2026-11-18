@@ -207,7 +207,7 @@ namespace Web_Backend.Controllers.Api
                     var requestedCurrency = request.CourseCurrencySelections.GetValueOrDefault(courseId, "");
                     var (currencyCode, fee) = ResolveFee(course, requestedCurrency);
                     var discount = await registrationRep.ResolveDiscount(courseId, currencyCode, fee);
-                    var feeChargesTotal = SumFeeCharges(course);
+                    var feeChargesTotal = SumFeeCharges(course, currencyCode);
                     // Each course now gets its own payment declaration (if the
                     // visitor made one for it) rather than only the first
                     // selected course receiving the single legacy PaymentMethod/
@@ -418,7 +418,7 @@ namespace Web_Backend.Controllers.Api
                 // "first course only" ambiguity to resolve.
                 var (currencyCode, fee) = ResolveFee(course, request.CurrencyCode);
                 var discount = await registrationRep.ResolveDiscount(request.CourseID, currencyCode, fee);
-                var feeChargesTotal = SumFeeCharges(course);
+                var feeChargesTotal = SumFeeCharges(course, currencyCode);
                 var registrationId = await registrationRep.AddEdit(new CourseRegistration
                 {
                     StudentID = student.StudentID,
@@ -602,10 +602,12 @@ namespace Web_Backend.Controllers.Api
         }
 
         // Sum of a course's additional fee charges (edu.CourseFeeCharge —
-        // e.g. registration fee, materials fee), added on top of the
-        // (possibly discounted) base fee. Never itself discounted — see
-        // docs/plans/2026-09-17-course-discounts.md's order-of-operations rule.
-        private static decimal SumFeeCharges(Course? course) =>
-            course?.FeeCharges?.Where(f => f.Amount.HasValue).Sum(f => f.Amount!.Value) ?? 0;
+        // e.g. registration fee, materials fee) in the currency being paid,
+        // added on top of the (possibly discounted) base fee. Never itself
+        // discounted — see docs/plans/2026-09-17-course-discounts.md.
+        // Amounts live per currency since 0070; the old flat FeeCharge.Amount
+        // is no longer returned, so summing it always gave 0.
+        private static decimal SumFeeCharges(Course? course, string currencyCode) =>
+            course?.GetFeeChargesTotal(currencyCode) ?? 0;
     }
 }

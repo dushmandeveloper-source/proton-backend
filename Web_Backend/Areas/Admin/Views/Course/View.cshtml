@@ -96,12 +96,14 @@
                 </p>
             </div>
         }
-        @if (c.FeeCharges.Any(f => f.Amount.HasValue))
+        @* Amounts are per currency since 0070 (FeeCharge.Amount is no longer filled). *@
+        @if (c.FeeCharges.Any(f => f.AmountsByCurrency.Any(a => a.Amount.HasValue)))
         {
             <div class="@CardCls">
                 <p class="@LabelCls mb-1">Additional Fees</p>
                 <p class="text-slate-800 dark:text-slate-100">
-                    @string.Join(", ", c.FeeCharges.Where(f => f.Amount.HasValue).Select(f => $"{f.FeeType}: {c.CurrencyCode} {f.Amount!.Value:N0}"))
+                    @string.Join(", ", c.FeeCharges.Where(f => f.AmountsByCurrency.Any(a => a.Amount.HasValue)).Select(f =>
+                        $"{f.FeeType}: {string.Join(" / ", f.AmountsByCurrency.Where(a => a.Amount.HasValue).Select(a => $"{a.CurrencyCode} {a.Amount!.Value:N0}"))}"))
                 </p>
             </div>
         }

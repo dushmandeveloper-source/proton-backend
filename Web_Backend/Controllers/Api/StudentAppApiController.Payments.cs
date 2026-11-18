@@ -192,7 +192,7 @@ namespace Web_Backend.Controllers.Api
 
             var (currencyCode, fee) = ResolveEnrollFee(course, currency);
             var discount = await registrationRep.ResolveDiscount(courseId, currencyCode, fee);
-            var charges = course.FeeCharges.Where(f => f.Amount.HasValue).Sum(f => f.Amount!.Value);
+            var charges = course.GetFeeChargesTotal(currencyCode); // per currency, same as PriceFor shows
             var courseFee = (discount?.DiscountApplies == true ? discount.DiscountedFee : fee) + charges;
             var firstPayment = paying ? amount ?? 0 : 0;
             if (paying && (firstPayment <= 0 || firstPayment > courseFee))

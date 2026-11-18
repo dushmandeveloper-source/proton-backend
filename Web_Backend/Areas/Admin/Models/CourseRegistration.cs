@@ -131,10 +131,10 @@ namespace Web_Backend.Areas.Admin.Models
     // Result of edu.Course_ResolveDiscount — resolved ONCE at enrollment
     // time and snapshotted onto CourseRegistration.OriginalFee/
     // DiscountAmount/DiscountLabel; never recomputed afterward. Covers the
-    // discount only — fee charges are summed separately in C# (see
-    // SumFeeCharges helpers in each enrollment controller) since that data
-    // doesn't need a DB round trip; it's a plain sum over an already-
-    // fetched Course.FeeCharges list.
+    // discount only — fee charges are summed separately in C# for the same
+    // currency (Course.GetFeeChargesTotal; see Classes/EnrollmentPricing)
+    // since that data doesn't need a DB round trip; it's a plain sum over an
+    // already-fetched Course.FeeCharges list.
     public class CourseDiscountResolution
     {
         public bool DiscountApplies { get; set; }

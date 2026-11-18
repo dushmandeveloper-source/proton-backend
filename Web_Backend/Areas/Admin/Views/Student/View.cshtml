@@ -664,47 +664,101 @@
         @if (canAddEnrollment)
         {
             <div class="@CardCls mt-4">
-                <h4 class="font-semibold text-slate-800 dark:text-slate-100 mb-3">Register for another course</h4>
-                @if (!remainingCourses.Any())
+                <div class="mb-4">
+                    <h4 class="font-semibold text-slate-800 dark:text-slate-100">Register for another course</h4>
+                    <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">Pick a course, then the currency and batch. Payments are added on the enrollment afterwards, in the chosen currency.</p>
+                </div>
+                @if (!availableCourses.Any())
                 {
-                    <p class="text-sm text-slate-400 dark:text-slate-500">No further active courses available to enroll in.</p>
+                    <p class="rounded-xl border border-dashed border-slate-200 dark:border-slate-600 px-4 py-6 text-center text-sm text-slate-400 dark:text-slate-500">No active courses available.</p>
                 }
                 else
                 {
-                    <form method="post" asp-action="AddCourseEnrollment" class="flex flex-wrap items-end gap-3" id="add-enrollment-form">
+                    <form method="post" asp-action="AddCourseEnrollment" class="ep space-y-4" id="add-enrollment-form" style="--ep-accent:#7c3aed">
                         @Html.AntiForgeryToken()
                         <input type="hidden" name="studentId" value="@Model_Student.StudentID" />
-                        <div class="space-y-1">
-                            <label class="@LabelCls">Course</label>
-                            <select name="courseId" id="newEnrollmentCourse" required class="@InputCls">
-                                <option value="">Select a course...</option>
-                                @foreach (var course in remainingCourses)
-                                {
-                                    var optDiscount = course.GetDisplayDiscount();
-                                    var optFeeCharges = course.GetFeeChargesTotal();
-                                    var optBaseFee = course.Fee ?? 0;
-                                    var optTotal = (optDiscount?.Amount is decimal odisc ? optBaseFee - odisc : optBaseFee) + optFeeCharges;
-                                    var optLabel = optDiscount != null
-                                        ? $"{course.CourseTitle} ({course.CurrencyCode} {optBaseFee:N0} → {course.CurrencyCode} {optTotal:N2}, {optDiscount.Label})"
-                                        : $"{course.CourseTitle} ({course.CurrencyCode} {optTotal:N2})";
-                                    <option value="@course.CourseID">@optLabel</option>
-                                }
-                            </select>
+                        <input type="hidden" name="currencyCode" id="addCurrencyCode" value="" />
+                        <input type="hidden" name="scheduleId" id="addScheduleId" value="" />
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 max-h-[26rem] overflow-y-auto p-1 -m-1 custom-scrollbar">
+                            @foreach (var course in availableCourses.OrderBy(c => enrolledCourseIds.Contains(c.CourseID)))
+                            {
+                                var isRegistered = enrolledCourseIds.Contains(course.CourseID);
+                                var cardPrice = Web_Backend.Classes.EnrollmentPricing.DisplayPrices(course)[0];
+                                var cardCurrencies = Web_Backend.Classes.EnrollmentPricing.CurrencyOptions(course).Count;
+                                var cardCls = isRegistered
+                                    ? "border-emerald-200 dark:border-emerald-900 bg-emerald-50/50 dark:bg-emerald-950/20 cursor-default"
+                                    : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/60 cursor-pointer hover:border-slate-300 dark:hover:border-slate-500 hover:shadow-sm";
+                                var typeCls = course.IsCSCA ? "bg-slate-800 text-white dark:bg-slate-100 dark:text-slate-900" : "bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300";
+                                <label class="ep-card ep-registered-@isRegistered.ToString().ToLowerInvariant() relative flex items-start gap-3 rounded-2xl border p-3 pr-10 @cardCls">
+                                    <input type="radio" name="courseId" value="@course.CourseID" class="add-course-radio sr-only" disabled="@isRegistered" />
+                                    @if (!string.IsNullOrWhiteSpace(course.CourseImageURL))
+                                    {
+                                        <img src="@course.CourseImageURL" alt="" loading="lazy" decoding="async" class="h-12 w-12 shrink-0 rounded-xl object-cover bg-slate-100 dark:bg-slate-700" />
+                                    }
+                                    else
+                                    {
+                                        <span class="h-12 w-12 shrink-0 rounded-xl bg-slate-100 dark:bg-slate-700/60 flex items-center justify-center"><i data-lucide="graduation-cap" class="w-5 h-5 text-slate-400 dark:text-slate-500"></i></span>
+                                    }
+                                    <span class="min-w-0 flex-1">
+                                        <span class="flex flex-wrap items-center gap-1.5">
+                                            <span class="rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide @typeCls">@course.CourseType</span>
+                                            @if (isRegistered)
+                                            {
+                                                <span class="inline-flex items-center gap-1 rounded-full bg-emerald-100 dark:bg-emerald-900/60 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300"><i data-lucide="check" class="w-3 h-3"></i>Registered</span>
+                                            }
+                                            else if (cardCurrencies > 1)
+                                            {
+                                                <span class="rounded-full border border-slate-200 dark:border-slate-600 px-2 py-0.5 text-[10px] font-medium text-slate-500 dark:text-slate-400">@cardCurrencies currencies</span>
+                                            }
+                                        </span>
+                                        <span class="mt-1 block text-sm font-medium leading-snug text-slate-800 dark:text-slate-100">@course.CourseTitle</span>
+                                        @if (isRegistered)
+                                        {
+                                            <span class="mt-1 block text-xs text-emerald-700 dark:text-emerald-400">Already enrolled &mdash; see above</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="mt-1 block text-xs">
+                                                @if (cardPrice.Discount > 0)
+                                                {
+                                                    <span class="mr-1 text-slate-400 dark:text-slate-500 line-through">@cardPrice.Code @cardPrice.Fee.ToString("N2")</span>
+                                                }
+                                                <span class="font-semibold text-slate-700 dark:text-slate-200">@cardPrice.Code @cardPrice.Total.ToString("N2")</span>
+                                            </span>
+                                            @if (cardPrice.DiscountLabel.Length > 0)
+                                            {
+                                                <span class="mt-0.5 block text-[10px] font-semibold uppercase tracking-wide text-lime-700 dark:text-lime-400">@cardPrice.DiscountLabel</span>
+                                            }
+                                            <span class="ep-tick absolute right-3 top-3" aria-hidden="true"><i data-lucide="check" class="w-3 h-3"></i></span>
+                                        }
+                                    </span>
+                                </label>
+                            }
                         </div>
-                        <div class="space-y-1" id="newEnrollmentScheduleWrap">
-                            <label class="@LabelCls">Batch</label>
-                            <select name="scheduleId" id="newEnrollmentSchedule" class="@InputCls">
-                                <option value="">No batch</option>
-                                @foreach (var sch in availableSchedules.Where(x => !x.HiddenFromRegistration).OrderBy(x => x.RegistrationClosed))
-                                {
-                                    <option value="@sch.ScheduleID" data-course-id="@sch.CourseID" class="hidden" data-closed="@(sch.RegistrationClosed ? "1" : "0")" disabled="@sch.RegistrationClosed">@sch.ScheduleName@(sch.RegistrationClosed ? " — Registration closed" : "")</option>
-                                }
-                            </select>
-                            <p id="newEnrollmentNoSchedules" class="text-xs text-slate-400 dark:text-slate-500 hidden">No batches scheduled for this course.</p>
+                        @* One Pay in + Batch set per course with its own radio names;
+                           the chosen set's values are copied into currencyCode /
+                           scheduleId on submit. *@
+                        @foreach (var course in remainingCourses)
+                        {
+                            var addOptions = new EnrollmentOptionsModel
+                            {
+                                Course = course,
+                                Schedules = Web_Backend.Classes.BatchRegistration.Visible(availableSchedules.Where(x => x.CourseID == course.CourseID)),
+                                CurrencyInputName = "addCurrency_" + course.CourseID,
+                                BatchInputName = "addBatch_" + course.CourseID,
+                                AllowNoBatch = true
+                            };
+                            <section class="add-enrollment-options ep-panel hidden space-y-4 rounded-2xl border border-slate-200 dark:border-slate-700 p-4 sm:p-5" data-course-id="@course.CourseID">
+                                <p class="text-sm font-semibold text-slate-800 dark:text-slate-100">@course.CourseTitle</p>
+                                <partial name="_EnrollmentOptions" model="addOptions" />
+                            </section>
+                        }
+                        <div class="flex flex-wrap items-center gap-3">
+                            <button type="submit" id="addEnrollmentBtn" disabled class="px-4 py-2 rounded-xl font-medium bg-[#7c3aed] text-white hover:bg-[#6d28d9] shadow-sm text-sm flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                                <i data-lucide="plus" class="w-4 h-4"></i> <span id="addEnrollmentBtnText">Enroll</span>
+                            </button>
+                            <span id="addEnrollmentHint" class="text-xs text-slate-400 dark:text-slate-500">@(remainingCourses.Any() ? "Choose a course above." : "This student is registered in every active course.")</span>
                         </div>
-                        <button type="submit" class="px-4 py-2 rounded-xl font-medium bg-[#7c3aed] text-white hover:bg-[#6d28d9] shadow-sm text-sm flex items-center gap-2">
-                            <i data-lucide="plus" class="w-4 h-4"></i> Enroll
-                        </button>
                     </form>
                 }
             </div>
@@ -762,30 +816,47 @@
                 });
             });
 
-            // "Register for another course" — filter the batch dropdown to
-            // only the selected course's schedules, same data-course-id
-            // client-side filtering pattern as Edit.cshtml's wizard.
-            var courseSelect = document.getElementById('newEnrollmentCourse');
-            var scheduleSelect = document.getElementById('newEnrollmentSchedule');
-            var noSchedulesMsg = document.getElementById('newEnrollmentNoSchedules');
-            if (courseSelect && scheduleSelect) {
-                var allOptions = Array.from(scheduleSelect.querySelectorAll('option[data-course-id]'));
-                function syncSchedules() {
-                    var courseId = courseSelect.value;
-                    var anyVisible = false;
-                    allOptions.forEach(function (opt) {
-                        var matches = opt.getAttribute('data-course-id') === courseId;
-                        opt.classList.toggle('hidden', !matches);
-                        opt.disabled = !matches || opt.getAttribute('data-closed') === '1';
-                        if (matches) anyVisible = true;
-                    });
-                    scheduleSelect.value = '';
-                    var hasCourse = !!courseId;
-                    scheduleSelect.classList.toggle('hidden', hasCourse && !anyVisible);
-                    if (noSchedulesMsg) noSchedulesMsg.classList.toggle('hidden', !(hasCourse && !anyVisible));
-                }
-                courseSelect.addEventListener('change', syncSchedules);
-                syncSchedules();
+            // "Register for another course": picking a course card reveals its
+            // Pay in + Batch cards; on submit the chosen set's values go into
+            // the single currencyCode / scheduleId fields the action reads.
+            var addForm = document.getElementById('add-enrollment-form');
+            if (addForm) {
+                var sets = Array.prototype.slice.call(addForm.querySelectorAll('.add-enrollment-options'));
+                var addBtn = document.getElementById('addEnrollmentBtn');
+                var addHint = document.getElementById('addEnrollmentHint');
+                var chosenId = function () { var r = addForm.querySelector('.add-course-radio:checked'); return r ? r.value : ''; };
+                var chosenSet = function () { var id = chosenId(); return sets.filter(function (s) { return s.getAttribute('data-course-id') === id; })[0]; };
+                var syncAdd = function () {
+                    var id = chosenId();
+                    sets.forEach(function (s) { s.classList.toggle('hidden', s.getAttribute('data-course-id') !== id); });
+                    if (addBtn) addBtn.disabled = !id;
+                    if (addHint && id) addHint.textContent = 'Payments are added on the enrollment afterwards, in the chosen currency.';
+                };
+                addForm.querySelectorAll('.add-course-radio').forEach(function (r) { r.addEventListener('change', syncAdd); });
+                addForm.addEventListener('change', function (e) {
+                    if (!e.target.classList.contains('ep-batch-radio')) return;
+                    var err = e.target.closest('.add-enrollment-options').querySelector('.ep-batch-error');
+                    if (err) err.classList.add('hidden');
+                });
+                addForm.addEventListener('submit', function (e) {
+                    var set = chosenSet();
+                    if (!set) { e.preventDefault(); return; }
+                    var cur = set.querySelector('.ep-currency-radio:checked');
+                    var batch = set.querySelector('.ep-batch-radio:checked');
+                    document.getElementById('addCurrencyCode').value = cur ? cur.value : '';
+                    document.getElementById('addScheduleId').value = batch ? batch.value : '';
+                    var real = set.querySelectorAll('.ep-batch-radio:not(.ep-no-batch)');
+                    if (real.length && !Array.prototype.some.call(real, function (r) { return !r.disabled; })) {
+                        var err = set.querySelector('.ep-batch-error');
+                        if (err) { err.textContent = 'Every batch of this course is closed.'; err.classList.remove('hidden'); }
+                        e.preventDefault();
+                        return;
+                    }
+                    if (addBtn) addBtn.disabled = true;
+                    var t = document.getElementById('addEnrollmentBtnText');
+                    if (t) t.textContent = 'Enrolling…';
+                });
+                syncAdd();
             }
         })();
     </script>

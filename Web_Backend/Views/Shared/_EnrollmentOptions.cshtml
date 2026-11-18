@@ -1,0 +1,129 @@
+@model Web_Backend.Areas.Admin.Models.EnrollmentOptionsModel
+@using System.Globalization
+@using Web_Backend.Classes
+@*
+    One course's "Pay in" (currency) and "Batch" pickers, as selectable cards
+    in the public site's style. Used by _EnrollmentPicker (register-student
+    wizards) and the student page's "Register for another course" form.
+    Selected states come from the .ep-* rules in wwwroot/css/tailwind-input.css.
+*@
+@{
+    var c = Model.Course;
+    var prices = EnrollmentPricing.DisplayPrices(c);
+    var selectedCode = prices.FirstOrDefault(p => string.Equals(p.Code, Model.SelectedCurrency, StringComparison.OrdinalIgnoreCase))?.Code ?? prices[0].Code;
+    var batches = Model.Schedules.OrderBy(s => s.RegistrationClosed).ThenBy(s => s.EarliestStartDate ?? DateTime.MaxValue).ToList();
+    var openBatches = batches.Where(s => !s.RegistrationClosed).ToList();
+    // Preselect the only open batch, like the student portal does.
+    var selectedBatch = batches.Any(s => s.ScheduleID == Model.SelectedSchedule && !s.RegistrationClosed)
+        ? Model.SelectedSchedule
+        : openBatches.Count == 1 ? openBatches[0].ScheduleID : "";
+    string F(decimal v) => v.ToString("F2", CultureInfo.InvariantCulture);
+    var flatBaseOnly = prices.Count > 1 && c.DiscountValueType == "Flat" && prices[0].Discount > 0;
+}
+
+@if (prices.Count > 1)
+{
+    <div>
+        <p class="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Pay in</p>
+        <div class="mt-2 grid grid-cols-2 sm:grid-cols-3 gap-2" role="radiogroup" aria-label="Currency to pay in">
+            @foreach (var p in prices)
+            {
+                <label class="ep-card flex items-center justify-between gap-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800/60 px-3 py-2.5 cursor-pointer hover:border-slate-300 dark:hover:border-slate-500">
+                    <span class="flex items-center gap-2">
+                        <input type="radio" name="@Model.CurrencyInputName" value="@p.Code" class="ep-currency-radio sr-only"
+                               data-course-id="@c.CourseID" data-total="@F(p.Total)" data-raw-fee="@F(p.Fee)"
+                               data-fee-charges="@F(p.FeeCharges)" data-discount-label="@p.DiscountLabel"
+                               checked="@(p.Code == selectedCode)" />
+                        <span class="ep-dot" aria-hidden="true"></span>
+                        <span class="text-sm font-semibold text-slate-800 dark:text-slate-100">@p.Code</span>
+                    </span>
+                    <span class="text-right leading-tight">
+                        <span class="block text-xs font-medium text-slate-600 dark:text-slate-300">@p.Total.ToString("N2")</span>
+                        @if (p.Discount > 0)
+                        {
+                            <span class="block text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">&minus;@p.Discount.ToString("N0") off</span>
+                        }
+                    </span>
+                </label>
+            }
+        </div>
+        @if (flatBaseOnly)
+        {
+            <p class="mt-2 text-[11px] text-slate-500 dark:text-slate-400">The @prices[0].Code @c.DiscountValue?.ToString("N0") discount applies only when paying in @prices[0].Code.</p>
+        }
+    </div>
+}
+else
+{
+    <input type="radio" name="@Model.CurrencyInputName" value="@prices[0].Code" class="ep-currency-radio hidden" checked
+           data-course-id="@c.CourseID" data-total="@F(prices[0].Total)" data-raw-fee="@F(prices[0].Fee)"
+           data-fee-charges="@F(prices[0].FeeCharges)" data-discount-label="@prices[0].DiscountLabel" />
+}
+
+<div>
+    <p class="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Batch</p>
+    @if (!batches.Any())
+    {
+        <p class="mt-2 flex items-center gap-2 rounded-xl border border-dashed border-slate-200 dark:border-slate-600 px-3 py-2.5 text-xs text-slate-500 dark:text-slate-400">
+            <i data-lucide="calendar-off" class="w-4 h-4 shrink-0"></i>
+            No batches scheduled &mdash; the student will be enrolled without a batch.
+        </p>
+    }
+    else
+    {
+        <div class="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2" role="radiogroup" aria-label="Batch">
+            @if (Model.AllowNoBatch && openBatches.Any())
+            {
+                <label class="ep-card flex flex-col gap-1 rounded-xl border border-dashed border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800/60 px-3 py-2.5 cursor-pointer hover:border-slate-300 dark:hover:border-slate-500">
+                    <input type="radio" name="@Model.BatchInputName" value="" class="ep-batch-radio ep-no-batch sr-only"
+                           data-course-id="@c.CourseID" checked="@(selectedBatch.Length == 0)" />
+                    <span class="flex items-start justify-between gap-2">
+                        <span class="text-sm font-medium text-slate-700 dark:text-slate-200">No batch yet</span>
+                        <span class="ep-dot" aria-hidden="true"></span>
+                    </span>
+                    <span class="text-xs text-slate-500 dark:text-slate-400">Assign a batch later from the student's page.</span>
+                </label>
+            }
+            @foreach (var b in batches)
+            {
+                var closed = b.RegistrationClosed;
+                <label class="ep-card relative flex flex-col gap-1 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800/60 px-3 py-2.5 @(closed ? "" : "cursor-pointer hover:border-slate-300 dark:hover:border-slate-500")">
+                    <input type="radio" name="@Model.BatchInputName" value="@b.ScheduleID" class="ep-batch-radio sr-only"
+                           data-course-id="@c.CourseID" disabled="@closed" checked="@(b.ScheduleID == selectedBatch)" />
+                    <span class="flex items-start justify-between gap-2">
+                        <span class="text-sm font-medium text-slate-800 dark:text-slate-100">@(string.IsNullOrWhiteSpace(b.ScheduleName) ? "Batch" : b.ScheduleName)</span>
+                        @if (closed)
+                        {
+                            <span class="shrink-0 rounded-full bg-red-50 dark:bg-red-950/50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-red-700 dark:text-red-300">Closed</span>
+                        }
+                        else
+                        {
+                            <span class="ep-dot" aria-hidden="true"></span>
+                        }
+                    </span>
+                    @if (!string.IsNullOrWhiteSpace(b.SegmentsSummary))
+                    {
+                        <span class="flex items-start gap-1.5 text-xs text-slate-500 dark:text-slate-400"><i data-lucide="calendar" class="w-3.5 h-3.5 mt-px shrink-0"></i>@b.SegmentsSummary</span>
+                    }
+                    @if (!string.IsNullOrWhiteSpace(b.Location))
+                    {
+                        <span class="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400"><i data-lucide="map-pin" class="w-3.5 h-3.5 shrink-0"></i>@b.Location</span>
+                    }
+                    @if (closed)
+                    {
+                        <span class="text-[11px] text-slate-400 dark:text-slate-500">Registration closed</span>
+                    }
+                    else if (b.RegistrationEndDate.HasValue)
+                    {
+                        <span class="text-[11px] font-medium text-slate-600 dark:text-slate-300">Register by @b.RegistrationEndDate.Value.ToString("d MMM yyyy")</span>
+                    }
+                </label>
+            }
+        </div>
+        @if (!openBatches.Any())
+        {
+            <p class="mt-2 rounded-xl bg-red-50 dark:bg-red-950/40 px-3 py-2 text-xs text-red-700 dark:text-red-300">@BatchRegistration.AllClosedMessage Open a new batch first, or untick this course.</p>
+        }
+    }
+    <p class="ep-batch-error hidden mt-2 text-xs font-medium text-red-600 dark:text-red-400" role="alert"></p>
+</div>

@@ -279,10 +279,6 @@ namespace Web_Backend.Areas.Admin.Controllers
                     ModelState.AddModelError(nameof(form.InitialPassword), "Password must be at least 8 characters.");
             }
 
-            if (!string.IsNullOrWhiteSpace(form.PassportNumber) && passportPhoto == null && string.IsNullOrWhiteSpace(storedStudent?.PassportPhotoURL))
-            {
-                ModelState.AddModelError(nameof(form.PassportPhotoURL), "A passport photo is required when a passport number is entered.");
-            }
 
             var optionError = await optionRep.Validate(form.ProgrammeLevelID, form.CSCAPurposeID, requireProgrammeLevel: false, requireCscaPurpose: false,
                 storedStudent?.ProgrammeLevelID, storedStudent?.CSCAPurposeID);
@@ -425,7 +421,7 @@ namespace Web_Backend.Areas.Admin.Controllers
                     {
                         try
                         {
-                            coursePayments = JsonSerializer.Deserialize<Dictionary<string, CoursePaymentEntry>>(form.CoursePaymentsJson)
+                            coursePayments = JsonSerializer.Deserialize<Dictionary<string, CoursePaymentEntry>>(form.CoursePaymentsJson, EnrollmentPricing.JsonOptions)
                                 ?? new Dictionary<string, CoursePaymentEntry>();
                         }
                         catch (JsonException)
@@ -433,6 +429,7 @@ namespace Web_Backend.Areas.Admin.Controllers
                             coursePayments = new Dictionary<string, CoursePaymentEntry>();
                         }
                     }
+                    var currencySelections = EnrollmentPricing.ParseSelections(form.CourseCurrencySelectionsJson);
 
                     // De-dupe the submitted course IDs: the form only ever renders one
                     // checkbox per course, but a double-submit (double-click, or a
@@ -487,18 +484,17 @@ namespace Web_Backend.Areas.Admin.Controllers
                             }
 
                             var course = await courseRep.Get(courseId);
-                            var discount = await registrationRep.ResolveDiscount(courseId, course?.CurrencyCode ?? "CNY", course?.Fee ?? 0);
-                            var feeChargesTotal = SumFeeCharges(course);
+                            var price = await EnrollmentPricing.Quote(registrationRep, courseId, course, currencySelections.GetValueOrDefault(courseId));
                             await registrationRep.AddEdit(new CourseRegistration
                             {
                                 StudentID = studentId,
                                 CourseID = courseId,
-                                OriginalFee = discount?.OriginalFee ?? (course?.Fee ?? 0),
-                                CourseFee = (discount?.DiscountApplies == true ? discount.DiscountedFee : (course?.Fee ?? 0)) + feeChargesTotal,
-                                CurrencyCode = course?.CurrencyCode ?? "CNY",
-                                DiscountAmount = discount?.DiscountApplies == true ? discount.DiscountAmount : 0,
-                                DiscountLabel = discount?.DiscountApplies == true ? discount.DiscountLabel : "",
-                                FeeChargesTotal = feeChargesTotal,
+                                OriginalFee = price.OriginalFee,
+                                CourseFee = price.CourseFee,
+                                CurrencyCode = price.CurrencyCode,
+                                DiscountAmount = price.DiscountAmount,
+                                DiscountLabel = price.DiscountLabel,
+                                FeeChargesTotal = price.FeeChargesTotal,
                                 RegistrationSource = "Admin",
                                 CreatedByUserID = Auth.GetUserId()
                             },
@@ -760,7 +756,7 @@ namespace Web_Backend.Areas.Admin.Controllers
         // ===================================================================
 
         [HttpPost, ValidateAntiForgeryToken]
-        public async Task<IActionResult> AddCourseEnrollment(string studentId, string courseId, string scheduleId = "")
+        public async Task<IActionResult> AddCourseEnrollment(string studentId, string courseId, string scheduleId = "", string currencyCode = "")
         {
             Auth.CheckPermission(PermissionCode.Enrollments, 'A');
             try
@@ -773,18 +769,17 @@ namespace Web_Backend.Areas.Admin.Controllers
                     return RedirectToAction("Details", new { id = studentId });
                 }
                 var course = await courseRep.Get(courseId);
-                var discount = await registrationRep.ResolveDiscount(courseId, course?.CurrencyCode ?? "CNY", course?.Fee ?? 0);
-                var feeChargesTotal = SumFeeCharges(course);
+                var price = await EnrollmentPricing.Quote(registrationRep, courseId, course, currencyCode);
                 var newRegistrationId = await registrationRep.AddEdit(new CourseRegistration
                 {
                     StudentID = studentId,
                     CourseID = courseId,
-                    OriginalFee = discount?.OriginalFee ?? (course?.Fee ?? 0),
-                    CourseFee = (discount?.DiscountApplies == true ? discount.DiscountedFee : (course?.Fee ?? 0)) + feeChargesTotal,
-                    CurrencyCode = course?.CurrencyCode ?? "CNY",
-                    DiscountAmount = discount?.DiscountApplies == true ? discount.DiscountAmount : 0,
-                    DiscountLabel = discount?.DiscountApplies == true ? discount.DiscountLabel : "",
-                    FeeChargesTotal = feeChargesTotal,
+                    OriginalFee = price.OriginalFee,
+                    CourseFee = price.CourseFee,
+                    CurrencyCode = price.CurrencyCode,
+                    DiscountAmount = price.DiscountAmount,
+                    DiscountLabel = price.DiscountLabel,
+                    FeeChargesTotal = price.FeeChargesTotal,
                     RegistrationSource = "Admin",
                     CreatedByUserID = Auth.GetUserId()
                 }, scheduleId: scheduleId);
@@ -1139,12 +1134,5 @@ namespace Web_Backend.Areas.Admin.Controllers
             CSCAPurposeID = s.CSCAPurposeID,
             IsActive = s.IsActive
         };
-
-        // Sum of a course's additional fee charges (edu.CourseFeeCharge —
-        // e.g. registration fee, materials fee), added on top of the
-        // (possibly discounted) base fee. Never itself discounted — see
-        // docs/plans/2026-09-17-course-discounts.md's order-of-operations rule.
-        private static decimal SumFeeCharges(Course? course) =>
-            course?.FeeCharges?.Where(f => f.Amount.HasValue).Sum(f => f.Amount!.Value) ?? 0;
     }
 }

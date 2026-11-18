@@ -1,0 +1,178 @@
+@model Web_Backend.Areas.Admin.Models.EnrollmentPickerModel
+@using Web_Backend.Areas.Admin.Models
+@using Web_Backend.Classes
+@*
+    "Enrollment" step of the Admin and Agent register-student wizards, in the
+    public site's style: pick course cards, then for each picked course choose
+    the currency to pay in, the batch, and any payment taken now.
+    Posts SelectedCourseIDs plus three JSON maps keyed by CourseID
+    (CourseCurrencySelectionsJson / CourseScheduleSelectionsJson /
+    CoursePaymentsJson) and one PaymentSlip_{CourseID} file per course.
+    Behaviour: wwwroot/js/enrollment-picker.js. Prices are display only --
+    the server re-prices everything (Classes/EnrollmentPricing.Quote).
+*@
+@{
+    var courses = Model.Courses;
+    var visibleBatches = BatchRegistration.Visible(Model.Schedules);
+    var selected = Model.SelectedCourseIds.ToHashSet();
+    var inputCls = "w-full rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 px-3 py-2 text-sm outline-none focus:border-[var(--ep-accent)] focus:ring-1 focus:ring-[var(--ep-accent)]";
+    var subLabel = "text-xs font-medium text-slate-600 dark:text-slate-300";
+}
+
+<div class="ep space-y-5" id="enrollmentPicker" style="--ep-accent:@Model.Accent"
+     data-slip-for-cash="@(Model.SlipForCash ? "1" : "0")" data-slip-required="@(Model.SlipRequired ? "1" : "0")" data-require-batch="@(Model.RequireBatch ? "1" : "0")">
+    <div class="flex flex-wrap items-end justify-between gap-3">
+        <div>
+            <h3 class="font-semibold text-slate-800 dark:text-slate-100">Course Enrollment <span class="font-normal text-slate-400 dark:text-slate-500">(optional)</span></h3>
+            <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">Tick one or more courses. For each one, choose the currency, the batch and any payment received now.</p>
+        </div>
+        @if (courses.Count > 6)
+        {
+            <div class="relative w-full sm:w-64">
+                <i data-lucide="search" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                <input type="search" id="epSearch" placeholder="Search courses..." aria-label="Search courses" autocomplete="off"
+                       class="w-full rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 pl-9 pr-3 py-2 text-sm outline-none focus:border-[var(--ep-accent)] focus:ring-1 focus:ring-[var(--ep-accent)]" />
+            </div>
+        }
+    </div>
+
+    @if (!courses.Any())
+    {
+        <p class="rounded-xl border border-dashed border-slate-200 dark:border-slate-600 px-4 py-6 text-center text-sm text-slate-400 dark:text-slate-500">No active courses available.</p>
+    }
+    else
+    {
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[26rem] overflow-y-auto p-1 -m-1 custom-scrollbar" id="epCourseGrid">
+            @foreach (var c in courses)
+            {
+                var basePrice = EnrollmentPricing.DisplayPrices(c)[0];
+                var currencyCount = EnrollmentPricing.CurrencyOptions(c).Count;
+                var isSelected = selected.Contains(c.CourseID);
+                var searchText = string.Join(' ', c.CourseTitle, c.CourseType, c.CourseCode).ToLowerInvariant();
+                <label class="ep-card relative flex items-start gap-3 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/60 p-3 pr-10 cursor-pointer hover:border-slate-300 dark:hover:border-slate-500 hover:shadow-sm"
+                       data-course-card="@c.CourseID" data-search="@searchText">
+                    <input type="checkbox" name="SelectedCourseIDs" value="@c.CourseID" class="course-checkbox sr-only"
+                           data-currency="@basePrice.Code" data-fee="@basePrice.Total.ToString("F2", System.Globalization.CultureInfo.InvariantCulture)" checked="@isSelected" />
+                    @if (!string.IsNullOrWhiteSpace(c.CourseImageURL))
+                    {
+                        <img src="@c.CourseImageURL" alt="" loading="lazy" decoding="async" class="h-14 w-14 shrink-0 rounded-xl object-cover bg-slate-100 dark:bg-slate-700" />
+                    }
+                    else
+                    {
+                        <span class="h-14 w-14 shrink-0 rounded-xl bg-slate-100 dark:bg-slate-700/60 flex items-center justify-center">
+                            <i data-lucide="graduation-cap" class="w-6 h-6 text-slate-400 dark:text-slate-500"></i>
+                        </span>
+                    }
+                    <span class="min-w-0 flex-1">
+                        <span class="flex flex-wrap items-center gap-1.5">
+                            <span class="rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide @(c.IsCSCA ? "bg-slate-800 text-white dark:bg-slate-100 dark:text-slate-900" : "bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300")">@c.CourseType</span>
+                            @if (currencyCount > 1)
+                            {
+                                <span class="rounded-full border border-slate-200 dark:border-slate-600 px-2 py-0.5 text-[10px] font-medium text-slate-500 dark:text-slate-400">@currencyCount currencies</span>
+                            }
+                        </span>
+                        <span class="mt-1 block text-sm font-medium leading-snug text-slate-800 dark:text-slate-100">@c.CourseTitle</span>
+                        <span class="mt-1 block text-xs">
+                            <span class="ep-price-strike mr-1 text-slate-400 dark:text-slate-500 line-through @(basePrice.Discount > 0 ? "" : "hidden")">@basePrice.Code @basePrice.Fee.ToString("N2")</span>
+                            <span class="ep-price-total font-semibold text-slate-700 dark:text-slate-200">@basePrice.Code @basePrice.Total.ToString("N2")</span>
+                        </span>
+                        <span class="ep-price-discount mt-0.5 block text-[10px] font-semibold uppercase tracking-wide text-lime-700 dark:text-lime-400 @(basePrice.DiscountLabel == "" ? "hidden" : "")">@basePrice.DiscountLabel</span>
+                        <span class="ep-price-fees block text-[11px] text-slate-400 dark:text-slate-500 @(basePrice.FeeCharges > 0 ? "" : "hidden")">incl. @basePrice.Code @basePrice.FeeCharges.ToString("N2") fees</span>
+                    </span>
+                    <span class="ep-tick absolute right-3 top-3" aria-hidden="true"><i data-lucide="check" class="w-3 h-3"></i></span>
+                </label>
+            }
+            <p id="epNoMatch" class="hidden sm:col-span-2 py-6 text-center text-sm text-slate-400 dark:text-slate-500">No courses match your search.</p>
+        </div>
+
+        <div id="epSummary" class="hidden flex flex-wrap items-center gap-x-4 gap-y-1 rounded-2xl border border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 px-4 py-3 text-sm">
+            <span id="epSummaryCount" class="text-slate-500 dark:text-slate-400"></span>
+            <span id="enrollmentTotal" class="font-semibold text-slate-800 dark:text-slate-100"></span>
+        </div>
+
+        <div class="space-y-4" id="epPanels">
+            @foreach (var c in courses)
+            {
+                var basePrice = EnrollmentPricing.DisplayPrices(c)[0];
+                var isSelected = selected.Contains(c.CourseID);
+                var options = new EnrollmentOptionsModel
+                {
+                    Course = c,
+                    Schedules = visibleBatches.Where(s => s.CourseID == c.CourseID).ToList(),
+                    CurrencyInputName = "CurrencyFor_" + c.CourseID,
+                    BatchInputName = "BatchFor_" + c.CourseID,
+                    SelectedCurrency = Model.CurrencySelections.GetValueOrDefault(c.CourseID) ?? "",
+                    SelectedSchedule = Model.ScheduleSelections.GetValueOrDefault(c.CourseID) ?? "",
+                    AllowNoBatch = !Model.RequireBatch
+                };
+                var pay = Model.PaymentSelections.GetValueOrDefault(c.CourseID);
+                var payMethod = isSelected && pay != null && (pay.Method == "Cash" || pay.Method == "BankDeposit") ? pay.Method : "";
+                <section class="ep-panel @(isSelected ? "" : "hidden") rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/40 p-4 sm:p-5 space-y-5" data-course-id="@c.CourseID" aria-label="@c.CourseTitle">
+                    <div class="flex items-start justify-between gap-3">
+                        <div class="min-w-0">
+                            <p class="text-sm font-semibold text-slate-800 dark:text-slate-100">@c.CourseTitle</p>
+                            <p class="mt-0.5 text-xs text-slate-500 dark:text-slate-400">Course fee <span class="ep-panel-price font-semibold text-slate-700 dark:text-slate-200">@basePrice.Code @basePrice.Total.ToString("N2")</span></p>
+                        </div>
+                        <button type="button" class="ep-remove shrink-0 rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-200 transition-colors" data-course-id="@c.CourseID" aria-label="Remove @c.CourseTitle" title="Remove">
+                            <i data-lucide="x" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+
+                    <partial name="_EnrollmentOptions" model="options" />
+
+                    <div>
+                        <p class="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Payment now</p>
+                        <div class="mt-2 grid grid-cols-3 gap-2" role="radiogroup" aria-label="Payment method">
+                            @foreach (var (value, label, icon) in new[] { ("", "None", "circle-slash"), ("Cash", "Cash", "banknote"), ("BankDeposit", "Bank deposit", "landmark") })
+                            {
+                                <label class="ep-card flex flex-col items-center justify-center gap-1 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800/60 px-2 py-2.5 text-center cursor-pointer hover:border-slate-300 dark:hover:border-slate-500">
+                                    <input type="radio" name="PaymentMethod_@c.CourseID" value="@value" class="course-payment-method-radio sr-only" data-course-id="@c.CourseID" checked="@(value == payMethod)" />
+                                    <i data-lucide="@icon" class="w-4 h-4 text-slate-500 dark:text-slate-400"></i>
+                                    <span class="text-xs font-medium text-slate-700 dark:text-slate-200">@label</span>
+                                </label>
+                            }
+                        </div>
+
+                        <div class="ep-pay-fields hidden mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <div class="space-y-1">
+                                <label class="@subLabel" for="epAmount_@c.CourseID">Amount received</label>
+                                <div class="flex items-stretch overflow-hidden rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 focus-within:border-[var(--ep-accent)] focus-within:ring-1 focus-within:ring-[var(--ep-accent)]">
+                                    <span class="ep-amount-currency flex items-center border-r border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50 px-3 text-xs font-semibold text-slate-500 dark:text-slate-300">@basePrice.Code</span>
+                                    <input type="number" step="0.01" min="0" max="@basePrice.Total.ToString("F2", System.Globalization.CultureInfo.InvariantCulture)" inputmode="decimal" placeholder="0.00"
+                                           id="epAmount_@c.CourseID" class="course-payment-amount w-full min-w-0 bg-transparent px-3 py-2 text-sm text-slate-800 dark:text-slate-100 outline-none" data-course-id="@c.CourseID" value="@(payMethod != "" && pay!.Amount > 0 ? pay.Amount.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture) : "")" />
+                                </div>
+                                <p class="ep-amount-hint text-[11px] text-slate-400 dark:text-slate-500">Up to @basePrice.Code @basePrice.Total.ToString("N2"). A part payment is fine &mdash; the rest is paid later.</p>
+                                <p class="course-payment-amount-error hidden text-[11px] font-medium text-red-600 dark:text-red-400" role="alert"></p>
+                            </div>
+                            <div class="space-y-1">
+                                <label class="@subLabel" for="epNotes_@c.CourseID">Notes <span class="font-normal text-slate-400">(optional)</span></label>
+                                <input type="text" id="epNotes_@c.CourseID" class="course-payment-notes @inputCls" data-course-id="@c.CourseID" placeholder="e.g. receipt no., who paid" value="@(payMethod != "" ? pay!.Notes : "")" />
+                            </div>
+                            <div class="course-payment-slip-field hidden md:col-span-2 space-y-1">
+                                <span class="ep-slip-label @subLabel">Payment slip @(Model.SlipRequired ? "" : "(optional)")</span>
+                                <label class="ep-drop flex items-center gap-3 rounded-xl border border-dashed border-slate-300 dark:border-slate-600 bg-slate-50/60 dark:bg-slate-800/40 px-3 py-3 cursor-pointer hover:border-[var(--ep-accent)] transition-colors">
+                                    <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white dark:bg-slate-700 shadow-sm"><i data-lucide="upload" class="w-4 h-4 text-slate-500 dark:text-slate-300"></i></span>
+                                    <span class="min-w-0 flex-1">
+                                        <span class="ep-file-name block truncate text-sm font-medium text-slate-700 dark:text-slate-200">Choose a photo or PDF</span>
+                                        <span class="block text-[11px] text-slate-400 dark:text-slate-500">Receipt or bank deposit slip</span>
+                                    </span>
+                                    <input type="file" name="PaymentSlip_@c.CourseID" accept="@Model.SlipAccept" class="ep-slip-input sr-only" data-course-id="@c.CourseID" />
+                                </label>
+                                <p class="ep-slip-error hidden text-[11px] font-medium text-red-600 dark:text-red-400" role="alert"></p>
+                            </div>
+                            @if (!string.IsNullOrEmpty(Model.PaymentNote))
+                            {
+                                <p class="md:col-span-2 flex items-start gap-1.5 text-[11px] text-slate-500 dark:text-slate-400"><i data-lucide="info" class="w-3.5 h-3.5 mt-px shrink-0"></i>@Model.PaymentNote</p>
+                            }
+                        </div>
+                    </div>
+                </section>
+            }
+        </div>
+
+        <input type="hidden" name="CourseCurrencySelectionsJson" id="courseCurrencySelectionsJson" value="" />
+        <input type="hidden" name="CourseScheduleSelectionsJson" id="courseScheduleSelectionsJson" value="" />
+        <input type="hidden" name="CoursePaymentsJson" id="coursePaymentsJson" value="" />
+    }
+</div>
+<script src="~/js/enrollment-picker.js" asp-append-version="true"></script>
