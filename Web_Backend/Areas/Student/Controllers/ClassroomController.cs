@@ -143,6 +143,8 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
                 .Where(x => x.IsAssignment && x.AssignmentScheduleID == id && (x.AssignmentModuleID ?? "") == (selected ?? ""))
                 .OrderBy(x => x.DueDate), student.StudentID, examRep);
             ViewBag.AssignmentRedos = await OnlineAssignmentRules.RedosFor(student.StudentID, examRep);
+            ViewBag.AssignmentProgress = await OnlineAssignmentRules.ProgressFor(student.StudentID,
+                (List<Exam>)ViewBag.OnlineAssignments, attemptRep, examRep); // 0127
             ViewBag.AssignmentAttempts = (await attemptRep.ListForStudent(student.StudentID))
                 .Where(a => a.Status != "Voided")
                 .GroupBy(a => a.ExamID)

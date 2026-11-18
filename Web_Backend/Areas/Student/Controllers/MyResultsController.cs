@@ -45,7 +45,8 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
                 .Where(e => e.IsAssignment).Select(e => e.ExamID).ToHashSet();
 
             ViewBag.CurrentUser = Auth.GetUser();
-            return View(attempts.ToList());
+            // 0127: only the latest attempt of an assignment is shown.
+            return View(OnlineAssignmentRules.HideSuperseded(attempts, (HashSet<string>)ViewBag.AssignmentIds));
         }
     }
 }

@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Web_Backend.Areas.Admin.Data;
+using Web_Backend.Areas.StudentPortal;
 using Web_Backend.Classes;
 
 namespace Web_Backend.Controllers.Api
@@ -550,7 +551,10 @@ namespace Web_Backend.Controllers.Api
             var student = await CurrentStudent();
             if (student == null) return Unauthorized();
 
-            var attempts = await attemptRep.ListForStudent(student.StudentID);
+            // 0127: only the latest attempt of an assignment is shown.
+            var assignmentIds = (await examRep.GetList(new Areas.Admin.Models.ExamSearchView()))
+                .Where(e => e.IsAssignment).Select(e => e.ExamID).ToHashSet();
+            var attempts = OnlineAssignmentRules.HideSuperseded(await attemptRep.ListForStudent(student.StudentID), assignmentIds);
             return Ok(attempts
                 .OrderByDescending(a => a.SubmittedDate ?? a.StartedDate)
                 .Select(a => new

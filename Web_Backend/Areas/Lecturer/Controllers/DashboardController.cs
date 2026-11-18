@@ -98,10 +98,13 @@ namespace Web_Backend.Areas.LecturerPortal.Controllers
                         ? m.Contains(userId)
                         : myBatchIds.Contains(e.AssignmentScheduleID)))
                     .ToDictionary(e => e.ExamID, e => e);
-                ViewBag.AssignmentsToReview = mine.Count == 0 ? new List<ExamAttempt>() :
-                    (await attemptRep.ListAllForAdmin())
-                        .Where(a => mine.ContainsKey(a.ExamID) && a.Status != "Voided" && !a.IsInProgress && !a.ResultReleasedDate.HasValue)
-                        .OrderBy(a => a.SubmittedDate).ToList();
+                var assignmentAttempts = mine.Count == 0 ? new List<ExamAttempt>() :
+                    (await attemptRep.ListAllForAdmin()).Where(a => mine.ContainsKey(a.ExamID)).ToList();
+                // 0127: only final attempts are ready to mark.
+                var states = await Web_Backend.Areas.StudentPortal.OnlineAssignmentRules.Classify(mine.Values, assignmentAttempts, examRep);
+                ViewBag.AssignmentsToReview = assignmentAttempts
+                    .Where(a => states.GetValueOrDefault(a.AttemptID) == "final" && !a.ResultReleasedDate.HasValue)
+                    .OrderBy(a => a.SubmittedDate).ToList();
             }
             catch { ViewBag.AssignmentsToReview = new List<ExamAttempt>(); } // never break the dashboard
 

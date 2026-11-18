@@ -55,7 +55,7 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
             if (inProgress != null && inProgress.SecondsRemaining > 0)
                 return RedirectToAction("Take", new { attemptId = inProgress.AttemptID });
 
-            var blocked = await OnlineAssignmentRules.WhyCannotStart(exam, student, examRep, registrationRep, scheduleRep);
+            var blocked = await OnlineAssignmentRules.WhyCannotStart(exam, student, examRep, registrationRep, scheduleRep, attemptRep);
             if (blocked != null)
             {
                 TempData["ErrorMessage"] = blocked;
@@ -74,6 +74,43 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
             }
         }
 
+        // 0127: "I'm done -- send for marking": the latest submitted attempt
+        // becomes final (no more tries) and goes to the lecturer to mark.
+        [HttpPost, ValidateAntiForgeryToken]
+        public async Task<IActionResult> Finish(string examId)
+        {
+            Auth.CheckUser();
+            var student = await studentRep.GetByUserID(Auth.GetUserId());
+            if (student == null)
+                return RedirectToAction("Index", "Dashboard", new { area = "Admin" });
+
+            var exam = await examRep.Get(examId);
+            if (exam == null || !exam.IsAssignment)
+            {
+                TempData["ErrorMessage"] = "Assignment not found.";
+                return RedirectToAction("Index", "Classroom");
+            }
+            var p = (await OnlineAssignmentRules.ProgressFor(student.StudentID, new[] { exam }, attemptRep, examRep)).GetValueOrDefault(examId);
+            if (p?.Latest == null || !p.Finished)
+            {
+                TempData["ErrorMessage"] = "Submit the assignment first.";
+                return BackToClass(exam);
+            }
+            if (p.CanRetry)
+            {
+                try
+                {
+                    await examRep.SetAssignmentDone(p.Latest.AttemptID);
+                    TempData["SuccessMessage"] = "Sent for marking. You'll be notified when your lecturer releases the marks.";
+                }
+                catch (Exception ex)
+                {
+                    TempData["ErrorMessage"] = "Could not send it for marking: " + System.Text.RegularExpressions.Regex.Replace(ex.Message, @"\. Script: .*$", "");
+                }
+            }
+            return RedirectToAction("Result", "ExamAttempt", new { attemptId = p.Latest.AttemptID });
+        }
+
         // Sidebar "Assignment marks": every online assignment set for this
         // student (all time), with status, marks and a link to the answers.
         [HttpGet]
@@ -88,6 +125,7 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
             var batches = (await scheduleRep.GetList(new CourseScheduleSearchView { IsActive = "A" })).ToDictionary(b => b.ScheduleID, b => b.ScheduleName);
             ViewBag.CurrentUser = Auth.GetUser();
             ViewBag.Attempts = attempts;
+            ViewBag.Progress = await OnlineAssignmentRules.ProgressFor(student.StudentID, list, attemptRep, examRep); // 0127
             ViewBag.Redos = await OnlineAssignmentRules.RedosFor(student.StudentID, examRep);
             ViewBag.Batches = batches;
             return View(list.OrderByDescending(e => e.DueDate).ToList());

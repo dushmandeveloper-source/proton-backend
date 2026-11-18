@@ -22,16 +22,18 @@ namespace Web_Backend.Controllers.Api
             var redos = await OnlineAssignmentRules.RedosFor(student.StudentID, examRep);
             var batches = (await scheduleRep.GetList(new Areas.Admin.Models.CourseScheduleSearchView { IsActive = "A" }))
                 .ToDictionary(b => b.ScheduleID, b => b);
+            var progress = await OnlineAssignmentRules.ProgressFor(student.StudentID, list, attemptRep, examRep); // 0127
             return Ok(list.Select(e =>
             {
                 attempts.TryGetValue(e.ExamID, out var at);
                 batches.TryGetValue(e.AssignmentScheduleID, out var batch);
-                return AssignmentRow(e, at, batch?.ScheduleName ?? "", batch?.CourseTitle ?? "", redos.GetValueOrDefault(e.ExamID));
+                return AssignmentRow(e, at, batch?.ScheduleName ?? "", batch?.CourseTitle ?? "", redos.GetValueOrDefault(e.ExamID), progress.GetValueOrDefault(e.ExamID));
             }));
         }
 
         // One assignment as the app shows it (Home list and classroom module).
-        private static object AssignmentRow(Areas.Admin.Models.Exam e, Areas.Admin.Models.ExamAttempt? at, string batchName, string courseTitle, Areas.Admin.Models.AssignmentRedo? redo = null)
+        private static object AssignmentRow(Areas.Admin.Models.Exam e, Areas.Admin.Models.ExamAttempt? at, string batchName, string courseTitle, Areas.Admin.Models.AssignmentRedo? redo = null,
+            OnlineAssignmentRules.AssignmentProgress? progress = null)
         {
             // Due/Open are in the assignment's zone; the app gets them as Sri Lanka
             // wall-clock (what every app version expects).
@@ -66,7 +68,14 @@ namespace Web_Backend.Controllers.Api
                 state,
                 canOpen = state is "open" or "in_progress" or "redo",
                 attemptId = at?.AttemptID,
-                passed = released ? at!.Passed : null
+                passed = released ? at!.Passed : null,
+                // 0127: several attempts, the latest counts. state stays
+                // "submitted" (older app versions); canRetry = may "Try again"
+                // (POST open) or "I'm done" (POST finish).
+                maxAttempts = Math.Max(1, e.MaxAttempts),
+                attemptsUsed = progress?.Used ?? (at != null ? 1 : 0),
+                attemptsLeft = progress?.Left ?? 0,
+                canRetry = progress?.CanRetry ?? false
             };
         }
 
@@ -83,7 +92,8 @@ namespace Web_Backend.Controllers.Api
                 .GroupBy(a => a.ExamID)
                 .ToDictionary(g => g.Key, g => g.OrderByDescending(a => a.AttemptNumber).First());
             var redos = await OnlineAssignmentRules.RedosFor(student.StudentID, examRep);
-            return list.Select(e => AssignmentRow(e, attempts.GetValueOrDefault(e.ExamID), batchName, courseTitle, redos.GetValueOrDefault(e.ExamID))).ToList();
+            var progress = await OnlineAssignmentRules.ProgressFor(student.StudentID, list, attemptRep, examRep); // 0127
+            return list.Select(e => AssignmentRow(e, attempts.GetValueOrDefault(e.ExamID), batchName, courseTitle, redos.GetValueOrDefault(e.ExamID), progress.GetValueOrDefault(e.ExamID))).ToList();
         }
 
         [HttpPost("assignments/{examId}/open")]
@@ -99,7 +109,7 @@ namespace Web_Backend.Controllers.Api
                 .FirstOrDefault(a => a.ExamID == examId && a.IsInProgress && a.SecondsRemaining > 0);
             if (resume != null) return Ok(new { attemptId = resume.AttemptID, resumed = true });
 
-            var blocked = await OnlineAssignmentRules.WhyCannotStart(exam, student, examRep, registrationRep, scheduleRep);
+            var blocked = await OnlineAssignmentRules.WhyCannotStart(exam, student, examRep, registrationRep, scheduleRep, attemptRep);
             if (blocked != null) return Conflict(new { message = blocked });
 
             try
@@ -111,6 +121,25 @@ namespace Web_Backend.Controllers.Api
             {
                 return Conflict(new { message = "Could not open the assignment: " + CleanSqlMessage(ex.Message) });
             }
+        }
+
+        // 0127: "I'm done -- send for marking" for the latest submitted attempt.
+        [HttpPost("assignments/{examId}/finish")]
+        public async Task<IActionResult> FinishAssignment(string examId)
+        {
+            var student = await CurrentStudent();
+            if (student == null) return Unauthorized();
+            var exam = await examRep.Get(examId);
+            if (exam == null || !exam.IsAssignment) return NotFound(new { message = "Assignment not found." });
+
+            var p = (await OnlineAssignmentRules.ProgressFor(student.StudentID, new[] { exam }, attemptRep, examRep)).GetValueOrDefault(examId);
+            if (p?.Latest == null || !p.Finished) return Conflict(new { message = "Submit the assignment first." });
+            if (p.CanRetry)
+            {
+                try { await examRep.SetAssignmentDone(p.Latest.AttemptID); }
+                catch (Exception ex) { return Conflict(new { message = CleanSqlMessage(ex.Message) }); }
+            }
+            return Ok(new { attemptId = p.Latest.AttemptID, message = "Sent for marking." });
         }
     }
 }

@@ -46,8 +46,19 @@
             }
             else
             {
-                <p class="text-sm text-slate-600 dark:text-slate-300">@(isAssignment ? "Your assignment has been submitted. Your lecturer will mark it and you'll be notified when your marks are ready." : "Your exam has been submitted and is pending review.")</p>
-                <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">You will be notified once grading is complete.</p>
+                var retry = ViewBag.AssignmentProgress as Web_Backend.Areas.StudentPortal.OnlineAssignmentRules.AssignmentProgress;
+                if (retry != null && retry.CanRetry && retry.Latest?.AttemptID == Model.AttemptID)
+                {
+                    @* 0127: more attempts left -- try again or send for marking *@
+                    <p class="text-sm text-slate-600 dark:text-slate-300">Your attempt has been saved. Marks and correct answers appear only after your lecturer releases them.</p>
+                    <div class="mt-4 text-left"><partial name="_AssignmentRetry" model="retry" /></div>
+                    <partial name="_ConfirmDialog" />
+                }
+                else
+                {
+                    <p class="text-sm text-slate-600 dark:text-slate-300">@(isAssignment ? "Your assignment has been submitted. Your lecturer will mark it and you'll be notified when your marks are ready." : "Your exam has been submitted and is pending review.")</p>
+                    <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">You will be notified once grading is complete.</p>
+                }
             }
 
             <a asp-area="Student" asp-controller="Dashboard" asp-action="Index"

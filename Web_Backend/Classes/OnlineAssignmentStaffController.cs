@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Web_Backend.Areas.Admin.Data;
 using Web_Backend.Areas.Admin.Models;
+using Web_Backend.Areas.StudentPortal;
 
 namespace Web_Backend.Classes
 {
@@ -78,10 +79,14 @@ namespace Web_Backend.Classes
                 var b = await scheduleRep.Get(sid);
                 if (b != null) batches[sid] = b;
             }
-            var attempts = exams.Count == 0 ? new List<ExamAttempt>() :
-                (await attemptRep.ListAllForAdmin())
-                    .Where(a => exams.ContainsKey(a.ExamID) && a.Status != "Voided" && !a.IsInProgress)
-                    .OrderByDescending(a => a.SubmittedDate).ToList();
+            var all = exams.Count == 0 ? new List<ExamAttempt>() :
+                (await attemptRep.ListAllForAdmin()).Where(a => exams.ContainsKey(a.ExamID)).ToList();
+            // 0127: only FINAL attempts are marked; one a student may still
+            // retry waits, a superseded one is never marked.
+            var states = await OnlineAssignmentRules.Classify(exams.Values, all, examRep);
+            var attempts = all.Where(a => states.GetValueOrDefault(a.AttemptID) == "final")
+                .OrderByDescending(a => a.SubmittedDate).ToList();
+            ViewBag.WaitingCount = all.Count(a => states.GetValueOrDefault(a.AttemptID) == "waiting");
 
             ViewBag.CurrentUser = Auth.GetUser();
             ViewBag.Tab = tab == "released" ? "released" : "mark";
@@ -135,6 +140,9 @@ namespace Web_Backend.Classes
             var attempts = ids.Count == 0
                 ? new List<ExamAttempt>()
                 : (await attemptRep.ListAllForAdmin()).Where(a => ids.Contains(a.ExamID) && a.Status != "Voided").ToList();
+            // 0127: count each student's latest attempt only.
+            var states = await OnlineAssignmentRules.Classify(exams, attempts, examRep);
+            attempts = attempts.Where(a => states.GetValueOrDefault(a.AttemptID) != "superseded").ToList();
 
             var selected = new Dictionary<string, List<ExamScheduleStudentRow>>();
             foreach (var x in exams) selected[x.ExamID] = await examRep.ListAssignmentStudents(x.ExamID);
@@ -152,7 +160,7 @@ namespace Web_Backend.Classes
                         Exam = x,
                         InProgress = mine.Count(a => a.IsInProgress),
                         Submitted = mine.Count(a => !a.IsInProgress),
-                        AwaitingMarks = mine.Count(a => !a.IsInProgress && !a.ResultReleasedDate.HasValue),
+                        AwaitingMarks = mine.Count(a => states.GetValueOrDefault(a.AttemptID) == "final" && !a.ResultReleasedDate.HasValue),
                         Released = mine.Count(a => a.ResultReleasedDate.HasValue),
                         SelectedStudents = selected[x.ExamID]
                     };
@@ -209,6 +217,7 @@ namespace Web_Backend.Classes
             OpenDate = e.OpenDate,
             DueDate = e.DueDate,
             PassingPercentage = e.PassingPercentage ?? 50,
+            MaxAttempts = Math.Max(1, e.MaxAttempts),
             TimeZone = ScheduleTime.Normalize(e.AssignmentTimeZone)
         };
 
@@ -290,6 +299,7 @@ namespace Web_Backend.Classes
                 exam.DurationMinutes = null;
                 exam.PassingMarks = null;
                 exam.PassingPercentage = form.PassingPercentage;
+                exam.MaxAttempts = Math.Clamp(form.MaxAttempts, 1, 5);
 
                 var id = await examRep.AddEdit(exam);
                 await examRep.SetAssignment(id, batch.ScheduleID, form.OpenDate!.Value, form.DueDate!.Value, Auth.GetUserId(), form.ModuleID);
@@ -332,14 +342,16 @@ namespace Web_Backend.Classes
             var (exam, batch) = await FindAssignment(id);
             if (exam == null) return NotFoundBack();
 
+            var resultAttempts = (await attemptRep.ListAllForAdmin())
+                .Where(a => a.ExamID == id && a.Status != "Voided")
+                .OrderBy(a => a.StudentName).ThenByDescending(a => a.AttemptNumber).ToList();
+            ViewBag.States = await OnlineAssignmentRules.Classify(new[] { exam }, resultAttempts, examRep); // 0127
             ViewBag.CurrentUser = Auth.GetUser();
             return View("Results", new OnlineAssignmentResultsViewModel
             {
                 Batch = batch!,
                 Exam = exam,
-                Attempts = (await attemptRep.ListAllForAdmin())
-                    .Where(a => a.ExamID == id && a.Status != "Voided")
-                    .OrderBy(a => a.StudentName).ToList(),
+                Attempts = resultAttempts,
                 GradeController = GradeController
             });
         }
@@ -380,8 +392,15 @@ namespace Web_Backend.Classes
             return exam == null ? (null, null, null) : (attempt, exam, batch);
         }
 
+        // 0127: final | waiting | superseded | inprogress | voided for one attempt.
+        private async Task<string> AttemptState(ExamAttempt attempt, Exam exam)
+        {
+            var siblings = (await attemptRep.ListForStudent(attempt.StudentID)).Where(a => a.ExamID == exam.ExamID);
+            return (await OnlineAssignmentRules.Classify(new[] { exam }, siblings, examRep)).GetValueOrDefault(attempt.AttemptID, "final");
+        }
+
         [HttpGet]
-        public async Task<IActionResult> Grade(string attemptId)
+        public async Task<IActionResult> Grade(string attemptId, string? from = null)
         {
             CheckView();
             var (attempt, exam, batch) = await FindSubmission(attemptId);
@@ -392,26 +411,34 @@ namespace Web_Backend.Classes
             ViewBag.Attempt = attempt;
             ViewBag.Exam = exam;
             ViewBag.Batch = batch;
+            ViewBag.From = from == "review" ? "review" : "";
             var canMark = await CanMark(exam!);
             ViewBag.CanEdit = canMark;
             // Outside markers can't open the batch's Submissions page -- back goes to Assignment review.
             ViewBag.InBatch = (await FindAssignment(exam!.ExamID)).Exam != null;
-            ViewBag.MarkerNote = canMark ? "" : "Only the chosen marking lecturers can mark and release this assignment.";
+            var state = await AttemptState(attempt, exam!);
+            ViewBag.AttemptState = state;
+            ViewBag.MarkerNote = !canMark ? "Only the chosen marking lecturers can mark and release this assignment."
+                : state == "waiting" ? "The student can still try again before the due date, so this attempt isn't ready to mark yet. It's marked once they use all their attempts, press “I'm done”, or the due date passes."
+                : state == "superseded" ? "The student submitted a newer attempt, which is the one that counts. This earlier attempt is kept for the record only."
+                : "";
+            if (state is "waiting" or "superseded") ViewBag.CanEdit = false;
             ViewBag.OptionsByQuestion = await ExamAnswerOptions.ForMcq(answers, examRep);
             return View("Grade", answers);
         }
 
         [HttpPost, ValidateAntiForgeryToken]
-        public async Task<IActionResult> SaveGrade(string attemptId, string questionId, decimal marksAwarded)
+        public async Task<IActionResult> SaveGrade(string attemptId, string questionId, decimal marksAwarded, string? from = null)
         {
             CheckEdit();
             var (attempt, exam, _) = await FindSubmission(attemptId);
             if (attempt == null) return NotFoundBack();
-            if (!await CanMark(exam!)) { TempData["ErrorMessage"] = "Only the chosen marking lecturers can mark this assignment."; return RedirectToAction("Grade", new { attemptId }); }
+            if (!await CanMark(exam!)) { TempData["ErrorMessage"] = "Only the chosen marking lecturers can mark this assignment."; return RedirectToAction("Grade", new { attemptId, from }); }
+            if (await AttemptState(attempt, exam!) is "waiting" or "superseded") { TempData["ErrorMessage"] = "This attempt isn't final yet (or a newer one replaced it), so it can't be marked."; return RedirectToAction("Grade", new { attemptId, from }); }
             if (attempt.ResultReleasedDate.HasValue)
             {
                 TempData["ErrorMessage"] = "Marks are already released to the student.";
-                return RedirectToAction("Grade", new { attemptId });
+                return RedirectToAction("Grade", new { attemptId, from });
             }
             try
             {
@@ -422,16 +449,17 @@ namespace Web_Backend.Classes
             {
                 TempData["ErrorMessage"] = "Could not save marks: " + ex.Message;
             }
-            return RedirectToAction("Grade", new { attemptId });
+            return RedirectToAction("Grade", new { attemptId, from });
         }
 
         [HttpPost, ValidateAntiForgeryToken]
-        public async Task<IActionResult> Release(string attemptId)
+        public async Task<IActionResult> Release(string attemptId, string? from = null)
         {
             CheckEdit();
             var (attempt, exam, _) = await FindSubmission(attemptId);
             if (attempt == null) return NotFoundBack();
-            if (!await CanMark(exam!)) { TempData["ErrorMessage"] = "Only the chosen marking lecturers can release this assignment."; return RedirectToAction("Grade", new { attemptId }); }
+            if (!await CanMark(exam!)) { TempData["ErrorMessage"] = "Only the chosen marking lecturers can release this assignment."; return RedirectToAction("Grade", new { attemptId, from }); }
+            if (await AttemptState(attempt, exam!) is "waiting" or "superseded") { TempData["ErrorMessage"] = "This attempt isn't final yet (or a newer one replaced it), so it can't be marked."; return RedirectToAction("Grade", new { attemptId, from }); }
             var userId = Auth.GetUserId();
             try
             {
@@ -441,14 +469,14 @@ namespace Web_Backend.Classes
                 if (released != null)
                     await ResultReleaseNotifier.NotifyAsync(released, attempt.StudentID, HttpContext.RequestServices);
                 TempData["SuccessMessage"] = $"Marks released to {attempt.StudentName}. They've been notified.";
-                return (await FindAssignment(exam!.ExamID)).Exam != null
+                return from != "review" && (await FindAssignment(exam!.ExamID)).Exam != null
                     ? RedirectToAction("Results", new { id = exam.ExamID })
                     : RedirectToAction("Review");
             }
             catch (Exception ex)
             {
                 TempData["ErrorMessage"] = "Could not release: " + ex.Message.Replace(". Script: edu.ExamAttempt_TeacherApprove", "").Replace(". Script: edu.ExamAttempt_AdminApprove", "");
-                return RedirectToAction("Grade", new { attemptId });
+                return RedirectToAction("Grade", new { attemptId, from });
             }
         }
 
@@ -458,14 +486,15 @@ namespace Web_Backend.Classes
         //    and the student may answer again until their own redo deadline;
         //    they get a notification with the reason.
         [HttpPost, ValidateAntiForgeryToken]
-        public async Task<IActionResult> Reject(string attemptId, string remark, string mode, DateTime? redoDueDate)
+        public async Task<IActionResult> Reject(string attemptId, string remark, string mode, DateTime? redoDueDate, string? from = null)
         {
             CheckEdit();
             var (attempt, exam, _) = await FindSubmission(attemptId);
             if (attempt == null) return NotFoundBack();
-            if (!await CanMark(exam!)) { TempData["ErrorMessage"] = "Only the chosen marking lecturers can reject this submission."; return RedirectToAction("Grade", new { attemptId }); }
-            if (attempt.ResultReleasedDate.HasValue) { TempData["ErrorMessage"] = "Marks are already released to the student."; return RedirectToAction("Grade", new { attemptId }); }
-            if (string.IsNullOrWhiteSpace(remark)) { TempData["ErrorMessage"] = "Write a reason so the student knows what to fix."; return RedirectToAction("Grade", new { attemptId }); }
+            if (!await CanMark(exam!)) { TempData["ErrorMessage"] = "Only the chosen marking lecturers can reject this submission."; return RedirectToAction("Grade", new { attemptId, from }); }
+            if (await AttemptState(attempt, exam!) is "waiting" or "superseded") { TempData["ErrorMessage"] = "This attempt isn't final yet (or a newer one replaced it), so it can't be marked."; return RedirectToAction("Grade", new { attemptId, from }); }
+            if (attempt.ResultReleasedDate.HasValue) { TempData["ErrorMessage"] = "Marks are already released to the student."; return RedirectToAction("Grade", new { attemptId, from }); }
+            if (string.IsNullOrWhiteSpace(remark)) { TempData["ErrorMessage"] = "Write a reason so the student knows what to fix."; return RedirectToAction("Grade", new { attemptId, from }); }
 
             var userId = Auth.GetUserId();
             try
@@ -477,7 +506,7 @@ namespace Web_Backend.Classes
                     if (due <= ScheduleTime.Now(zone))
                     {
                         TempData["ErrorMessage"] = "The redo deadline must be in the future.";
-                        return RedirectToAction("Grade", new { attemptId });
+                        return RedirectToAction("Grade", new { attemptId, from });
                     }
                     await attemptRep.GrantRetake(attemptId, userId, remark.Trim());
                     await examRep.SetAssignmentRedo(exam.ExamID, attempt.StudentID, due, remark.Trim(), userId);
@@ -494,15 +523,15 @@ namespace Web_Backend.Classes
                 {
                     await attemptRep.TeacherReject(attemptId, userId, remark.Trim());
                     TempData["SuccessMessage"] = "Sent back for marking again.";
-                    return RedirectToAction("Grade", new { attemptId });
+                    return RedirectToAction("Grade", new { attemptId, from });
                 }
             }
             catch (Exception ex)
             {
                 TempData["ErrorMessage"] = "Could not reject: " + System.Text.RegularExpressions.Regex.Replace(ex.Message, @"\. Script: .*$", "");
-                return RedirectToAction("Grade", new { attemptId });
+                return RedirectToAction("Grade", new { attemptId, from });
             }
-            return (await FindAssignment(exam!.ExamID)).Exam != null
+            return from != "review" && (await FindAssignment(exam!.ExamID)).Exam != null
                 ? RedirectToAction("Results", new { id = exam.ExamID })
                 : RedirectToAction("Review");
         }

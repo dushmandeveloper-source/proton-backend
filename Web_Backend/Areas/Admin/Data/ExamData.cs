@@ -106,6 +106,12 @@ namespace Web_Backend.Areas.Admin.Data
         public Task<List<AssignmentRedo>> ListAssignmentRedos(string? examId = null, string? studentId = null) =>
             db.GetList<AssignmentRedo, object>("edu.ExamAssignmentRedo_List", new { APIKey = AppData.GetAPIKey(), ExamID = examId, StudentID = studentId });
 
+        public Task SetAssignmentDone(string attemptId) =>
+            db.ExecuteNonQuery("edu.ExamAssignmentDone_Set", new { APIKey = AppData.GetAPIKey(), AttemptID = attemptId });
+
+        public Task<List<AssignmentDone>> ListAssignmentDone(string? examId = null, string? studentId = null) =>
+            db.GetList<AssignmentDone, object>("edu.ExamAssignmentDone_List", new { APIKey = AppData.GetAPIKey(), ExamID = examId, StudentID = studentId });
+
         public Task<List<ExamScheduleStudentRow>> ListAssignmentStudents(string examId) =>
             db.GetList<ExamScheduleStudentRow, object>("edu.ExamAssignmentStudent_List", new { APIKey = AppData.GetAPIKey(), ExamID = examId });
 

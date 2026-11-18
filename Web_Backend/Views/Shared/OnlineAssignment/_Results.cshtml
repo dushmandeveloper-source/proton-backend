@@ -2,6 +2,8 @@
 @* Shared by Admin/OnlineAssignment/Results and Lecturer/OnlineAssignment/Results. *@
 @{
     var e = Model.Exam;
+    var states = ViewBag.States as Dictionary<string, string> ?? new(); // 0127
+    var multi = e.MaxAttempts > 1;
 }
 
 <div class="max-w-5xl mx-auto space-y-6 page-enter">
@@ -15,7 +17,13 @@
 
     <div class="rounded-2xl border border-purple-100 dark:border-purple-900 bg-purple-50/60 dark:bg-purple-950/40 p-4 text-sm text-slate-600 dark:text-slate-300 flex items-start gap-3">
         <i data-lucide="info" class="w-5 h-5 text-[#7c3aed] dark:text-purple-300 flex-shrink-0 mt-0.5"></i>
-        <p>MCQs are marked automatically. Open a submission, give marks for the written answers, then press <b>Approve &amp; release</b> — the student is notified and can see their marks and answers.</p>
+        <div class="space-y-1">
+            <p>MCQs are marked automatically. Open a submission, give marks for the written answers, then press <b>Approve &amp; release</b> — the student is notified and can see their marks and answers.</p>
+            @if (multi)
+            {
+                <p><b>@e.MaxAttempts attempts allowed</b> — the latest attempt counts. An attempt is ready to mark once the student has used all attempts, pressed &ldquo;I'm done&rdquo;, or the due date has passed. Earlier attempts are kept for the record and never marked.</p>
+            }
+        </div>
     </div>
 
     <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
@@ -30,6 +38,7 @@
                     <thead class="bg-slate-50 dark:bg-slate-800/60 text-xs uppercase tracking-wide text-slate-400">
                         <tr>
                             <th class="text-left px-5 py-3 font-semibold">Student</th>
+                            @if (multi) { <th class="text-left px-5 py-3 font-semibold">Attempt</th> }
                             <th class="text-left px-5 py-3 font-semibold">Submitted</th>
                             <th class="text-left px-5 py-3 font-semibold">Marks</th>
                             <th class="text-left px-5 py-3 font-semibold">Status</th>
@@ -39,20 +48,27 @@
                     <tbody class="divide-y divide-slate-100 dark:divide-slate-700">
                         @foreach (var a in Model.Attempts)
                         {
+                            var st = states.GetValueOrDefault(a.AttemptID, "final");
                             var (label, cls) = a.IsInProgress ? ("Working on it", "bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-300")
+                                : st == "superseded" ? ("Superseded", "bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400")
+                                : st == "waiting" ? ("Can still retry", "bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-300")
                                 : a.ResultReleasedDate.HasValue ? ("Released", "bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300")
                                 : !a.IsFullyGraded ? ("To mark", "bg-rose-50 dark:bg-rose-950 text-rose-700 dark:text-rose-300")
                                 : a.TeacherReviewStatus == "Approved" ? ("Awaiting release", "bg-sky-50 dark:bg-sky-950 text-sky-700 dark:text-sky-300")
                                 : ("To approve", "bg-purple-50 dark:bg-purple-950 text-[#7c3aed] dark:text-purple-300");
-                            <tr class="hover:bg-slate-50/60 dark:hover:bg-slate-800/40">
+                            <tr class="hover:bg-slate-50/60 dark:hover:bg-slate-800/40 @(st == "superseded" ? "opacity-60" : "")">
                                 <td class="px-5 py-3"><p class="font-medium text-slate-800 dark:text-slate-100">@a.StudentName</p><p class="text-xs text-slate-400">@a.StudentEmail</p></td>
+                                @if (multi)
+                                {
+                                    <td class="px-5 py-3 whitespace-nowrap text-slate-600 dark:text-slate-300">#@a.AttemptNumber@if (st == "final") {<span class="ml-1.5 px-1.5 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950 text-[10px] font-semibold text-emerald-700 dark:text-emerald-300">Final</span>}</td>
+                                }
                                 <td class="px-5 py-3 text-slate-600 dark:text-slate-300 whitespace-nowrap">@(a.SubmittedDate.HasValue ? a.SubmittedDate.Value.ToString("dd MMM, hh:mm tt") : "—")</td>
-                                <td class="px-5 py-3 text-slate-600 dark:text-slate-300 whitespace-nowrap">@(a.TotalMarksAwarded.HasValue ? $"{a.TotalMarksAwarded:0.##} / {e.TotalMarks:0.##}" : "—")</td>
+                                <td class="px-5 py-3 text-slate-600 dark:text-slate-300 whitespace-nowrap">@(st == "final" && a.TotalMarksAwarded.HasValue ? $"{a.TotalMarksAwarded:0.##} / {e.TotalMarks:0.##}" : "—")</td>
                                 <td class="px-5 py-3"><span class="px-2 py-0.5 rounded-full text-[11px] font-semibold whitespace-nowrap @cls">@label</span></td>
                                 <td class="px-5 py-3 text-right">
                                     @if (!a.IsInProgress)
                                     {
-                                        <a href="@Url.Action("Grade", new { attemptId = a.AttemptID })" class="px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 whitespace-nowrap">@(a.ResultReleasedDate.HasValue ? "View" : a.IsFullyGraded ? "Review &amp; release" : "Mark answers")</a>
+                                        <a href="@Url.Action("Grade", new { attemptId = a.AttemptID })" class="px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 whitespace-nowrap">@(st != "final" || a.ResultReleasedDate.HasValue ? "View" : a.IsFullyGraded ? "Review &amp; release" : "Mark answers")</a>
                                     }
                                 </td>
                             </tr>

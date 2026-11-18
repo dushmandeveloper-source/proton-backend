@@ -184,13 +184,29 @@
                 </div>
             </div>
 
-            <div class="sm:w-1/2">
-                <label for="a-pass" class="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-1.5">Pass mark</label>
-                <div class="relative">
-                    <input id="a-pass" type="number" name="Form.PassingPercentage" value="@f.PassingPercentage.ToString("0.##")" min="0" max="100" step="1" required class="@inputCls pr-10" />
-                    <span class="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-slate-400">%</span>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                <div>
+                    <label for="a-pass" class="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-1.5">Pass mark</label>
+                    <div class="relative">
+                        <input id="a-pass" type="number" name="Form.PassingPercentage" value="@f.PassingPercentage.ToString("0.##")" min="0" max="100" step="1" required class="@inputCls pr-10" />
+                        <span class="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-slate-400">%</span>
+                    </div>
+                    <p class="text-xs text-slate-400 mt-1">Students see Pass / Fail once you approve their marks.</p>
                 </div>
-                <p class="text-xs text-slate-400 mt-1">Students see Pass / Fail once you approve their marks.</p>
+                @* 0127: attempts -- the latest submitted attempt counts. *@
+                <div>
+                    <span class="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-1.5">Attempts allowed</span>
+                    <div class="grid grid-cols-5 gap-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 p-1" role="radiogroup" aria-label="Attempts allowed">
+                        @for (var n = 1; n <= 5; n++)
+                        {
+                            <label class="cursor-pointer">
+                                <input type="radio" name="Form.MaxAttempts" value="@n" class="peer sr-only" checked="@(f.MaxAttempts == n)" />
+                                <span class="block rounded-lg py-1.5 text-center text-sm font-medium text-slate-500 dark:text-slate-400 transition-colors hover:text-slate-700 dark:hover:text-slate-200 peer-checked:bg-white dark:peer-checked:bg-slate-700 peer-checked:text-[#7c3aed] dark:peer-checked:text-purple-300 peer-checked:shadow-sm peer-focus-visible:ring-2 peer-focus-visible:ring-[#7c3aed]">@n</span>
+                            </label>
+                        }
+                    </div>
+                    <p class="text-xs text-slate-400 mt-1">Students can try again until the due date; their <b>latest</b> attempt counts. Marking starts once they use all attempts, press &ldquo;I'm done&rdquo;, or the due date passes.</p>
+                </div>
             </div>
 
             <div class="flex justify-end gap-2 pt-2">

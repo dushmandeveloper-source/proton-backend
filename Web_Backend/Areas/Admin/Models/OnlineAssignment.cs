@@ -23,6 +23,10 @@ namespace Web_Backend.Areas.Admin.Models
         [Range(0, 100, ErrorMessage = "Pass mark must be between 0 and 100%.")]
         public decimal PassingPercentage { get; set; } = 50;
 
+        // 0127: tries allowed; the latest submitted attempt counts.
+        [Range(1, 5, ErrorMessage = "Attempts must be between 1 and 5.")]
+        public int MaxAttempts { get; set; } = 1;
+
         // 0122: lecturer who marks and releases ("" = any lecturer of the batch).
         public List<string> MarkerUserIDs { get; set; } = new(); // 0123, empty = any batch lecturer
 
@@ -100,5 +104,14 @@ namespace Web_Backend.Areas.Admin.Models
         public string Remark { get; set; } = "";
         public string CreatedByUserID { get; set; } = "";
         public DateTime CreatedDate { get; set; }
+    }
+
+    // 0127: the student finished early ("I'm done -- send for marking").
+    public class AssignmentDone
+    {
+        public string AttemptID { get; set; } = "";
+        public string ExamID { get; set; } = "";
+        public string StudentID { get; set; } = "";
+        public DateTime DoneDate { get; set; }
     }
 }

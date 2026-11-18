@@ -269,6 +269,8 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
                 return RedirectToAction("Review", "OnlineAssignment", new { attemptId });
             ViewBag.IsAssignment = exam?.IsAssignment == true;
             ViewBag.Exam = exam;
+            if (exam?.IsAssignment == true) // 0127: Try again / I'm done
+                ViewBag.AssignmentProgress = (await OnlineAssignmentRules.ProgressFor(student.StudentID, new[] { exam }, attemptRep, examRep)).GetValueOrDefault(exam.ExamID);
 
             ViewBag.CurrentUser = Auth.GetUser();
             return View(attempt);

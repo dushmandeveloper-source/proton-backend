@@ -61,7 +61,7 @@
                             <p class="text-sm font-medium text-slate-800 dark:text-slate-100 truncate">@a.StudentName</p>
                             <p class="text-xs text-slate-500 dark:text-slate-400 truncate">@a.ExamTitle &middot; submitted @a.SubmittedDate?.ToString("dd MMM, hh:mm tt")</p>
                         </div>
-                        <a asp-area="Lecturer" asp-controller="OnlineAssignment" asp-action="Grade" asp-route-attemptId="@a.AttemptID"
+                        <a asp-area="Lecturer" asp-controller="OnlineAssignment" asp-action="Grade" asp-route-attemptId="@a.AttemptID" asp-route-from="review"
                            class="px-3 py-1.5 rounded-lg text-xs font-medium bg-[#7c3aed] text-white hover:bg-[#6d28d9] whitespace-nowrap">@(a.IsFullyGraded ? "Review & release" : "Mark")</a>
                     </div>
                 }

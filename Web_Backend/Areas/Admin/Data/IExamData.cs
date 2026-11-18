@@ -16,6 +16,9 @@ namespace Web_Backend.Areas.Admin.Data
         Task<List<AssignmentMarker>> ListAssignmentMarkers(string? examId = null);
         Task SetAssignmentRedo(string examId, string studentId, DateTime dueDate, string remark, string userId);
         Task<List<AssignmentRedo>> ListAssignmentRedos(string? examId = null, string? studentId = null);
+        // 0127: "I'm done -- send for marking" (makes the latest attempt final).
+        Task SetAssignmentDone(string attemptId);
+        Task<List<AssignmentDone>> ListAssignmentDone(string? examId = null, string? studentId = null);
         Task<List<ExamScheduleStudentRow>> ListAssignmentStudents(string examId);
 
         Task<List<ExamQuestion>> GetQuestions(string examId);

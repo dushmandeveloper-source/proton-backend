@@ -8,6 +8,7 @@
     var list = ViewBag.OnlineAssignments as List<Exam> ?? new();
     var attempts = ViewBag.AssignmentAttempts as Dictionary<string, ExamAttempt> ?? new();
     var redos = ViewBag.AssignmentRedos as Dictionary<string, AssignmentRedo> ?? new(); // 0124
+    var progress = ViewBag.AssignmentProgress as Dictionary<string, Web_Backend.Areas.StudentPortal.OnlineAssignmentRules.AssignmentProgress> ?? new(); // 0127
     var now = Web_Backend.Classes.SriLankaTime.Now;
 }
 @if (list.Count > 0)
@@ -37,8 +38,11 @@
                 var inProgress = at != null && at.IsInProgress && !pastDue;
                 var finished = at != null && !at.IsInProgress;
                 var released = finished && at!.ResultReleasedDate.HasValue;
+                progress.TryGetValue(a.ExamID, out var prog);
+                var canRetry = prog?.CanRetry == true;
                 string badge, badgeCls;
                 if (released) { badge = at!.Passed == true ? "Pass" : "Fail"; badgeCls = at.Passed == true ? "bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300" : "bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-300"; }
+                else if (canRetry) { badge = $"Submitted · attempt {prog!.Used} of {prog.Max}"; badgeCls = "bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-300"; }
                 else if (finished) { badge = "Submitted · awaiting marks"; badgeCls = "bg-sky-50 dark:bg-sky-950 text-sky-700 dark:text-sky-300"; }
                 else if (isRedo && !pastDue) { badge = "Redo requested"; badgeCls = "bg-rose-50 dark:bg-rose-950 text-rose-700 dark:text-rose-300"; }
                 else if (inProgress) { badge = "In progress"; badgeCls = "bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-300"; }
@@ -68,6 +72,10 @@
                                 <i data-lucide="list-checks" class="w-3.5 h-3.5"></i> View my answers &middot; @((at.TotalMarksAwarded ?? 0).ToString("0.##"))/@at.TotalMarks.ToString("0.##")
                             </a>
                         }
+                        else if (canRetry)
+                        {
+                            <partial name="_AssignmentRetry" model="prog" view-data='new ViewDataDictionary(ViewData) { ["Compact"] = true }' />
+                        }
                         else if (finished)
                         {
                             <a asp-controller="ExamAttempt" asp-action="Result" asp-route-attemptId="@at!.AttemptID"
@@ -90,4 +98,5 @@
             }
         </div>
     </div>
+    <partial name="_ConfirmDialog" />
 }

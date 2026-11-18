@@ -36,6 +36,16 @@
         </div>
     </div>
 
+    @{ var waiting = ViewBag.WaitingCount as int? ?? 0; }
+    @if (tab == "mark" && waiting > 0)
+    {
+        @* 0127: submissions a student may still retry aren't marked yet *@
+        <div class="rounded-2xl border border-amber-200 dark:border-amber-900 bg-amber-50/70 dark:bg-amber-950/30 px-4 py-3 text-sm text-amber-800 dark:text-amber-200 flex items-start gap-2">
+            <i data-lucide="hourglass" class="w-4 h-4 mt-0.5 flex-shrink-0"></i>
+            <p><b>@waiting</b> submission@(waiting == 1 ? "" : "s") can still be retried by the student, so @(waiting == 1 ? "it isn't" : "they aren't") listed here yet. @(waiting == 1 ? "It appears" : "They appear") once the student uses all attempts, presses &ldquo;I'm done&rdquo;, or the due date passes.</p>
+        </div>
+    }
+
     <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
         @if (rows.Count == 0)
         {
@@ -74,7 +84,7 @@
                                 <td class="px-5 py-3 text-slate-600 dark:text-slate-300 whitespace-nowrap">@((a.TotalMarksAwarded ?? 0).ToString("0.##")) / @a.TotalMarks.ToString("0.##")</td>
                                 <td class="px-5 py-3"><span class="px-2 py-0.5 rounded-full text-[11px] font-semibold whitespace-nowrap @cls">@label</span></td>
                                 <td class="px-5 py-3 text-right">
-                                    <a href="@Url.Action("Grade", new { attemptId = a.AttemptID })" class="px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap @(a.ResultReleasedDate.HasValue || !mine ? "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700" : "bg-[#7c3aed] text-white hover:bg-[#6d28d9]")">
+                                    <a href="@Url.Action("Grade", new { attemptId = a.AttemptID, from = "review" })" class="px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap @(a.ResultReleasedDate.HasValue || !mine ? "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700" : "bg-[#7c3aed] text-white hover:bg-[#6d28d9]")">
                                         @(a.ResultReleasedDate.HasValue || !mine ? "View" : a.IsFullyGraded ? "Review & release" : "Mark")
                                     </a>
                                 </td>

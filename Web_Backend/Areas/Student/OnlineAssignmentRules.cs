@@ -74,7 +74,7 @@ namespace Web_Backend.Areas.StudentPortal
 
         // Null when the student may open the assignment now, otherwise why not.
         public static async Task<string?> WhyCannotStart(Exam exam, Student student, IExamData examRep,
-            ICourseRegistrationData registrationRep, ICourseScheduleData scheduleRep)
+            ICourseRegistrationData registrationRep, ICourseScheduleData scheduleRep, IExamAttemptData? attemptRep = null)
         {
             if (!exam.IsAssignment || exam.IsActive != "A")
                 return "This assignment is not available.";
@@ -97,7 +97,103 @@ namespace Web_Backend.Areas.StudentPortal
             var due = await EffectiveDue(exam, student.StudentID, examRep);
             if (due.HasValue && now > due.Value)
                 return "The due date for this assignment has passed.";
+
+            // 0127: retry only while the latest attempt isn't final.
+            if (attemptRep != null)
+            {
+                var p = (await ProgressFor(student.StudentID, new[] { exam }, attemptRep, examRep)).GetValueOrDefault(exam.ExamID);
+                if (p != null && p.Finished && p.IsFinal)
+                    return p.Released ? "Marks for this assignment are already released."
+                        : p.Done ? "You already sent this assignment for marking."
+                        : "You have used all your attempts for this assignment.";
+            }
             return null;
+        }
+
+        // ---------- 0127: several attempts, the latest counts ----------
+        // A submitted attempt is FINAL (ready to mark) when the student has used
+        // every attempt, the (redo) due date has passed, they pressed "I'm done",
+        // or it was already approved/released. Until then they may try again and
+        // it is not marked. Earlier attempts are superseded: kept, never marked,
+        // never shown to the student.
+
+        public sealed class AssignmentProgress
+        {
+            public ExamAttempt? Latest { get; init; }
+            public int Used { get; init; }          // attempts that count (not voided)
+            public int Max { get; init; }
+            public bool Done { get; init; }         // "I'm done" on the latest attempt
+            public bool PastDue { get; init; }
+            public int Left => Math.Max(0, Max - Used);
+            public bool Finished => Latest != null && !Latest.IsInProgress;
+            public bool Released => Finished && Latest!.ResultReleasedDate.HasValue;
+            public bool IsFinal => Finished && (Released || Done || PastDue || Left == 0 || Latest!.TeacherReviewStatus == "Approved");
+            public bool CanRetry => Finished && !IsFinal;
+        }
+
+        public static AssignmentProgress Progress(Exam exam, IEnumerable<ExamAttempt> attempts, DateTime? effectiveDue, ISet<string> doneAttemptIds)
+        {
+            var counted = attempts.Where(a => a.ExamID == exam.ExamID && a.Status != "Voided").ToList();
+            var latest = counted.OrderByDescending(a => a.AttemptNumber).FirstOrDefault();
+            return new AssignmentProgress
+            {
+                Latest = latest,
+                Used = counted.Count,
+                Max = Math.Max(1, exam.MaxAttempts),
+                Done = latest != null && doneAttemptIds.Contains(latest.AttemptID),
+                PastDue = effectiveDue.HasValue && ScheduleTime.Now(exam.AssignmentTimeZone) > effectiveDue.Value
+            };
+        }
+
+        // One student, several assignments: ExamID -> progress.
+        public static async Task<Dictionary<string, AssignmentProgress>> ProgressFor(string studentId, IEnumerable<Exam> exams,
+            IExamAttemptData attemptRep, IExamData examRep)
+        {
+            var list = exams.Where(e => e.IsAssignment).ToList();
+            if (list.Count == 0) return new();
+            var attempts = await attemptRep.ListForStudent(studentId);
+            var redos = await RedosFor(studentId, examRep);
+            var done = (await examRep.ListAssignmentDone(null, studentId)).Select(d => d.AttemptID).ToHashSet();
+            return list.ToDictionary(e => e.ExamID, e =>
+            {
+                redos.TryGetValue(e.ExamID, out var r);
+                var due = r != null && (!e.DueDate.HasValue || r.DueDate > e.DueDate.Value) ? r.DueDate : e.DueDate;
+                return Progress(e, attempts, due, done);
+            });
+        }
+
+        // Staff side: AttemptID -> "final" | "waiting" (student may still retry)
+        // | "superseded" | "inprogress" | "voided".
+        public static async Task<Dictionary<string, string>> Classify(IEnumerable<Exam> exams, IEnumerable<ExamAttempt> attempts, IExamData examRep)
+        {
+            var byId = exams.Where(e => e.IsAssignment).GroupBy(e => e.ExamID).ToDictionary(g => g.Key, g => g.First());
+            var mine = attempts.Where(a => byId.ContainsKey(a.ExamID)).ToList();
+            var result = new Dictionary<string, string>();
+            if (mine.Count == 0) return result;
+            var redos = (await examRep.ListAssignmentRedos()).GroupBy(r => (r.ExamID, r.StudentID)).ToDictionary(g => g.Key, g => g.First());
+            var done = (await examRep.ListAssignmentDone()).Select(d => d.AttemptID).ToHashSet();
+            foreach (var g in mine.GroupBy(a => (a.ExamID, a.StudentID)))
+            {
+                var exam = byId[g.Key.ExamID];
+                redos.TryGetValue(g.Key, out var r);
+                var due = r != null && (!exam.DueDate.HasValue || r.DueDate > exam.DueDate.Value) ? r.DueDate : exam.DueDate;
+                var p = Progress(exam, g, due, done);
+                foreach (var a in g)
+                    result[a.AttemptID] = a.Status == "Voided" ? "voided"
+                        : a.AttemptID != p.Latest?.AttemptID ? "superseded"
+                        : a.IsInProgress ? "inprogress"
+                        : p.IsFinal ? "final" : "waiting";
+            }
+            return result;
+        }
+
+        // Student lists: drop superseded assignment attempts (only the latest shows).
+        public static List<ExamAttempt> HideSuperseded(IEnumerable<ExamAttempt> attempts, ISet<string> assignmentIds)
+        {
+            var all = attempts.ToList();
+            var latest = all.Where(a => assignmentIds.Contains(a.ExamID) && a.Status != "Voided")
+                .GroupBy(a => a.ExamID).Select(g => g.OrderByDescending(a => a.AttemptNumber).First().AttemptID).ToHashSet();
+            return all.Where(a => !assignmentIds.Contains(a.ExamID) || a.Status == "Voided" || latest.Contains(a.AttemptID)).ToList();
         }
 
         // 0124: the student's own redo deadline (after a reject) when later than the due date.

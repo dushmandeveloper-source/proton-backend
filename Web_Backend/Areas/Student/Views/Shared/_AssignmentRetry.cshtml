@@ -1,0 +1,37 @@
+@model Web_Backend.Areas.StudentPortal.OnlineAssignmentRules.AssignmentProgress
+@*
+    0127: shown when the student's latest attempt is submitted but not final --
+    they may try again (the newest attempt is the one that counts) or send it
+    for marking now. Marks and answers only appear once the lecturer releases.
+*@
+@{
+    var examId = Model.Latest?.ExamID ?? "";
+    var compact = ViewData["Compact"] as bool? ?? false;
+}
+@if (Model.CanRetry)
+{
+    <div class="rounded-xl border border-amber-200 dark:border-amber-900 bg-amber-50/70 dark:bg-amber-950/30 @(compact ? "p-3" : "p-4") space-y-2.5">
+        <p class="text-xs text-amber-800 dark:text-amber-200 flex items-start gap-1.5">
+            <i data-lucide="rotate-ccw" class="w-3.5 h-3.5 mt-px flex-shrink-0"></i>
+            <span>Attempt <b>@Model.Used of @Model.Max</b> submitted. You can try again (<b>@Model.Left left</b>) until the due date &mdash; your newest attempt is the one that counts. It's marked when you're done.</span>
+        </p>
+        <div class="flex flex-wrap gap-2">
+            <form asp-area="Student" asp-controller="OnlineAssignment" asp-action="Open" method="post"
+                  data-dlg-confirm="Start attempt @(Model.Used + 1) of @Model.Max? It replaces your previous attempt, which won't be marked." data-dlg-title="Try again" data-dlg-label="Start attempt @(Model.Used + 1)">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="examId" value="@examId" />
+                <button type="submit" class="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium bg-[#7c3aed] text-white hover:bg-[#6d28d9] shadow-sm transition-colors">
+                    <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i> Try again
+                </button>
+            </form>
+            <form asp-area="Student" asp-controller="OnlineAssignment" asp-action="Finish" method="post"
+                  data-dlg-confirm="Send this attempt for marking now? You won't be able to try again." data-dlg-title="I'm done" data-dlg-label="Send for marking">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="examId" value="@examId" />
+                <button type="submit" class="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
+                    <i data-lucide="send" class="w-3.5 h-3.5"></i> I'm done &mdash; send for marking
+                </button>
+            </form>
+        </div>
+    </div>
+}
