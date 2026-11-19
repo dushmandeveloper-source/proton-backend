@@ -907,6 +907,37 @@ namespace Web_Backend.Areas.Admin.Controllers
             return RedirectToAction("Details", new { id = studentId });
         }
 
+        // 0128: switch a registration's currency while nothing is paid. The fee
+        // is looked up for that currency (never sent by the browser).
+        [HttpPost, ValidateAntiForgeryToken]
+        public async Task<IActionResult> ChangeCurrency(string studentId, string registrationId, string currencyCode)
+        {
+            Auth.CheckPermission(PermissionCode.Enrollments, 'E');
+            try
+            {
+                var registration = await registrationRep.Get(registrationId);
+                if (registration == null || registration.StudentID != studentId)
+                {
+                    TempData["ErrorMessage"] = "Registration not found.";
+                    return RedirectToAction("Details", new { id = studentId });
+                }
+                var course = await courseRep.Get(registration.CourseID);
+                var price = await EnrollmentPricing.Quote(registrationRep, registration.CourseID, course, currencyCode);
+                if (string.Equals(price.CurrencyCode, registration.CurrencyCode, StringComparison.OrdinalIgnoreCase))
+                {
+                    TempData["SuccessMessage"] = $"Already in {price.CurrencyCode}.";
+                    return RedirectToAction("Details", new { id = studentId });
+                }
+                await registrationRep.ChangeCurrency(registrationId, price, Auth.GetUserId());
+                TempData["SuccessMessage"] = $"{registration.CourseTitle}: now {price.CurrencyCode} {price.CourseFee:N2}. Payments for this course are taken in {price.CurrencyCode}.";
+            }
+            catch (Exception ex)
+            {
+                TempData["ErrorMessage"] = "Could not change the currency: " + System.Text.RegularExpressions.Regex.Replace(ex.Message, @"\. Script: .*$", "");
+            }
+            return RedirectToAction("Details", new { id = studentId });
+        }
+
         [HttpPost, ValidateAntiForgeryToken]
         public async Task<IActionResult> ChangeCourseSchedule(string studentId, string registrationId, string courseId, string scheduleId = "")
         {

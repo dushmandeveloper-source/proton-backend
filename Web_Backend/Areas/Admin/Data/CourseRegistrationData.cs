@@ -169,6 +169,20 @@ namespace Web_Backend.Areas.Admin.Data
         public Task Delete(string id) =>
             db.ExecuteNonQuery("mst.CourseRegistration_Delete", new { APIKey = AppData.GetAPIKey(), ID = id });
 
+        public Task ChangeCurrency(string registrationId, Web_Backend.Classes.EnrollmentPrice price, string userId) =>
+            db.ExecuteNonQuery("mst.CourseRegistration_ChangeCurrency", new
+            {
+                APIKey = AppData.GetAPIKey(),
+                RegistrationID = registrationId,
+                price.CurrencyCode,
+                price.OriginalFee,
+                price.DiscountAmount,
+                price.DiscountLabel,
+                price.FeeChargesTotal,
+                price.CourseFee,
+                LogUserID = userId
+            });
+
         public Task SetPersonalDiscount(string registrationId, decimal amount, string reason, string userId) =>
             db.ExecuteNonQuery("mst.CourseRegistration_SetPersonalDiscount", new
             {

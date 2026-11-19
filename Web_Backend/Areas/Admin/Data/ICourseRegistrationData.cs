@@ -13,6 +13,8 @@ namespace Web_Backend.Areas.Admin.Data
         // never re-run for an existing registration. See
         // edu.Course_ResolveDiscount and docs/plans/2026-09-17-course-discounts.md.
         Task<CourseDiscountResolution?> ResolveDiscount(string courseId, string currencyCode, decimal fee);
+        // 0128: re-price in another currency while nothing is paid.
+        Task ChangeCurrency(string registrationId, Web_Backend.Classes.EnrollmentPrice price, string userId);
         Task<string> AddPayment(string registrationId, decimal amount, string method, string slipUrl, string notes, string createdByUserId);
         Task VerifySlip(string paymentId, string verifiedByUserId);
         Task<string> EditPayment(string paymentId, decimal amount, string method, string slipUrl, string notes, string logUserId);

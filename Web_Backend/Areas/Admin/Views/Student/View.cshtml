@@ -353,6 +353,48 @@
                             </div>
                         </div>
 
+                        @* 0128: currency -- changeable only while nothing is paid. *@
+                        @{
+                            var curCourse = availableCourses.FirstOrDefault(c => c.CourseID == reg.CourseID);
+                            var curPrices = curCourse == null ? new List<Web_Backend.Classes.CurrencyPrice>() : Web_Backend.Classes.EnrollmentPricing.DisplayPrices(curCourse);
+                            var curLockReason = item.Payments.Any() ? "a payment has been recorded"
+                                : item.HasInstallmentPlan ? "it has an installment plan (remove it first)"
+                                : reg.HasPersonalDiscount ? "it has a personal discount (remove it first)" : "";
+                        }
+                        @if (canEditEnrollment && reg.IsActive == "A" && curPrices.Count > 1)
+                        {
+                            <div class="pt-2 border-t border-slate-100 dark:border-slate-700">
+                                @if (curLockReason == "")
+                                {
+                                    <form method="post" asp-action="ChangeCurrency" class="space-y-2"
+                                          data-confirm="Re-price @reg.CourseTitle in the chosen currency? All payments for this course will then be taken in that currency." data-confirm-title="Change currency" data-confirm-label="Change currency">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="studentId" value="@Model_Student.StudentID" />
+                                        <input type="hidden" name="registrationId" value="@reg.RegistrationID" />
+                                        <p class="@LabelCls">Pay in</p>
+                                        <div class="flex flex-wrap items-stretch gap-2">
+                                            @foreach (var cp in curPrices)
+                                            {
+                                                <label class="flex items-center gap-2.5 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800/60 px-3 py-2 cursor-pointer transition-colors hover:border-slate-300 dark:hover:border-slate-500 has-[:checked]:border-[#7c3aed] has-[:checked]:bg-purple-50/60 dark:has-[:checked]:bg-purple-950/30">
+                                                    <input type="radio" name="currencyCode" value="@cp.Code" class="accent-[#7c3aed]" checked="@(string.Equals(cp.Code, reg.CurrencyCode, StringComparison.OrdinalIgnoreCase))" />
+                                                    <span class="leading-tight">
+                                                        <span class="block text-sm font-semibold text-slate-800 dark:text-slate-100">@cp.Code</span>
+                                                        <span class="block text-xs text-slate-500 dark:text-slate-400">@cp.Total.ToString("N2")@(cp.DiscountLabel != "" ? " · " + cp.DiscountLabel : "")</span>
+                                                    </span>
+                                                </label>
+                                            }
+                                            <button type="submit" class="px-3 py-2 rounded-xl text-xs font-medium bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">Change currency</button>
+                                        </div>
+                                        <p class="text-xs text-slate-400 dark:text-slate-500">No payment yet, so the currency can still be changed. After the first payment it's locked, and every payment uses this currency.</p>
+                                    </form>
+                                }
+                                else
+                                {
+                                    <p class="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1.5"><i data-lucide="lock" class="w-3.5 h-3.5"></i> Paying in <b class="text-slate-700 dark:text-slate-200">@reg.CurrencyCode</b> &mdash; locked because @curLockReason.</p>
+                                }
+                            </div>
+                        }
+
                         @if (canEditEnrollment && reg.IsActive == "A")
                         {
                             <div class="pt-2 border-t border-slate-100 dark:border-slate-700 flex flex-wrap items-end gap-3">
