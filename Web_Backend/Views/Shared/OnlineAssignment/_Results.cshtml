@@ -62,7 +62,7 @@
                                 {
                                     <td class="px-5 py-3 whitespace-nowrap text-slate-600 dark:text-slate-300">#@a.AttemptNumber@if (st == "final") {<span class="ml-1.5 px-1.5 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950 text-[10px] font-semibold text-emerald-700 dark:text-emerald-300">Final</span>}</td>
                                 }
-                                <td class="px-5 py-3 text-slate-600 dark:text-slate-300 whitespace-nowrap">@(a.SubmittedDate.HasValue ? a.SubmittedDate.Value.ToString("dd MMM, hh:mm tt") : "—")</td>
+                                <td class="px-5 py-3 text-slate-600 dark:text-slate-300 whitespace-nowrap">@(a.SubmittedDate.HasValue ? Web_Backend.Classes.SriLankaTime.FromUtc(a.SubmittedDate.Value).ToString("dd MMM, hh:mm tt") : "—")</td>
                                 <td class="px-5 py-3 text-slate-600 dark:text-slate-300 whitespace-nowrap">@(st == "final" && a.TotalMarksAwarded.HasValue ? $"{a.TotalMarksAwarded:0.##} / {e.TotalMarks:0.##}" : "—")</td>
                                 <td class="px-5 py-3"><span class="px-2 py-0.5 rounded-full text-[11px] font-semibold whitespace-nowrap @cls">@label</span></td>
                                 <td class="px-5 py-3 text-right">

@@ -73,7 +73,7 @@
                                     }
                                 </td>
                                 <td class="px-6 py-4 text-slate-500 dark:text-slate-400">
-                                    @(attempt.SubmittedDate.HasValue ? attempt.SubmittedDate.Value.ToString("g") : "Not submitted")
+                                    @(attempt.SubmittedDate.HasValue ? Web_Backend.Classes.SriLankaTime.FromUtc(attempt.SubmittedDate.Value).ToString("g") : "Not submitted")
                                 </td>
                                 <td class="px-6 py-4">
                                     <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold @BadgeClasses(attempt)">

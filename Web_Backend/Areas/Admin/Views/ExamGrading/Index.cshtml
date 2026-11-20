@@ -80,7 +80,7 @@
                                     <td class="px-6 py-3 text-slate-800 dark:text-slate-100 font-medium">@a.ExamTitle</td>
                                     <td class="px-6 py-3 text-slate-600 dark:text-slate-300">@a.StudentName</td>
                                     <td class="px-6 py-3 text-slate-500 dark:text-slate-400 text-xs">@(batchOf.TryGetValue(a.AttemptID, out var bn) && bn != "" ? bn : "-")</td>
-                                    <td class="px-6 py-3 text-slate-600 dark:text-slate-300">@(a.SubmittedDate?.ToString("g") ?? "-")</td>
+                                    <td class="px-6 py-3 text-slate-600 dark:text-slate-300">@(Web_Backend.Classes.SriLankaTime.FromUtc(a.SubmittedDate)?.ToString("g") ?? "-")</td>
                                     <td class="px-6 py-3 text-slate-600 dark:text-slate-300">@a.Status</td>
                                     <td class="px-6 py-3 text-slate-600 dark:text-slate-300">@a.TotalMarksAwarded / @a.TotalMarks</td>
                                     <td class="px-6 py-3 text-right">

@@ -418,6 +418,11 @@ namespace Web_Backend.Classes
             ViewBag.InBatch = (await FindAssignment(exam!.ExamID)).Exam != null;
             var state = await AttemptState(attempt, exam!);
             ViewBag.AttemptState = state;
+            // Every submitted attempt by this student on this assignment, for
+            // comparing them (switcher on the page).
+            ViewBag.History = (await attemptRep.ListForStudent(attempt.StudentID))
+                .Where(a => a.ExamID == exam!.ExamID && a.Status != "Voided" && !a.IsInProgress)
+                .OrderBy(a => a.AttemptNumber).ToList();
             ViewBag.MarkerNote = !canMark ? "Only the chosen marking lecturers can mark and release this assignment."
                 : state == "waiting" ? "The student can still try again before the due date, so this attempt isn't ready to mark yet. It's marked once they use all their attempts, press “I'm done”, or the due date passes."
                 : state == "superseded" ? "The student submitted a newer attempt, which is the one that counts. This earlier attempt is kept for the record only."

@@ -36,5 +36,8 @@ namespace Web_Backend.Classes
         // migration 0071) as Sri Lanka wall-clock time, for display.
         public static DateTime FromUtc(DateTime utc) =>
             TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(utc, DateTimeKind.Utc), Zone);
+
+        // Nullable form, e.g. ExamAttempt.SubmittedDate (UTC since 0129).
+        public static DateTime? FromUtc(DateTime? utc) => utc.HasValue ? FromUtc(utc.Value) : null;
     }
 }

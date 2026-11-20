@@ -425,7 +425,7 @@ namespace Web_Backend.Controllers.Api
                 attemptId = attempt.AttemptID,
                 examTitle = attempt.ExamTitle,
                 status = attempt.Status,
-                submittedAt = attempt.SubmittedDate,
+                submittedAt = SriLankaTime.FromUtc(attempt.SubmittedDate), // Sri Lanka wall-clock, like the rest of the app
                 strikeCount = attempt.StrikeCount,
                 released,
                 // Marks only once the result is released, like MyResults.
@@ -437,8 +437,8 @@ namespace Web_Backend.Controllers.Api
             });
         }
 
-        // Online assignments only, after release: the student's answers,
-        // marks per question and the correct MCQ option (same as the portal's
+        // Online assignments, any submitted attempt: the student's answers,
+        // MCQ right/wrong + correct option at once, total/written marks after release (same as the portal's
         // Student/OnlineAssignment/Review). Exams stay Pass/Fail only.
         [HttpGet("attempts/{attemptId}/review")]
         public async Task<IActionResult> Review(string attemptId)
@@ -447,8 +447,20 @@ namespace Web_Backend.Controllers.Api
             if (student == null) return Unauthorized();
             if (attempt == null) return NotFound(new { message = "Attempt not found." });
             var exam = await examRep.Get(attempt.ExamID);
-            if (exam == null || !exam.IsAssignment || !attempt.ResultReleasedDate.HasValue)
-                return Conflict(new { message = "Your answers can be viewed once your lecturer releases the marks." });
+            if (exam == null || !exam.IsAssignment)
+                return Conflict(new { message = "Answers can only be viewed for online assignments." });
+            if (attempt.IsInProgress)
+                return Conflict(new { message = "Submit this attempt first to see your answers." });
+
+            // Any submitted attempt (same as the portal): MCQs show right/wrong and
+            // the correct option at once; total and written marks once released.
+            if (!attempt.ResultReleasedDate.HasValue &&
+                await OnlineAssignmentRules.TryAutoReleaseMcq(exam, student.StudentID, attemptRep, examRep, HttpContext.RequestServices))
+                attempt = await attemptRep.Get(attemptId) ?? attempt;
+            var history = (await attemptRep.ListForStudent(student.StudentID))
+                .Where(a => a.ExamID == exam.ExamID && a.Status != "Voided" && !a.IsInProgress)
+                .OrderBy(a => a.AttemptNumber).ToList();
+            var showMarks = history.Any(a => a.ResultReleasedDate.HasValue);
 
             var answers = (await attemptRep.ListAnswers(attemptId)).OrderBy(a => a.SortOrder).ToList();
             var questions = new List<object>();
@@ -462,7 +474,7 @@ namespace Web_Backend.Controllers.Api
                     text = a.QuestionTextLatex,
                     imageUrl = AbsoluteUrl(a.ImageURL),
                     marks = a.Marks,
-                    marksAwarded = a.MarksAwarded,
+                    marksAwarded = a.IsMCQ || showMarks ? a.MarksAwarded : null,
                     isCorrect = a.IsCorrect,
                     selectedOptionId = a.SelectedOptionID,
                     writtenAnswer = a.WrittenAnswerText ?? "",
@@ -473,11 +485,16 @@ namespace Web_Backend.Controllers.Api
             {
                 attemptId = attempt.AttemptID,
                 title = exam.ExamTitle,
-                marks = attempt.TotalMarksAwarded,
+                marks = showMarks ? attempt.TotalMarksAwarded : null,
                 totalMarks = attempt.TotalMarks,
-                passed = attempt.Passed,
+                passed = attempt.ResultReleasedDate.HasValue ? attempt.Passed : null,
                 remark = attempt.TeacherReviewRemark ?? "",
                 releasedAt = attempt.ResultReleasedDate,
+                released = attempt.ResultReleasedDate.HasValue,
+                showMarks,
+                attemptNumber = attempt.AttemptNumber,
+                submittedAt = SriLankaTime.FromUtc(attempt.SubmittedDate),
+                attempts = history.Select(h => new { attemptId = h.AttemptID, number = h.AttemptNumber, counts = h.AttemptID == history[^1].AttemptID }),
                 questions
             });
         }
@@ -568,7 +585,7 @@ namespace Web_Backend.Controllers.Api
                 {
                     attemptId = a.AttemptID,
                     examTitle = a.ExamTitle,
-                    submittedAt = a.SubmittedDate,
+                    submittedAt = SriLankaTime.FromUtc(a.SubmittedDate), // Sri Lanka wall-clock, like the rest of the app
                     status = a.Status,
                     released = a.ResultReleasedDate.HasValue,
                     releasedAt = a.ResultReleasedDate,

@@ -404,7 +404,7 @@
                                 <tr>
                                     <td class="px-6 py-2.5"><a asp-controller="Student" asp-action="Details" asp-route-id="@r.StudentID" class="font-medium text-slate-800 dark:text-slate-100 hover:text-[#7c3aed]">@r.FullName</a></td>
                                     <td class="px-6 py-2.5 text-slate-600 dark:text-slate-300">@r.ExamTitle <span class="text-xs text-slate-400">#@r.AttemptNumber</span></td>
-                                    <td class="px-6 py-2.5 text-slate-500 dark:text-slate-400 whitespace-nowrap">@(r.SubmittedDate?.ToString("dd MMM yyyy h:mm tt") ?? "—")</td>
+                                    <td class="px-6 py-2.5 text-slate-500 dark:text-slate-400 whitespace-nowrap">@(Web_Backend.Classes.SriLankaTime.FromUtc(r.SubmittedDate)?.ToString("dd MMM yyyy h:mm tt") ?? "—")</td>
                                     <td class="px-6 py-2.5"><span class="px-2 py-0.5 rounded-lg text-xs font-medium whitespace-nowrap @StageClass(r.StageLabel)">@r.StageLabel</span></td>
                                     <td class="px-6 py-2.5 text-right"><a asp-controller="ExamGrading" asp-action="Grade" asp-route-attemptId="@r.AttemptID" class="px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-purple-50 hover:text-[#7c3aed] dark:hover:bg-slate-700 transition-colors whitespace-nowrap">View attempt</a></td>
                                 </tr>

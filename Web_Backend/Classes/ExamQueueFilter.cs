@@ -84,7 +84,7 @@ namespace Web_Backend.Classes
                 if (q != "" && !(a.StudentName ?? "").Contains(q, StringComparison.OrdinalIgnoreCase)
                             && !(a.StudentEmail ?? "").Contains(q, StringComparison.OrdinalIgnoreCase)) continue;
                 if (!string.IsNullOrEmpty(f.ExamID) && a.ExamID != f.ExamID) continue;
-                var when = a.SubmittedDate ?? a.StartedDate;
+                var when = SriLankaTime.FromUtc(a.SubmittedDate ?? a.StartedDate); // both UTC (0071/0129)
                 if (f.From.HasValue && when.Date < f.From.Value.Date) continue;
                 if (f.To.HasValue && when.Date > f.To.Value.Date) continue;
                 if (f.StrikesOnly && a.StrikeCount == 0) continue;
