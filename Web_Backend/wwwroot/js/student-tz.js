@@ -127,7 +127,7 @@
         const token = document.querySelector('input[name="__RequestVerificationToken"]');
         const body = new URLSearchParams({ zone: zone });
         if (token) body.append('__RequestVerificationToken', token.value);
-        fetch('/Student/TimeZone/Save', { method: 'POST', body, credentials: 'same-origin' }).catch(() => { });
+        fetch(window.__tzSaveUrl || '/Student/TimeZone/Save', { method: 'POST', body, credentials: 'same-origin' }).catch(() => { });
     }
 
     function renderAll() { fillPickers(); renderTimes(); renderClock(); }

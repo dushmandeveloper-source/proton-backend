@@ -10,7 +10,7 @@
     <div>
         <div class="flex flex-wrap items-center gap-3 mb-3">
             <p class="text-sm font-medium text-slate-500 dark:text-slate-400">@Web_Backend.Classes.SriLankaTime.Now.ToString("ddd, MMMM d")</p>
-            @await Html.PartialAsync("~/Views/Shared/_DualClock.cshtml")
+            @await Html.PartialAsync("~/Views/Shared/_DualClock.cshtml") @await Html.PartialAsync("~/Areas/Student/Views/Shared/_ZonePicker.cshtml")
         </div>
         <h1 class="text-3xl md:text-4xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">
             Hello, @Model.LecturerName

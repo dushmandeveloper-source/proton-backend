@@ -1,3 +1,4 @@
+@inject Web_Backend.Areas.Admin.Data.IUserPreferenceData TzPrefs
 @{
     var currentUser = ViewBag.CurrentUser as Web_Backend.Areas.Admin.Models.SessionUser;
     string activeController = ViewContext.RouteData.Values["controller"]?.ToString() ?? "";
@@ -21,6 +22,17 @@
         }
     </script>
     <link rel="stylesheet" href="~/css/tailwind.css" asp-append-version="true" />
+    @{
+        // Lecturer's own "my time" zone, same picker/script as students.
+        string? lecturerTz = null;
+        var tzUid = Web_Backend.Classes.Auth.GetUserId();
+        if (!isAuthPage && !string.IsNullOrEmpty(tzUid))
+        {
+            try { lecturerTz = await TzPrefs.Get(tzUid, Web_Backend.Areas.StudentPortal.Controllers.TimeZoneController.PrefKey); } catch { }
+        }
+    }
+    <script>window.__studentTz = @Json.Serialize(lecturerTz ?? ""); window.__tzSaveUrl = '/Lecturer/TimeZone/Save';</script>
+    <script src="~/js/student-tz.js" asp-append-version="true" defer></script>
     <script src="~/lib/lucide/lucide.min.js" asp-append-version="true"></script>
     <script src="https://cdn.jsdelivr.net/npm/@@microsoft/signalr@8.0.7/dist/browser/signalr.min.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">

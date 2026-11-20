@@ -195,40 +195,108 @@
         }
     </div>
 
-    @* ---------- Lecture materials ---------- *@
+    @* ---------- Lecture materials: grouped by category like the Classroom ---------- *@
+    @{
+        var matCats = new[]
+        {
+            (Key: "LectureNote", Label: "Lecture Notes", Icon: "file-text", Cls: "bg-emerald-50 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-300"),
+            (Key: "Video", Label: "Videos", Icon: "play-circle", Cls: "bg-sky-50 dark:bg-sky-950 text-sky-600 dark:text-sky-300"),
+            (Key: "Homework", Label: "Homework", Icon: "clipboard-check", Cls: "bg-amber-50 dark:bg-amber-950 text-amber-600 dark:text-amber-300"),
+            (Key: "Assignment", Label: "Assignments", Icon: "clipboard-list", Cls: "bg-rose-50 dark:bg-rose-950 text-rose-600 dark:text-rose-300"),
+        };
+        var catKeys = matCats.Select(x => x.Key).ToHashSet();
+        string CatOf(Web_Backend.Areas.Admin.Models.LectureMaterial m) => catKeys.Contains(m.Category) ? m.Category : "LectureNote";
+        string TypeIcon(string t) => t switch { "Link" => "link", "Video" => "play-circle", "Image" => "image", "Audio" => "music", _ => "file-text" };
+    }
     <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
-        <div class="p-6 border-b border-slate-100 dark:border-slate-700 flex items-center gap-3">
-            <div class="bg-emerald-50 dark:bg-emerald-950 p-2 rounded-lg"><i data-lucide="file-text" class="w-5 h-5 text-emerald-600 dark:text-emerald-300"></i></div>
-            <h3 class="font-semibold text-lg text-slate-800 dark:text-slate-100">Lecture Materials</h3>
-            <a asp-area="Lecturer" asp-controller="Notes" asp-action="Upload" asp-route-scheduleId="@Model.ScheduleID"
-               class="ml-auto px-3 py-1.5 rounded-lg font-medium text-xs bg-[#7c3aed] text-white hover:bg-[#6d28d9] transition-all flex items-center gap-1">
-                <i data-lucide="upload" class="w-3.5 h-3.5"></i> Upload
-            </a>
+        <div class="p-6 border-b border-slate-100 dark:border-slate-700 flex flex-wrap items-center gap-3">
+            <div class="bg-emerald-50 dark:bg-emerald-950 p-2 rounded-lg"><i data-lucide="library" class="w-5 h-5 text-emerald-600 dark:text-emerald-300"></i></div>
+            <div>
+                <h3 class="font-semibold text-lg text-slate-800 dark:text-slate-100">Lecture Materials</h3>
+                <p class="text-xs text-slate-400 dark:text-slate-500">@materials.Count item@(materials.Count == 1 ? "" : "s") &middot; grouped like the Classroom</p>
+            </div>
+            <div class="ml-auto flex items-center gap-2">
+                <a asp-area="Lecturer" asp-controller="Classroom" asp-action="Batch" asp-route-id="@Model.ScheduleID"
+                   class="px-3 py-1.5 rounded-lg font-medium text-xs bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors flex items-center gap-1">
+                    <i data-lucide="school" class="w-3.5 h-3.5"></i> Open Classroom
+                </a>
+                <a asp-area="Lecturer" asp-controller="Notes" asp-action="Upload" asp-route-scheduleId="@Model.ScheduleID"
+                   class="px-3 py-1.5 rounded-lg font-medium text-xs bg-[#7c3aed] text-white hover:bg-[#6d28d9] transition-all flex items-center gap-1">
+                    <i data-lucide="upload" class="w-3.5 h-3.5"></i> Upload
+                </a>
+            </div>
         </div>
         @if (materials.Count == 0)
         {
             <div class="p-10 text-center">
+                <div class="w-12 h-12 rounded-2xl bg-slate-50 dark:bg-slate-800 flex items-center justify-center mx-auto mb-3"><i data-lucide="folder-open" class="w-6 h-6 text-slate-400"></i></div>
                 <p class="text-sm text-slate-400 dark:text-slate-500">No materials uploaded for this batch yet.</p>
             </div>
         }
         else
         {
-            <div class="divide-y divide-slate-100 dark:divide-slate-700">
-                @foreach (var m in materials)
+            <div class="px-6 pt-4 flex flex-wrap gap-2" id="matTabs" role="tablist">
+                <button type="button" data-cat="all" class="mat-tab px-3 py-1.5 rounded-full text-xs font-medium transition-colors">All <span class="opacity-60">@materials.Count</span></button>
+                @foreach (var mc in matCats)
                 {
-                    <div class="p-4 px-6 flex items-center justify-between gap-4">
-                        <div>
-                            <p class="text-sm font-medium text-slate-800 dark:text-slate-100">@m.Title</p>
-                            <p class="text-xs text-slate-400 dark:text-slate-500">@m.MaterialDate.ToString("MMM d, yyyy") &middot; @m.FileType &middot; by @m.UploadedByName (@m.UploadedByRole)</p>
-                        </div>
-                        <button type="button" data-url="@m.FileURL" data-type="@m.FileType" data-title="@m.Title"
- onclick="if (this.dataset.type === 'Link' || this.dataset.type === 'Video') window.open(this.dataset.url, '_blank', 'noopener'); else openMaterialPreview(this.dataset.url, this.dataset.type, this.dataset.title)"
-                           class="px-3 py-1.5 rounded-lg font-medium text-xs bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors flex-shrink-0">
-                            View
-                        </button>
-                    </div>
+                    var n = materials.Count(m => CatOf(m) == mc.Key);
+                    if (n == 0) { continue; }
+                    <button type="button" data-cat="@mc.Key" class="mat-tab px-3 py-1.5 rounded-full text-xs font-medium transition-colors inline-flex items-center gap-1.5"><i data-lucide="@mc.Icon" class="w-3.5 h-3.5"></i>@mc.Label <span class="opacity-60">@n</span></button>
                 }
             </div>
+            <div class="p-6 pt-4 space-y-5">
+                @foreach (var mc in matCats)
+                {
+                    var items = materials.Where(m => CatOf(m) == mc.Key).OrderByDescending(m => m.MaterialDate).ToList();
+                    if (items.Count == 0) { continue; }
+                    <section class="mat-group" data-cat="@mc.Key">
+                        <div class="flex items-center gap-2 mb-2">
+                            <span class="p-1.5 rounded-lg @mc.Cls"><i data-lucide="@mc.Icon" class="w-4 h-4"></i></span>
+                            <h4 class="text-sm font-semibold text-slate-700 dark:text-slate-200">@mc.Label</h4>
+                            <span class="text-xs text-slate-400">@items.Count</span>
+                        </div>
+                        <div class="rounded-2xl border border-slate-100 dark:border-slate-700 divide-y divide-slate-100 dark:divide-slate-700 overflow-hidden">
+                            @foreach (var m in items)
+                            {
+                                var external = m.FileType == "Link" || m.FileType == "Video";
+                                <div class="p-3 px-4 flex items-center gap-3 hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors">
+                                    <span class="w-9 h-9 rounded-xl bg-slate-50 dark:bg-slate-800 flex items-center justify-center flex-shrink-0"><i data-lucide="@TypeIcon(m.FileType)" class="w-4 h-4 text-slate-500 dark:text-slate-400"></i></span>
+                                    <div class="min-w-0 flex-1">
+                                        <p class="text-sm font-medium text-slate-800 dark:text-slate-100 truncate">@m.Title</p>
+                                        <p class="text-xs text-slate-400 dark:text-slate-500">
+                                            @m.MaterialDate.ToString("MMM d, yyyy") &middot; @m.FileType &middot; @m.UploadedByName
+                                            @if (m.DueDate.HasValue) { <text> &middot; <span class="text-rose-600 dark:text-rose-300">Due @m.DueDate.Value.ToString("MMM d, h:mm tt")</span></text> }
+                                            @if (m.MaxMarks.HasValue) { <text> &middot; @m.MaxMarks.Value.ToString("0.##") marks</text> }
+                                        </p>
+                                    </div>
+                                    <button type="button" data-url="@m.FileURL" data-type="@m.FileType" data-title="@m.Title"
+                                            onclick="if (this.dataset.type === 'Link' || this.dataset.type === 'Video') window.open(this.dataset.url, '_blank', 'noopener'); else openMaterialPreview(this.dataset.url, this.dataset.type, this.dataset.title)"
+                                            class="px-3 py-1.5 rounded-lg font-medium text-xs bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors flex-shrink-0 inline-flex items-center gap-1">
+                                        <i data-lucide="@(external ? "external-link" : "eye")" class="w-3.5 h-3.5"></i> @(external ? "Open" : "View")
+                                    </button>
+                                </div>
+                            }
+                        </div>
+                    </section>
+                }
+            </div>
+            <script>
+                (function () {
+                    var tabs = document.querySelectorAll('#matTabs .mat-tab'), groups = document.querySelectorAll('.mat-group');
+                    var on = ['bg-[#7c3aed]', 'text-white'], off = ['bg-slate-100', 'dark:bg-slate-800', 'text-slate-600', 'dark:text-slate-300', 'hover:bg-slate-200', 'dark:hover:bg-slate-700'];
+                    function pick(cat) {
+                        tabs.forEach(function (t) {
+                            var a = t.dataset.cat === cat;
+                            on.forEach(function (c) { t.classList.toggle(c, a); });
+                            off.forEach(function (c) { t.classList.toggle(c, !a); });
+                            t.setAttribute('aria-selected', a);
+                        });
+                        groups.forEach(function (g) { g.classList.toggle('hidden', cat !== 'all' && g.dataset.cat !== cat); });
+                    }
+                    tabs.forEach(function (t) { t.addEventListener('click', function () { pick(t.dataset.cat); }); });
+                    pick('all');
+                })();
+            </script>
         }
     </div>
 </div>
