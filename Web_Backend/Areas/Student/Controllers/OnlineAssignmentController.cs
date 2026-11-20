@@ -122,6 +122,8 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
                 return RedirectToAction("Index", "Dashboard", new { area = "Admin" });
 
             var (list, attempts) = await OnlineAssignmentRules.ForStudent(student, examRep, attemptRep, registrationRep, scheduleRep, recentDays: 36500);
+            if (await AutoReleaseAll(student.StudentID, list)) // MCQ-only, final -> released
+                (list, attempts) = await OnlineAssignmentRules.ForStudent(student, examRep, attemptRep, registrationRep, scheduleRep, recentDays: 36500);
             var batches = (await scheduleRep.GetList(new CourseScheduleSearchView { IsActive = "A" })).ToDictionary(b => b.ScheduleID, b => b.ScheduleName);
             ViewBag.CurrentUser = Auth.GetUser();
             ViewBag.Attempts = attempts;
@@ -131,7 +133,8 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
             return View(list.OrderByDescending(e => e.DueDate).ToList());
         }
 
-        // After the lecturer releases the result: the student's own answers,
+        // Any submitted attempt: the student's own answers. After release
+        // (by the lecturer, or automatically for MCQ-only assignments) also
         // marks per question and, for MCQs, the correct option. Assignments
         // only -- exam results stay Pass/Fail only.
         [HttpGet]
@@ -147,18 +150,43 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
                 return RedirectToAction("Index", "Classroom");
 
             var exam = await examRep.Get(attempt.ExamID);
-            if (exam == null || !exam.IsAssignment || !attempt.ResultReleasedDate.HasValue)
-            {
-                TempData["ErrorMessage"] = "Your answers can be viewed once your lecturer releases the marks.";
+            if (exam == null || !exam.IsAssignment)
                 return RedirectToAction("Result", "ExamAttempt", new { attemptId });
-            }
+            if (attempt.IsInProgress)
+                return RedirectToAction("Take", new { attemptId });
+
+            // Every submitted attempt can be opened. Marks, right/wrong and the
+            // correct options only show once the assignment's counting attempt
+            // is released -- before that a retry would just copy the key.
+            if (await OnlineAssignmentRules.TryAutoReleaseMcq(exam, student.StudentID, attemptRep, examRep, HttpContext.RequestServices))
+                attempt = await attemptRep.Get(attemptId) ?? attempt;
+            var history = (await attemptRep.ListForStudent(student.StudentID))
+                .Where(a => a.ExamID == exam.ExamID && a.Status != "Voided" && !a.IsInProgress)
+                .OrderBy(a => a.AttemptNumber).ToList();
+            var showKey = history.Any(a => a.ResultReleasedDate.HasValue);
 
             var answers = (await attemptRep.ListAnswers(attemptId)).OrderBy(a => a.SortOrder).ToList();
             ViewBag.CurrentUser = Auth.GetUser();
             ViewBag.Attempt = attempt;
             ViewBag.Exam = exam;
+            ViewBag.History = history;
+            ViewBag.ShowKey = showKey;
             ViewBag.OptionsByQuestion = await ExamAnswerOptions.ForMcq(answers, examRep);
             return View(answers);
+        }
+
+        private async Task<bool> AutoReleaseAll(string studentId, List<Exam> list)
+        {
+            var any = false;
+            var progress = await OnlineAssignmentRules.ProgressFor(studentId, list, attemptRep, examRep);
+            foreach (var e in list)
+            {
+                var p = progress.GetValueOrDefault(e.ExamID);
+                if (p != null && p.IsFinal && !p.Released &&
+                    await OnlineAssignmentRules.TryAutoReleaseMcq(e, studentId, attemptRep, examRep, HttpContext.RequestServices, p))
+                    any = true;
+            }
+            return any;
         }
 
         // 0125: the open assignment page pings every few seconds; one not seen

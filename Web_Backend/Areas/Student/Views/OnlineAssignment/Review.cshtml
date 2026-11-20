@@ -4,6 +4,9 @@
     var attempt = (ExamAttempt)ViewBag.Attempt;
     var exam = (Exam)ViewBag.Exam;
     var optionsByQuestion = ViewBag.OptionsByQuestion as Dictionary<string, List<ExamQuestionOption>> ?? new();
+    var history = ViewBag.History as List<ExamAttempt> ?? new();
+    var showKey = ViewBag.ShowKey as bool? ?? false;   // marks + correct options visible
+    var released = attempt.ResultReleasedDate.HasValue;
     var passed = attempt.Passed == true;
     var awarded = attempt.TotalMarksAwarded ?? 0;
     var pct = attempt.TotalMarks > 0 ? Math.Round(awarded / attempt.TotalMarks * 100) : 0;
@@ -21,19 +24,54 @@
         <i data-lucide="arrow-left" class="w-3.5 h-3.5"></i> Back to class
     </a>
 
+    @* Attempt switcher: every submitted attempt (latest counts) *@
+    @if (history.Count > 1)
+    {
+        <div class="flex items-center gap-2 flex-wrap" role="tablist" aria-label="Your attempts">
+            <span class="text-xs font-semibold text-slate-500 dark:text-slate-400 mr-1">Your attempts</span>
+            @foreach (var h in history)
+            {
+                var current = h.AttemptID == attempt.AttemptID;
+                var counts = h.AttemptID == history[^1].AttemptID;
+                <a asp-action="Review" asp-route-attemptId="@h.AttemptID" role="tab" aria-selected="@(current ? "true" : "false")"
+                   class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#7c3aed]/40 @(current ? "bg-[#7c3aed] border-[#7c3aed] text-white" : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:border-[#7c3aed] hover:text-[#7c3aed]")">
+                    Attempt @h.AttemptNumber
+                    @if (counts) { <span class="@(current ? "text-purple-100" : "text-slate-400") font-normal">&middot; counts</span> }
+                </a>
+            }
+        </div>
+    }
+
     @* Summary *@
     <div class="bg-white dark:bg-slate-900/60 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-700 p-6 flex items-center gap-5 flex-wrap">
-        <div class="w-20 h-20 rounded-full flex flex-col items-center justify-center flex-shrink-0 @(passed ? "bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300" : "bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-300")">
-            <span class="text-xl font-bold leading-none">@pct%</span>
-            <span class="text-[11px] font-semibold mt-1">@(passed ? "Pass" : "Fail")</span>
-        </div>
+        @if (showKey)
+        {
+            <div class="w-20 h-20 rounded-full flex flex-col items-center justify-center flex-shrink-0 @(released ? (passed ? "bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300" : "bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-300") : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300")">
+                <span class="text-xl font-bold leading-none">@pct%</span>
+                @if (released) { <span class="text-[11px] font-semibold mt-1">@(passed ? "Pass" : "Fail")</span> }
+            </div>
+        }
+        else
+        {
+            <div class="w-20 h-20 rounded-full flex items-center justify-center flex-shrink-0 bg-amber-50 dark:bg-amber-950 text-amber-600 dark:text-amber-300">
+                <i data-lucide="clock" class="w-8 h-8"></i>
+            </div>
+        }
         <div class="min-w-0 flex-1">
             <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wide bg-purple-50 dark:bg-purple-950 text-[#7c3aed] dark:text-purple-300">
-                <i data-lucide="notebook-pen" class="w-3 h-3"></i> Online assignment
+                <i data-lucide="notebook-pen" class="w-3 h-3"></i> Online assignment &middot; Attempt @attempt.AttemptNumber
             </span>
             <h1 class="text-xl font-bold text-slate-800 dark:text-slate-100 mt-1.5">@exam.ExamTitle</h1>
-            <p class="text-sm text-slate-600 dark:text-slate-300 mt-0.5"><b>@awarded.ToString("0.##")</b> of @attempt.TotalMarks.ToString("0.##") marks</p>
-            <p class="text-xs text-slate-400 mt-0.5">Released @attempt.ResultReleasedDate?.ToString("dd MMM yyyy, hh:mm tt")</p>
+            @if (showKey)
+            {
+                <p class="text-sm text-slate-600 dark:text-slate-300 mt-0.5"><b>@awarded.ToString("0.##")</b> of @attempt.TotalMarks.ToString("0.##") marks</p>
+                <p class="text-xs text-slate-400 mt-0.5">@(released ? "Released " + attempt.ResultReleasedDate?.ToString("dd MMM yyyy, hh:mm tt") : "Earlier attempt (for practice only). Your latest attempt is the one that counts.")</p>
+            }
+            else
+            {
+                <p class="text-sm text-slate-600 dark:text-slate-300 mt-0.5">Submitted @attempt.SubmittedDate?.ToString("dd MMM yyyy, hh:mm tt")</p>
+                <p class="text-xs text-slate-400 mt-0.5">Correct answers are shown below. Your total marks appear once they are released.</p>
+            }
         </div>
     </div>
 
@@ -53,9 +91,16 @@
         <div class="bg-white dark:bg-slate-900/60 rounded-[20px] shadow-sm border border-slate-100 dark:border-slate-700 p-6">
             <div class="flex items-center justify-between gap-2 mb-3">
                 <span class="text-xs font-semibold text-slate-500 dark:text-slate-400">Question @(i + 1) of @Model.Count</span>
+                @if (showKey || ans.IsMCQ)
+                {
                 <span class="px-2.5 py-1 rounded-full text-xs font-semibold @(full ? "bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300" : none ? "bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-300" : "bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-300")">
                     @((ans.MarksAwarded ?? 0).ToString("0.##")) / @ans.Marks.ToString("0.##") marks
                 </span>
+                }
+                else
+                {
+                <span class="px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400">@ans.Marks.ToString("0.##") marks</span>
+                }
             </div>
             <div class="katex-render text-sm font-medium leading-relaxed text-slate-800 dark:text-slate-100 mb-4" data-latex="@ans.QuestionTextLatex">@ans.QuestionTextLatex</div>
             @if (!string.IsNullOrEmpty(ans.ImageURL))

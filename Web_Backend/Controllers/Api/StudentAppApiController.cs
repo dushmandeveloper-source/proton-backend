@@ -395,6 +395,9 @@ namespace Web_Backend.Controllers.Api
                 await attemptRep.Submit(attemptId, request.Forced);
                 await ExamGraderNotifier.NotifyAsync(attempt, student, examRep, registrationRep,
                     HttpContext.RequestServices.GetRequiredService<NotificationService>());
+                var exam = await examRep.Get(attempt.ExamID);
+                if (exam?.IsAssignment == true) // MCQ-only + final -> release now
+                    await OnlineAssignmentRules.TryAutoReleaseMcq(exam, student.StudentID, attemptRep, examRep, HttpContext.RequestServices);
                 var after = await attemptRep.Get(attemptId);
                 return Ok(new { status = after?.Status ?? "Submitted" });
             }
@@ -412,6 +415,10 @@ namespace Web_Backend.Controllers.Api
             if (student == null) return Unauthorized();
             if (attempt == null) return NotFound(new { message = "Attempt not found." });
 
+            var resultExam = await examRep.Get(attempt.ExamID);
+            if (resultExam?.IsAssignment == true && !attempt.ResultReleasedDate.HasValue &&
+                await OnlineAssignmentRules.TryAutoReleaseMcq(resultExam, student.StudentID, attemptRep, examRep, HttpContext.RequestServices))
+                attempt = await attemptRep.Get(attemptId) ?? attempt;
             var released = attempt.ResultReleasedDate.HasValue;
             return Ok(new
             {
@@ -426,7 +433,7 @@ namespace Web_Backend.Controllers.Api
                 totalMarks = attempt.TotalMarks,
                 passed = released ? attempt.Passed : null,
                 // Online assignment: answers can be reviewed once released (GET .../review).
-                isAssignment = (await examRep.Get(attempt.ExamID))?.IsAssignment ?? false
+                isAssignment = resultExam?.IsAssignment ?? false
             });
         }
 

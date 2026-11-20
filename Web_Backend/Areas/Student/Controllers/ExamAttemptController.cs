@@ -265,6 +265,10 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
             // Online assignments (0117): released -> straight to the answers;
             // otherwise the same page, worded "assignment".
             var exam = await examRep.Get(attempt.ExamID);
+            // MCQ-only assignment whose attempt is now final: release at once.
+            if (exam?.IsAssignment == true && !attempt.ResultReleasedDate.HasValue &&
+                await OnlineAssignmentRules.TryAutoReleaseMcq(exam, student.StudentID, attemptRep, examRep, HttpContext.RequestServices))
+                attempt = await attemptRep.Get(attemptId) ?? attempt;
             if (exam?.IsAssignment == true && attempt.ResultReleasedDate.HasValue)
                 return RedirectToAction("Review", "OnlineAssignment", new { attemptId });
             ViewBag.IsAssignment = exam?.IsAssignment == true;

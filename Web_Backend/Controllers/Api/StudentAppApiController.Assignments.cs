@@ -19,6 +19,15 @@ namespace Web_Backend.Controllers.Api
             if (student == null) return Unauthorized();
 
             var (list, attempts) = await OnlineAssignmentRules.ForStudent(student, examRep, attemptRep, registrationRep, scheduleRep, recentDays: all ? 36500 : 7);
+            // MCQ-only assignments that became final (e.g. due date passed) release now.
+            var releasedAny = false;
+            var pre = await OnlineAssignmentRules.ProgressFor(student.StudentID, list, attemptRep, examRep);
+            foreach (var e in list)
+                if (pre.GetValueOrDefault(e.ExamID) is { IsFinal: true, Released: false } pe &&
+                    await OnlineAssignmentRules.TryAutoReleaseMcq(e, student.StudentID, attemptRep, examRep, HttpContext.RequestServices, pe))
+                    releasedAny = true;
+            if (releasedAny)
+                (list, attempts) = await OnlineAssignmentRules.ForStudent(student, examRep, attemptRep, registrationRep, scheduleRep, recentDays: all ? 36500 : 7);
             var redos = await OnlineAssignmentRules.RedosFor(student.StudentID, examRep);
             var batches = (await scheduleRep.GetList(new Areas.Admin.Models.CourseScheduleSearchView { IsActive = "A" }))
                 .ToDictionary(b => b.ScheduleID, b => b);
@@ -139,6 +148,7 @@ namespace Web_Backend.Controllers.Api
                 try { await examRep.SetAssignmentDone(p.Latest.AttemptID); }
                 catch (Exception ex) { return Conflict(new { message = CleanSqlMessage(ex.Message) }); }
             }
+            await OnlineAssignmentRules.TryAutoReleaseMcq(exam, student.StudentID, attemptRep, examRep, HttpContext.RequestServices);
             return Ok(new { attemptId = p.Latest.AttemptID, message = "Sent for marking." });
         }
     }

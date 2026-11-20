@@ -203,6 +203,42 @@ namespace Web_Backend.Areas.StudentPortal
             return redo != null && (!exam.DueDate.HasValue || redo.DueDate > exam.DueDate.Value) ? redo.DueDate : exam.DueDate;
         }
 
+        // MCQ-only assignments need no lecturer: once the latest attempt is
+        // final (no attempts left, "I'm done", or past due) and every question
+        // is an auto-marked MCQ, release it straight away. Called wherever the
+        // student lands after submitting/finishing, and lazily from the lists
+        // (covers "due date passed" with no request at that moment).
+        // Returns true when this call released it. Never throws.
+        public const string AutoReleaseUser = "SYSTEM";
+
+        public static async Task<bool> TryAutoReleaseMcq(Exam exam, string studentId, IExamAttemptData attemptRep,
+            IExamData examRep, IServiceProvider services, AssignmentProgress? progress = null)
+        {
+            try
+            {
+                if (!exam.IsAssignment) return false;
+                var p = progress ?? (await ProgressFor(studentId, new[] { exam }, attemptRep, examRep)).GetValueOrDefault(exam.ExamID);
+                if (p?.Latest == null || !p.IsFinal || p.Released) return false;
+
+                var attempt = await attemptRep.Get(p.Latest.AttemptID);
+                if (attempt == null || attempt.IsInProgress || attempt.ResultReleasedDate.HasValue || !attempt.IsFullyGraded) return false;
+                var answers = await attemptRep.ListAnswers(attempt.AttemptID);
+                if (answers.Count == 0 || answers.Any(a => !a.IsMCQ)) return false;
+
+                if (attempt.TeacherReviewStatus != "Approved")
+                    await attemptRep.TeacherApprove(attempt.AttemptID, AutoReleaseUser);
+                var released = await attemptRep.AdminApprove(attempt.AttemptID, AutoReleaseUser);
+                if (released != null)
+                    await ResultReleaseNotifier.NotifyAsync(released, studentId, services);
+                return true;
+            }
+            catch
+            {
+                // Lost a race with another request / a lecturer -- they released it.
+                return false;
+            }
+        }
+
         // Redo grants for one student, keyed by ExamID.
         public static async Task<Dictionary<string, AssignmentRedo>> RedosFor(string studentId, IExamData examRep) =>
             (await examRep.ListAssignmentRedos(null, studentId)).GroupBy(r => r.ExamID).ToDictionary(g => g.Key, g => g.First());

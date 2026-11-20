@@ -50,7 +50,7 @@
                 if (retry != null && retry.CanRetry && retry.Latest?.AttemptID == Model.AttemptID)
                 {
                     @* 0127: more attempts left -- try again or send for marking *@
-                    <p class="text-sm text-slate-600 dark:text-slate-300">Your attempt has been saved. Marks and correct answers appear only after your lecturer releases them.</p>
+                    <p class="text-sm text-slate-600 dark:text-slate-300">Your attempt has been saved. Tap “View my answers” to see which ones were right and the correct answers.</p>
                     <div class="mt-4 text-left"><partial name="_AssignmentRetry" model="retry" /></div>
                     <partial name="_ConfirmDialog" />
                 }
@@ -61,6 +61,13 @@
                 }
             }
 
+            @if (isAssignment)
+            {
+                <a asp-area="Student" asp-controller="OnlineAssignment" asp-action="Review" asp-route-attemptId="@Model.AttemptID"
+                   class="inline-flex items-center gap-2 mt-6 mr-2 px-5 py-2.5 rounded-xl font-medium text-sm border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:border-[#7c3aed] hover:text-[#7c3aed] transition-all">
+                    <i data-lucide="eye" class="w-4 h-4"></i> View my answers
+                </a>
+            }
             <a asp-area="Student" asp-controller="Dashboard" asp-action="Index"
                class="inline-flex items-center gap-2 mt-6 px-5 py-2.5 rounded-xl font-medium text-sm bg-[#7c3aed] text-white hover:bg-[#6d28d9] shadow-sm transition-all">
                 Back to Dashboard
