@@ -82,31 +82,13 @@
                             </p>
                             @if (rosterPayments.TryGetValue(student.StudentID, out var pay))
                             {
-                                <p class="text-xs mt-1 flex items-center gap-1.5 flex-wrap">
-                                    @if (pay.BalanceDue <= 0)
-                                    {
-                                        <span class="px-2 py-0.5 rounded-lg text-[11px] font-medium bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300">Fully paid</span>
-                                    }
-                                    else if (pay.HasPlan)
-                                    {
-                                        <span class="px-2 py-0.5 rounded-lg text-[11px] font-semibold bg-violet-50 dark:bg-violet-950 text-violet-700 dark:text-violet-300">Installments · @pay.InstallmentCount</span>
-                                        if (pay.DueNow > 0)
-                                        {
-                                            <span class="font-semibold @(pay.OverdueCount > 0 ? "text-red-600 dark:text-red-300" : "text-amber-600 dark:text-amber-300")">
-                                                @pay.CurrencyCode @pay.DueNow.ToString("N2") due now@(pay.OverdueCount > 0 ? $" · {pay.OverdueCount} overdue" : "")
-                                            </span>
-                                        }
-                                        else if (pay.NextDueDate.HasValue)
-                                        {
-                                            <span class="text-slate-500 dark:text-slate-400">Nothing due this month · next @pay.NextDueDate.Value.ToString("d MMM")</span>
-                                        }
-                                    }
-                                    else
-                                    {
-                                        <span class="px-2 py-0.5 rounded-lg text-[11px] font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">Full payment</span>
-                                        <span class="font-semibold text-amber-600 dark:text-amber-300">@pay.CurrencyCode @pay.BalanceDue.ToString("N2") due</span>
-                                    }
-                                </p>
+                                @* Lecturers see the payment status only -- no amounts, plan or dues. *@
+                                var (payLabel, payCls) = pay.BalanceDue <= 0
+                                    ? ("Paid", "bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300")
+                                    : pay.AmountPaid > 0
+                                        ? ("Partially paid", "bg-sky-50 dark:bg-sky-950 text-sky-700 dark:text-sky-300")
+                                        : ("Pending", "bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-300");
+                                <p class="text-xs mt-1"><span class="px-2 py-0.5 rounded-lg text-[11px] font-medium @payCls">@payLabel</span></p>
                             }
                         </div>
 
