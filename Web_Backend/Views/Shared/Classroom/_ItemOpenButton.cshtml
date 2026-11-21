@@ -11,6 +11,10 @@
 {
     <button type="button" data-url="@url" onclick="openCourseVideoPreview(this.dataset.url)" class="@btn"><i data-lucide="play" class="w-3.5 h-3.5"></i> Play</button>
 }
+else if (Model.FileType == "Audio")
+{
+    <audio controls preload="none" src="@url" class="h-9 w-60 max-w-full rounded-full"></audio>
+}
 else if (Model.IsLink)
 {
     <a href="@url" target="_blank" rel="noopener noreferrer" class="@btn"><i data-lucide="external-link" class="w-3.5 h-3.5"></i> Open</a>

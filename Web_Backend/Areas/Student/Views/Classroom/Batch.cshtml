@@ -150,6 +150,7 @@
                                                 </div>
                                                 <a href="@submission.FileURL" target="_blank" rel="noopener" class="text-xs font-medium text-[#7c3aed] hover:underline inline-flex items-center gap-1"><i data-lucide="external-link" class="w-3.5 h-3.5"></i> My submission</a>
                                             </div>
+                                            @await Html.PartialAsync("~/Views/Shared/Classroom/_AudioAnswer.cshtml", submission.FileURL)
                                             @if (!string.IsNullOrEmpty(submission.ResubmissionRemark))
                                             {
                                                 <p class="text-xs text-orange-700 dark:text-orange-300 bg-orange-50 dark:bg-orange-950/50 rounded-lg px-3 py-2">@submission.ResubmissionRemark</p>
@@ -166,15 +167,18 @@
 
                                         @if (canSubmit)
                                         {
-                                            <form asp-controller="Homework" asp-action="Submit" method="post" enctype="multipart/form-data" class="flex items-center gap-2">
+                                            <form asp-controller="Homework" asp-action="Submit" method="post" enctype="multipart/form-data" class="flex flex-wrap items-center gap-2">
                                                 @Html.AntiForgeryToken()
                                                 <input type="hidden" name="materialId" value="@m.MaterialID" />
                                                 <input type="hidden" name="returnUrl" value="@returnUrl" />
-                                                <label class="flex-1 flex items-center gap-2 px-3 py-2 rounded-xl border border-dashed border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-xs text-slate-500 dark:text-slate-400 cursor-pointer hover:border-[#7c3aed]/50">
+                                                <label class="flex-1 min-w-[12rem] flex items-center gap-2 px-3 py-2 rounded-xl border border-dashed border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-xs text-slate-500 dark:text-slate-400 cursor-pointer hover:border-[#7c3aed]/50">
                                                     <i data-lucide="paperclip" class="w-4 h-4 flex-shrink-0"></i>
-                                                    <span class="file-label truncate">Choose your answer file&hellip;</span>
+                                                    <span class="file-label truncate">Choose a file, or record your voice&hellip;</span>
                                                     <input type="file" name="file" required class="hidden" onchange="this.closest('label').querySelector('.file-label').textContent = this.files[0]?.name || 'Choose your answer file…'" />
                                                 </label>
+                                                <button type="button" data-record-audio aria-pressed="false" title="Record a voice answer" class="px-3 py-2 rounded-xl font-medium text-xs border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 hover:border-[#7c3aed]/50 hover:text-[#7c3aed] [&.is-recording]:bg-red-50 [&.is-recording]:text-red-600 [&.is-recording]:border-red-300 dark:[&.is-recording]:bg-red-950 dark:[&.is-recording]:text-red-300 transition-colors flex-shrink-0 inline-flex items-center gap-1.5">
+                                                    <i data-lucide="mic" class="w-3.5 h-3.5"></i> Record
+                                                </button>
                                                 <button type="submit" class="px-4 py-2 rounded-xl font-medium text-xs bg-[#7c3aed] text-white hover:bg-[#6d28d9] flex-shrink-0 inline-flex items-center gap-1.5">
                                                     <i data-lucide="upload" class="w-3.5 h-3.5"></i> @(submission == null ? "Submit" : "Resubmit")
                                                 </button>
@@ -197,3 +201,4 @@
 
 @await Html.PartialAsync("_CourseVideoPlayer")
 @await Html.PartialAsync("_MaterialPreviewModal")
+<script src="~/js/audio-answer.js" asp-append-version="true" defer></script>

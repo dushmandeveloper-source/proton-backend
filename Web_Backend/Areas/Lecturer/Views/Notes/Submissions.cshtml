@@ -67,6 +67,8 @@
                         </div>
                     </div>
 
+                    @await Html.PartialAsync("~/Views/Shared/Classroom/_AudioAnswer.cshtml", s.FileURL)
+
                     <form asp-action="Grade" method="post" class="grid grid-cols-1 sm:grid-cols-[100px_1fr_auto] gap-3 items-end">
                         @Html.AntiForgeryToken()
                         <input type="hidden" name="submissionId" value="@s.SubmissionID" />

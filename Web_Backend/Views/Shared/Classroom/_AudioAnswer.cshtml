@@ -1,0 +1,10 @@
+@model string
+@* Inline player for a homework answer that is an audio file / voice recording.
+   Renders nothing for any other file type. *@
+@if (Web_Backend.Classes.MediaTypes.IsAudioUrl(Model))
+{
+    <div class="flex items-center gap-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-700 px-3 py-2">
+        <i data-lucide="mic" class="w-4 h-4 text-[#7c3aed] flex-shrink-0"></i>
+        <audio controls preload="none" src="@Model" class="h-9 w-full"></audio>
+    </div>
+}

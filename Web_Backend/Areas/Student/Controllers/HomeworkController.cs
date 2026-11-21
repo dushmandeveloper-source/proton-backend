@@ -16,11 +16,7 @@ namespace Web_Backend.Areas.StudentPortal.Controllers
     public class HomeworkController : Controller
     {
         internal const string SubmissionFolder = "HomeworkSubmissions";
-        internal static readonly string[] AllowedExtensions =
-        {
-            ".pdf", ".doc", ".docx", ".ppt", ".pptx", ".xls", ".xlsx",
-            ".jpg", ".jpeg", ".png", ".gif", ".svg", ".webp", ".mp4", ".mov", ".webm"
-        };
+        internal static readonly string[] AllowedExtensions = MediaTypes.MaterialExtensions;
         internal const long MaxBytes = 100 * 1024 * 1024;
 
         private readonly IStudentData studentRep;

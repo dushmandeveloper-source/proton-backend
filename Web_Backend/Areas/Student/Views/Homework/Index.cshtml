@@ -60,7 +60,7 @@
                         <div class="flex items-start justify-between gap-4 flex-wrap">
                             <div class="flex items-center gap-3 min-w-0">
                                 <div class="p-2.5 rounded-xl bg-amber-50 dark:bg-amber-950 flex-shrink-0">
-                                    <i data-lucide="@(m.FileType == "Video" ? "video" : m.FileType == "Image" ? "image" : "file-text")" class="w-4 h-4 text-amber-600 dark:text-amber-300"></i>
+                                    <i data-lucide="@(m.FileType == "Video" ? "video" : m.FileType == "Audio" ? "music" : m.FileType == "Image" ? "image" : "file-text")" class="w-4 h-4 text-amber-600 dark:text-amber-300"></i>
                                 </div>
                                 <div class="min-w-0">
                                     <div class="flex items-center gap-2 flex-wrap">
@@ -73,7 +73,11 @@
                                 </div>
                             </div>
                             <div class="flex items-center gap-2 flex-shrink-0">
-                                @if (m.FileType == "Video")
+                                @if (m.FileType == "Audio")
+                                {
+                                    <audio controls preload="none" src="@m.FileURL" class="h-9 w-60 max-w-full rounded-full"></audio>
+                                }
+                                else if (m.FileType == "Video")
                                 {
                                     <button type="button" onclick="openCourseVideoPreview('@m.FileURL')"
                                             class="px-3 py-1.5 rounded-lg font-medium text-xs bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
@@ -134,6 +138,7 @@
                                         <i data-lucide="external-link" class="w-3.5 h-3.5"></i> My submission
                                     </a>
                                 </div>
+                                @await Html.PartialAsync("~/Views/Shared/Classroom/_AudioAnswer.cshtml", submission.FileURL)
 
                                 @if (!string.IsNullOrEmpty(submission.ResubmissionRemark))
                                 {
@@ -147,14 +152,17 @@
 
                             @if (canSubmit)
                             {
-                                <form asp-action="Submit" method="post" enctype="multipart/form-data" class="flex items-center gap-2">
+                                <form asp-action="Submit" method="post" enctype="multipart/form-data" class="flex flex-wrap items-center gap-2">
                                     @Html.AntiForgeryToken()
                                     <input type="hidden" name="materialId" value="@m.MaterialID" />
-                                    <label class="flex-1 flex items-center gap-2 px-3 py-2 rounded-xl border border-dashed border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-xs text-slate-500 dark:text-slate-400 cursor-pointer hover:border-[#7c3aed]/50 transition-colors">
+                                    <label class="flex-1 min-w-[12rem] flex items-center gap-2 px-3 py-2 rounded-xl border border-dashed border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-xs text-slate-500 dark:text-slate-400 cursor-pointer hover:border-[#7c3aed]/50 transition-colors">
                                         <i data-lucide="paperclip" class="w-4 h-4 flex-shrink-0"></i>
-                                        <span class="file-label truncate">Choose your answer file&hellip;</span>
+                                        <span class="file-label truncate">Choose a file, or record your voice&hellip;</span>
                                         <input type="file" name="file" required class="hidden" onchange="this.closest('label').querySelector('.file-label').textContent = this.files[0]?.name || 'Choose your answer file…'" />
                                     </label>
+                                    <button type="button" data-record-audio aria-pressed="false" title="Record a voice answer" class="px-3 py-2 rounded-xl font-medium text-xs border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 hover:border-[#7c3aed]/50 hover:text-[#7c3aed] [&.is-recording]:bg-red-50 [&.is-recording]:text-red-600 [&.is-recording]:border-red-300 dark:[&.is-recording]:bg-red-950 dark:[&.is-recording]:text-red-300 transition-colors flex-shrink-0 inline-flex items-center gap-1.5">
+                                        <i data-lucide="mic" class="w-3.5 h-3.5"></i> Record
+                                    </button>
                                     <button type="submit" class="px-4 py-2 rounded-xl font-medium text-xs bg-[#7c3aed] text-white hover:bg-[#6d28d9] transition-colors flex-shrink-0 inline-flex items-center gap-1.5">
                                         <i data-lucide="upload" class="w-3.5 h-3.5"></i> @(submission == null ? "Submit Answer" : "Resubmit")
                                     </button>
@@ -176,3 +184,4 @@
 
 @await Html.PartialAsync("_CourseVideoPlayer")
 @await Html.PartialAsync("_MaterialPreviewModal")
+<script src="~/js/audio-answer.js" asp-append-version="true" defer></script>

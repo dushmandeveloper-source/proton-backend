@@ -15,11 +15,7 @@ namespace Web_Backend.Classes
     public abstract class ClassroomStaffController : Controller
     {
         private const string UploadFolder = "LectureNotes";
-        private static readonly string[] AllowedExtensions =
-        {
-            ".pdf", ".doc", ".docx", ".ppt", ".pptx", ".xls", ".xlsx",
-            ".jpg", ".jpeg", ".png", ".gif", ".svg", ".webp", ".mp4", ".mov", ".webm"
-        };
+        private static readonly string[] AllowedExtensions = MediaTypes.MaterialExtensions;
         private const long MaxBytes = 100 * 1024 * 1024;
         private static readonly string[] Categories = { "LectureNote", "Homework", "Assignment", "Video" };
 
@@ -235,12 +231,7 @@ namespace Web_Backend.Classes
                         return back;
                     }
                     fileUrl = saved;
-                    fileType = Path.GetExtension(file!.FileName).ToLowerInvariant() switch
-                    {
-                        ".jpg" or ".jpeg" or ".png" or ".webp" or ".gif" or ".svg" => "Image",
-                        ".mp4" or ".mov" or ".webm" => "Video",
-                        _ => "Document"
-                    };
+                    fileType = MediaTypes.Classify(file!.FileName);
                 }
 
                 await materialRep.AddEdit(new LectureMaterial

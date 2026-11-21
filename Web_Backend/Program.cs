@@ -228,6 +228,7 @@ app.UseResponseCompression(); // must come before UseStaticFiles
 // change rarely and are versioned with asp-append-version where it matters.
 app.UseStaticFiles(new StaticFileOptions
 {
+    ContentTypeProvider = MediaTypes.ContentTypes(),
     OnPrepareResponse = ctx =>
     {
         var path = ctx.Context.Request.Path.Value ?? "";
@@ -254,6 +255,7 @@ if (uploadPaths.IsCustom)
     {
         FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(uploadPaths.Root),
         RequestPath = "/Uploads",
+        ContentTypeProvider = MediaTypes.ContentTypes(),
         ServeUnknownFileTypes = false,
         OnPrepareResponse = ctx =>
         {

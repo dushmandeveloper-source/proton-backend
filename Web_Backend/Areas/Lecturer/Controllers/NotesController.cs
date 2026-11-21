@@ -18,11 +18,7 @@ namespace Web_Backend.Areas.LecturerPortal.Controllers
 
         // Section F: .pdf .doc .docx .ppt .pptx .xls .xlsx .jpg .jpeg .png
         // .gif .svg .webp .mp4 .mov .webm, 100 MB cap.
-        private static readonly string[] AllowedExtensions =
-        {
-            ".pdf", ".doc", ".docx", ".ppt", ".pptx", ".xls", ".xlsx",
-            ".jpg", ".jpeg", ".png", ".gif", ".svg", ".webp", ".mp4", ".mov", ".webm"
-        };
+        private static readonly string[] AllowedExtensions = MediaTypes.MaterialExtensions;
         private const long MaxBytes = 100 * 1024 * 1024;
 
         private readonly ICourseScheduleData scheduleRep;
@@ -112,13 +108,7 @@ namespace Web_Backend.Areas.LecturerPortal.Controllers
                     return View(form);
                 }
 
-                var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
-                var fileType = ext switch
-                {
-                    ".jpg" or ".jpeg" or ".png" or ".webp" => "Image",
-                    ".mp4" or ".mov" or ".webm" => "Video",
-                    _ => "Document"
-                };
+                var fileType = MediaTypes.Classify(file.FileName);
 
                 await materialRep.AddEdit(new LectureMaterial
                 {

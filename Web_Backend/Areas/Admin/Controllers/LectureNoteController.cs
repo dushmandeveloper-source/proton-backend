@@ -14,11 +14,7 @@ namespace Web_Backend.Areas.Admin.Controllers
     public class LectureNoteController : Controller
     {
         private const string UploadFolder = "LectureNotes";
-        private static readonly string[] AllowedExtensions =
-        {
-            ".pdf", ".doc", ".docx", ".ppt", ".pptx", ".xls", ".xlsx",
-            ".jpg", ".jpeg", ".png", ".gif", ".svg", ".webp", ".mp4", ".mov", ".webm"
-        };
+        private static readonly string[] AllowedExtensions = MediaTypes.MaterialExtensions;
         private const long MaxBytes = 100 * 1024 * 1024;
 
         private readonly ILectureMaterialData materialRep;
@@ -68,13 +64,7 @@ namespace Web_Backend.Areas.Admin.Controllers
                     return RedirectToAction("Index");
                 }
 
-                var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
-                var fileType = ext switch
-                {
-                    ".jpg" or ".jpeg" or ".png" or ".webp" => "Image",
-                    ".mp4" or ".mov" or ".webm" => "Video",
-                    _ => "Document"
-                };
+                var fileType = MediaTypes.Classify(file.FileName);
 
                 await materialRep.AddEdit(new LectureMaterial
                 {
