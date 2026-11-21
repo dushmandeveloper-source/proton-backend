@@ -10,6 +10,7 @@
     {
         (Key: "LectureNote", Label: "Lecture Notes", Icon: "file-text", Tone: "purple"),
         (Key: "Video", Label: "Videos", Icon: "play-circle", Tone: "sky"),
+        (Key: "Audio", Label: "Audio", Icon: "headphones", Tone: "emerald"),
         (Key: "Homework", Label: "Homework", Icon: "clipboard-check", Tone: "amber"),
         (Key: "Assignment", Label: "Assignments", Icon: "clipboard-list", Tone: "rose"),
     };
@@ -240,7 +241,16 @@
                                 <label class="inline-flex items-center gap-1.5"><input type="radio" name="sourceType" value="Link" /> Link (YouTube / Drive / Zoom recording&hellip;)</label>
                                 <label class="inline-flex items-center gap-1.5 ml-auto"><input type="checkbox" name="allowDownload" value="true" checked /> Allow download</label>
                             </div>
-                            <input type="file" name="file" class="classroom-file md:col-span-2 text-xs" title="Documents, images, video or audio (MP3/M4A/WAV/OGG/AAC), max 100 MB" />
+                            <div class="classroom-file md:col-span-2 flex flex-wrap items-center gap-3">
+                                <input type="file" name="file" class="text-xs" title="Documents, images, video or audio (MP3/M4A/WAV/OGG/AAC), max 100 MB" />
+                                <span class="classroom-record hidden items-center gap-2">
+                                    <span class="text-xs text-slate-400">or</span>
+                                    <button type="button" data-record-audio data-file-name="recording" aria-pressed="false" title="Record audio with your microphone" class="px-3 py-1.5 rounded-xl font-medium text-xs border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 hover:border-[#7c3aed]/50 hover:text-[#7c3aed] [&.is-recording]:bg-red-50 [&.is-recording]:text-red-600 [&.is-recording]:border-red-300 dark:[&.is-recording]:bg-red-950 dark:[&.is-recording]:text-red-300 transition-colors inline-flex items-center gap-1.5">
+                                        <i data-lucide="mic" class="w-3.5 h-3.5"></i> Record
+                                    </button>
+                                </span>
+                                <span class="file-label classroom-record-hint hidden text-xs text-slate-500 dark:text-slate-400">MP3, M4A, WAV, OGG or AAC &middot; max 100 MB</span>
+                            </div>
                             <input type="url" name="linkUrl" placeholder="https://..." class="classroom-link hidden md:col-span-2 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 text-sm" />
 
                             <div class="md:col-span-2">
@@ -344,6 +354,7 @@
 
 @await Html.PartialAsync("_CourseVideoPlayer")
 @await Html.PartialAsync("_MaterialPreviewModal")
+<script src="~/js/audio-answer.js" asp-append-version="true" defer></script>
 
 <script>
     (function () {
@@ -356,6 +367,11 @@
             const cat = form.querySelector('input[name=category]:checked')?.value;
             submitFields.classList.toggle('hidden', !(cat === 'Homework' || cat === 'Assignment'));
             const isLink = form.querySelector('input[name=sourceType]:checked')?.value === 'Link';
+            const isAudio = cat === 'Audio';
+            const picker = form.querySelector('input[type=file][name=file]');
+            picker.accept = isAudio ? 'audio/*,.mp3,.m4a,.wav,.ogg,.opus,.aac' : '';
+            form.querySelectorAll('.classroom-record, .classroom-record-hint').forEach(el => { el.classList.toggle('hidden', !isAudio); el.classList.toggle('inline-flex', isAudio); });
+            if (!isAudio) form.parentElement.querySelectorAll('.voice-preview').forEach(a => a.remove());
             fileInput.classList.toggle('hidden', isLink);
             linkInput.classList.toggle('hidden', !isLink);
             linkInput.required = isLink;

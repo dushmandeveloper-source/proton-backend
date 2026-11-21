@@ -1,4 +1,4 @@
-// Voice answers for homework/assignments. Any <button data-record-audio>
+// Voice recordings: student homework answers and staff Classroom "Audio" items. Any <button data-record-audio>
 // inside a submit form records from the microphone; on stop the recording is
 // placed into that form's <input type=file name=file>, so it submits exactly
 // like a chosen file (HomeworkController.Submit, same type/size checks).
@@ -50,19 +50,19 @@
             var type = recorder.mimeType || mime || 'audio/webm';
             var blob = new Blob(chunks, { type: type });
             var seconds = recorder._seconds || 0;
-            var file = new File([blob], 'voice-answer' + extFor(type), { type: type.split(';')[0] });
+            var file = new File([blob], (btn.dataset.fileName || 'voice-answer') + extFor(type), { type: type.split(';')[0] });
             var input = form.querySelector('input[type=file][name=file]');
             var dt = new DataTransfer();
             dt.items.add(file);
             input.files = dt.files;
-            setLabel(form, '🎙 Voice answer (' + fmt(seconds) + ') — ready to submit');
+            setLabel(form, '🎙 Recording (' + fmt(seconds) + ') — ready to submit');
 
             var preview = form.parentElement.querySelector('.voice-preview');
             if (!preview) {
                 preview = document.createElement('audio');
                 preview.controls = true;
-                preview.className = 'voice-preview h-9 w-full mt-2';
-                form.insertAdjacentElement('afterend', preview);
+                preview.className = 'voice-preview h-9 w-full mt-2 md:col-span-2';
+                (btn.closest('.classroom-file') || form).insertAdjacentElement('afterend', preview);
             }
             if (preview.src) URL.revokeObjectURL(preview.src);
             preview.src = URL.createObjectURL(blob);
@@ -100,6 +100,8 @@
     document.addEventListener('change', function (e) {
         if (e.target.matches('input[type=file][name=file]')) {
             var p = e.target.form && e.target.form.parentElement.querySelector('.voice-preview');
+            var r = e.target.form && e.target.form.querySelector('.voice-preview');
+            if (r) r.remove();
             if (p) p.remove();
         }
     });

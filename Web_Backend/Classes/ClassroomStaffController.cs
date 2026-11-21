@@ -17,7 +17,7 @@ namespace Web_Backend.Classes
         private const string UploadFolder = "LectureNotes";
         private static readonly string[] AllowedExtensions = MediaTypes.MaterialExtensions;
         private const long MaxBytes = 100 * 1024 * 1024;
-        private static readonly string[] Categories = { "LectureNote", "Homework", "Assignment", "Video" };
+        private static readonly string[] Categories = { "LectureNote", "Homework", "Assignment", "Video", "Audio" };
 
         protected readonly ICourseScheduleData scheduleRep;
         protected readonly IBatchModuleData moduleRep;
